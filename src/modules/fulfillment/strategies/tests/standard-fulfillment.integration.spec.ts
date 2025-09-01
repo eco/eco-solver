@@ -4,9 +4,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import RedisMock from 'ioredis-mock';
 import { Address, Hex } from 'viem';
 
+import { toUniversalAddress } from '@/common/types/universal-address.type';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { BlockchainConfigService } from '@/modules/config/services/blockchain-config.service';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
@@ -50,42 +53,66 @@ const createMockTokenConfigService = () => ({
       address: tokenAddress as Address,
     };
   }),
+  getSupportedTokens: jest.fn().mockImplementation((chainId: number) => {
+    // Return test token addresses that we use in tests - with proper padding to match UniversalAddress format
+    return [
+      { address: '0x00000000000000000000000000000002f050fe938943acc45f65568000000000' as Address },
+      // Return additional addresses for large test
+      ...Array.from({ length: 199 }, (_, i) => ({
+        address: ('0x' +
+          (1000000000000000000000000000000000000000n + BigInt(i + 1))
+            .toString(16)
+            .padStart(40, '0')) as Address,
+      })),
+    ];
+  }),
 });
 
 // Mock factories for services
-const createMockBlockchainReader = () => ({
-  getSupportedChains: jest.fn().mockReturnValue([1, 10, 137, 42161]),
-  isChainSupported: jest.fn().mockImplementation((chainId) => {
-    // Return false for test chains (999, 99999, 88888) used to simulate unsupported chains
-    const unsupportedChains = [999, 99999, 88888];
-    return !unsupportedChains.includes(Number(chainId));
-  }),
-  getReaderForChain: jest.fn().mockResolvedValue({
+const createMockBlockchainReader = () => {
+  const mockReader = {
     getBalance: jest.fn().mockResolvedValue(BigInt('10000000000000000000')), // 10 ETH
     getTokenBalance: jest.fn().mockResolvedValue(BigInt('10000000000000000000')),
-  }),
-  getBalance: jest.fn().mockResolvedValue(BigInt('10000000000000000000')), // 10 ETH
-  getTokenBalance: jest.fn().mockResolvedValue(BigInt('10000000000000000000')),
-  isAddressValid: jest.fn().mockReturnValue(true),
-  isIntentFunded: jest.fn().mockResolvedValue(true),
-  fetchProverFee: jest.fn().mockResolvedValue(BigInt('1000000000000000')), // 0.001 ETH
-});
+  };
 
-const createMockBlockchainExecutor = () => ({
-  getSupportedChains: jest.fn().mockReturnValue([1, 10, 137, 42161]),
-  isChainSupported: jest.fn().mockImplementation((chainId) => {
-    // Return false for test chains (999, 99999, 88888) used to simulate unsupported chains
-    const unsupportedChains = [999, 99999, 88888];
-    return !unsupportedChains.includes(Number(chainId));
-  }),
-  getExecutorForChain: jest.fn().mockResolvedValue({
+  return {
+    getSupportedChains: jest.fn().mockReturnValue([1, 10, 137, 42161]),
+    isChainSupported: jest.fn().mockImplementation((chainId) => {
+      // Return false for test chains (999, 99999, 88888) used to simulate unsupported chains
+      const unsupportedChains = [999, 99999, 88888];
+      return !unsupportedChains.includes(Number(chainId));
+    }),
+    getReaderForChain: jest.fn().mockReturnValue(mockReader), // Return synchronously
+    getBalance: jest.fn().mockResolvedValue(BigInt('10000000000000000000')), // 10 ETH
+    getTokenBalance: jest.fn().mockResolvedValue(BigInt('10000000000000000000')),
+    // isAddressValid: jest.fn().mockReturnValue(true), // Method doesn't exist in current implementation
+    isIntentFunded: jest.fn().mockResolvedValue(true),
+    fetchProverFee: jest.fn().mockResolvedValue(BigInt('1000000000000000')), // 0.001 ETH
+  };
+};
+
+const createMockBlockchainExecutor = () => {
+  const mockExecutor = {
     getWalletAddress: jest
       .fn()
       .mockResolvedValue('0x1234567890123456789012345678901234567890' as Address),
     executeIntent: jest.fn().mockResolvedValue(undefined),
-  }),
-  executeIntent: jest.fn().mockResolvedValue(undefined),
-});
+  };
+
+  return {
+    getSupportedChains: jest.fn().mockReturnValue([1, 10, 137, 42161]),
+    isChainSupported: jest.fn().mockImplementation((chainId) => {
+      // Return false for test chains (999, 99999, 88888) used to simulate unsupported chains
+      const unsupportedChains = [999, 99999, 88888];
+      return !unsupportedChains.includes(Number(chainId));
+    }),
+    getExecutorForChain: jest.fn().mockReturnValue(mockExecutor), // Return synchronously
+    executeIntent: jest.fn().mockResolvedValue(undefined),
+    getWalletAddress: jest
+      .fn()
+      .mockResolvedValue('0x1234567890123456789012345678901234567890' as Address),
+  };
+};
 
 const createMockProverService = () => ({
   onModuleInit: jest.fn(),
@@ -223,6 +250,24 @@ const createMockFulfillmentConfigService = () => ({
   }),
 });
 
+// Mock BlockchainConfigService
+const createMockBlockchainConfigService = () => ({
+  getFeeLogic: jest.fn().mockImplementation((chainId) => {
+    return {
+      tokens: {
+        flatFee: '0.001', // 0.001 ETH as string (18 decimal places)
+        scalarBps: 10, // 0.1%
+      },
+      native: {
+        flatFee: '0.001', // 0.001 ETH as string (18 decimal places) 
+        scalarBps: 10, // 0.1%
+      },
+    };
+  }),
+  getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890' as Address),
+  isChainSupported: jest.fn().mockReturnValue(true),
+});
+
 // Mock EvmConfigService
 const createMockEvmConfigService = () => ({
   get: jest.fn().mockImplementation((path?: string) => {
@@ -271,9 +316,9 @@ const createMockEvmConfigService = () => ({
   }),
   isTokenSupported: jest.fn().mockReturnValue(true),
   getSupportedTokens: jest.fn().mockImplementation((_chainId: number) => {
-    // Return test token addresses that we use in tests
+    // Return test token addresses that we use in tests - with proper padding to match UniversalAddress format
     return [
-      { address: '0x00000002f050fe938943acc45f65568000000000' as Address },
+      { address: '0x00000000000000000000000000000002f050fe938943acc45f65568000000000' as Address },
       // Return additional addresses for large test
       ...Array.from({ length: 199 }, (_, i) => ({
         address: ('0x' +
@@ -290,31 +335,31 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
   // Create base intent with sufficient reward tokens to pass fee validation
   const baseIntent = createMockIntent({
     reward: {
-      prover: '0x1234567890123456789012345678901234567890' as Address,
-      creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      prover: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+      creator: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
       deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
       nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
       tokens: [
         {
           amount: BigInt('5000000000000000000'), // 5 tokens (enough to cover fees with new lower rates)
-          token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+          token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
         },
       ],
     },
     route: {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
-      portal: '0x9876543210987654321098765432109876543210' as Address,
+      portal: toUniversalAddress('0x0000000000000000000000009876543210987654321098765432109876543210'),
       nativeAmount: 0n,
       tokens: [
         {
           amount: BigInt('100000000000000000'), // 0.1 ETH worth of tokens
-          token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+          token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
         },
       ],
       calls: [
         {
-          target: '0x00000002f050fe938943acc45f65568000000000' as Address, // Use default token address from createMockIntent
+          target: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'), // Use default token address from createMockIntent
           value: 0n,
           data: '0xa9059cbb000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd00000000000000000000000000000000000000000000000000000000000186a0' as Hex, // ERC20 transfer call
         },
@@ -336,11 +381,11 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt(100),
-                  token: '0x1234567890123456789012345678901234567890' as Address,
+                  token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
                 },
                 {
                   amount: BigInt(200),
-                  token: '0x1234567890123456789012345678901234567890' as Address,
+                  token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
                 }, // Duplicate
               ],
             },
@@ -354,7 +399,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
             route: {
               ...baseIntent.route,
               tokens: [
-                { amount: BigInt(100), token: '0xinvalid' as Address }, // Invalid address
+                { amount: BigInt(100), token: toUniversalAddress('0x000000000000000000000000000000000000000000000000000000696e76616c') }, // Invalid address (spells "inval")
               ],
             },
           };
@@ -368,7 +413,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               ...baseIntent.route,
               calls: [
                 {
-                  target: '0xinvalid' as Address, // Invalid address
+                  target: toUniversalAddress('0x000000000000000000000000000000000000000000000000000000696e76616c'), // Invalid address (spells "inval")
                   value: BigInt(0),
                   data: '0x' as Hex,
                 },
@@ -387,7 +432,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt('10000000000000000000'), // 10 tokens - exceeds 1 ETH limit
-                  token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+                  token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
                 },
               ],
             },
@@ -424,7 +469,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
             ...baseIntent,
             route: {
               ...baseIntent.route,
-              portal: '0xUnsupportedProver123456789012345678901234' as Address,
+              portal: toUniversalAddress('0x000000000000000000556e737570706f7274656450726f766572313233343536'),
             },
           };
 
@@ -438,7 +483,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt('100000000000000000000'),
-                  token: '0x1234567890123456789012345678901234567890' as Address,
+                  token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
                 }, // 100 tokens - exceeds balance
               ],
             },
@@ -477,6 +522,7 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
   let mockLogger: jest.Mocked<SystemLoggerService>;
   let mockOtelService: jest.Mocked<OpenTelemetryService>;
   let mockFulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
+  let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let mockEvmConfigService: jest.Mocked<EvmConfigService>;
   let mockTokenConfigService: jest.Mocked<TokenConfigService>;
 
@@ -512,6 +558,8 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     queueService = createMockQueueService() as unknown as jest.Mocked<QueueService>;
     mockFulfillmentConfigService =
       createMockFulfillmentConfigService() as unknown as jest.Mocked<FulfillmentConfigService>;
+    mockBlockchainConfigService =
+      createMockBlockchainConfigService() as unknown as jest.Mocked<BlockchainConfigService>;
     mockEvmConfigService = createMockEvmConfigService() as unknown as jest.Mocked<EvmConfigService>;
     mockTokenConfigService =
       createMockTokenConfigService() as unknown as jest.Mocked<TokenConfigService>;
@@ -554,6 +602,10 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         {
           provide: FulfillmentConfigService,
           useValue: mockFulfillmentConfigService,
+        },
+        {
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
         },
         {
           provide: EvmConfigService,
@@ -663,7 +715,7 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     describe('RouteTokenValidation', () => {
       it('should pass when all token addresses are valid', async () => {
         const intent = createIntentForValidation('route-token', true);
-        mockBlockchainReader.isAddressValid.mockReturnValue(true);
+        // mockBlockchainReader.isAddressValid.mockReturnValue(true); // Method doesn't exist
 
         await expect(standardStrategy.validate(intent)).resolves.toBe(true);
       });
@@ -680,14 +732,14 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     describe('RouteCallsValidation', () => {
       it('should pass when all call targets are valid', async () => {
         const intent = createIntentForValidation('route-calls', true);
-        mockBlockchainReader.isAddressValid.mockReturnValue(true);
+        // mockBlockchainReader.isAddressValid.mockReturnValue(true); // Method doesn't exist
 
         await expect(standardStrategy.validate(intent)).resolves.toBe(true);
       });
 
       it('should fail when call targets are invalid', async () => {
         const intent = createIntentForValidation('route-calls', false);
-        mockBlockchainReader.isAddressValid.mockReturnValue(false);
+        // mockBlockchainReader.isAddressValid.mockReturnValue(false); // Method doesn't exist
 
         await expect(standardStrategy.validate(intent)).rejects.toThrow(Error);
         await expect(standardStrategy.validate(intent)).rejects.toThrowError(
@@ -854,12 +906,12 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         } as any,
         route: {
           tokens: [
-            { amount: BigInt(100), token: '0xinvalid' as Address }, // Invalid
+            { amount: BigInt(100), token: toUniversalAddress('0x000000000000000000000000000000000000000000000000000000696e76616c') }, // Invalid
           ],
         } as any,
       });
 
-      mockBlockchainReader.isAddressValid.mockReturnValue(false);
+      // mockBlockchainReader.isAddressValid.mockReturnValue(false); // Method doesn't exist
 
       await expect(standardStrategy.validate(intent)).rejects.toThrow(AggregatedValidationError);
       // Should contain multiple validation error messages
@@ -936,14 +988,14 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         createMockIntent({
           intentHash: `0x${Math.random().toString(16).substr(2, 64)}` as Hex,
           reward: {
-            prover: '0x1234567890123456789012345678901234567890' as Address,
-            creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+            prover: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+            creator: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
             deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
             nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
             tokens: [
               {
                 amount: BigInt('5000000000000000000'), // 5 tokens - sufficient for fees
-                token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+                token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
               },
             ],
           },
@@ -960,14 +1012,14 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     it('should properly cleanup resources after test completion', async () => {
       const intent = createMockIntent({
         reward: {
-          prover: '0x1234567890123456789012345678901234567890' as Address,
-          creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+          prover: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+          creator: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
           deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
           nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
           tokens: [
             {
               amount: BigInt('5000000000000000000'), // 5 tokens - sufficient for fees
-              token: '0x00000002f050fe938943acc45f65568000000000' as Address,
+              token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
             },
           ],
         },

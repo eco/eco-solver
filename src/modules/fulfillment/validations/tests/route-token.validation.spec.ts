@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
+import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -71,7 +72,7 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
+                target: toUniversalAddress('0x0000000000000000000000005555555555555555555555555555555555555555') ,
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH
               },
@@ -95,11 +96,11 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607') ,
                 amount: BigInt(1000),
               },
               {
-                token: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as Address,
+                token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58') ,
                 amount: BigInt(2000),
               },
             ],
@@ -116,11 +117,11 @@ describe('RouteTokenValidation', () => {
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.destination),
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
         );
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.destination),
-          '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+          toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
         );
       });
 
@@ -130,11 +131,11 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607') ,
                 amount: BigInt(1000),
               },
               {
-                token: '0xUNSUPPORTEDTOKENADDRESS123456789012345678' as Address,
+                token: toUniversalAddress('0x0000000000000000000000006666666666666666666666666666666666666666'),
                 amount: BigInt(2000),
               },
             ],
@@ -147,7 +148,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(false); // Second token
 
         await expect(validation.validate(intentWithUnsupportedToken, mockContext)).rejects.toThrow(
-          'Token 0xUNSUPPORTEDTOKENADDRESS123456789012345678 is not supported on chain 10',
+          'Token 0x0000000000000000000000006666666666666666666666666666666666666666 is not supported on chain 10',
         );
       });
 
@@ -157,7 +158,7 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x7f5c764cbc14f9669b88837ca1490cca17c31607' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607'),
                 amount: BigInt(1000),
               }, // lowercase
             ],
@@ -172,7 +173,7 @@ describe('RouteTokenValidation', () => {
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.destination),
-          '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
+          '0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607',
         );
       });
     });
@@ -184,11 +185,11 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
+                token: toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48') ,
                 amount: BigInt(100),
               },
               {
-                token: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as Address,
+                token: toUniversalAddress('0x000000000000000000000000dAC17F958D2ee523a2206206994597C13D831ec7') ,
                 amount: BigInt(200),
               },
             ],
@@ -206,11 +207,11 @@ describe('RouteTokenValidation', () => {
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.sourceChainId),
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
         );
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.sourceChainId),
-          '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          toUniversalAddress('0x000000000000000000000000dAC17F958D2ee523a2206206994597C13D831ec7'),
         );
       });
 
@@ -220,11 +221,11 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
+                token: toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48') ,
                 amount: BigInt(100),
               },
               {
-                token: '0xINVALIDTOKENADDRESS123456789012345678901' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007777777777777777777777777777777777777777'),
                 amount: BigInt(200),
               },
             ],
@@ -238,7 +239,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(false); // Second reward token
 
         await expect(validation.validate(intentWithUnsupportedReward, mockContext)).rejects.toThrow(
-          'Reward token 0xINVALIDTOKENADDRESS123456789012345678901 is not supported on chain 8453',
+          'Reward token 0x0000000000000000000000007777777777777777777777777777777777777777 is not supported on chain 8453',
         );
       });
     });
@@ -250,7 +251,7 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607') ,
                 amount: BigInt(1000),
               },
             ],
@@ -265,7 +266,7 @@ describe('RouteTokenValidation', () => {
         expect(result).toBe(true);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.destination),
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
         );
       });
 
@@ -275,7 +276,7 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607') ,
                 amount: BigInt(1000),
               },
             ],
@@ -286,7 +287,7 @@ describe('RouteTokenValidation', () => {
         tokenConfigService.isTokenSupported.mockReturnValue(false);
 
         await expect(validation.validate(intentWithTokens, mockContext)).rejects.toThrow(
-          'Token 0x7F5c764cBc14f9669B88837ca1490cCa17c31607 is not supported on chain 10',
+          'Token 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 is not supported on chain 10',
         );
       });
     });
@@ -298,7 +299,7 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
+                token: toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48') ,
                 amount: BigInt(100),
               },
             ],
@@ -307,19 +308,19 @@ describe('RouteTokenValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: '0x5555555555555555555555555555555555555555' as Address,
+                target: toUniversalAddress('0x0000000000000000000000005555555555555555555555555555555555555555') ,
                 data: '0x095ea7b3' as `0x${string}`,
                 value: BigInt(0),
               },
               {
-                target: '0x6666666666666666666666666666666666666666' as Address,
+                target: toUniversalAddress('0x0000000000000000000000006666666666666666666666666666666666666666'),
                 data: '0xa9059cbb' as `0x${string}`,
                 value: BigInt(0),
               },
             ],
             tokens: [
               {
-                token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address,
+                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607') ,
                 amount: BigInt(1000),
               },
             ],
@@ -337,11 +338,11 @@ describe('RouteTokenValidation', () => {
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledTimes(2);
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.destination),
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
         ); // Route token
         expect(tokenConfigService.isTokenSupported).toHaveBeenCalledWith(
           Number(mockIntent.sourceChainId),
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
         ); // Reward token
       });
     });

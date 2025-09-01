@@ -1,38 +1,46 @@
-# Fix Integration Test Issues
+# Fix Wallet Test Failures
 
 ## Problem Analysis
-The integration test is failing because:
-1. **Database Connection Issues**: Test tries to connect to MongoDB and Redis locally, which aren't running
-2. **Intent Structure Mismatch**: The intent structure doesn't match the current Intent interface
-3. **No Test Environment Isolation**: Test relies on real database connections instead of mocking
+The wallet tests were failing due to TypeScript type errors in the kernel-wallet factory tests:
+1. **Type Mismatch**: Mock network configuration had `contracts.portal` as `string` instead of `\`0x${string}\`` (Viem Hex type)
+2. **Mock Implementation**: `mockImplementation` callback parameter needed explicit typing
+3. **Address Types**: Some address fields needed proper type casting for Viem compatibility
 
 ## Tasks
 
-### 1. Create Test-Specific Module for Integration Tests
-- [ ] Create a test module that configures MongoDB and Redis for testing without real connections
-- [ ] Use in-memory databases or properly mock database connections for integration tests
+### 1. Fix TypeScript type errors in kernel-wallet factory tests ✅
+- [x] Add proper type casting for `contracts.portal` addresses to `\`0x${string}\`` type
+- [x] Fix `mockImplementation` callback parameter typing
+- [x] Update address fields in mock configurations to use proper Hex types
 
-### 2. Update Intent Structure in Test
-- [ ] Fix the intent structure to match the current Intent interface (route.source, route.destination, status field)
-- [ ] Remove deprecated fields like sourceChainId and destination
-- [ ] Add missing required fields like route.inbox
+### 2. Verify all wallet tests pass ✅
+- [x] Run kernel-wallet.factory.spec.ts to confirm fix
+- [x] Run all wallet test files to ensure no regressions
+- [x] Verify all 77 tests pass across 6 test files
 
-### 3. Improve Test Configuration
-- [ ] Update .env.test to use in-memory or mock database configurations
-- [ ] Add proper test timeout handling
-- [ ] Ensure test cleanup to prevent Jest from hanging
+## Review
 
-### 4. Fix Database Connection Strategy for Tests
-- [ ] Configure test environment to use MongoMemoryServer for MongoDB
-- [ ] Use ioredis-mock or similar for Redis in tests
-- [ ] Update configuration schema to support test-specific database settings
+### Changes Made
+1. **Fixed Type Errors**: Updated `/Users/carlosfebres/dev/eco/solver-v2/blockchain-intent-solver/src/modules/blockchain/evm/wallets/kernel-wallet/tests/kernel-wallet.factory.spec.ts`
+   - Added `as \`0x${string}\`` type casting to `contracts.portal` properties in mock configurations
+   - Added explicit `(chainId: number)` parameter typing to `mockImplementation` callbacks
+   - Updated address fields `intentSourceAddress` and `inboxAddress` to use proper Hex type casting
 
-### 5. Verify Test Execution
-- [ ] Run the test again to confirm it passes
-- [ ] Ensure proper cleanup and no hanging processes
+### Test Results
+- **All wallet tests now pass**: 77 tests across 6 test files
+- **No compilation errors**: TypeScript type checking passes
+- **Test files verified**:
+  - basic-wallet.factory.spec.ts ✅
+  - basic-wallet.spec.ts ✅
+  - kms-account.spec.ts ✅
+  - encode-transactions.spec.ts ✅
+  - kernel-wallet.factory.spec.ts ✅ (was failing, now fixed)
+  - kernel-wallet.spec.ts ✅
 
-## Expected Outcome
-- Integration test runs without requiring real MongoDB/Redis instances
-- Test completes within timeout limits
-- Intent structure matches current interface
-- Test provides meaningful validation of the fulfillment flow
+### Root Cause
+The issue was related to Viem's strict typing system where Ethereum addresses must be typed as `\`0x${string}\`` rather than generic `string` types. The test mocks were using regular strings for contract addresses, causing TypeScript compilation failures.
+
+### Impact
+- Fixed all wallet test failures without changing any production code
+- Maintained type safety and proper Viem integration
+- Ensured test robustness by using proper type definitions

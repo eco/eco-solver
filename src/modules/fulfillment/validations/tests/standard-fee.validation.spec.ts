@@ -2,29 +2,20 @@ import { Test } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
-import { EvmConfigService } from '@/modules/config/services/evm-config.service';
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { StandardFeeValidation } from '../standard-fee.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
-// Mock the config service module before any imports
-jest.mock('@/modules/config/services/evm-config.service', () => ({
-  EvmConfigService: jest.fn().mockImplementation(() => ({
-    getFeeLogic: jest.fn(),
-    getTokenConfig: jest.fn(),
-  })),
-}));
-
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;
-  let evmConfigService: jest.Mocked<EvmConfigService>;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
   beforeEach(async () => {
-    const mockEvmConfigService = {
+    const mockBlockchainConfigService = {
       getFeeLogic: jest.fn(),
-      getTokenConfig: jest.fn(),
     };
 
     const mockFulfillmentConfigService = {
@@ -49,8 +40,8 @@ describe('StandardFeeValidation', () => {
       providers: [
         StandardFeeValidation,
         {
-          provide: EvmConfigService,
-          useValue: mockEvmConfigService,
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
         },
         {
           provide: FulfillmentConfigService,
@@ -64,7 +55,7 @@ describe('StandardFeeValidation', () => {
     }).compile();
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);
-    evmConfigService = module.get(EvmConfigService);
+    blockchainConfigService = module.get(BlockchainConfigService);
   });
 
   describe('validate', () => {
@@ -83,9 +74,7 @@ describe('StandardFeeValidation', () => {
     };
 
     beforeEach(() => {
-      evmConfigService.getFeeLogic.mockReturnValue(mockFeeLogic);
-      // Mock token config to return 6 decimals (USDC-like token)
-      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 6 });
+      blockchainConfigService.getFeeLogic.mockReturnValue(mockFeeLogic);
     });
 
     describe('fee calculation', () => {
@@ -95,7 +84,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(1000000),
               }, // 1 USDC (6 decimals)
             ],
@@ -113,7 +102,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(500000),
               }, // 0.5 USDC reward (6 decimals)
             ],
@@ -122,11 +111,11 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(200000),
               }, // 0.2 USDC (6 decimals)
               {
-                token: '0x2222222222222222222222222222222222222222' as Address,
+                token: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222') ,
                 amount: BigInt(100000),
               }, // 0.1 USDC (6 decimals)
             ],
@@ -150,7 +139,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt('515001'), // Slightly over minimum required (6 decimals)
               },
             ],
@@ -159,7 +148,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(500000),
               }, // 0.5 USDC (6 decimals)
             ],
@@ -202,7 +191,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(10000000), // Large reward amount
               },
             ],
@@ -220,7 +209,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(5000), // 0.005 USDC (6 decimals)
               },
             ],
@@ -229,7 +218,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -261,7 +250,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt('1010099'), // Slightly less than required (1010100 - 1)
               },
             ],
@@ -270,7 +259,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -288,7 +277,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(1010100), // Exactly required (route value + fees)
               },
             ],
@@ -297,7 +286,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -312,7 +301,7 @@ describe('StandardFeeValidation', () => {
 
     describe('different fee configurations', () => {
       it('should handle zero base fee', async () => {
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 2, // 2% = 200 bps
@@ -328,7 +317,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(1020000), // Need 1.02 USDC to cover route + fees
               },
             ],
@@ -337,7 +326,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -356,7 +345,7 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle zero percentage fee', async () => {
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0.05, // 0.05 USDC normalized to 18 decimals
             scalarBps: 0,
@@ -372,7 +361,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(150000), // Need 0.15 USDC to cover route + base fee
               },
             ],
@@ -391,7 +380,7 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle both zero fees with tokens present', async () => {
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 0,
@@ -409,7 +398,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(100000), // Need to cover default route tokens (100000)
               },
             ],
@@ -422,7 +411,7 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle high percentage fees', async () => {
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 50, // 50% = 5000 bps
@@ -438,7 +427,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(1500000), // Need 1.5 USDC to cover route + fee
               },
             ],
@@ -447,7 +436,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -472,7 +461,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt('5060000000'), // Need 5060 USDC to cover route + fees
               },
             ],
@@ -481,14 +470,14 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt('5000000000'),
               }, // 5000 USDC (6 decimals)
             ],
           },
         });
 
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 10, // 10 USDC normalized to 18 decimals
             scalarBps: 1, // 1% = 100 bps
@@ -516,7 +505,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(1000),
               },
             ],
@@ -528,7 +517,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 0,
@@ -552,7 +541,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 0,
@@ -574,7 +563,7 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: '0x0000000000000000000000000000000000000001' as Address,
+                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
                 amount: BigInt(343034), // Covers total required with rounding (6 decimals)
               },
             ],
@@ -583,14 +572,14 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
                 amount: BigInt(333), // Odd amount (6 decimals)
               },
             ],
           },
         });
 
-        evmConfigService.getFeeLogic.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0.01, // 0.01 USDC normalized
             scalarBps: 1, // 1% = 100 bps
@@ -625,7 +614,7 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC reward (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
@@ -634,13 +623,13 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC to transfer (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
       });
 
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized) base fee
           scalarBps: 0.01, // 0.01 * 10000 = 100 / 10000 = 0.01 = 1 bps
@@ -667,7 +656,7 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
@@ -676,13 +665,13 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
       });
 
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0,
           scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
@@ -707,7 +696,7 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
@@ -716,13 +705,13 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
       });
 
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.002,
           scalarBps: 0,
@@ -752,7 +741,7 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('2000000'), // 2 USDC (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
@@ -761,32 +750,30 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
       });
 
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.0015,
           scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
         },
       });
-      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 6 });
 
       // Calculate fee details
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       // Reset mocks to ensure validate uses fresh calls
       jest.clearAllMocks();
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.0015,
           scalarBps: 0.0005,
         },
       });
-      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 6 });
 
       // Validate should pass because currentReward >= totalRequiredFee
       const isValid = await validation.validate(intent, mockContext);
@@ -803,7 +790,7 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC reward (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
@@ -812,24 +799,23 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC to transfer (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
       });
 
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized)
           scalarBps: 0.01, // 1 bps = 0.01%
         },
       });
-      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 6 });
 
       const result = await validation.validate(intent, mockContext);
 
       expect(result).toBe(true);
-      expect(evmConfigService.getFeeLogic).toHaveBeenCalledWith(10);
+      expect(blockchainConfigService.getFeeLogic).toHaveBeenCalledWith(BigInt(10));
     });
 
     it('should throw error when reward does not cover the fee using calculateFee', async () => {
@@ -839,7 +825,7 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('500'), // 0.0005 USDC reward (too low, 6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
@@ -848,19 +834,18 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC to transfer (6 decimals)
-              token: '0x1234567890123456789012345678901234567890' as Address,
+              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
             },
           ],
         },
       });
 
-      evmConfigService.getFeeLogic.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized)
           scalarBps: 1, // 100 bps = 1%
         },
       });
-      evmConfigService.getTokenConfig.mockReturnValue({ decimals: 6 });
 
       await expect(validation.validate(intent, mockContext)).rejects.toThrow(
         'Reward amount 500000000000000 is less than required fee 1001100000000000000 (base: 1000000000000000, scalar: 100000000000000)',

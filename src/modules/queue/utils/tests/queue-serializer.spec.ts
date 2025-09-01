@@ -197,33 +197,33 @@ describe('QueueSerializer', () => {
         destination: BigInt(10), // Optimism mainnet
         sourceChainId: BigInt(1), // Ethereum mainnet
         reward: {
-          prover: '0x1234567890123456789012345678901234567890' as const,
-          creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const,
+          prover: '0x0000000000000000000000001234567890123456789012345678901234567890' as const,
+          creator: '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as const,
           deadline: BigInt(1234567890),
           nativeAmount: BigInt(1000000000000000000), // 1 ETH
           tokens: [
             {
               amount: BigInt(2000000000000000000), // 2 tokens
-              token: '0x1111111111111111111111111111111111111111' as const,
+              token: '0x0000000000000000000000001111111111111111111111111111111111111111' as const,
             },
           ],
         },
         route: {
           salt: '0xabcdef' as const,
           deadline: BigInt(1634567890),
-          portal: '0x2222222222222222222222222222222222222222' as const,
+          portal: '0x0000000000000000000000002222222222222222222222222222222222222222' as const,
           nativeAmount: BigInt(500000000000000000), // 0.5 ETH
           calls: [
             {
               data: '0x123456' as const,
-              target: '0x3333333333333333333333333333333333333333' as const,
+              target: '0x0000000000000000000000003333333333333333333333333333333333333333' as const,
               value: BigInt(500000000000000000), // 0.5 ETH
             },
           ],
           tokens: [
             {
               amount: BigInt(3000000000000000000), // 3 tokens
-              token: '0x4444444444444444444444444444444444444444' as const,
+              token: '0x0000000000000000000000004444444444444444444444444444444444444444' as const,
             },
           ],
         },

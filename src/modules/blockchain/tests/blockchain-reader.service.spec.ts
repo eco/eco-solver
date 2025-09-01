@@ -3,7 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import { BlockchainConfigService, EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BlockchainReaderService } from '../blockchain-reader.service';
@@ -12,6 +13,7 @@ import { SvmReaderService } from '../svm/services/svm.reader.service';
 
 describe('BlockchainReaderService', () => {
   let service: BlockchainReaderService;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let solanaConfigService: jest.Mocked<SolanaConfigService>;
   let tvmConfigService: jest.Mocked<TvmConfigService>;
@@ -23,8 +25,8 @@ describe('BlockchainReaderService', () => {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
     destination: 10n,
     reward: {
-      prover: '0x1234567890123456789012345678901234567890' as Address,
-      creator: '0x0987654321098765432109876543210987654321' as Address,
+      prover: toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890')),
+      creator: toUniversalAddress(padTo32Bytes('0x0987654321098765432109876543210987654321')),
       deadline: 1234567890n,
       nativeAmount: 1000000000000000000n,
       tokens: [],
@@ -32,7 +34,7 @@ describe('BlockchainReaderService', () => {
     route: {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: 1234567890n,
-      portal: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      portal: toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd')),
       nativeAmount: 1000000000000000000n,
       calls: [],
       tokens: [],
@@ -42,6 +44,24 @@ describe('BlockchainReaderService', () => {
   };
 
   beforeEach(async () => {
+    blockchainConfigService = {
+      getAllConfiguredChains: jest.fn().mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
+      getChainType: jest.fn().mockImplementation((chainId) => {
+        if (typeof chainId === 'number' || (typeof chainId === 'bigint' && chainId < 1000000)) {
+          return 'evm';
+        }
+        if (typeof chainId === 'string' && chainId.startsWith('solana')) {
+          return 'svm';
+        }
+        return 'tvm';
+      }),
+      isChainSupported: jest.fn().mockImplementation((chainId) => {
+        const supportedChains = [1, 10, 137, 'solana-mainnet', 'solana-devnet'];
+        const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+        return supportedChains.includes(normalizedChainId);
+      }),
+    } as any;
+
     evmConfigService = {
       isConfigured: jest.fn().mockReturnValue(true),
       supportedChainIds: [1, 10, 137],
@@ -63,7 +83,6 @@ describe('BlockchainReaderService', () => {
     evmReader = {
       getBalance: jest.fn().mockResolvedValue(1000000000000000000n),
       getTokenBalance: jest.fn().mockResolvedValue(500000000000000000n),
-      isAddressValid: jest.fn().mockReturnValue(true),
       isIntentFunded: jest.fn().mockResolvedValue(true),
       fetchProverFee: jest.fn().mockResolvedValue(100000000000000000n),
     } as any;
@@ -71,7 +90,6 @@ describe('BlockchainReaderService', () => {
     svmReader = {
       getBalance: jest.fn().mockResolvedValue(2000000000n),
       getTokenBalance: jest.fn().mockResolvedValue(1000000000n),
-      isAddressValid: jest.fn().mockReturnValue(true),
       isIntentFunded: jest.fn().mockResolvedValue(true),
       fetchProverFee: jest.fn().mockResolvedValue(50000000n),
     } as any;
@@ -79,6 +97,7 @@ describe('BlockchainReaderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainReaderService,
+        { provide: BlockchainConfigService, useValue: blockchainConfigService },
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: SolanaConfigService, useValue: solanaConfigService },
         { provide: TvmConfigService, useValue: tvmConfigService },
@@ -104,12 +123,19 @@ describe('BlockchainReaderService', () => {
     });
 
     it('should not initialize readers when configs are not available', async () => {
+      const emptyBlockchainConfigService = {
+        getAllConfiguredChains: jest.fn().mockReturnValue([]),
+        getChainType: jest.fn(),
+        isChainSupported: jest.fn().mockReturnValue(false),
+      } as any;
+
       evmConfigService.isConfigured.mockReturnValue(false);
       solanaConfigService.isConfigured.mockReturnValue(false);
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           BlockchainReaderService,
+          { provide: BlockchainConfigService, useValue: emptyBlockchainConfigService },
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
@@ -124,9 +150,16 @@ describe('BlockchainReaderService', () => {
     });
 
     it('should handle missing optional readers', async () => {
+      const emptyBlockchainConfigService = {
+        getAllConfiguredChains: jest.fn().mockReturnValue([]),
+        getChainType: jest.fn(),
+        isChainSupported: jest.fn().mockReturnValue(false),
+      } as any;
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           BlockchainReaderService,
+          { provide: BlockchainConfigService, useValue: emptyBlockchainConfigService },
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
@@ -193,103 +226,54 @@ describe('BlockchainReaderService', () => {
 
   describe('getBalance', () => {
     it('should get balance for EVM chain', async () => {
-      const balance = await service.getBalance(1, '0x1234567890123456789012345678901234567890');
+      const testAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const balance = await service.getBalance(1, testAddress);
       expect(balance).toBe(1000000000000000000n);
-      expect(evmReader.getBalance).toHaveBeenCalledWith(
-        '0x1234567890123456789012345678901234567890',
-        1,
-      );
+      expect(evmReader.getBalance).toHaveBeenCalledWith(testAddress, 1);
     });
 
     it('should get balance for Solana chain', async () => {
-      const balance = await service.getBalance(
-        'solana-mainnet',
-        'So11111111111111111111111111111111111111112',
-      );
+      const testAddress = toUniversalAddress('0x' + '1'.repeat(64)); // Valid 32-byte hex address for Solana
+      const balance = await service.getBalance('solana-mainnet', testAddress);
       expect(balance).toBe(2000000000n);
-      expect(svmReader.getBalance).toHaveBeenCalledWith(
-        'So11111111111111111111111111111111111111112',
-        'solana-mainnet',
-      );
+      expect(svmReader.getBalance).toHaveBeenCalledWith(testAddress, 'solana-mainnet');
     });
 
     it('should throw error for unsupported chain', async () => {
-      await expect(
-        service.getBalance(999, '0x1234567890123456789012345678901234567890'),
-      ).rejects.toThrow('No reader available for chain 999');
+      const testAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      await expect(service.getBalance(999, testAddress)).rejects.toThrow(
+        'No reader available for chain 999',
+      );
     });
 
-    it('should handle bigint chain IDs', async () => {
-      const balance = await service.getBalance(1n, '0x1234567890123456789012345678901234567890');
-      expect(balance).toBe(1000000000000000000n);
-    });
   });
 
   describe('getTokenBalance', () => {
     it('should get token balance for EVM chain', async () => {
-      const balance = await service.getTokenBalance(
-        1,
-        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        '0x1234567890123456789012345678901234567890',
-      );
+      const tokenAddress = toUniversalAddress(padTo32Bytes('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'));
+      const walletAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const balance = await service.getTokenBalance(1, tokenAddress, walletAddress);
       expect(balance).toBe(500000000000000000n);
-      expect(evmReader.getTokenBalance).toHaveBeenCalledWith(
-        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        '0x1234567890123456789012345678901234567890',
-        1,
-      );
+      expect(evmReader.getTokenBalance).toHaveBeenCalledWith(tokenAddress, walletAddress, 1);
     });
 
     it('should get token balance for Solana chain', async () => {
-      const balance = await service.getTokenBalance(
-        'solana-mainnet',
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'So11111111111111111111111111111111111111112',
-      );
+      const tokenAddress = toUniversalAddress('0x' + '2'.repeat(64)); // Valid 32-byte hex address for Solana token
+      const walletAddress = toUniversalAddress('0x' + '3'.repeat(64)); // Valid 32-byte hex address for Solana wallet
+      const balance = await service.getTokenBalance('solana-mainnet', tokenAddress, walletAddress);
       expect(balance).toBe(1000000000n);
-      expect(svmReader.getTokenBalance).toHaveBeenCalledWith(
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'So11111111111111111111111111111111111111112',
-        'solana-mainnet',
-      );
+      expect(svmReader.getTokenBalance).toHaveBeenCalledWith(tokenAddress, walletAddress, 'solana-mainnet');
     });
 
     it('should throw error for unsupported chain', async () => {
-      await expect(
-        service.getTokenBalance(
-          999,
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-          '0x1234567890123456789012345678901234567890',
-        ),
-      ).rejects.toThrow('No reader available for chain 999');
+      const tokenAddress = toUniversalAddress(padTo32Bytes('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'));
+      const walletAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      await expect(service.getTokenBalance(999, tokenAddress, walletAddress)).rejects.toThrow(
+        'No reader available for chain 999',
+      );
     });
   });
 
-  describe('isAddressValid', () => {
-    it('should validate address for EVM chain', () => {
-      const isValid = service.isAddressValid(1, '0x1234567890123456789012345678901234567890');
-      expect(isValid).toBe(true);
-      expect(evmReader.isAddressValid).toHaveBeenCalledWith(
-        '0x1234567890123456789012345678901234567890',
-      );
-    });
-
-    it('should validate address for Solana chain', () => {
-      const isValid = service.isAddressValid(
-        'solana-mainnet',
-        'So11111111111111111111111111111111111111112',
-      );
-      expect(isValid).toBe(true);
-      expect(svmReader.isAddressValid).toHaveBeenCalledWith(
-        'So11111111111111111111111111111111111111112',
-      );
-    });
-
-    it('should return false for unsupported chain', () => {
-      const isValid = service.isAddressValid(999, '0x1234567890123456789012345678901234567890');
-      expect(isValid).toBe(false);
-    });
-  });
 
   describe('isIntentFunded', () => {
     it('should check intent funding for EVM chain', async () => {
@@ -312,9 +296,9 @@ describe('BlockchainReaderService', () => {
   });
 
   describe('fetchProverFee', () => {
-    const prover = '0x1234567890123456789012345678901234567890' as Address;
+    const prover = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
     const messageData = '0x1234' as Hex;
-    const claimant = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
+    const claimant = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 
     it('should fetch prover fee for EVM chain', async () => {
       const fee = await service.fetchProverFee(1, mockIntent, prover, messageData, claimant);

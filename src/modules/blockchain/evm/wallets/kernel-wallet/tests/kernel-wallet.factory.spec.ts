@@ -139,7 +139,7 @@ describe('KernelWalletFactory', () => {
       const mockNetworkConfig = {
         chainId,
         rpc: { urls: ['http://localhost:8545'] },
-        contracts: { portal: '0x0000000000000000000000000000000000000001' },
+        contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
@@ -178,14 +178,14 @@ describe('KernelWalletFactory', () => {
       const mockNetworkConfig1 = {
         chainId: 1,
         rpc: { urls: ['http://localhost:8545'] },
-        contracts: { portal: '0x0000000000000000000000000000000000000001' },
+        contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
       };
       const mockNetworkConfig10 = { ...mockNetworkConfig1, chainId: 10 };
 
-      evmConfigService.getChain.mockImplementation((chainId) => {
+      evmConfigService.getChain.mockImplementation((chainId: number) => {
         return chainId === 1 ? mockNetworkConfig1 : mockNetworkConfig10;
       });
 
@@ -207,8 +207,8 @@ describe('KernelWalletFactory', () => {
         1: {
           chainId: 1,
           rpc: { urls: ['http://localhost:8545'] },
-          intentSourceAddress: '0x0000000000000000000000000000000000000001',
-          inboxAddress: '0x0000000000000000000000000000000000000002',
+          intentSourceAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+          inboxAddress: '0x0000000000000000000000000000000000000002' as `0x${string}`,
           tokens: [],
           fee: { tokens: { flatFee: 0, scalarBps: 0 } },
           provers: {},
@@ -216,8 +216,8 @@ describe('KernelWalletFactory', () => {
         10: {
           chainId: 10,
           rpc: { urls: ['http://localhost:8545'] },
-          intentSourceAddress: '0x0000000000000000000000000000000000000001',
-          inboxAddress: '0x0000000000000000000000000000000000000002',
+          intentSourceAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+          inboxAddress: '0x0000000000000000000000000000000000000002' as `0x${string}`,
           tokens: [],
           fee: { tokens: { flatFee: 0, scalarBps: 0 } },
           provers: {},
@@ -225,15 +225,15 @@ describe('KernelWalletFactory', () => {
         137: {
           chainId: 137,
           rpc: { urls: ['http://localhost:8545'] },
-          intentSourceAddress: '0x0000000000000000000000000000000000000001',
-          inboxAddress: '0x0000000000000000000000000000000000000002',
+          intentSourceAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+          inboxAddress: '0x0000000000000000000000000000000000000002' as `0x${string}`,
           tokens: [],
           fee: { tokens: { flatFee: 0, scalarBps: 0 } },
           provers: {},
         },
       };
 
-      evmConfigService.getChain.mockImplementation((chainId) => mockNetworkConfigs[chainId]);
+      evmConfigService.getChain.mockImplementation((chainId: number) => mockNetworkConfigs[chainId]);
 
       // Create multiple wallets concurrently
       const promises = [
@@ -273,7 +273,7 @@ describe('KernelWalletFactory', () => {
       const mockNetworkConfig = {
         chainId,
         rpc: { urls: ['http://localhost:8545'] },
-        contracts: { portal: '0x0000000000000000000000000000000000000001' },
+        contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},
@@ -326,7 +326,7 @@ describe('KernelWalletFactory', () => {
       const mockNetworkConfig = {
         chainId: 1,
         rpc: { urls: ['http://localhost:8545'] },
-        contracts: { portal: '0x0000000000000000000000000000000000000001' },
+        contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
         provers: {},

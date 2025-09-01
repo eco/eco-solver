@@ -5,10 +5,9 @@ import { Hex } from 'viem';
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
+import { UniversalAddress, toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
-import { EvmAddress } from '@/modules/blockchain/evm/types/address'; // Concrete implementation for testing
 import { BlockchainConfigService } from '@/modules/config/services'; // Concrete implementation for testing
-import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 
 // Concrete implementation for testing
@@ -23,7 +22,7 @@ class TestProver extends BaseProver {
     return '0xtest' as Hex;
   }
 
-  async getFee(_intent: Intent, _claimant?: EvmAddress): Promise<bigint> {
+  async getFee(_intent: Intent, _claimant?: UniversalAddress): Promise<bigint> {
     return 1000n;
   }
 
@@ -38,8 +37,8 @@ describe('BaseProver', () => {
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = '0x1234567890123456789012345678901234567890' as EvmAddress;
-  const testAddress2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as EvmAddress;
+  const testAddress1 = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+  const testAddress2 = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 
   beforeEach(async () => {
     mockBlockchainReaderService = {} as jest.Mocked<BlockchainReaderService>;
@@ -49,16 +48,17 @@ describe('BaseProver', () => {
     } as unknown as jest.Mocked<ModuleRef>;
 
     mockBlockchainConfigService = {
-      getChain: jest.fn(),
-    } as unknown as jest.Mocked<EvmConfigService>;
+      getProverAddress: jest.fn(),
+    } as unknown as jest.Mocked<BlockchainConfigService>;
 
-    // Setup mock return values for getChain
-    mockBlockchainConfigService.getChain.mockImplementation((chainId: number) => {
-      if (chainId === 1) {
-        return { provers: { [ProverType.HYPER]: testAddress1 } } as any;
+    // Setup mock return values for getProverAddress
+    mockBlockchainConfigService.getProverAddress.mockImplementation((chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+      const numericChainId = Number(chainId);
+      if (numericChainId === 1 && proverType === 'hyper') {
+        return testAddress1;
       }
-      if (chainId === 10) {
-        return { provers: { [ProverType.HYPER]: testAddress2 } } as any;
+      if (numericChainId === 10 && proverType === 'hyper') {
+        return testAddress2;
       }
       return undefined;
     });

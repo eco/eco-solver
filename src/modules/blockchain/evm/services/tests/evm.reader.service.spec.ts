@@ -90,15 +90,15 @@ describe('EvmReaderService', () => {
       sourceChainId: BigInt(1),
       destination: BigInt(10),
       reward: {
-        prover: '0x1234567890123456789012345678901234567890' as Address,
-        creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+        prover: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
+        creator: '0x00000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
         deadline: BigInt(Date.now() + 86400000), // 24 hours from now
         nativeAmount: BigInt(1000000000000000000), // 1 ETH
         tokens: [],
       },
       route: {
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-        portal: '0x9876543210987654321098765432109876543210' as Address,
+        portal: '0x0000000000000000000000009876543210987654321098765432109876543210' as any,
         deadline: BigInt(Date.now() + 86400000),
         nativeAmount: BigInt(0),
         calls: [],
@@ -107,7 +107,7 @@ describe('EvmReaderService', () => {
       status: IntentStatus.PENDING,
     };
 
-    const mockClaimant = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Address;
+    const mockClaimant = '0x00000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as any;
     const prover = mockIntent.reward.prover;
     const chainId = 1;
 
@@ -133,7 +133,7 @@ describe('EvmReaderService', () => {
       expect(result).toBe(expectedFee);
       expect(transportService.getPublicClient).toHaveBeenCalledWith(chainId);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
-        address: mockIntent.reward.prover,
+        address: '0x1234567890123456789012345678901234567890',
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: expect.arrayContaining([
@@ -149,11 +149,11 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const messageData = '0xdeadbeef' as Hex;
-      const result = await service.fetchProverFee(mockIntent, prover, messageData, chainId);
+      const result = await service.fetchProverFee(mockIntent, prover, messageData, chainId, mockClaimant);
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
-        address: mockIntent.reward.prover,
+        address: '0x1234567890123456789012345678901234567890',
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: expect.arrayContaining([
@@ -198,7 +198,7 @@ describe('EvmReaderService', () => {
         sourceChainId: BigInt(137), // Polygon chain ID
         reward: {
           ...mockIntent.reward,
-          prover: '0xffffffffffffffffffffffffffffffffffffffff' as Address,
+          prover: '0x000000000000000000000000ffffffffffffffffffffffffffffffffffffffff' as any,
         },
         route: {
           ...mockIntent.route,
@@ -217,7 +217,7 @@ describe('EvmReaderService', () => {
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({
-        address: customIntent.reward.prover,
+        address: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: expect.arrayContaining([

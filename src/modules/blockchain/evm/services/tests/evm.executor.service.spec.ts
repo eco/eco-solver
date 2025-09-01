@@ -44,8 +44,8 @@ describe('EvmExecutorService', () => {
     destination: 10n,
     sourceChainId: 1n,
     reward: {
-      prover: '0x1234567890123456789012345678901234567890' as Address,
-      creator: '0x0987654321098765432109876543210987654321' as Address,
+      prover: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
+      creator: '0x0000000000000000000000000987654321098765432109876543210987654321' as any,
       deadline: 1234567890n,
       nativeAmount: 1000000000000000000n,
       tokens: [],
@@ -53,12 +53,12 @@ describe('EvmExecutorService', () => {
     route: {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: 1234567890n,
-      portal: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      portal: '0x00000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
       nativeAmount: 0n,
       calls: [],
       tokens: [
         {
-          token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
+          token: '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as any,
           amount: 1000000n,
         },
       ],
@@ -67,12 +67,12 @@ describe('EvmExecutorService', () => {
   };
 
   const mockWallet = {
-    getAddress: jest.fn().mockResolvedValue('0xWalletAddress'),
+    getAddress: jest.fn().mockResolvedValue('0x1234567890123456789012345678901234567890'),
     writeContracts: jest.fn().mockResolvedValue(['0xTransactionHash']),
   };
 
   const mockProver = {
-    getContractAddress: jest.fn().mockReturnValue('0xProverAddress'),
+    getContractAddress: jest.fn().mockReturnValue('0x0000000000000000000000009999999999999999999999999999999999999999' as any),
     getFee: jest.fn().mockResolvedValue(100000000000000000n),
     generateProof: jest.fn().mockResolvedValue('0xProofData'),
   };
@@ -90,7 +90,7 @@ describe('EvmExecutorService', () => {
         inboxAddress: '0xInboxAddress',
       }),
       getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address),
-      getPortalAddress: jest.fn().mockReturnValue('0xPortalAddress' as Address),
+      getPortalAddress: jest.fn().mockReturnValue('0x0000000000000000000000001111111111111111111111111111111111111111' as any),
     } as any;
 
     transportService = {
@@ -99,7 +99,7 @@ describe('EvmExecutorService', () => {
 
     walletManager = {
       getWallet: jest.fn().mockReturnValue(mockWallet),
-      getWalletAddress: jest.fn().mockResolvedValue('0xWalletAddress'),
+      getWalletAddress: jest.fn().mockResolvedValue('0x1234567890123456789012345678901234567890'),
     } as any;
 
     proverService = {
@@ -170,7 +170,7 @@ describe('EvmExecutorService', () => {
       expect(mockProver.getContractAddress).toHaveBeenCalledWith(10);
       expect(mockProver.getFee).toHaveBeenCalledWith(
         mockIntent,
-        '0x000000000000000000000000000000000000000000000000000WalletAddress',
+        '0x0000000000000000000000001234567890123456789012345678901234567890',
       );
       expect(mockProver.generateProof).toHaveBeenCalledWith(mockIntent);
 
@@ -209,8 +209,8 @@ describe('EvmExecutorService', () => {
         route: {
           ...mockIntent.route,
           tokens: [
-            { token: '0xToken1' as Address, amount: 100n },
-            { token: '0xToken2' as Address, amount: 200n },
+            { token: '0x0000000000000000000000002222222222222222222222222222222222222222' as any, amount: 100n },
+            { token: '0x0000000000000000000000003333333333333333333333333333333333333333' as any, amount: 200n },
           ],
         },
       };
@@ -284,7 +284,7 @@ describe('EvmExecutorService', () => {
 
       const address = await service.getWalletAddress(walletType, chainId);
 
-      expect(address).toBe('0xWalletAddress');
+      expect(address).toBe('0x0000000000000000000000001234567890123456789012345678901234567890');
       expect(walletManager.getWalletAddress).toHaveBeenCalledWith(walletType, chainId);
     });
 
@@ -294,7 +294,7 @@ describe('EvmExecutorService', () => {
 
       const address = await service.getWalletAddress(walletType, chainId);
 
-      expect(address).toBe('0xWalletAddress');
+      expect(address).toBe('0x0000000000000000000000001234567890123456789012345678901234567890');
       expect(walletManager.getWalletAddress).toHaveBeenCalledWith(walletType, 10);
     });
   });

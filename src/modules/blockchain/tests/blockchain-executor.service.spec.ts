@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
-import { EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -14,6 +14,7 @@ import { SvmExecutorService } from '../svm/services/svm.executor.service';
 
 describe('BlockchainExecutorService', () => {
   let service: BlockchainExecutorService;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let solanaConfigService: jest.Mocked<SolanaConfigService>;
   let tvmConfigService: jest.Mocked<TvmConfigService>;
@@ -28,6 +29,24 @@ describe('BlockchainExecutorService', () => {
   });
 
   beforeEach(async () => {
+    blockchainConfigService = {
+      getAllConfiguredChains: jest.fn().mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
+      getChainType: jest.fn().mockImplementation((chainId) => {
+        if (typeof chainId === 'number' || (typeof chainId === 'bigint' && chainId < 1000000)) {
+          return 'evm';
+        }
+        if (typeof chainId === 'string' && chainId.startsWith('solana')) {
+          return 'svm';
+        }
+        return 'tvm';
+      }),
+      isChainSupported: jest.fn().mockImplementation((chainId) => {
+        const supportedChains = [1, 10, 137, 'solana-mainnet', 'solana-devnet'];
+        const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+        return supportedChains.includes(normalizedChainId);
+      }),
+    } as any;
+
     evmConfigService = {
       isConfigured: jest.fn().mockReturnValue(true),
       supportedChainIds: [1, 10, 137],
@@ -73,6 +92,7 @@ describe('BlockchainExecutorService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainExecutorService,
+        { provide: BlockchainConfigService, useValue: blockchainConfigService },
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: SolanaConfigService, useValue: solanaConfigService },
         { provide: TvmConfigService, useValue: tvmConfigService },
@@ -106,12 +126,19 @@ describe('BlockchainExecutorService', () => {
     });
 
     it('should not initialize executors when configs are not available', async () => {
+      const emptyBlockchainConfigService = {
+        getAllConfiguredChains: jest.fn().mockReturnValue([]),
+        getChainType: jest.fn(),
+        isChainSupported: jest.fn().mockReturnValue(false),
+      } as any;
+
       evmConfigService.isConfigured.mockReturnValue(false);
       solanaConfigService.isConfigured.mockReturnValue(false);
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           BlockchainExecutorService,
+          { provide: BlockchainConfigService, useValue: emptyBlockchainConfigService },
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
@@ -128,9 +155,16 @@ describe('BlockchainExecutorService', () => {
     });
 
     it('should handle missing optional executors', async () => {
+      const emptyBlockchainConfigService = {
+        getAllConfiguredChains: jest.fn().mockReturnValue([]),
+        getChainType: jest.fn(),
+        isChainSupported: jest.fn().mockReturnValue(false),
+      } as any;
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           BlockchainExecutorService,
+          { provide: BlockchainConfigService, useValue: emptyBlockchainConfigService },
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { SystemLoggerService } from '@/common/services/system-logger.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -36,6 +36,17 @@ describe('StrategyManagementService', () => {
   };
 
   const mockConfigService = {
+    fulfillmentConfig: {
+      strategies: {
+        standard: { enabled: true },
+        'crowd-liquidity': { enabled: false },
+        'native-intents': { enabled: true },
+        'negative-intents': { enabled: false },
+        rhinestone: { enabled: false },
+      },
+      defaultStrategy: 'standard',
+    },
+    defaultStrategy: 'standard',
     getStrategiesConfig: jest.fn().mockReturnValue({
       standard: { enabled: true },
       'crowd-liquidity': { enabled: false },

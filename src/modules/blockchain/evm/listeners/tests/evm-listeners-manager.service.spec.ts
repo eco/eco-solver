@@ -62,7 +62,7 @@ describe('EvmListenersManagerService', () => {
 
     evmConfigService = {
       networks: mockNetworks,
-      getPortalAddress: jest.fn().mockImplementation((chainId: number) => {
+      getEvmPortalAddress: jest.fn().mockImplementation((chainId: number) => {
         const network = mockNetworks.find((n) => n.chainId === chainId);
         return network?.contracts.portal;
       }),
@@ -167,7 +167,7 @@ describe('EvmListenersManagerService', () => {
       // Create a new service instance with empty networks
       const emptyEvmConfigService = {
         networks: [],
-        getPortalAddress: jest.fn(),
+        getEvmPortalAddress: jest.fn(),
       } as any;
 
       const module: TestingModule = await Test.createTestingModule({
@@ -296,7 +296,7 @@ describe('EvmListenersManagerService', () => {
       });
 
       // Update the mock functions to return the test values
-      evmConfigService.getPortalAddress.mockImplementation((chainId: number) => {
+      evmConfigService.getEvmPortalAddress.mockImplementation((chainId: number) => {
         const network = testNetworks.find((n) => n.chainId === chainId);
         return network?.contracts.portal;
       });

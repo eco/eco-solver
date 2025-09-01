@@ -1,25 +1,26 @@
 import { ModuleRef } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Address, encodeAbiParameters, Hex, pad } from 'viem';
+import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType } from '@/common/interfaces/prover.interface';
+import { UniversalAddress, toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
-import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 
 import { HyperProver } from '../../provers/hyper.prover';
 
 describe('HyperProver', () => {
   let prover: HyperProver;
-  let mockEvmConfigService: jest.Mocked<EvmConfigService>;
+  let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = '0x1234567890123456789012345678901234567890' as Address;
-  const testAddress2 = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
+  const testAddress1 = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+  const testAddress2 = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
   const mockFee = 1000000n;
-  const mockClaimant = '0x9999999999999999999999999999999999999999' as Address;
+  const mockClaimant = toUniversalAddress(padTo32Bytes('0x9999999999999999999999999999999999999999'));
 
   beforeEach(async () => {
     mockBlockchainReaderService = {
@@ -30,22 +31,25 @@ describe('HyperProver', () => {
       get: jest.fn().mockReturnValue(mockBlockchainReaderService),
     } as unknown as jest.Mocked<ModuleRef>;
 
-    mockEvmConfigService = {
-      getChain: jest.fn().mockImplementation((chainId: number) => {
-        const chainConfigs: Record<number, any> = {
-          1: { provers: { [ProverType.HYPER]: testAddress1 } },
-          10: { provers: { [ProverType.HYPER]: testAddress2 } },
-        };
-        return chainConfigs[chainId];
+    mockBlockchainConfigService = {
+      getProverAddress: jest.fn().mockImplementation((chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+        const numericChainId = Number(chainId);
+        if (numericChainId === 1 && proverType === 'hyper') {
+          return testAddress1;
+        }
+        if (numericChainId === 10 && proverType === 'hyper') {
+          return testAddress2;
+        }
+        return undefined;
       }),
-    } as unknown as jest.Mocked<EvmConfigService>;
+    } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HyperProver,
         {
-          provide: EvmConfigService,
-          useValue: mockEvmConfigService,
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
         },
         {
           provide: ModuleRef,
@@ -66,8 +70,8 @@ describe('HyperProver', () => {
 
     it('should handle empty chain configs', () => {
       const emptyConfigService = {
-        getChain: jest.fn().mockReturnValue(undefined),
-      } as unknown as jest.Mocked<EvmConfigService>;
+        getProverAddress: jest.fn().mockReturnValue(undefined),
+      } as unknown as jest.Mocked<BlockchainConfigService>;
       const emptyProver = new HyperProver(emptyConfigService, mockModuleRef);
 
       expect(emptyProver.getContractAddress(1)).toBeUndefined();
@@ -77,11 +81,11 @@ describe('HyperProver', () => {
 
   describe('generateProof', () => {
     it('should encode proof data correctly for intent', async () => {
-      const proverAddress = '0x3333333333333333333333333333333333333333' as Address;
+      const proverAddress = toUniversalAddress(padTo32Bytes('0x3333333333333333333333333333333333333333'));
       const intent = createMockIntent({
         reward: {
           prover: proverAddress,
-          creator: '0x4444444444444444444444444444444444444444' as Address,
+          creator: toUniversalAddress(padTo32Bytes('0x4444444444444444444444444444444444444444')),
           deadline: 1234567890n,
           nativeAmount: 200n,
           tokens: [],
@@ -98,18 +102,18 @@ describe('HyperProver', () => {
             components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
           },
         ],
-        [[pad(proverAddress), '0x', '0x0000000000000000000000000000000000000000']],
+        [[pad(proverAddress as `0x${string}`), '0x', '0x0000000000000000000000000000000000000000']],
       );
 
       expect(proofData).toBe(expectedData);
     });
 
     it('should handle different prover addresses', async () => {
-      const proverAddress = '0x1234567890123456789012345678901234567890' as Address;
+      const proverAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
       const intent = createMockIntent({
         reward: {
           prover: proverAddress,
-          creator: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+          creator: toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd')),
           deadline: BigInt(Date.now() + 86400000),
           nativeAmount: BigInt(1000000000000000000),
           tokens: [],
@@ -125,7 +129,7 @@ describe('HyperProver', () => {
             components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
           },
         ],
-        [[pad(proverAddress), '0x', '0x0000000000000000000000000000000000000000']],
+        [[pad(proverAddress as `0x${string}`), '0x', '0x0000000000000000000000000000000000000000']],
       );
 
       expect(proofData).toBe(expectedData);
@@ -143,7 +147,7 @@ describe('HyperProver', () => {
         route: {
           salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
           deadline: 1234567890n,
-          portal: '0x9876543210987654321098765432109876543210' as Address,
+          portal: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
           nativeAmount: 100n,
           calls: [],
           tokens: [],

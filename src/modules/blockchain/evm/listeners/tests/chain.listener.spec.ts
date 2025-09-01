@@ -21,6 +21,10 @@ jest.mock('@/common/utils/address-normalizer', () => ({
       const paddedAddress = cleanAddress.padEnd(40, '0').substring(0, 40);
       return `0x00000000000000000000000${paddedAddress}0001`;
     }),
+    denormalizeToEvm: jest.fn((universalAddress) => {
+      // For testing, just return the mock portal address when called
+      return '0xPortalAddress';
+    }),
   },
 }));
 
@@ -46,6 +50,51 @@ jest.mock('@/common/utils/portal-encoder', () => ({
         },
       ],
     }),
+  },
+}));
+
+// Mock parseIntentPublish function
+jest.mock('@/modules/blockchain/evm/utils/events', () => ({
+  parseIntentPublish: jest.fn((sourceChainId, log) => ({
+    intentHash: log.args.intentHash,
+    destination: log.args.destination,
+    sourceChainId,
+    route: {
+      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      deadline: 1234567890n,
+      portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
+      nativeAmount: 0n,
+      tokens: [
+        {
+          token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
+          amount: 300n,
+        },
+      ],
+      calls: [
+        {
+          target: '0x000000000000000000000000TARGET10000000000000000000000000000000000000001',
+          data: '0xData1',
+          value: 0n,
+        },
+      ],
+    },
+    reward: {
+      deadline: log.args.rewardDeadline,
+      creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
+      prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
+      nativeAmount: log.args.rewardNativeAmount,
+      tokens: log.args.rewardTokens.map((token, index) => ({
+        amount: token.amount,
+        token: `0x00000000000000000000000TOKEN${index + 1}00000000000000000000000000000000000001`,
+      })),
+    },
+  })),
+}));
+
+// Mock QueueSerializer
+jest.mock('@/modules/queue/utils/queue-serializer', () => ({
+  QueueSerializer: {
+    serialize: jest.fn((obj) => 'serialized-object'),
   },
 }));
 
@@ -116,7 +165,7 @@ describe('ChainListener', () => {
     } as any;
 
     blockchainConfigService = {
-      getPortalAddress: jest.fn().mockReturnValue('0xPortalAddress'),
+      getPortalAddress: jest.fn().mockReturnValue('0x00000000000000000000000PORTALADDRESS0000000000000000000000000000000001'),
     } as any;
 
     listener = new ChainListener(
@@ -249,21 +298,36 @@ describe('ChainListener', () => {
 
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
-      // Mock PortalEncoder to return Intent format with UniversalAddress
+      // Mock parseIntentPublish to return an intent with empty calls for this specific test
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const mockPortalEncoder = require('@/common/utils/portal-encoder');
-      mockPortalEncoder.PortalEncoder.decodeFromChain.mockReturnValueOnce({
-        salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-        deadline: 1234567890n,
-        portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
-        nativeAmount: 0n,
-        tokens: [
-          {
-            token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
-            amount: 300n,
-          },
-        ],
-        calls: [],
+      const mockEventsModule = require('@/modules/blockchain/evm/utils/events');
+      mockEventsModule.parseIntentPublish.mockReturnValueOnce({
+        intentHash: mockLog.args.intentHash,
+        destination: mockLog.args.destination,
+        sourceChainId: 1n,
+        route: {
+          salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+          deadline: 1234567890n,
+          portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
+          nativeAmount: 0n,
+          tokens: [
+            {
+              token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
+              amount: 300n,
+            },
+          ],
+          calls: [], // Empty calls for this test
+        },
+        reward: {
+          deadline: mockLog.args.rewardDeadline,
+          creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
+          prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
+          nativeAmount: mockLog.args.rewardNativeAmount,
+          tokens: mockLog.args.rewardTokens.map((token, index) => ({
+            amount: token.amount,
+            token: `0x00000000000000000000000TOKEN${index + 1}00000000000000000000000000000000000001`,
+          })),
+        },
       });
 
       onLogsCallback([mockLog]);
@@ -329,15 +393,19 @@ describe('ChainListener', () => {
 
   describe('configuration', () => {
     it('should use correct portal address from blockchain config service', async () => {
-      const customPortalAddress = '0xCustomPortal' as any;
-      blockchainConfigService.getPortalAddress.mockReturnValue(customPortalAddress);
+      const customPortalUniversalAddress = '0x00000000000000000000000CUSTOMPORTAL0000000000000000000000000000000001' as any;
+      blockchainConfigService.getPortalAddress.mockReturnValue(customPortalUniversalAddress);
+      
+      // Mock the denormalizeToEvm to return the expected custom address for this test
+      const mockAddressNormalizer = require('@/common/utils/address-normalizer');
+      mockAddressNormalizer.AddressNormalizer.denormalizeToEvm.mockReturnValue('0xCustomPortal');
 
       await listener.start();
 
       expect(blockchainConfigService.getPortalAddress).toHaveBeenCalledWith(1);
       expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          address: customPortalAddress,
+          address: '0xCustomPortal',
         }),
       );
     });

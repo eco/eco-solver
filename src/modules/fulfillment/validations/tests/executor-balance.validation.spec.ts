@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
+import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -51,11 +52,11 @@ describe('ExecutorBalanceValidation', () => {
         ...createMockIntent().route,
         tokens: [
           {
-            token: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607' as Address, // USDC
+            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC
             amount: BigInt(1000000), // 1 USDC
           },
           {
-            token: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as Address, // USDT
+            token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT
             amount: BigInt(2000000), // 2 USDT
           },
         ],
@@ -76,11 +77,11 @@ describe('ExecutorBalanceValidation', () => {
         expect(result).toBe(true);
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
           mockIntent.destination,
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
           mockIntent.destination,
-          '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+          '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
         );
       });
 
@@ -123,7 +124,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
 
@@ -136,7 +137,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x7F5c764cBc14f9669B88837ca1490cCa17c31607, 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607, 0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
         );
       });
 
@@ -149,7 +150,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
 
@@ -162,7 +163,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
     });
@@ -174,19 +175,19 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
                 amount: BigInt(100),
               },
               {
-                token: '0x2222222222222222222222222222222222222222' as Address,
+                token: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222'),
                 amount: BigInt(200),
               },
               {
-                token: '0x3333333333333333333333333333333333333333' as Address,
+                token: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333'),
                 amount: BigInt(300),
               },
               {
-                token: '0x4444444444444444444444444444444444444444' as Address,
+                token: toUniversalAddress('0x0000000000000000000000004444444444444444444444444444444444444444'),
                 amount: BigInt(400),
               },
             ],
@@ -210,7 +211,7 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
                 amount: BigInt(100),
               },
             ],
@@ -225,7 +226,7 @@ describe('ExecutorBalanceValidation', () => {
 
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
           intentWithSpecificChain.destination,
-          '0x1111111111111111111111111111111111111111',
+          '0x0000000000000000000000001111111111111111111111111111111111111111',
         );
       });
     });
@@ -237,7 +238,7 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
                 amount: BigInt('1000000000000000000000000'), // Very large amount
               },
             ],
@@ -259,11 +260,11 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
                 amount: BigInt(100),
               },
               {
-                token: '0x1111111111111111111111111111111111111111' as Address,
+                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
                 amount: BigInt(200),
               },
             ],
@@ -286,7 +287,7 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: '0x7f5c764cbc14f9669b88837ca1490cca17c31607' as Address, // lowercase
+                token: toUniversalAddress('0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607'), // lowercase
                 amount: BigInt(1000000),
               },
             ],
@@ -302,7 +303,7 @@ describe('ExecutorBalanceValidation', () => {
         expect(result).toBe(true);
         expect(mockContext.getWalletBalance).toHaveBeenCalledWith(
           mockIntent.destination,
-          '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
+          '0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607',
         );
       });
     });

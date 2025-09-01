@@ -5,8 +5,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
+import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
-import { BlockchainConfigService } from '@/modules/config/services';
+import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -28,7 +29,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       options: {},
     },
     contracts: {
-      portal: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG', // Portal contract address
+      portal: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress, // Portal contract address
     },
     fee: {
       tokens: {
@@ -42,8 +43,8 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     },
     tokens: [],
     provers: {
-      hyper: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG',
-      metalayer: 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN',
+      hyper: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress,
+      metalayer: 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN' as TronAddress,
     },
   };
 
@@ -82,13 +83,24 @@ describe('TronListener Integration - Real Blockchain Events', () => {
         }),
       };
     }),
+    getMeter: jest.fn().mockReturnValue({
+      createCounter: jest.fn().mockReturnValue({
+        add: jest.fn(),
+      }),
+      createHistogram: jest.fn().mockReturnValue({
+        record: jest.fn(),
+      }),
+      createUpDownCounter: jest.fn().mockReturnValue({
+        add: jest.fn(),
+      }),
+    }),
   };
 
-  // Mock BlockchainConfigService
-  const mockBlockchainConfigService = {
-    getPortalAddress: jest.fn().mockImplementation(() => {
-      return realTvmConfig.contracts.portal;
-    }),
+  // Mock TvmConfigService
+  const mockTvmConfigService = {
+    getChain: jest.fn().mockReturnValue(realTvmConfig),
+    getTransactionSettings: jest.fn().mockReturnValue(transactionSettings),
+    getTvmPortalAddress: jest.fn().mockReturnValue('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress),
   };
 
   beforeAll(async () => {
@@ -114,26 +126,24 @@ describe('TronListener Integration - Real Blockchain Events', () => {
           useValue: mockOtelService,
         },
         {
-          provide: BlockchainConfigService,
-          useValue: mockBlockchainConfigService,
+          provide: TvmConfigService,
+          useValue: mockTvmConfigService,
         },
       ],
     }).compile();
 
-    const utilsService = module.get<TvmUtilsService>(TvmUtilsService);
     const logger = module.get<SystemLoggerService>(SystemLoggerService);
     const otelService = module.get<OpenTelemetryService>(OpenTelemetryService);
-    const blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
+    const tvmConfigService = module.get<TvmConfigService>(TvmConfigService);
 
     // Create TronListener instance
     tronListener = new TronListener(
       realTvmConfig,
       transactionSettings,
-      utilsService,
       eventEmitter,
       logger,
       otelService,
-      blockchainConfigService,
+      tvmConfigService,
     );
   });
 
@@ -278,7 +288,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     // Fetch events directly using TronWeb API
     try {
       const hexPortalAddress = realTvmConfig.contracts.portal.startsWith('T')
-        ? module.get<TvmUtilsService>(TvmUtilsService).toHex(realTvmConfig.contracts.portal)
+        ? TvmUtilsService.toHex(realTvmConfig.contracts.portal)
         : realTvmConfig.contracts.portal;
 
       console.log(`Fetching events for contract: ${hexPortalAddress}`);

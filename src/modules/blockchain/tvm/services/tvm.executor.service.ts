@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { TronWeb } from 'tronweb';
 import { erc20Abi } from 'viem';
 
+import { TronAddress } from '../types/address.types';
+
 import { PortalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
@@ -65,7 +67,7 @@ export class TvmExecutorService extends BaseChainExecutor {
 
           // TODO: Get claimant depending on the source
           const claimant = walletAddr;
-          const claimantUA = AddressNormalizer.normalizeSvm(claimant);
+          const claimantUA = AddressNormalizer.normalizeTvm(claimant as TronAddress);
 
           span.setAttribute('tvm.claimant_address', claimant);
 

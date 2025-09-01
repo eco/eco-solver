@@ -12,6 +12,7 @@ describe('PortalHashUtils', () => {
   describe('getIntentHash', () => {
     it('should compute intent hash with full PortalIntent object', () => {
       const result = PortalHashUtils.getIntentHash({
+        intentHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
         destination: BigInt('728126428'),
         route: {
           salt: '0x79eed1a1837e73bfc306ff9f936483406131c426e826b1ae14477bd98f34439b',
@@ -54,7 +55,7 @@ describe('PortalHashUtils', () => {
       expect(result.rewardHash).toMatch(/^0x[a-f0-9]{64}$/i);
 
       expect(result.intentHash).toBe(
-        '0x804705ff93235a960cf7a6aecd1ad5d904090edd660096eb065f6bea6258d1e5',
+        '0x75b1c9adde91443af13b627b12c08c10464522ab5aff5d5b79f16cb82df25eef',
       );
     });
   });

@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, encodeFunctionData, erc20Abi, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -211,7 +212,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
     executorService = module.get<TvmExecutorService>(TvmExecutorService);
 
-    // Mock utils service methods with proper address mappings
+    // Mock static utils service methods with proper address mappings
     const mockAddressMap = new Map([
       ['TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG', '0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41'],
       ['TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN', '0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'],
@@ -219,41 +220,26 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       ['TLRwjRfjxa4wEDom56qCo1nYiAfJaozJVi', '0x742d35cc6634c0532925a3b844bc9e7595ed5f3f'],
     ]);
 
-    jest.spyOn(utilsService, 'toHex').mockImplementation((addr) => {
+    jest.spyOn(TvmUtilsService, 'toHex').mockImplementation((addr) => {
       if (addr.startsWith('T')) {
         const evmAddr = mockAddressMap.get(addr);
         return evmAddr ? evmAddr.substring(2) : '41' + addr.substring(1).padEnd(40, '0');
       }
       return addr;
     });
-    jest.spyOn(utilsService, 'fromHex').mockImplementation((hex) => {
+    jest.spyOn(TvmUtilsService, 'fromHex').mockImplementation((hex) => {
       for (const [tronAddr, evmAddr] of mockAddressMap.entries()) {
         if (evmAddr.substring(2) === hex || '0x' + hex === evmAddr) {
-          return tronAddr;
+          return tronAddr as any;
         }
       }
-      return 'T' + hex.substring(2);
-    });
-    jest.spyOn(utilsService, 'toEvmHex').mockImplementation((addr) => {
-      if (addr.startsWith('T')) {
-        const evmAddr = mockAddressMap.get(addr);
-        return (evmAddr || '0x0000000000000000000000000000000000000000') as any;
-      }
-      return addr as any;
-    });
-    jest.spyOn(utilsService, 'fromEvmHex').mockImplementation((hex) => {
-      for (const [tronAddr, evmAddr] of mockAddressMap.entries()) {
-        if (evmAddr === hex) {
-          return tronAddr;
-        }
-      }
-      return 'T' + hex.substring(2);
+      return ('T' + hex.substring(2)) as any;
     });
 
     // Mock wallet manager to return a mock wallet
     const walletManager = module.get<TvmWalletManagerService>(TvmWalletManagerService);
     const mockWallet = {
-      getAddress: jest.fn().mockResolvedValue('TN8Y1ykJxXZqxDiPBBbAqJxDK4kESfPVjZ'),
+      getAddress: jest.fn().mockResolvedValue('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG'),
       triggerSmartContract: jest.fn().mockResolvedValue('mockTxId123'),
       tronWeb: {
         contract: jest.fn().mockReturnValue({
@@ -279,12 +265,14 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
   });
 
   it('should successfully fulfill an intent on Tron mainnet', async () => {
-    // Convert Tron addresses to hex format
-    const proverAddress = utilsService.toEvmHex('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG');
-    const creatorAddress = utilsService.toEvmHex('TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN');
-    const inboxAddress = utilsService.toEvmHex('TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN');
-    const usdtAddress = utilsService.toEvmHex('TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t');
-    const recipientAddress = utilsService.toEvmHex('TLRwjRfjxa4wEDom56qCo1nYiAfJaozJVi');
+    // Convert Tron addresses to UniversalAddress format
+    const proverAddress = toUniversalAddress(padTo32Bytes('0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41'));
+    const creatorAddress = toUniversalAddress(padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'));
+    const inboxAddress = toUniversalAddress(padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'));
+    const usdtAddress = toUniversalAddress(padTo32Bytes('0xa614f803b6fd780986a42c78ec9c7f77e6ded13c'));
+    
+    // For viem encodeFunctionData, we need a standard 20-byte address 
+    const recipientEvmAddress = '0x742d35cc6634c0532925a3b844bc9e7595ed5f3f' as Address;
 
     // Create a test intent with Tron mainnet data
     const testIntent: Intent = {
@@ -292,8 +280,8 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       destination: BigInt(0x2b6653dc), // Tron chain ID (hex: 0x2b6653dc = decimal: 728126428)
       sourceChainId: BigInt(8453), // Base chain ID
       reward: {
-        prover: proverAddress as Address,
-        creator: creatorAddress as Address,
+        prover: proverAddress,
+        creator: creatorAddress,
         deadline: BigInt(Date.now() + 86400000), // 24 hours from now
         nativeAmount: BigInt(0), // 1 TRX in SUN
         tokens: [],
@@ -301,22 +289,22 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       route: {
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
         deadline: BigInt(Date.now() + 86400000), // 24 hours from now
-        portal: inboxAddress as Address,
+        portal: inboxAddress,
         nativeAmount: BigInt(0),
         calls: [
           {
-            target: usdtAddress as Address,
+            target: usdtAddress,
             value: 0n,
             data: encodeFunctionData({
               abi: erc20Abi,
               functionName: 'transfer',
-              args: [recipientAddress, BigInt(10000)],
+              args: [recipientEvmAddress, BigInt(10000)],
             }),
           },
         ],
         tokens: [
           {
-            token: usdtAddress as Address, // USDT on Tron
+            token: usdtAddress, // USDT on Tron
             amount: BigInt(10000), // 0.01 USDT (6 decimals)
           },
         ],

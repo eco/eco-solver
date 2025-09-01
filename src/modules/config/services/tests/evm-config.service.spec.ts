@@ -79,12 +79,12 @@ describe('EvmConfigService', () => {
   describe('getPortalAddress', () => {
     it('should return the portal address for a valid chain', () => {
       const address = service.getPortalAddress(1);
-      expect(address).toBe('0x1111111111111111111111111111111111111111');
+      expect(address).toBe('0x0000000000000000000000001111111111111111111111111111111111111111');
     });
 
     it('should return the portal address for another chain', () => {
       const address = service.getPortalAddress(10);
-      expect(address).toBe('0x5555555555555555555555555555555555555555');
+      expect(address).toBe('0x0000000000000000000000005555555555555555555555555555555555555555');
     });
 
     it('should throw an error for an invalid chain', () => {
@@ -97,17 +97,17 @@ describe('EvmConfigService', () => {
   describe('getProverAddress', () => {
     it('should return the hyper prover address for chain 1', () => {
       const address = service.getProverAddress(1, 'hyper');
-      expect(address).toBe('0x3333333333333333333333333333333333333333');
+      expect(address).toBe('0x0000000000000000000000003333333333333333333333333333333333333333');
     });
 
     it('should return the metalayer prover address for chain 1', () => {
       const address = service.getProverAddress(1, 'metalayer');
-      expect(address).toBe('0x4444444444444444444444444444444444444444');
+      expect(address).toBe('0x0000000000000000000000004444444444444444444444444444444444444444');
     });
 
     it('should return the hyper prover address for chain 10', () => {
       const address = service.getProverAddress(10, 'hyper');
-      expect(address).toBe('0x7777777777777777777777777777777777777777');
+      expect(address).toBe('0x0000000000000000000000007777777777777777777777777777777777777777');
     });
 
     it('should return undefined for metalayer prover on chain 10', () => {

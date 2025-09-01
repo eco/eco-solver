@@ -13,6 +13,7 @@ import {
   FeeCalculationValidation,
   FeeDetails,
 } from '@/modules/fulfillment/validations/fee-calculation.interface';
+import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 // Test implementation of FulfillmentStrategy
@@ -98,26 +99,7 @@ describe('FulfillmentStrategy - getQuote', () => {
     }),
   };
 
-  const mockIntent: Intent = {
-    intentHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
-    destination: BigInt('10'),
-    reward: {
-      prover: '0x1234567890123456789012345678901234567890',
-      creator: '0x1234567890123456789012345678901234567890',
-      deadline: BigInt('1735689600'),
-      nativeAmount: BigInt('1000000000000000000'),
-      tokens: [],
-    },
-    route: {
-      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      deadline: BigInt('1735689600'),
-      portal: '0x1234567890123456789012345678901234567890',
-      nativeAmount: BigInt('0'),
-      calls: [],
-      tokens: [],
-    },
-    sourceChainId: BigInt('1'),
-  };
+  const mockIntent: Intent = createMockIntent();
 
   beforeEach(async () => {
     // Mock OpenTelemetry context API

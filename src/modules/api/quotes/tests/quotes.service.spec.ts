@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { EvmConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
@@ -27,11 +27,9 @@ describe('QuotesService', () => {
     defaultStrategy: 'standard',
   };
 
-  const mockEvmConfigService = {
-    getIntentSourceAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
-    getInboxAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
-    getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+  const mockBlockchainConfigService = {
     getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
   };
 
   beforeEach(async () => {
@@ -47,8 +45,8 @@ describe('QuotesService', () => {
           useValue: mockFulfillmentConfigService,
         },
         {
-          provide: EvmConfigService,
-          useValue: mockEvmConfigService,
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
         },
       ],
     }).compile();
@@ -79,6 +77,7 @@ describe('QuotesService', () => {
         destination: BigInt('10'),
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
         portal: '0x1234567890123456789012345678901234567890',
+        nativeAmount: BigInt('0'),
         calls: [
           {
             target: '0x1234567890123456789012345678901234567890',
@@ -124,19 +123,19 @@ describe('QuotesService', () => {
         quoteResponse: {
           sourceChainID: 1,
           destinationChainID: 10,
-          sourceToken: '0x1234567890123456789012345678901234567890',
-          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          destinationToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
           sourceAmount: '5000000000000000000',
           destinationAmount: '5000000000000000000',
-          funder: '0x1234567890123456789012345678901234567890',
-          refundRecipient: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
+          funder: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          refundRecipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          recipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
           fees: [
             {
               name: 'Eco Protocol Fee',
               description: 'Protocol fee for fulfilling intent on chain 10',
               token: {
-                address: '0x1234567890123456789012345678901234567890',
+                address: '0x0000000000000000000000001234567890123456789012345678901234567890',
                 decimals: 18,
                 symbol: 'TOKEN',
               },
@@ -260,13 +259,13 @@ describe('QuotesService', () => {
         quoteResponse: {
           sourceChainID: 1,
           destinationChainID: 10,
-          sourceToken: '0x1234567890123456789012345678901234567890',
-          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          destinationToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
           sourceAmount: '5000000000000000000',
           destinationAmount: '5000000000000000000',
-          funder: '0x1234567890123456789012345678901234567890',
-          refundRecipient: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
+          funder: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          refundRecipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          recipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
           fees: [],
           deadline: 1735689600,
           estimatedFulfillTimeSec: 30,
@@ -325,14 +324,14 @@ describe('QuotesService', () => {
           destination: BigInt('10'),
           sourceChainId: BigInt('1'),
           reward: expect.objectContaining({
-            prover: '0x1234567890123456789012345678901234567890',
-            creator: '0x1234567890123456789012345678901234567890',
+            prover: '0x0000000000000000000000001234567890123456789012345678901234567890',
+            creator: '0x0000000000000000000000001234567890123456789012345678901234567890',
             deadline: BigInt('1735689600'),
             nativeAmount: BigInt('1000000000000000000'),
           }),
           route: expect.objectContaining({
             salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            portal: '0x1234567890123456789012345678901234567890',
+            portal: '0x0000000000000000000000001234567890123456789012345678901234567890',
           }),
         }),
       );

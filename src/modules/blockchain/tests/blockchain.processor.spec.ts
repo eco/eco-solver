@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
@@ -29,8 +30,8 @@ describe('BlockchainProcessor', () => {
     destination: 10n,
     sourceChainId: 1n,
     reward: {
-      prover: '0x1234567890123456789012345678901234567890' as Address,
-      creator: '0x0987654321098765432109876543210987654321' as Address,
+      prover: toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890')),
+      creator: toUniversalAddress(padTo32Bytes('0x0987654321098765432109876543210987654321')),
       deadline: 1234567890n,
       nativeAmount: 1000000000000000000n,
       tokens: [],
@@ -38,7 +39,7 @@ describe('BlockchainProcessor', () => {
     route: {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: 1234567890n,
-      portal: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address,
+      portal: toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd')),
       nativeAmount: 1000000000000000000n,
       calls: [],
       tokens: [],

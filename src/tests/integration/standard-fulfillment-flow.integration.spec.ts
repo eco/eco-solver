@@ -4,12 +4,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { type Address, type Hex } from 'viem';
 
 import { AppModule } from '@/app.module';
+import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
 // Increase Jest timeout for integration tests
 jest.setTimeout(30000);
 
-describe('Standard Fulfillment Flow Integration', () => {
+// Skip this test by default unless INTEGRATION_TESTS environment variable is set
+const shouldRunIntegrationTests = process.env.INTEGRATION_TESTS === 'true';
+
+const describeIntegration = shouldRunIntegrationTests ? describe : describe.skip;
+
+describeIntegration('Standard Fulfillment Flow Integration', () => {
   let app: INestApplication;
   let fulfillmentService: FulfillmentService;
 
@@ -53,17 +59,17 @@ describe('Standard Fulfillment Flow Integration', () => {
       route: {
         salt: '0x00786dc142b348787e289e76c147768cbc0a5e7da852d6492b7992ea8730a05d' as Hex,
         deadline: 1756338836n,
-        portal: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7' as Address,
+        portal: toUniversalAddress('0x00000000000000000000000090F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7'),
         nativeAmount: 0n,
         tokens: [
           {
-            token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address,
+            token: toUniversalAddress('0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
             amount: 10000n,
           },
         ],
         calls: [
           {
-            target: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address,
+            target: toUniversalAddress('0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
             data: '0xa9059cbb000000000000000000000000256b70644f5d77bc8e2bb82c731ddf747ecb14710000000000000000000000000000000000000000000000000000000000002710' as Hex,
             value: 0n,
           },
@@ -71,12 +77,12 @@ describe('Standard Fulfillment Flow Integration', () => {
       },
       reward: {
         deadline: 1756342436n,
-        creator: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7' as Address,
-        prover: '0x01f914e5dF8CFEA1913eC1c4C974266f3A7822F7' as Address,
+        creator: toUniversalAddress('0x00000000000000000000000090F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7'),
+        prover: toUniversalAddress('0x00000000000000000000000001f914e5dF8CFEA1913eC1c4C974266f3A7822F7'),
         nativeAmount: 0n,
         tokens: [
           {
-            token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Address,
+            token: toUniversalAddress('0x0000000000000000000000000b2C639c533813f4Aa9D7837CAf62653d097Ff85'),
             amount: 10000n,
           },
         ],
