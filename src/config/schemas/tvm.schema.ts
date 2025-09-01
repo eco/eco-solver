@@ -87,13 +87,15 @@ const TvmTransactionSettingsSchema = z.object({
 /**
  * TVM configuration schema
  */
-export const TvmSchema = z.object({
-  networks: z.array(TvmNetworkSchema).default([]),
-  wallets: WalletsSchema.default({
-    basic: {},
-  }),
-  transactionSettings: TvmTransactionSettingsSchema.default({}),
-});
+export const TvmSchema = z
+  .object({
+    networks: z.array(TvmNetworkSchema).default([]),
+    wallets: WalletsSchema.default({
+      basic: {},
+    }),
+    transactionSettings: TvmTransactionSettingsSchema.default({}),
+  })
+  .optional();
 
 export type TvmConfig = z.infer<typeof TvmSchema>;
 export type TvmNetworkConfig = z.infer<typeof TvmNetworkSchema>;
