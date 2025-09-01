@@ -277,8 +277,8 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
         } as any,
       })
 
-      job.attemptsMade = 3;        // already failed twice
-      job.opts = { attempts: 3 };  // max 3 attempts
+      job.attemptsMade = 3 // already failed twice
+      job.opts = { attempts: 3 } // max 3 attempts
 
       await mgr.onFailed(job as any, processor, new Error('boom'))
 

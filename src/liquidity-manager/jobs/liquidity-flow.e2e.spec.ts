@@ -319,7 +319,12 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     // Mint is executed once
     expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledTimes(1)
-    expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledWith(10, '0xbody', '0xatt', 'job-1')
+    expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledWith(
+      10,
+      '0xbody',
+      '0xatt',
+      'job-1',
+    )
 
     // Destination swap executed once
     expect(
