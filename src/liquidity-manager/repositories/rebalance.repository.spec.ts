@@ -64,7 +64,12 @@ describe('RebalanceRepository', () => {
     it('ignores non-positive amountIn (zero/negative)', async () => {
       const wallet = '0xabc'
       mockFindReturn([
-        { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xdead' }, amountIn: 0n },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenIn: { chainId: 10, tokenAddress: '0xdead' },
+          amountIn: 0n,
+        },
         {
           status: 'PENDING',
           wallet,
@@ -140,7 +145,12 @@ describe('RebalanceRepository', () => {
       const wallet = '0xabc'
       const big = 123456789012345678901234567890n
       mockFindReturn([
-        { status: 'PENDING', wallet, tokenIn: { chainId: 1, tokenAddress: '0xusdc' }, amountIn: big },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenIn: { chainId: 1, tokenAddress: '0xusdc' },
+          amountIn: big,
+        },
       ])
 
       const map = await repo.getPendingReservedByTokenForWallet(wallet)
@@ -158,15 +168,30 @@ describe('RebalanceRepository', () => {
     it('returns multiple keys for multiple tokens with independent sums', async () => {
       const wallet = '0xabc'
       mockFindReturn([
-        { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xaaa' }, amountIn: 10n },
-        { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xbbb' }, amountIn: 20n },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenIn: { chainId: 10, tokenAddress: '0xaaa' },
+          amountIn: 10n,
+        },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenIn: { chainId: 10, tokenAddress: '0xbbb' },
+          amountIn: 20n,
+        },
         {
           status: 'PENDING',
           wallet,
           tokenIn: { chainId: 8453, tokenAddress: '0xaaa' },
           amountIn: 30n,
         },
-        { status: 'PENDING', wallet, tokenIn: { chainId: 10, tokenAddress: '0xbbb' }, amountIn: 5n },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenIn: { chainId: 10, tokenAddress: '0xbbb' },
+          amountIn: 5n,
+        },
       ])
 
       const map = await repo.getPendingReservedByTokenForWallet(wallet)
@@ -178,7 +203,7 @@ describe('RebalanceRepository', () => {
   })
 
   describe('getPendingIncomingByTokenForWallet', () => {
-  it('aggregates duplicates for same (chain,address) and normalizes address case (amountOut/tokenOut)', async () => {
+    it('aggregates duplicates for same (chain,address) and normalizes address case (amountOut/tokenOut)', async () => {
       const wallet = '0xabc'
       const mixed = '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
       const lower = mixed.toLowerCase()
@@ -205,9 +230,24 @@ describe('RebalanceRepository', () => {
     it('ignores non-positive amountOut (zero/negative)', async () => {
       const wallet = '0xabc'
       mockFindReturn([
-        { status: 'PENDING', wallet, tokenOut: { chainId: 10, tokenAddress: '0xdead' }, amountOut: 0n },
-        { status: 'PENDING', wallet, tokenOut: { chainId: 10, tokenAddress: '0xdead' }, amountOut: -5n },
-        { status: 'PENDING', wallet, tokenOut: { chainId: 10, tokenAddress: '0xdead' }, amountOut: 10n },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 10, tokenAddress: '0xdead' },
+          amountOut: 0n,
+        },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 10, tokenAddress: '0xdead' },
+          amountOut: -5n,
+        },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 10, tokenAddress: '0xdead' },
+          amountOut: 10n,
+        },
       ])
 
       const map = await repo.getPendingIncomingByTokenForWallet(wallet)
@@ -247,7 +287,12 @@ describe('RebalanceRepository', () => {
       const wallet = '0xabc'
       const big = 123456789012345678901234567890n
       mockFindReturn([
-        { status: 'PENDING', wallet, tokenOut: { chainId: 1, tokenAddress: '0xusdc' }, amountOut: big },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 1, tokenAddress: '0xusdc' },
+          amountOut: big,
+        },
       ])
 
       const map = await repo.getPendingIncomingByTokenForWallet(wallet)
@@ -265,10 +310,30 @@ describe('RebalanceRepository', () => {
     it('returns multiple keys for multiple tokens with independent sums (tokenOut/amountOut)', async () => {
       const wallet = '0xabc'
       mockFindReturn([
-        { status: 'PENDING', wallet, tokenOut: { chainId: 10, tokenAddress: '0xaaa' }, amountOut: 10n },
-        { status: 'PENDING', wallet, tokenOut: { chainId: 10, tokenAddress: '0xbbb' }, amountOut: 20n },
-        { status: 'PENDING', wallet, tokenOut: { chainId: 8453, tokenAddress: '0xaaa' }, amountOut: 30n },
-        { status: 'PENDING', wallet, tokenOut: { chainId: 10, tokenAddress: '0xbbb' }, amountOut: 5n },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 10, tokenAddress: '0xaaa' },
+          amountOut: 10n,
+        },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 10, tokenAddress: '0xbbb' },
+          amountOut: 20n,
+        },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 8453, tokenAddress: '0xaaa' },
+          amountOut: 30n,
+        },
+        {
+          status: 'PENDING',
+          wallet,
+          tokenOut: { chainId: 10, tokenAddress: '0xbbb' },
+          amountOut: 5n,
+        },
       ])
 
       const map = await repo.getPendingIncomingByTokenForWallet(wallet)
