@@ -260,7 +260,7 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
   })
 
   describe('onFailed()', () => {
-    it('logs FINAL FAILURE with context', () => {
+    it('logs FINAL FAILURE with context', async () => {
       const processor = makeProcessorMock()
       const job = makeJob({
         id: 'job-err',
@@ -277,7 +277,10 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
         } as any,
       })
 
-      mgr.onFailed(job as any, processor, new Error('boom'))
+      job.attemptsMade = 3;        // already failed twice
+      job.opts = { attempts: 3 };  // max 3 attempts
+
+      await mgr.onFailed(job as any, processor, new Error('boom'))
 
       expect(processor.logger.error).toHaveBeenCalled()
       const arg = (processor.logger.error as jest.Mock).mock.calls[0]?.[0]

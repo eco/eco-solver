@@ -51,7 +51,7 @@ function makeProcessorMock(overrides?: Partial<LiquidityManagerProcessor>) {
   const logger = makeLoggerMock()
   const baseQueue = makeQueueMock()
 
-  const receiveMessage: jest.Mock<Promise<Hex>, [number, Hex, Hex]> = jest.fn()
+  const receiveMessage: jest.Mock<Promise<Hex>, [number, Hex, Hex, string?]> = jest.fn()
 
   return {
     logger,
@@ -176,6 +176,7 @@ describe('ExecuteCCTPMintJobManager', () => {
         10,
         '0xaaaa',
         '0xbbbb',
+        'job-1',
       )
       expect(ret).toBe(tx)
     })

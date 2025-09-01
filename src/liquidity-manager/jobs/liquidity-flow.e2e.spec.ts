@@ -107,7 +107,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     // ii) receiveMessage: returns mint tx hash
     const receiveMessage = jest
-      .fn<Promise<Hex>, [number, Hex, Hex]>()
+      .fn<Promise<Hex>, [number, Hex, Hex, string?]>()
       .mockResolvedValue('0xminttx' as Hex)
 
     // iii) execute: destination swap execute call
@@ -280,6 +280,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
         walletAddress: '0xwallet',
         originalTokenOut: { address: '0xusdc' as Hex, chainId: 10, decimals: 6 },
       },
+      id: 'job-1',
     }
 
     // To avoid sleeps, an alternative is to wait specifically for the last 'completed'
@@ -318,7 +319,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     // Mint is executed once
     expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledTimes(1)
-    expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledWith(10, '0xbody', '0xatt')
+    expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledWith(10, '0xbody', '0xatt', 'job-1')
 
     // Destination swap executed once
     expect(

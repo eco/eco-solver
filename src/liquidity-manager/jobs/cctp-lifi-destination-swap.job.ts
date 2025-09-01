@@ -277,13 +277,16 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
-    let errorMessage = 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Failed'
-    if (this.isFinalAttempt(job, error)) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE'
+      : 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Failed: Retrying...'
+
+    if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
       const { rebalanceJobID } = jobData
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    } else {
-      errorMessage += ': Retrying...'
     }
 
     processor.logger.error(
