@@ -85,11 +85,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       if (anyProvider?.ensureBootstrapOnce) {
         await anyProvider.ensureBootstrapOnce('bootstrap')
       }
-    } catch (e) {
+    } catch (error) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Gateway bootstrap deposit skipped or failed',
-          properties: { error: (e as any)?.message ?? e },
+          error,
         }),
       )
     }
@@ -149,7 +149,18 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         if (reserved > 0n || incoming > 0n) {
           item.balance.balance = item.balance.balance - reserved + incoming
         }
-      } catch {}
+      } catch (error) {
+        this.logger.warn(
+          EcoLogMessage.withError({
+            message: 'Reservation-aware analysis: token skipped due to invalid config/input',
+            properties: {
+              walletAddress,
+              token: item?.config,
+            },
+            error,
+          }),
+        )
+      }
       return item
     })
 
@@ -157,15 +168,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     for (const item of adjusted) {
       try {
         analysis.push({ ...item, analysis: this.analyzeToken(item) })
-      } catch (e) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
+      } catch (error) {
+        this.logger.warn(
+          EcoLogMessage.withError({
             message: 'Reservation-aware analysis: token skipped due to invalid config/input',
             properties: {
               walletAddress,
               token: item?.config,
-              error: (e as any)?.message ?? e,
             },
+            error,
           }),
         )
       }
@@ -196,17 +207,22 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
       }
       return map
-    } catch (e) {
+    } catch (error) {
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Reservation-aware analysis: no reservations applied',
-          properties: { walletAddress, error: (e as any)?.message ?? e },
+          properties: { walletAddress },
+          error,
         }),
       )
       return new Map<string, bigint>()
     }
   }
 
+  /**
+   * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
+   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
+   */
   private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
     try {
       const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
@@ -219,11 +235,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
       }
       return map
-    } catch (e) {
+    } catch (error) {
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Reservation-aware analysis: no incoming applied',
-          properties: { walletAddress, error: (e as any)?.message ?? e },
+          properties: { walletAddress },
+          error,
         }),
       )
       return new Map<string, bigint>()
@@ -409,16 +426,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         })
 
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withError({
             message: 'Direct route not found, will try with fallback',
             properties: {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
-              error: {
-                message: error.message,
-                stack: error.stack,
-              },
             },
+            error,
           }),
         )
       }
@@ -477,16 +491,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
 
         this.logger.error(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withError({
             message: 'Unable to find fallback route',
             properties: {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
-              error: {
-                message: fallbackError.message,
-                stack: fallbackError.stack,
-              },
             },
+            error: fallbackError,
           }),
         )
       }
