@@ -3,8 +3,8 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
 
+import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
-import { IntentFulfilledEvent } from '@/modules/blockchain/evm/utils/events';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';

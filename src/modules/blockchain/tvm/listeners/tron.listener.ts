@@ -2,8 +2,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
+import { Hex } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
+import { RawEventLogs } from '@/common/interfaces/events.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
@@ -147,15 +149,12 @@ export class TronListener extends BaseChainListener {
       const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
 
       // Get events from the last processed block to current
-      const events = await client.event.getEventsByContractAddress(
-        TvmUtilsService.toHex(portalAddress),
-        {
-          onlyConfirmed: true,
-          minBlockTimestamp: this.lastBlockNumber,
-          orderBy: 'block_timestamp,asc',
-          limit: 200,
-        },
-      );
+      const events = await client.event.getEventsByContractAddress(portalAddress, {
+        onlyConfirmed: true,
+        minBlockTimestamp: this.lastBlockNumber,
+        orderBy: 'block_timestamp,asc',
+        limit: 200,
+      });
 
       const eventCount = events && Array.isArray(events) ? events.length : 0;
       if (eventCount > 0) {
@@ -193,7 +192,7 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentEvent(event: any): Promise<void> {
+  private async processIntentEvent(event: RawEventLogs.TvmEvent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentEvent', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
@@ -217,7 +216,7 @@ export class TronListener extends BaseChainListener {
 
       // Construct intent from Portal event data with normalized addresses
       const intent = {
-        intentHash: result.hash,
+        intentHash: result.hash as Hex,
         destination: BigInt(result.destination),
         route, // Already in Intent format with UniversalAddress from PortalEncoder
         reward: {
@@ -262,7 +261,7 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentFulfilledEvent(event: any): Promise<void> {
+  private async processIntentFulfilledEvent(event: RawEventLogs.TvmEvent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentFulfilledEvent', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),

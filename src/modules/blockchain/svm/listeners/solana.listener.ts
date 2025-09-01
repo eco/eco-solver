@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, Logs, PublicKey } from '@solana/web3.js';
+import { Hex } from 'viem';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
+import { IntentFulfilledEvent, RawEventLogs } from '@/common/interfaces/events.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
-import { IntentFulfilledEvent } from '@/modules/blockchain/evm/utils/events';
 import {
   BlockchainConfigService,
   FulfillmentConfigService,
@@ -51,7 +52,7 @@ export class SolanaListener extends BaseChainListener {
 
     this.subscriptionId = this.connection.onLogs(
       this.programId,
-      (logs) => this.handleProgramLogs(logs),
+      (logs: Logs) => this.handleProgramLogs(logs),
       'confirmed',
     );
 
@@ -67,9 +68,9 @@ export class SolanaListener extends BaseChainListener {
     this.logger.log('Solana listener stopped');
   }
 
-  protected parseIntentFromEvent(event: any): Intent {
+  protected parseIntentFromEvent(logs: Logs): Intent {
     // Parse Solana Portal program logs to extract intent data
-    const intentData = this.parseIntentFromLogs(event.logs);
+    const intentData = this.parseIntentFromLogs(logs.logs);
 
     // Decode route based on destination chain type - already returns Intent format
     const destChainType = ChainTypeDetector.detect(BigInt(intentData.destination));
@@ -80,7 +81,7 @@ export class SolanaListener extends BaseChainListener {
     );
 
     return {
-      intentHash: intentData.intentHash,
+      intentHash: intentData.intentHash as Hex,
       destination: BigInt(intentData.destination),
       route, // Already in Intent format with UniversalAddress from PortalEncoder
       reward: {
@@ -98,7 +99,7 @@ export class SolanaListener extends BaseChainListener {
     };
   }
 
-  private async handleProgramLogs(logs: any) {
+  private async handleProgramLogs(logs: Logs): Promise<void> {
     try {
       if (this.isIntentPublishedLog(logs)) {
         const intent = this.parseIntentFromEvent(logs);
@@ -116,19 +117,19 @@ export class SolanaListener extends BaseChainListener {
     }
   }
 
-  private isIntentPublishedLog(logs: any): boolean {
+  private isIntentPublishedLog(logs: Logs): boolean {
     return logs.logs.some(
       (log: string) => log.includes('IntentPublished') || log.includes('intent_published'),
     );
   }
 
-  private isIntentFulfilledLog(logs: any): boolean {
+  private isIntentFulfilledLog(logs: Logs): boolean {
     return logs.logs.some(
       (log: string) => log.includes('IntentFulfilled') || log.includes('intent_fulfilled'),
     );
   }
 
-  private parseIntentFulfilledFromLogs(logs: any): IntentFulfilledEvent {
+  private parseIntentFulfilledFromLogs(logs: Logs): IntentFulfilledEvent {
     // Parse logs to extract IntentFulfilled event data
     const eventData: any = {};
     
@@ -144,15 +145,15 @@ export class SolanaListener extends BaseChainListener {
     const chainId = this.solanaConfigService.chainId || 'solana-mainnet';
     
     return {
-      intentHash: eventData.intentHash || '',
-      claimant: eventData.claimant || '',
+      intentHash: (eventData.intentHash || '') as Hex,
+      claimant: (eventData.claimant || '') as Hex,
       chainId: typeof chainId === 'string' ? BigInt(0) : BigInt(chainId), // Handle Solana chain ID
       transactionHash: logs.signature,
       blockNumber: undefined, // Solana doesn't use block numbers in the same way
     };
   }
 
-  private parseIntentFromLogs(logs: string[]): any {
+  private parseIntentFromLogs(logs: string[]): Record<string, any> {
     // Parse logs to extract intent data
     // This is a placeholder - actual implementation depends on program log format
     const intentData: any = {};

@@ -10,7 +10,7 @@ jest.mock('@/modules/blockchain/tvm/services/tvm-utils.service', () => ({
 describe('TVM Event Utils', () => {
   describe('parseTvmIntentFulfilled', () => {
     it('should parse IntentFulfilled event correctly', () => {
-      const mockEvent = {
+      const mockEvent: any = {
         event_name: 'IntentFulfilled',
         transaction_id: 'abc123def456',
         block_number: '12345678',
@@ -33,7 +33,7 @@ describe('TVM Event Utils', () => {
     });
 
     it('should handle event without block number', () => {
-      const mockEvent = {
+      const mockEvent: any = {
         event_name: 'IntentFulfilled',
         transaction_id: 'xyz789',
         result: {
@@ -57,7 +57,7 @@ describe('TVM Event Utils', () => {
 
   describe('parseTvmIntentPublished', () => {
     it('should parse IntentPublished event correctly', () => {
-      const mockEvent = {
+      const mockEvent: any = {
         event_name: 'IntentPublished',
         result: {
           hash: '0x999888777',
@@ -81,14 +81,14 @@ describe('TVM Event Utils', () => {
         creator: '0xcreator_hex',
         prover: '0xprover_hex',
         rewardDeadline: 1234567890n,
-        nativeAmount: 1000000000000000000n,
+        rewardNativeAmount: 1000000000000000000n,
         rewardTokens: mockEvent.result.rewardTokens,
         route: 'route_data_hex',
       });
     });
 
     it('should handle empty reward tokens', () => {
-      const mockEvent = {
+      const mockEvent: any = {
         event_name: 'IntentPublished',
         result: {
           hash: '0x111222333',
@@ -104,8 +104,8 @@ describe('TVM Event Utils', () => {
 
       const result = parseTvmIntentPublished(mockEvent);
 
-      expect(result.rewardTokens).toBeUndefined();
-      expect(result.nativeAmount).toBe(0n);
+      expect(result.rewardTokens).toEqual([]);
+      expect(result.rewardNativeAmount).toBe(0n);
     });
   });
 });

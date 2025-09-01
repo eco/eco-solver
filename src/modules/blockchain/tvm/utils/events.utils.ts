@@ -1,4 +1,10 @@
-import { IntentFulfilledEvent } from '@/modules/blockchain/evm/utils/events';
+import { Hex } from 'viem';
+
+import {
+  IntentFulfilledEvent,
+  PortalEventArgs,
+  RawEventLogs,
+} from '@/common/interfaces/events.interface';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 
 /**
@@ -7,12 +13,15 @@ import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.ser
  * @param event The raw TVM event object
  * @returns Parsed IntentFulfilledEvent
  */
-export function parseTvmIntentFulfilled(chainId: bigint, event: any): IntentFulfilledEvent {
+export function parseTvmIntentFulfilled(
+  chainId: bigint,
+  event: RawEventLogs.TvmEvent,
+): IntentFulfilledEvent {
   const result = event.result;
   
   return {
-    intentHash: result.intentHash || result.hash,
-    claimant: result.claimant,
+    intentHash: (result.intentHash || result.hash) as Hex,
+    claimant: result.claimant as Hex,
     chainId,
     transactionHash: event.transaction_id,
     blockNumber: event.block_number ? BigInt(event.block_number) : undefined,
@@ -21,20 +30,22 @@ export function parseTvmIntentFulfilled(chainId: bigint, event: any): IntentFulf
 
 /**
  * Parse IntentPublished event data from TVM
- * Note: This is extracted from the existing inline parsing in tron.listener.ts
- * for consistency and reusability
+ * @param event The raw TVM event object
+ * @returns Parsed event data matching Portal event structure
  */
-export function parseTvmIntentPublished(event: any) {
+export function parseTvmIntentPublished(
+  event: RawEventLogs.TvmEvent,
+): Partial<PortalEventArgs.IntentPublished> & { intentHash: Hex } {
   const result = event.result;
   
   return {
-    intentHash: result.hash,
+    intentHash: result.hash as Hex,
     destination: BigInt(result.destination),
-    creator: TvmUtilsService.fromHex(result.creator),
-    prover: TvmUtilsService.fromHex(result.prover),
+    creator: TvmUtilsService.fromHex(result.creator) as unknown as Hex,
+    prover: TvmUtilsService.fromHex(result.prover) as unknown as Hex,
     rewardDeadline: BigInt(result.rewardDeadline),
-    nativeAmount: BigInt(result.nativeAmount),
-    rewardTokens: result.rewardTokens,
-    route: result.route,
+    rewardNativeAmount: BigInt(result.nativeAmount),
+    rewardTokens: result.rewardTokens || [],
+    route: result.route as Hex,
   };
 }

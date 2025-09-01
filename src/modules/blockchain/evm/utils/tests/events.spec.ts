@@ -68,7 +68,7 @@ jest.mock('@/common/utils/portal-encoder', () => ({
 describe('Event Parsing', () => {
   describe('parseIntentPublish', () => {
     it('should parse IntentPublished event correctly', () => {
-      const mockLog = {
+      const mockLog: any = {
         topics: [
           '0x0000000000000000000000000000000000000000000000000000000000000000', // event signature
           '0x0000000000000000000000000000000000000000000000000000000000000001', // intentHash (indexed)
@@ -107,7 +107,7 @@ describe('Event Parsing', () => {
 
   describe('parseIntentFulfilled', () => {
     it('should parse IntentFulfilled event correctly', () => {
-      const mockLog = {
+      const mockLog: any = {
         topics: [
           '0x0000000000000000000000000000000000000000000000000000000000000000', // event signature
           '0x0000000000000000000000000000000000000000000000000000000000000001', // intentHash (indexed)
@@ -134,7 +134,7 @@ describe('Event Parsing', () => {
     });
 
     it('should handle IntentFulfilled event without block number', () => {
-      const mockLog = {
+      const mockLog: any = {
         topics: [
           '0x0000000000000000000000000000000000000000000000000000000000000000',
           '0xabcdef0000000000000000000000000000000000000000000000000000000001',

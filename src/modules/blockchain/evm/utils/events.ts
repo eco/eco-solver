@@ -1,31 +1,30 @@
-import { decodeEventLog, WatchContractEventOnLogsParameter } from 'viem';
+import { decodeEventLog, Hex, WatchContractEventOnLogsParameter } from 'viem';
 
 import { PortalAbi } from '@/common/abis/portal.abi';
+import {
+  IntentFulfilledEvent,
+  PortalEventArgs,
+  RawEventLogs,
+} from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 
-type IntentPublishLog = WatchContractEventOnLogsParameter<
-  typeof PortalAbi,
-  'IntentPublished',
-  true
->[number];
-
-type IntentFulfilledLog = WatchContractEventOnLogsParameter<
-  typeof PortalAbi,
-  'IntentFulfilled',
-  true
->[number];
-
-export function parseIntentPublish(sourceChainId: bigint, rawLog: any): Intent {
+/**
+ * Parse IntentPublished event from EVM logs
+ * @param sourceChainId The source chain ID
+ * @param rawLog The raw EVM log
+ * @returns Parsed Intent object
+ */
+export function parseIntentPublish(sourceChainId: bigint, rawLog: RawEventLogs.EvmLog): Intent {
   const log = decodeEventLog({
     abi: PortalAbi,
     eventName: 'IntentPublished',
-    topics: rawLog.topics,
+    topics: rawLog.topics as any,
     data: rawLog.data,
     strict: true,
-  }) as IntentPublishLog;
+  }) as unknown as { args: PortalEventArgs.IntentPublished };
 
   // Decode route based on destination chain type - already returns an Intent format
   const destChainType = ChainTypeDetector.detect(log.args.destination);
@@ -33,7 +32,7 @@ export function parseIntentPublish(sourceChainId: bigint, rawLog: any): Intent {
 
   // Normalize all addresses to UniversalAddress format
   return {
-    intentHash: log.args.intentHash,
+    intentHash: log.args.intentHash as Hex,
     destination: log.args.destination,
     sourceChainId,
     route, // Already in Intent format with UniversalAddress from PortalEncoder
@@ -50,22 +49,23 @@ export function parseIntentPublish(sourceChainId: bigint, rawLog: any): Intent {
   };
 }
 
-export interface IntentFulfilledEvent {
-  intentHash: string;
-  claimant: string;
-  chainId: bigint;
-  transactionHash: string;
-  blockNumber?: bigint;
-}
-
-export function parseIntentFulfilled(chainId: bigint, rawLog: any): IntentFulfilledEvent {
+/**
+ * Parse IntentFulfilled event from EVM logs
+ * @param chainId The chain ID where the event occurred
+ * @param rawLog The raw EVM log
+ * @returns Parsed IntentFulfilledEvent object
+ */
+export function parseIntentFulfilled(
+  chainId: bigint,
+  rawLog: RawEventLogs.EvmLog,
+): IntentFulfilledEvent {
   const log = decodeEventLog({
     abi: PortalAbi,
     eventName: 'IntentFulfilled',
-    topics: rawLog.topics,
+    topics: rawLog.topics as any,
     data: rawLog.data,
     strict: true,
-  }) as IntentFulfilledLog;
+  }) as unknown as { args: PortalEventArgs.IntentFulfilled };
 
   return {
     intentHash: log.args.intentHash,
@@ -75,3 +75,6 @@ export function parseIntentFulfilled(chainId: bigint, rawLog: any): IntentFulfil
     blockNumber: rawLog.blockNumber,
   };
 }
+
+// Re-export the IntentFulfilledEvent type from the common interface
+export type { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
