@@ -75,12 +75,21 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     )
 
     const { destinationChainId, messageBody, attestation } = job.data
-    return processor.cctpProviderService.receiveMessage(
-      destinationChainId,
-      messageBody,
-      attestation,
-      job.data.id,
-    )
+    let txHash = job.data.txHash as Hex | undefined
+    if (!txHash) {
+      // receive message not called yet
+      txHash = await processor.cctpProviderService.receiveMessage(
+        destinationChainId,
+        messageBody,
+        attestation,
+        job.data.id,
+      )
+      job.updateData({ ...job.data, txHash })
+    }
+
+    // wait for tx receipt
+    await processor.cctpProviderService.getTxReceipt(destinationChainId, txHash as Hex)
+    return txHash as Hex
   }
 
   async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {

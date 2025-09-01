@@ -65,12 +65,21 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
       }),
     )
     deserialize(job.data.context) // Deserialize for consistency, though not used here
-    return processor.cctpv2ProviderService.receiveV2Message(
-      destinationChainId,
-      messageBody,
-      attestation,
-      job.data.id,
-    )
+
+    let txHash = job.data.txHash as Hex | undefined
+    if (!txHash) {
+      // receive message not called yet
+      txHash = await processor.cctpv2ProviderService.receiveV2Message(
+        destinationChainId,
+        messageBody,
+        attestation,
+        job.data.id,
+      )
+      job.updateData({ ...job.data, txHash })
+    }
+
+    await processor.cctpv2ProviderService.getTxReceipt(destinationChainId, txHash as Hex)
+    return txHash as Hex
   }
 
   async onComplete(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor) {

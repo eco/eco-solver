@@ -281,12 +281,22 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return messageSentEvent.args.message
   }
 
-  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex, id?: string) {
+  /**
+   * Receive message from CCTP. It does not wait for the transaction receipt.
+   * @param chainId Chain ID
+   * @param messageBytes Message bytes
+   * @param attestation Attestation
+   * @param id Job ID
+   * @returns Transaction hash
+   */
+  async receiveMessage(
+    chainId: number,
+    messageBytes: Hex,
+    attestation: Hex,
+    id?: string,
+  ): Promise<Hex> {
     const cctpChainConfig = this.getChainConfig(chainId)
     const walletClient = await this.walletClientService.getClient(chainId)
-    const publicClient = await this.walletClientService.getPublicClient(chainId)
-
-    const messageHash = this.getMessageHash(messageBytes)
 
     this.logger.debug(
       EcoLogMessage.withId({
@@ -296,41 +306,23 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
           chainId,
           messageTransmitter: cctpChainConfig.messageTransmitter,
           sender: (walletClient as any).account?.address,
-          messageHash,
           attestation,
           messageBytes,
         },
       }),
     )
 
-    try {
-      const txHash = await walletClient.writeContract({
-        abi: CCTPMessageTransmitterABI,
-        address: cctpChainConfig.messageTransmitter,
-        functionName: 'receiveMessage',
-        args: [messageBytes, attestation],
-      })
+    return await walletClient.writeContract({
+      abi: CCTPMessageTransmitterABI,
+      address: cctpChainConfig.messageTransmitter,
+      functionName: 'receiveMessage',
+      args: [messageBytes, attestation],
+    })
+  }
 
-      await publicClient.waitForTransactionReceipt({ hash: txHash })
-      return txHash
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          message: 'CCTP: receiveMessage: failed to submit',
-          id,
-          error: error as any,
-          properties: {
-            chainId,
-            messageTransmitter: cctpChainConfig.messageTransmitter,
-            sender: (walletClient as any).account?.address,
-            messageHash,
-            attestation,
-            messageBytes,
-          },
-        }),
-      )
-      throw error
-    }
+  async getTxReceipt(chainId: number, txHash: Hex) {
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+    return publicClient.waitForTransactionReceipt({ hash: txHash })
   }
 
   private isSupportedToken(chainId: number, token: Hex) {
