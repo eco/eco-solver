@@ -3,8 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { TronWeb } from 'tronweb';
 import { erc20Abi } from 'viem';
 
-import { TronAddress } from '../types/address.types';
-
 import { PortalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
@@ -20,6 +18,7 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { TvmTransactionError } from '../errors';
+import { TronAddress } from '../types/address.types';
 import { TvmClientUtils, TvmTracingUtils, TvmTransactionUtils } from '../utils';
 
 import { TvmWalletManagerService, TvmWalletType } from './tvm-wallet-manager.service';

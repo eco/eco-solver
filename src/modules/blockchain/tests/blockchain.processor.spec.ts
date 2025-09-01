@@ -4,7 +4,7 @@ import { Job } from 'bullmq';
 import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';

@@ -5,8 +5,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
-import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
+import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -100,7 +100,9 @@ describe('TronListener Integration - Real Blockchain Events', () => {
   const mockTvmConfigService = {
     getChain: jest.fn().mockReturnValue(realTvmConfig),
     getTransactionSettings: jest.fn().mockReturnValue(transactionSettings),
-    getTvmPortalAddress: jest.fn().mockReturnValue('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress),
+    getTvmPortalAddress: jest
+      .fn()
+      .mockReturnValue('TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress),
   };
 
   beforeAll(async () => {

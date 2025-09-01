@@ -5,7 +5,11 @@ import { Hex } from 'viem';
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress, toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import {
+  padTo32Bytes,
+  toUniversalAddress,
+  UniversalAddress,
+} from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services'; // Concrete implementation for testing
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
@@ -37,8 +41,12 @@ describe('BaseProver', () => {
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
-  const testAddress2 = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
+  const testAddress1 = toUniversalAddress(
+    padTo32Bytes('0x1234567890123456789012345678901234567890'),
+  );
+  const testAddress2 = toUniversalAddress(
+    padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+  );
 
   beforeEach(async () => {
     mockBlockchainReaderService = {} as jest.Mocked<BlockchainReaderService>;
@@ -52,16 +60,18 @@ describe('BaseProver', () => {
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     // Setup mock return values for getProverAddress
-    mockBlockchainConfigService.getProverAddress.mockImplementation((chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-      const numericChainId = Number(chainId);
-      if (numericChainId === 1 && proverType === 'hyper') {
-        return testAddress1;
-      }
-      if (numericChainId === 10 && proverType === 'hyper') {
-        return testAddress2;
-      }
-      return undefined;
-    });
+    mockBlockchainConfigService.getProverAddress.mockImplementation(
+      (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+        const numericChainId = Number(chainId);
+        if (numericChainId === 1 && proverType === 'hyper') {
+          return testAddress1;
+        }
+        if (numericChainId === 10 && proverType === 'hyper') {
+          return testAddress2;
+        }
+        return undefined;
+      },
+    );
 
     prover = new TestProver(mockBlockchainConfigService, mockModuleRef);
   });

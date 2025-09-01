@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { CrowdLiquidityFulfillmentStrategy } from '../../strategies/crowd-liquidity-fulfillment.strategy';

@@ -110,7 +110,9 @@ describe('NativeFeeValidation', () => {
             nativeAmount: BigInt(100000000000000000), // 0.1 ETH
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000),
               },
             ],
@@ -156,17 +158,23 @@ describe('NativeFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(300000000000000000),
               }, // 0.3 ETH - NOT included in fee calculation
               {
-                token: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000002222222222222222222222222222222222222222',
+                ),
                 amount: BigInt(200000000000000000),
               }, // 0.2 ETH - NOT included in fee calculation
             ],
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(500000000000000000), // 0.5 ETH - ONLY this is included
               },
@@ -212,7 +220,9 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(2000000000000000000), // 2 ETH native transfer
               },
@@ -244,7 +254,9 @@ describe('NativeFeeValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH
               },
@@ -274,7 +286,9 @@ describe('NativeFeeValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH
               },
@@ -394,7 +408,9 @@ describe('NativeFeeValidation', () => {
             tokens: [], // No tokens
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH pure native transfer
               },
@@ -425,17 +441,23 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(500000000000000000), // 0.5 ETH
               },
               {
-                target: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000002222222222222222222222222222222222222222',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(800000000000000000), // 0.8 ETH
               },
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(700000000000000000), // 0.7 ETH
               },
@@ -483,7 +505,9 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000), // 0.001 ETH
               },
@@ -529,7 +553,9 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+                target: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH
               },
@@ -559,7 +585,9 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('2000000000000000000'), // 2 ETH native value
             },
@@ -596,17 +624,23 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001111111111111111111111111111111111111111',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH
             },
             {
-              target: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000002222222222222222222222222222222222222222',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('2000000000000000000'), // 2 ETH
             },
             {
-              target: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000003333333333333333333333333333333333333333',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('500000000000000000'), // 0.5 ETH
             },
@@ -676,7 +710,9 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('500000000000000000'),
             },
@@ -713,7 +749,9 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('1234567890123456789'), // ~1.234 ETH
             },
@@ -750,7 +788,9 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH native value
             },
@@ -796,7 +836,9 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH native value in call
             },
@@ -828,7 +870,9 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890') ,
+              target: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH native value
             },

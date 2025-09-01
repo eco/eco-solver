@@ -58,12 +58,16 @@ describe('RouteCallsValidation', () => {
 
     const mockTokens = [
       {
-        address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC
+        address: toUniversalAddress(
+          '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+        ), // USDC
         decimals: 6,
         limit: { max: 1000000 },
       },
       {
-        address: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT
+        address: toUniversalAddress(
+          '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+        ), // USDT
         decimals: 6,
         limit: { max: 1000000 },
       },
@@ -92,12 +96,16 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC - supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC - supported token
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer(address,uint256)
                 value: BigInt(0),
               },
               {
-                target: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT - supported token
+                target: toUniversalAddress(
+                  '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+                ), // USDT - supported token
                 data: '0xa9059cbb00000000000000000000000098765432109876543210987654321098765432100000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer(address,uint256)
                 value: BigInt(0),
               },
@@ -121,7 +129,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000005555555555555555555555555555555555555555'), // Not a supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000005555555555555555555555555555555555555555',
+                ), // Not a supported token
                 data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890' as `0x${string}`,
                 value: BigInt(0),
               },
@@ -142,7 +152,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC - supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC - supported token
                 data: '0x095ea7b300000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // approve(address,uint256)
                 value: BigInt(0),
               },
@@ -163,7 +175,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC - supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC - supported token
                 data: '0x23b872dd' as `0x${string}`, // transferFrom(address,address,uint256)
                 value: BigInt(0),
               },
@@ -182,12 +196,16 @@ describe('RouteCallsValidation', () => {
         // Create mock tokens with lowercase address to match the test case
         const mockTokensWithLowercase = [
           {
-            address: toUniversalAddress('0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607'), // lowercase USDC
+            address: toUniversalAddress(
+              '0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607',
+            ), // lowercase USDC
             decimals: 6,
             limit: { max: 1000000 },
           },
           {
-            address: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT
+            address: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ), // USDT
             decimals: 6,
             limit: { max: 1000000 },
           },
@@ -198,7 +216,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607'), // lowercase USDC
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607',
+                ), // lowercase USDC
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },
@@ -219,7 +239,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC - supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC - supported token
                 data: '0x' as `0x${string}`, // Empty data that cannot be decoded
                 value: BigInt(0),
               },
@@ -240,7 +262,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC - supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC - supported token
                 data: '0x12345678' as `0x${string}`, // Custom function selector
                 value: BigInt(0),
               },
@@ -263,7 +287,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 data: '0x095ea7b300000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // approve - not transfer
                 value: BigInt(0),
               },
@@ -284,7 +310,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer
                 value: BigInt(0),
               },
@@ -306,12 +334,16 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC - supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC - supported token
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // valid transfer
                 value: BigInt(0),
               },
               {
-                target: toUniversalAddress('0x0000000000000000000000006666666666666666666666666666666666666666'), // Not a supported token
+                target: toUniversalAddress(
+                  '0x0000000000000000000000006666666666666666666666666666666666666666',
+                ), // Not a supported token
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer
                 value: BigInt(0),
               },
@@ -332,7 +364,9 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // Token address
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // Token address
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`, // transfer function
                 value: BigInt(0),
               },
@@ -354,17 +388,23 @@ describe('RouteCallsValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC
                 data: '0xa9059cbb00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },
               {
-                target: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT
+                target: toUniversalAddress(
+                  '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+                ), // USDT
                 data: '0xa9059cbb00000000000000000000000098765432109876543210987654321098765432100000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },
               {
-                target: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC again
+                target: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC again
                 data: '0xa9059cbb00000000000000000000000055556666777788889999000011112222333344440000000000000000000000000000000000000000000000000000000000000064' as `0x${string}`,
                 value: BigInt(0),
               },

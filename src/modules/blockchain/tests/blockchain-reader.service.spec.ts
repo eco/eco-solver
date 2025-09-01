@@ -3,8 +3,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
-import { BlockchainConfigService, EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
+import {
+  BlockchainConfigService,
+  EvmConfigService,
+  SolanaConfigService,
+  TvmConfigService,
+} from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BlockchainReaderService } from '../blockchain-reader.service';
@@ -45,7 +50,9 @@ describe('BlockchainReaderService', () => {
 
   beforeEach(async () => {
     blockchainConfigService = {
-      getAllConfiguredChains: jest.fn().mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
+      getAllConfiguredChains: jest
+        .fn()
+        .mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
       getChainType: jest.fn().mockImplementation((chainId) => {
         if (typeof chainId === 'number' || (typeof chainId === 'bigint' && chainId < 1000000)) {
           return 'evm';
@@ -226,7 +233,9 @@ describe('BlockchainReaderService', () => {
 
   describe('getBalance', () => {
     it('should get balance for EVM chain', async () => {
-      const testAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const testAddress = toUniversalAddress(
+        padTo32Bytes('0x1234567890123456789012345678901234567890'),
+      );
       const balance = await service.getBalance(1, testAddress);
       expect(balance).toBe(1000000000000000000n);
       expect(evmReader.getBalance).toHaveBeenCalledWith(testAddress, 1);
@@ -240,18 +249,23 @@ describe('BlockchainReaderService', () => {
     });
 
     it('should throw error for unsupported chain', async () => {
-      const testAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const testAddress = toUniversalAddress(
+        padTo32Bytes('0x1234567890123456789012345678901234567890'),
+      );
       await expect(service.getBalance(999, testAddress)).rejects.toThrow(
         'No reader available for chain 999',
       );
     });
-
   });
 
   describe('getTokenBalance', () => {
     it('should get token balance for EVM chain', async () => {
-      const tokenAddress = toUniversalAddress(padTo32Bytes('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'));
-      const walletAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const tokenAddress = toUniversalAddress(
+        padTo32Bytes('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
+      );
+      const walletAddress = toUniversalAddress(
+        padTo32Bytes('0x1234567890123456789012345678901234567890'),
+      );
       const balance = await service.getTokenBalance(1, tokenAddress, walletAddress);
       expect(balance).toBe(500000000000000000n);
       expect(evmReader.getTokenBalance).toHaveBeenCalledWith(tokenAddress, walletAddress, 1);
@@ -262,18 +276,25 @@ describe('BlockchainReaderService', () => {
       const walletAddress = toUniversalAddress('0x' + '3'.repeat(64)); // Valid 32-byte hex address for Solana wallet
       const balance = await service.getTokenBalance('solana-mainnet', tokenAddress, walletAddress);
       expect(balance).toBe(1000000000n);
-      expect(svmReader.getTokenBalance).toHaveBeenCalledWith(tokenAddress, walletAddress, 'solana-mainnet');
+      expect(svmReader.getTokenBalance).toHaveBeenCalledWith(
+        tokenAddress,
+        walletAddress,
+        'solana-mainnet',
+      );
     });
 
     it('should throw error for unsupported chain', async () => {
-      const tokenAddress = toUniversalAddress(padTo32Bytes('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'));
-      const walletAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const tokenAddress = toUniversalAddress(
+        padTo32Bytes('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
+      );
+      const walletAddress = toUniversalAddress(
+        padTo32Bytes('0x1234567890123456789012345678901234567890'),
+      );
       await expect(service.getTokenBalance(999, tokenAddress, walletAddress)).rejects.toThrow(
         'No reader available for chain 999',
       );
     });
   });
-
 
   describe('isIntentFunded', () => {
     it('should check intent funding for EVM chain', async () => {

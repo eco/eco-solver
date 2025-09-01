@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, encodeFunctionData, erc20Abi, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -266,12 +266,20 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
   it('should successfully fulfill an intent on Tron mainnet', async () => {
     // Convert Tron addresses to UniversalAddress format
-    const proverAddress = toUniversalAddress(padTo32Bytes('0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41'));
-    const creatorAddress = toUniversalAddress(padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'));
-    const inboxAddress = toUniversalAddress(padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'));
-    const usdtAddress = toUniversalAddress(padTo32Bytes('0xa614f803b6fd780986a42c78ec9c7f77e6ded13c'));
-    
-    // For viem encodeFunctionData, we need a standard 20-byte address 
+    const proverAddress = toUniversalAddress(
+      padTo32Bytes('0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41'),
+    );
+    const creatorAddress = toUniversalAddress(
+      padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'),
+    );
+    const inboxAddress = toUniversalAddress(
+      padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'),
+    );
+    const usdtAddress = toUniversalAddress(
+      padTo32Bytes('0xa614f803b6fd780986a42c78ec9c7f77e6ded13c'),
+    );
+
+    // For viem encodeFunctionData, we need a standard 20-byte address
     const recipientEvmAddress = '0x742d35cc6634c0532925a3b844bc9e7595ed5f3f' as Address;
 
     // Create a test intent with Tron mainnet data

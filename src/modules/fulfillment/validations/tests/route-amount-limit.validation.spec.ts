@@ -58,7 +58,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC
                 amount: BigInt(100000000), // 100 USDC (6 decimals)
               },
             ],
@@ -68,7 +70,9 @@ describe('RouteAmountLimitValidation', () => {
         // Mock normalize to return normalized amounts (18 decimals)
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('100000000000000000000'), // 100 normalized to 18 decimals
           },
@@ -76,7 +80,9 @@ describe('RouteAmountLimitValidation', () => {
 
         // Mock getToken to return token config with limit
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 1000 }, // 1000 USDC limit (acts as max)
         });
@@ -100,7 +106,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(1000000000), // 1000 USDC (6 decimals)
               },
             ],
@@ -109,14 +117,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('1000000000000000000000'), // 1000 normalized
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 1000 },
         });
@@ -149,7 +161,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(2000000000), // 2000 USDC
               },
             ],
@@ -158,14 +172,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('2000000000000000000000'), // 2000 normalized
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 1000 }, // Limit is 1000 USDC
         });
@@ -181,7 +199,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(1000000001), // Slightly over 1000 USDC
               },
             ],
@@ -190,14 +210,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('1000000000000000000001'), // 1 wei over 1000
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 1000 },
         });
@@ -215,11 +239,15 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC
                 amount: BigInt(400000000), // 400 USDC
               },
               {
-                token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT
+                token: toUniversalAddress(
+                  '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+                ), // USDT
                 amount: BigInt(300000000), // 300 USDT
               },
             ],
@@ -228,12 +256,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('400000000000000000000'), // 400 normalized
           },
           {
-            token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+            token: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ),
             decimals: 18,
             amount: BigInt('300000000000000000000'), // 300 normalized
           },
@@ -241,12 +273,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.getToken
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            address: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 6,
             limit: { max: 1000 }, // USDC limit is 1000
           })
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+            address: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ),
             decimals: 6,
             limit: { max: 500 }, // USDT limit is 500 (smaller)
           });
@@ -262,11 +298,15 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(300000000), // 300 USDC
               },
               {
-                token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+                token: toUniversalAddress(
+                  '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+                ),
                 amount: BigInt(300000000), // 300 USDT
               },
             ],
@@ -275,12 +315,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('300000000000000000000'), // 300 normalized
           },
           {
-            token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+            token: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ),
             decimals: 18,
             amount: BigInt('300000000000000000000'), // 300 normalized
           },
@@ -288,12 +332,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.getToken
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            address: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 6,
             limit: { max: 1000 },
           })
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+            address: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ),
             decimals: 6,
             limit: { max: 500 }, // Smallest limit
           });
@@ -311,11 +359,15 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC (6 decimals)
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ), // USDC (6 decimals)
                 amount: BigInt(100000000), // 100 USDC
               },
               {
-                token: toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'), // DAI (18 decimals)
+                token: toUniversalAddress(
+                  '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                ), // DAI (18 decimals)
                 amount: BigInt('100000000000000000000'), // 100 DAI
               },
             ],
@@ -324,12 +376,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('100000000000000000000'), // 100 normalized
           },
           {
-            token: toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
+            token: toUniversalAddress(
+              '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            ),
             decimals: 18,
             amount: BigInt('100000000000000000000'), // 100 normalized
           },
@@ -337,12 +393,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.getToken
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            address: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 6,
             limit: { max: 1000 },
           })
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
+            address: toUniversalAddress(
+              '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            ),
             decimals: 18,
             limit: { max: 1000 },
           });
@@ -360,7 +420,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt('1000000000000000000'), // Very large amount
               },
             ],
@@ -369,14 +431,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('1000000000000000000000000000'), // 1 billion normalized to 18 decimals
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 10000000000 }, // 10 billion limit (larger than amount)
         });
@@ -392,7 +458,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(0),
               },
             ],
@@ -401,14 +469,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt(0),
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 1000 },
         });
@@ -426,7 +498,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(2000000000),
               },
             ],
@@ -435,14 +509,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('2000000000000000000000'),
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { max: 1000 },
         });
@@ -460,7 +538,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(800000000), // 800 USDC
               },
             ],
@@ -469,7 +549,9 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('800000000000000000000'), // 800 normalized
           },
@@ -477,7 +559,9 @@ describe('RouteAmountLimitValidation', () => {
 
         // Mock getToken to return object format limit
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { min: 100, max: 1000 }, // Object format with min and max
         });
@@ -492,7 +576,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(1500000000), // 1500 USDC
               },
             ],
@@ -501,14 +587,18 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('1500000000000000000000'), // 1500 normalized
           },
         ]);
 
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           limit: { min: 100, max: 1000 }, // Max is 1000
         });
@@ -524,11 +614,15 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt(300000000), // 300 USDC
               },
               {
-                token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+                token: toUniversalAddress(
+                  '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+                ),
                 amount: BigInt(200000000), // 200 USDT
               },
             ],
@@ -537,12 +631,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('300000000000000000000'), // 300 normalized
           },
           {
-            token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+            token: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ),
             decimals: 18,
             amount: BigInt('200000000000000000000'), // 200 normalized
           },
@@ -550,12 +648,16 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.getToken
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            address: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 6,
             limit: { max: 1000 }, // Object format (max only)
           })
           .mockReturnValueOnce({
-            address: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'),
+            address: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ),
             decimals: 6,
             limit: { min: 50, max: 400 }, // Object format
           });
@@ -571,7 +673,9 @@ describe('RouteAmountLimitValidation', () => {
             ...createMockIntent().route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
                 amount: BigInt('1000000000000'), // Very large amount
               },
             ],
@@ -580,7 +684,9 @@ describe('RouteAmountLimitValidation', () => {
 
         fulfillmentConfigService.normalize.mockReturnValue([
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ),
             decimals: 18,
             amount: BigInt('1000000000000000000000000'), // Very large normalized
           },
@@ -588,7 +694,9 @@ describe('RouteAmountLimitValidation', () => {
 
         // Mock getToken to return no limit
         fulfillmentConfigService.getToken.mockReturnValue({
-          address: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          address: toUniversalAddress(
+            '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
           decimals: 6,
           // No limit property
         });

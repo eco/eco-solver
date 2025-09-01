@@ -72,7 +72,9 @@ describe('EvmExecutorService', () => {
   };
 
   const mockProver = {
-    getContractAddress: jest.fn().mockReturnValue('0x0000000000000000000000009999999999999999999999999999999999999999' as any),
+    getContractAddress: jest
+      .fn()
+      .mockReturnValue('0x0000000000000000000000009999999999999999999999999999999999999999' as any),
     getFee: jest.fn().mockResolvedValue(100000000000000000n),
     generateProof: jest.fn().mockResolvedValue('0xProofData'),
   };
@@ -90,7 +92,11 @@ describe('EvmExecutorService', () => {
         inboxAddress: '0xInboxAddress',
       }),
       getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address),
-      getPortalAddress: jest.fn().mockReturnValue('0x0000000000000000000000001111111111111111111111111111111111111111' as any),
+      getPortalAddress: jest
+        .fn()
+        .mockReturnValue(
+          '0x0000000000000000000000001111111111111111111111111111111111111111' as any,
+        ),
     } as any;
 
     transportService = {
@@ -209,8 +215,14 @@ describe('EvmExecutorService', () => {
         route: {
           ...mockIntent.route,
           tokens: [
-            { token: '0x0000000000000000000000002222222222222222222222222222222222222222' as any, amount: 100n },
-            { token: '0x0000000000000000000000003333333333333333333333333333333333333333' as any, amount: 200n },
+            {
+              token: '0x0000000000000000000000002222222222222222222222222222222222222222' as any,
+              amount: 100n,
+            },
+            {
+              token: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
+              amount: 200n,
+            },
           ],
         },
       };

@@ -2,7 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
-import { BlockchainConfigService, EvmConfigService, SolanaConfigService, TvmConfigService } from '@/modules/config/services';
+import {
+  BlockchainConfigService,
+  EvmConfigService,
+  SolanaConfigService,
+  TvmConfigService,
+} from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -30,7 +35,9 @@ describe('BlockchainExecutorService', () => {
 
   beforeEach(async () => {
     blockchainConfigService = {
-      getAllConfiguredChains: jest.fn().mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
+      getAllConfiguredChains: jest
+        .fn()
+        .mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
       getChainType: jest.fn().mockImplementation((chainId) => {
         if (typeof chainId === 'number' || (typeof chainId === 'bigint' && chainId < 1000000)) {
           return 'evm';

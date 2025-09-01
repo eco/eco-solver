@@ -4,7 +4,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress, toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import {
+  padTo32Bytes,
+  toUniversalAddress,
+  UniversalAddress,
+} from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
@@ -18,10 +22,16 @@ describe('MetalayerProver', () => {
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
-  const testAddress2 = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
+  const testAddress1 = toUniversalAddress(
+    padTo32Bytes('0x1234567890123456789012345678901234567890'),
+  );
+  const testAddress2 = toUniversalAddress(
+    padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+  );
   const mockFee = 2000000n;
-  const mockClaimant = toUniversalAddress(padTo32Bytes('0x9999999999999999999999999999999999999999'));
+  const mockClaimant = toUniversalAddress(
+    padTo32Bytes('0x9999999999999999999999999999999999999999'),
+  );
 
   beforeEach(async () => {
     mockBlockchainReaderService = {
@@ -33,16 +43,20 @@ describe('MetalayerProver', () => {
     } as unknown as jest.Mocked<ModuleRef>;
 
     mockBlockchainConfigService = {
-      getProverAddress: jest.fn().mockImplementation((chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-        const numericChainId = Number(chainId);
-        if (numericChainId === 137 && proverType === 'metalayer') {
-          return testAddress1;
-        }
-        if (numericChainId === 8453 && proverType === 'metalayer') {
-          return testAddress2;
-        }
-        return undefined;
-      }),
+      getProverAddress: jest
+        .fn()
+        .mockImplementation(
+          (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+            const numericChainId = Number(chainId);
+            if (numericChainId === 137 && proverType === 'metalayer') {
+              return testAddress1;
+            }
+            if (numericChainId === 8453 && proverType === 'metalayer') {
+              return testAddress2;
+            }
+            return undefined;
+          },
+        ),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -81,16 +95,22 @@ describe('MetalayerProver', () => {
 
     it('should handle chains with different prover types', () => {
       const mixedConfigService = {
-        getProverAddress: jest.fn().mockImplementation((chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-          const numericChainId = Number(chainId);
-          if (numericChainId === 1 && proverType === 'hyper') {
-            return toUniversalAddress(padTo32Bytes('0x1111111111111111111111111111111111111111'));
-          }
-          if (numericChainId === 137 && proverType === 'metalayer') {
-            return testAddress1;
-          }
-          return undefined;
-        }),
+        getProverAddress: jest
+          .fn()
+          .mockImplementation(
+            (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+              const numericChainId = Number(chainId);
+              if (numericChainId === 1 && proverType === 'hyper') {
+                return toUniversalAddress(
+                  padTo32Bytes('0x1111111111111111111111111111111111111111'),
+                );
+              }
+              if (numericChainId === 137 && proverType === 'metalayer') {
+                return testAddress1;
+              }
+              return undefined;
+            },
+          ),
       } as unknown as jest.Mocked<BlockchainConfigService>;
 
       const filteredProver = new MetalayerProver(mixedConfigService, mockModuleRef);
@@ -101,7 +121,9 @@ describe('MetalayerProver', () => {
 
   describe('generateProof', () => {
     it('should encode prover address as bytes32', async () => {
-      const proverAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const proverAddress = toUniversalAddress(
+        padTo32Bytes('0x1234567890123456789012345678901234567890'),
+      );
       const intent = createMockIntent({
         reward: {
           prover: proverAddress,
@@ -113,7 +135,10 @@ describe('MetalayerProver', () => {
       });
 
       const messageData = await prover.generateProof(intent);
-      const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(AddressNormalizer.denormalizeToEvm(proverAddress))]);
+      const expectedData = encodeAbiParameters(
+        [{ type: 'bytes32' }],
+        [pad(AddressNormalizer.denormalizeToEvm(proverAddress))],
+      );
 
       expect(messageData).toBe(expectedData);
     });
@@ -136,14 +161,19 @@ describe('MetalayerProver', () => {
           },
         });
         const messageData = await prover.generateProof(intent);
-        const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(AddressNormalizer.denormalizeToEvm(proverAddress))]);
+        const expectedData = encodeAbiParameters(
+          [{ type: 'bytes32' }],
+          [pad(AddressNormalizer.denormalizeToEvm(proverAddress))],
+        );
 
         expect(messageData).toBe(expectedData);
       }
     });
 
     it('should be consistent for the same prover address', async () => {
-      const proverAddress = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
+      const proverAddress = toUniversalAddress(
+        padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+      );
       const intent = createMockIntent({
         reward: {
           prover: proverAddress,
@@ -236,13 +266,18 @@ describe('MetalayerProver', () => {
           nativeAmount: 0n,
           calls: [
             {
-              target: toUniversalAddress(padTo32Bytes('0x1111111111111111111111111111111111111111')),
+              target: toUniversalAddress(
+                padTo32Bytes('0x1111111111111111111111111111111111111111'),
+              ),
               data: '0x' as Hex,
               value: 100n,
             },
           ],
           tokens: [
-            { token: toUniversalAddress(padTo32Bytes('0x2222222222222222222222222222222222222222')), amount: 1000n },
+            {
+              token: toUniversalAddress(padTo32Bytes('0x2222222222222222222222222222222222222222')),
+              amount: 1000n,
+            },
           ],
         },
       });
@@ -250,7 +285,10 @@ describe('MetalayerProver', () => {
       const messageData = await prover.generateProof(intent);
 
       // MetalayerProver only uses reward.prover, ignoring other fields
-      const expectedData = encodeAbiParameters([{ type: 'bytes32' }], [pad(AddressNormalizer.denormalizeToEvm(intent.reward.prover))]);
+      const expectedData = encodeAbiParameters(
+        [{ type: 'bytes32' }],
+        [pad(AddressNormalizer.denormalizeToEvm(intent.reward.prover))],
+      );
       expect(messageData).toBe(expectedData);
     });
 

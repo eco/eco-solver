@@ -149,7 +149,13 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const messageData = '0xdeadbeef' as Hex;
-      const result = await service.fetchProverFee(mockIntent, prover, messageData, chainId, mockClaimant);
+      const result = await service.fetchProverFee(
+        mockIntent,
+        prover,
+        messageData,
+        chainId,
+        mockClaimant,
+      );
 
       expect(result).toBe(expectedFee);
       expect(mockPublicClient.readContract).toHaveBeenCalledWith({

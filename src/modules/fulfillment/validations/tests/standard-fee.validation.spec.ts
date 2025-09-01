@@ -84,7 +84,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000000),
               }, // 1 USDC (6 decimals)
             ],
@@ -102,7 +104,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(500000),
               }, // 0.5 USDC reward (6 decimals)
             ],
@@ -111,11 +115,15 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(200000),
               }, // 0.2 USDC (6 decimals)
               {
-                token: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000002222222222222222222222222222222222222222',
+                ),
                 amount: BigInt(100000),
               }, // 0.1 USDC (6 decimals)
             ],
@@ -139,7 +147,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt('515001'), // Slightly over minimum required (6 decimals)
               },
             ],
@@ -148,7 +158,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(500000),
               }, // 0.5 USDC (6 decimals)
             ],
@@ -191,7 +203,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(10000000), // Large reward amount
               },
             ],
@@ -209,7 +223,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(5000), // 0.005 USDC (6 decimals)
               },
             ],
@@ -218,7 +234,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -250,7 +268,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt('1010099'), // Slightly less than required (1010100 - 1)
               },
             ],
@@ -259,7 +279,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -277,7 +299,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(1010100), // Exactly required (route value + fees)
               },
             ],
@@ -286,7 +310,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -317,7 +343,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(1020000), // Need 1.02 USDC to cover route + fees
               },
             ],
@@ -326,7 +354,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -361,7 +391,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(150000), // Need 0.15 USDC to cover route + base fee
               },
             ],
@@ -398,7 +430,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(100000), // Need to cover default route tokens (100000)
               },
             ],
@@ -427,7 +461,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(1500000), // Need 1.5 USDC to cover route + fee
               },
             ],
@@ -436,7 +472,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(1000000), // 1 USDC (6 decimals)
               },
             ],
@@ -461,7 +499,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt('5060000000'), // Need 5060 USDC to cover route + fees
               },
             ],
@@ -470,7 +510,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt('5000000000'),
               }, // 5000 USDC (6 decimals)
             ],
@@ -505,7 +547,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(1000),
               },
             ],
@@ -563,7 +607,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.reward,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000000000000000000000000000000000000000000001') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
                 amount: BigInt(343034), // Covers total required with rounding (6 decimals)
               },
             ],
@@ -572,7 +618,9 @@ describe('StandardFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111') ,
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(333), // Odd amount (6 decimals)
               },
             ],
@@ -614,7 +662,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC reward (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -623,7 +673,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC to transfer (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -656,7 +708,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -665,7 +719,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -696,7 +752,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -705,7 +763,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -741,7 +801,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('2000000'), // 2 USDC (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -750,7 +812,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -790,7 +854,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('5000000'), // 5 USDC reward (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -799,7 +865,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC to transfer (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -825,7 +893,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('500'), // 0.0005 USDC reward (too low, 6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -834,7 +904,9 @@ describe('StandardFeeValidation', () => {
           tokens: [
             {
               amount: BigInt('1000000'), // 1 USDC to transfer (6 decimals)
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },

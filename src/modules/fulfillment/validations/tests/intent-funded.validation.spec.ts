@@ -106,9 +106,16 @@ describe('IntentFundedValidation', () => {
         reward: {
           ...mockIntent.reward,
           tokens: [
-            { token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'), amount: BigInt(500) },
             {
-              token: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001111111111111111111111111111111111111111',
+              ),
+              amount: BigInt(500),
+            },
+            {
+              token: toUniversalAddress(
+                '0x0000000000000000000000002222222222222222222222222222222222222222',
+              ),
               amount: BigInt(1000),
             },
           ],
@@ -117,13 +124,17 @@ describe('IntentFundedValidation', () => {
           ...mockIntent.route,
           tokens: [
             {
-              token: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000003333333333333333333333333333333333333333',
+              ),
               amount: BigInt(2000),
             },
           ],
           calls: [
             {
-              target: toUniversalAddress('0x0000000000000000000000004444444444444444444444444444444444444444'),
+              target: toUniversalAddress(
+                '0x0000000000000000000000004444444444444444444444444444444444444444',
+              ),
               data: '0x' as `0x${string}`,
               value: BigInt(0),
             },

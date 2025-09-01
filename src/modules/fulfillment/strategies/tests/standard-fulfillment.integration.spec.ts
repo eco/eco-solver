@@ -4,9 +4,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import RedisMock from 'ioredis-mock';
 import { Address, Hex } from 'viem';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
-
 import { Intent } from '@/common/interfaces/intent.interface';
+import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services/blockchain-config.service';
@@ -259,12 +258,14 @@ const createMockBlockchainConfigService = () => ({
         scalarBps: 10, // 0.1%
       },
       native: {
-        flatFee: '0.001', // 0.001 ETH as string (18 decimal places) 
+        flatFee: '0.001', // 0.001 ETH as string (18 decimal places)
         scalarBps: 10, // 0.1%
       },
     };
   }),
-  getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890' as Address),
+  getPortalAddress: jest
+    .fn()
+    .mockReturnValue('0x1234567890123456789012345678901234567890' as Address),
   isChainSupported: jest.fn().mockReturnValue(true),
 });
 
@@ -335,31 +336,43 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
   // Create base intent with sufficient reward tokens to pass fee validation
   const baseIntent = createMockIntent({
     reward: {
-      prover: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
-      creator: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+      prover: toUniversalAddress(
+        '0x0000000000000000000000001234567890123456789012345678901234567890',
+      ),
+      creator: toUniversalAddress(
+        '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      ),
       deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
       nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
       tokens: [
         {
           amount: BigInt('5000000000000000000'), // 5 tokens (enough to cover fees with new lower rates)
-          token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
+          token: toUniversalAddress(
+            '0x00000000000000000000000000000002f050fe938943acc45f65568000000000',
+          ),
         },
       ],
     },
     route: {
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
-      portal: toUniversalAddress('0x0000000000000000000000009876543210987654321098765432109876543210'),
+      portal: toUniversalAddress(
+        '0x0000000000000000000000009876543210987654321098765432109876543210',
+      ),
       nativeAmount: 0n,
       tokens: [
         {
           amount: BigInt('100000000000000000'), // 0.1 ETH worth of tokens
-          token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
+          token: toUniversalAddress(
+            '0x00000000000000000000000000000002f050fe938943acc45f65568000000000',
+          ),
         },
       ],
       calls: [
         {
-          target: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'), // Use default token address from createMockIntent
+          target: toUniversalAddress(
+            '0x00000000000000000000000000000002f050fe938943acc45f65568000000000',
+          ), // Use default token address from createMockIntent
           value: 0n,
           data: '0xa9059cbb000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd00000000000000000000000000000000000000000000000000000000000186a0' as Hex, // ERC20 transfer call
         },
@@ -381,11 +394,15 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt(100),
-                  token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+                  token: toUniversalAddress(
+                    '0x0000000000000000000000001234567890123456789012345678901234567890',
+                  ),
                 },
                 {
                   amount: BigInt(200),
-                  token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+                  token: toUniversalAddress(
+                    '0x0000000000000000000000001234567890123456789012345678901234567890',
+                  ),
                 }, // Duplicate
               ],
             },
@@ -399,7 +416,12 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
             route: {
               ...baseIntent.route,
               tokens: [
-                { amount: BigInt(100), token: toUniversalAddress('0x000000000000000000000000000000000000000000000000000000696e76616c') }, // Invalid address (spells "inval")
+                {
+                  amount: BigInt(100),
+                  token: toUniversalAddress(
+                    '0x000000000000000000000000000000000000000000000000000000696e76616c',
+                  ),
+                }, // Invalid address (spells "inval")
               ],
             },
           };
@@ -413,7 +435,9 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               ...baseIntent.route,
               calls: [
                 {
-                  target: toUniversalAddress('0x000000000000000000000000000000000000000000000000000000696e76616c'), // Invalid address (spells "inval")
+                  target: toUniversalAddress(
+                    '0x000000000000000000000000000000000000000000000000000000696e76616c',
+                  ), // Invalid address (spells "inval")
                   value: BigInt(0),
                   data: '0x' as Hex,
                 },
@@ -432,7 +456,9 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt('10000000000000000000'), // 10 tokens - exceeds 1 ETH limit
-                  token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
+                  token: toUniversalAddress(
+                    '0x00000000000000000000000000000002f050fe938943acc45f65568000000000',
+                  ),
                 },
               ],
             },
@@ -469,7 +495,9 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
             ...baseIntent,
             route: {
               ...baseIntent.route,
-              portal: toUniversalAddress('0x000000000000000000556e737570706f7274656450726f766572313233343536'),
+              portal: toUniversalAddress(
+                '0x000000000000000000556e737570706f7274656450726f766572313233343536',
+              ),
             },
           };
 
@@ -483,7 +511,9 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
               tokens: [
                 {
                   amount: BigInt('100000000000000000000'),
-                  token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+                  token: toUniversalAddress(
+                    '0x0000000000000000000000001234567890123456789012345678901234567890',
+                  ),
                 }, // 100 tokens - exceeds balance
               ],
             },
@@ -906,7 +936,12 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         } as any,
         route: {
           tokens: [
-            { amount: BigInt(100), token: toUniversalAddress('0x000000000000000000000000000000000000000000000000000000696e76616c') }, // Invalid
+            {
+              amount: BigInt(100),
+              token: toUniversalAddress(
+                '0x000000000000000000000000000000000000000000000000000000696e76616c',
+              ),
+            }, // Invalid
           ],
         } as any,
       });
@@ -988,14 +1023,20 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
         createMockIntent({
           intentHash: `0x${Math.random().toString(16).substr(2, 64)}` as Hex,
           reward: {
-            prover: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
-            creator: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+            prover: toUniversalAddress(
+              '0x0000000000000000000000001234567890123456789012345678901234567890',
+            ),
+            creator: toUniversalAddress(
+              '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            ),
             deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
             nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
             tokens: [
               {
                 amount: BigInt('5000000000000000000'), // 5 tokens - sufficient for fees
-                token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
+                token: toUniversalAddress(
+                  '0x00000000000000000000000000000002f050fe938943acc45f65568000000000',
+                ),
               },
             ],
           },
@@ -1012,14 +1053,20 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     it('should properly cleanup resources after test completion', async () => {
       const intent = createMockIntent({
         reward: {
-          prover: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
-          creator: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+          prover: toUniversalAddress(
+            '0x0000000000000000000000001234567890123456789012345678901234567890',
+          ),
+          creator: toUniversalAddress(
+            '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          ),
           deadline: BigInt(Math.floor(Date.now() / 1000) + 86400), // 24 hours from now in seconds
           nativeAmount: BigInt('5000000000000000000'), // 5 ETH - sufficient for fees
           tokens: [
             {
               amount: BigInt('5000000000000000000'), // 5 tokens - sufficient for fees
-              token: toUniversalAddress('0x00000000000000000000000000000002f050fe938943acc45f65568000000000'),
+              token: toUniversalAddress(
+                '0x00000000000000000000000000000002f050fe938943acc45f65568000000000',
+              ),
             },
           ],
         },

@@ -58,7 +58,9 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000),
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
           ],
         },
@@ -76,15 +78,21 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000),
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
             {
               amount: BigInt(2000000000000000000),
-              token: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+              token: toUniversalAddress(
+                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+              ),
             },
             {
               amount: BigInt(3000000000000000000),
-              token: toUniversalAddress('0x0000000000000000000000009876543210987654321098765432109876543210'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000009876543210987654321098765432109876543210',
+              ),
             },
           ],
         },
@@ -96,7 +104,9 @@ describe('DuplicateRewardTokensValidation', () => {
     });
 
     it('should throw error when there are duplicate token addresses', async () => {
-      const duplicateToken = toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890');
+      const duplicateToken = toUniversalAddress(
+        '0x0000000000000000000000001234567890123456789012345678901234567890',
+      );
       const intent = createMockIntent({
         reward: {
           ...createMockIntent().reward,
@@ -107,7 +117,9 @@ describe('DuplicateRewardTokensValidation', () => {
             },
             {
               amount: BigInt(2000000000000000000),
-              token: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+              token: toUniversalAddress(
+                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+              ),
             },
             {
               amount: BigInt(3000000000000000000),
@@ -129,11 +141,15 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000),
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
             {
               amount: BigInt(2000000000000000000),
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'), // Same address, different case
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ), // Same address, different case
             },
           ],
         },
@@ -145,8 +161,12 @@ describe('DuplicateRewardTokensValidation', () => {
     });
 
     it('should throw error with multiple duplicate tokens', async () => {
-      const duplicateToken1 = toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890');
-      const duplicateToken2 = toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      const duplicateToken1 = toUniversalAddress(
+        '0x0000000000000000000000001234567890123456789012345678901234567890',
+      );
+      const duplicateToken2 = toUniversalAddress(
+        '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
       const intent = createMockIntent({
         reward: {
           ...createMockIntent().reward,
@@ -185,11 +205,15 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000), // Same amount
-              token: toUniversalAddress('0x0000000000000000000000001234567890123456789012345678901234567890'),
+              token: toUniversalAddress(
+                '0x0000000000000000000000001234567890123456789012345678901234567890',
+              ),
             },
             {
               amount: BigInt(1000000000000000000), // Same amount
-              token: toUniversalAddress('0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+              token: toUniversalAddress(
+                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+              ),
             },
           ],
         },
@@ -201,7 +225,9 @@ describe('DuplicateRewardTokensValidation', () => {
     });
 
     it('should handle many tokens with one duplicate', async () => {
-      const duplicateToken = toUniversalAddress('0x0000000000000000000000005555555555555555555555555555555555555555');
+      const duplicateToken = toUniversalAddress(
+        '0x0000000000000000000000005555555555555555555555555555555555555555',
+      );
       const tokens = [];
 
       // Add 10 unique tokens

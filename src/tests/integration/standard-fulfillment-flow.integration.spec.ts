@@ -59,17 +59,23 @@ describeIntegration('Standard Fulfillment Flow Integration', () => {
       route: {
         salt: '0x00786dc142b348787e289e76c147768cbc0a5e7da852d6492b7992ea8730a05d' as Hex,
         deadline: 1756338836n,
-        portal: toUniversalAddress('0x00000000000000000000000090F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7'),
+        portal: toUniversalAddress(
+          '0x00000000000000000000000090F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
+        ),
         nativeAmount: 0n,
         tokens: [
           {
-            token: toUniversalAddress('0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
+            token: toUniversalAddress(
+              '0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            ),
             amount: 10000n,
           },
         ],
         calls: [
           {
-            target: toUniversalAddress('0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
+            target: toUniversalAddress(
+              '0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            ),
             data: '0xa9059cbb000000000000000000000000256b70644f5d77bc8e2bb82c731ddf747ecb14710000000000000000000000000000000000000000000000000000000000002710' as Hex,
             value: 0n,
           },
@@ -77,12 +83,18 @@ describeIntegration('Standard Fulfillment Flow Integration', () => {
       },
       reward: {
         deadline: 1756342436n,
-        creator: toUniversalAddress('0x00000000000000000000000090F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7'),
-        prover: toUniversalAddress('0x00000000000000000000000001f914e5dF8CFEA1913eC1c4C974266f3A7822F7'),
+        creator: toUniversalAddress(
+          '0x00000000000000000000000090F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
+        ),
+        prover: toUniversalAddress(
+          '0x00000000000000000000000001f914e5dF8CFEA1913eC1c4C974266f3A7822F7',
+        ),
         nativeAmount: 0n,
         tokens: [
           {
-            token: toUniversalAddress('0x0000000000000000000000000b2C639c533813f4Aa9D7837CAf62653d097Ff85'),
+            token: toUniversalAddress(
+              '0x0000000000000000000000000b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            ),
             amount: 10000n,
           },
         ],

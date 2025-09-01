@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress, toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import {
+  padTo32Bytes,
+  toUniversalAddress,
+  UniversalAddress,
+} from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -17,8 +21,12 @@ describe('ProverService', () => {
   let mockLogger: jest.Mocked<SystemLoggerService>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
-  const mockHyperAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
-  const mockMetalayerAddress = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
+  const mockHyperAddress = toUniversalAddress(
+    padTo32Bytes('0x1234567890123456789012345678901234567890'),
+  );
+  const mockMetalayerAddress = toUniversalAddress(
+    padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+  );
 
   beforeEach(async () => {
     const hyperAddressMap = new Map([
@@ -289,7 +297,10 @@ describe('ProverService', () => {
     });
 
     it('should return null for wrong address on correct chain', () => {
-      const prover = service.getProver(1, toUniversalAddress(padTo32Bytes('0x0000000000000000000000000000000000000000')));
+      const prover = service.getProver(
+        1,
+        toUniversalAddress(padTo32Bytes('0x0000000000000000000000000000000000000000')),
+      );
       expect(prover).toBeNull();
     });
 

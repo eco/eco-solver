@@ -52,11 +52,15 @@ describe('ExecutorBalanceValidation', () => {
         ...createMockIntent().route,
         tokens: [
           {
-            token: toUniversalAddress('0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'), // USDC
+            token: toUniversalAddress(
+              '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+            ), // USDC
             amount: BigInt(1000000), // 1 USDC
           },
           {
-            token: toUniversalAddress('0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58'), // USDT
+            token: toUniversalAddress(
+              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            ), // USDT
             amount: BigInt(2000000), // 2 USDT
           },
         ],
@@ -175,19 +179,27 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(100),
               },
               {
-                token: toUniversalAddress('0x0000000000000000000000002222222222222222222222222222222222222222'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000002222222222222222222222222222222222222222',
+                ),
                 amount: BigInt(200),
               },
               {
-                token: toUniversalAddress('0x0000000000000000000000003333333333333333333333333333333333333333'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000003333333333333333333333333333333333333333',
+                ),
                 amount: BigInt(300),
               },
               {
-                token: toUniversalAddress('0x0000000000000000000000004444444444444444444444444444444444444444'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000004444444444444444444444444444444444444444',
+                ),
                 amount: BigInt(400),
               },
             ],
@@ -211,7 +223,9 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(100),
               },
             ],
@@ -238,7 +252,9 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt('1000000000000000000000000'), // Very large amount
               },
             ],
@@ -260,11 +276,15 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(100),
               },
               {
-                token: toUniversalAddress('0x0000000000000000000000001111111111111111111111111111111111111111'),
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001111111111111111111111111111111111111111',
+                ),
                 amount: BigInt(200),
               },
             ],
@@ -287,7 +307,9 @@ describe('ExecutorBalanceValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress('0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607'), // lowercase
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607',
+                ), // lowercase
                 amount: BigInt(1000000),
               },
             ],

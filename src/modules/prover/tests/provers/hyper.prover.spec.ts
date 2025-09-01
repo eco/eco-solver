@@ -4,7 +4,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress, toUniversalAddress, padTo32Bytes } from '@/common/types/universal-address.type';
+import {
+  padTo32Bytes,
+  toUniversalAddress,
+  UniversalAddress,
+} from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
@@ -17,10 +21,16 @@ describe('HyperProver', () => {
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
-  const testAddress2 = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
+  const testAddress1 = toUniversalAddress(
+    padTo32Bytes('0x1234567890123456789012345678901234567890'),
+  );
+  const testAddress2 = toUniversalAddress(
+    padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+  );
   const mockFee = 1000000n;
-  const mockClaimant = toUniversalAddress(padTo32Bytes('0x9999999999999999999999999999999999999999'));
+  const mockClaimant = toUniversalAddress(
+    padTo32Bytes('0x9999999999999999999999999999999999999999'),
+  );
 
   beforeEach(async () => {
     mockBlockchainReaderService = {
@@ -32,16 +42,20 @@ describe('HyperProver', () => {
     } as unknown as jest.Mocked<ModuleRef>;
 
     mockBlockchainConfigService = {
-      getProverAddress: jest.fn().mockImplementation((chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-        const numericChainId = Number(chainId);
-        if (numericChainId === 1 && proverType === 'hyper') {
-          return testAddress1;
-        }
-        if (numericChainId === 10 && proverType === 'hyper') {
-          return testAddress2;
-        }
-        return undefined;
-      }),
+      getProverAddress: jest
+        .fn()
+        .mockImplementation(
+          (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+            const numericChainId = Number(chainId);
+            if (numericChainId === 1 && proverType === 'hyper') {
+              return testAddress1;
+            }
+            if (numericChainId === 10 && proverType === 'hyper') {
+              return testAddress2;
+            }
+            return undefined;
+          },
+        ),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -81,7 +95,9 @@ describe('HyperProver', () => {
 
   describe('generateProof', () => {
     it('should encode proof data correctly for intent', async () => {
-      const proverAddress = toUniversalAddress(padTo32Bytes('0x3333333333333333333333333333333333333333'));
+      const proverAddress = toUniversalAddress(
+        padTo32Bytes('0x3333333333333333333333333333333333333333'),
+      );
       const intent = createMockIntent({
         reward: {
           prover: proverAddress,
@@ -109,7 +125,9 @@ describe('HyperProver', () => {
     });
 
     it('should handle different prover addresses', async () => {
-      const proverAddress = toUniversalAddress(padTo32Bytes('0x1234567890123456789012345678901234567890'));
+      const proverAddress = toUniversalAddress(
+        padTo32Bytes('0x1234567890123456789012345678901234567890'),
+      );
       const intent = createMockIntent({
         reward: {
           prover: proverAddress,
