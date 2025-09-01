@@ -59,34 +59,7 @@ export class RebalanceRepository {
    * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountIn
    */
   async getPendingReservedByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
-    const map = new Map<string, bigint>()
-
-    // Use simple find + in-memory sum for testability and bigint safety
-    const docs = await this.model
-      .find(
-        {
-          status: RebalanceStatus.PENDING.toString(),
-          wallet: walletAddress,
-        },
-        { amountIn: 1, tokenIn: 1, wallet: 1, status: 1 },
-      )
-      .lean()
-
-    for (const doc of docs) {
-      const { chainId, tokenAddress } = doc.tokenIn
-      const amountIn = BigInt(doc.amountIn)
-
-      // Ignore non-positive reservations
-      if (amountIn <= 0n) {
-        continue
-      }
-
-      const key = `${chainId}:${String(tokenAddress).toLowerCase()}`
-      const prev = map.get(key) ?? 0n
-      map.set(key, prev + amountIn)
-    }
-
-    return map
+    return this.getPendingByTokenForWallet(walletAddress, 'amountIn', 'tokenIn')
   }
 
   /**
@@ -95,6 +68,14 @@ export class RebalanceRepository {
    * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountOut
    */
   async getPendingIncomingByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
+    return this.getPendingByTokenForWallet(walletAddress, 'amountOut', 'tokenOut')
+  }
+
+  private async getPendingByTokenForWallet(
+    walletAddress: string,
+    amountKey: 'amountIn' | 'amountOut',
+    tokenKey: 'tokenIn' | 'tokenOut',
+  ): Promise<Map<string, bigint>> {
     const map = new Map<string, bigint>()
 
     const docs = await this.model
@@ -103,21 +84,21 @@ export class RebalanceRepository {
           status: RebalanceStatus.PENDING.toString(),
           wallet: walletAddress,
         },
-        { amountOut: 1, tokenOut: 1, wallet: 1, status: 1 },
+        { [amountKey]: 1, [tokenKey]: 1, wallet: 1, status: 1 },
       )
       .lean()
 
     for (const doc of docs) {
-      const { chainId, tokenAddress } = doc.tokenOut || {}
-      if (chainId === undefined || !tokenAddress) {
+      const { chainId, tokenAddress } = doc[tokenKey]
+      const amount = BigInt(doc[amountKey].toString())
+
+      if (amount <= 0n) {
         continue
       }
-      const amountOut = BigInt(doc.amountOut ?? 0n)
-      if (amountOut <= 0n) continue
 
       const key = `${chainId}:${String(tokenAddress).toLowerCase()}`
       const previous = map.get(key) ?? 0n
-      map.set(key, previous + amountOut)
+      map.set(key, previous + amount)
     }
 
     return map
