@@ -34,4 +34,9 @@ export class SolverRegistrationDTO {
   @IsString()
   @ApiProperty()
   receiveSignedIntentUrl: string
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional()
+  gaslessIntentTransactionDataUrl?: string
 }
