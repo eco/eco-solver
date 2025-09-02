@@ -8,6 +8,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
@@ -18,6 +19,7 @@ import { EverclearProviderService } from './liquidity-providers/Everclear/evercl
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -55,10 +57,13 @@ describe('LiquidityManagerService', () => {
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
+        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
         BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
       ],
     })
       .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      .useValue(createMock<Queue>())
+      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
       .useValue(createMock<Queue>())
       .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
       .useValue(createMock<FlowProducer>())
@@ -106,6 +111,24 @@ describe('LiquidityManagerService', () => {
       jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
       await liquidityManagerService.onApplicationBootstrap()
       expect(liquidityManagerService['config']).toEqual(mockConfig)
+    })
+
+    it('cleans schedulers on legacy and dedicated queues and schedules kernel', async () => {
+      const mockConfig = { intervalDuration: 1000 }
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
+
+      const removeSpy = jest
+        .spyOn(require('@/bullmq/utils/queue'), 'removeJobSchedulers')
+        .mockResolvedValue(undefined as any)
+
+      const startSpy = jest
+        .spyOn(CheckBalancesCronJobManager, 'start')
+        .mockResolvedValue(undefined as any)
+
+      await liquidityManagerService.onApplicationBootstrap()
+
+      expect(removeSpy).toHaveBeenCalled()
+      expect(startSpy).toHaveBeenCalled()
     })
   })
 

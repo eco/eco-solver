@@ -26,6 +26,7 @@ import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types
 import { TokenConfig } from '@/balance/types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
@@ -212,10 +213,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           provide: CrowdLiquidityService,
           useValue: createMock<CrowdLiquidityService>(),
         },
-        {
-          provide: getQueueToken(LiquidityManagerQueue.queueName),
-          useValue: queue,
-        },
+        { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: queue },
+        { provide: getQueueToken(CheckBalancesQueue.queueName), useValue: createMock<Queue>() },
         {
           provide: getFlowProducerToken(LiquidityManagerQueue.flowName),
           useValue: flowProducer,

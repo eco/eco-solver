@@ -9,7 +9,9 @@ import { IntentModule } from '@/intent/intent.module'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
+import { CheckBalancesProcessor } from '@/liquidity-manager/processors/check-balances.processor'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
@@ -28,12 +30,14 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     IntentModule,
     TransactionModule,
     LiquidityManagerQueue.init(),
+    CheckBalancesQueue.init(),
     LiquidityManagerQueue.initFlow(),
 
     MongooseModule.forFeature([{ name: RebalanceModel.name, schema: RebalanceSchema }]),
   ],
   providers: [
     LiquidityManagerService,
+    CheckBalancesProcessor,
     LiquidityManagerProcessor,
     LiquidityProviderService,
     LiFiProviderService,

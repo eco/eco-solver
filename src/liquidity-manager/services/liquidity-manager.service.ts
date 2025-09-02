@@ -14,6 +14,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
@@ -44,12 +45,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
+  private readonly checkBalancesQueueWrapper: CheckBalancesQueue
 
   private readonly tokensPerWallet: Record<string, TokenConfig[]> = {}
 
   constructor(
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
+    @InjectQueue(CheckBalancesQueue.queueName)
+    private readonly checkBalancesQueue: LiquidityManagerQueueType,
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
     public readonly balanceService: BalanceService,
@@ -61,11 +65,45 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     private readonly rebalanceRepository: RebalanceRepository,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
+    this.checkBalancesQueueWrapper = new CheckBalancesQueue(this.checkBalancesQueue as any)
   }
 
   async onApplicationBootstrap() {
-    // Remove existing job schedulers for CHECK_BALANCES
-    await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
+    // Remove existing job schedulers for CHECK_BALANCES (legacy + new queue)
+    try {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: cleaning repeatable jobs on legacy queue',
+          properties: { queue: this.queue.name },
+        }),
+      )
+      await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
+    } catch (e) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: failed to clean legacy queue schedulers',
+          properties: { queue: this.queue.name, error: (e as any)?.message ?? e },
+        }),
+      )
+    }
+
+    // Try to remove any previous schedulers on the new queue as well (idempotent)
+    try {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: cleaning repeatable jobs on dedicated queue',
+          properties: { queue: this.checkBalancesQueueWrapper.name },
+        }),
+      )
+      await removeJobSchedulers(this.checkBalancesQueue, LiquidityManagerJobName.CHECK_BALANCES)
+    } catch (e) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: failed to clean dedicated queue schedulers',
+          properties: { error: (e as any)?.message ?? e },
+        }),
+      )
+    }
 
     // Get wallet addresses we'll be monitoring
     this.config = this.ecoConfigService.getLiquidityManager()
@@ -102,13 +140,33 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const kernelAddress = client.kernelAccount.address
 
     // Track rebalances for Solver
-    await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'CHECK_BALANCES: scheduling cron (kernel wallet)',
+        properties: {
+          queue: this.checkBalancesQueueWrapper.name,
+          intervalMs: this.config.intervalDuration,
+          wallet: kernelAddress,
+        },
+      }),
+    )
+    await this.checkBalancesQueueWrapper.startCronJobs(this.config.intervalDuration, kernelAddress)
     this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
       const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
-      await this.liquidityManagerQueue.startCronJobs(
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: scheduling cron (crowd-liquidity pool)',
+          properties: {
+            queue: this.checkBalancesQueueWrapper.name,
+            intervalMs: this.config.intervalDuration,
+            wallet: crowdLiquidityPoolAddress,
+          },
+        }),
+      )
+      await this.checkBalancesQueueWrapper.startCronJobs(
         this.config.intervalDuration,
         crowdLiquidityPoolAddress,
       )

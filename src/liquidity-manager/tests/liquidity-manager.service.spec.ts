@@ -8,6 +8,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
@@ -26,6 +27,7 @@ describe('LiquidityManagerService', () => {
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
+  let checkQueue: DeepMocked<Queue>
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -51,10 +53,13 @@ describe('LiquidityManagerService', () => {
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
+        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
         BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
       ],
     })
       .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      .useValue(createMock<Queue>())
+      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
       .useValue(createMock<Queue>())
       .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
       .useValue(createMock<FlowProducer>())
@@ -67,6 +72,7 @@ describe('LiquidityManagerService', () => {
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
+    checkQueue = chainMod.get(getQueueToken(CheckBalancesQueue.queueName))
 
     Object.defineProperty(queue, 'name', {
       value: LiquidityManagerQueue.queueName,
@@ -117,7 +123,7 @@ describe('LiquidityManagerService', () => {
 
       await liquidityManagerService.onApplicationBootstrap()
 
-      expect(startSpy).toHaveBeenCalledWith(queue, intervalDuration, walletAddress)
+      expect(startSpy).toHaveBeenCalledWith(checkQueue, intervalDuration, walletAddress)
 
       // Cleanup for isolation
       delete (CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress]

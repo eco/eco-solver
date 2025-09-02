@@ -2,7 +2,6 @@ import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestation.job'
 import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
@@ -42,7 +41,6 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
     public readonly everclearProviderService: EverclearProviderService,
   ) {
     super(LiquidityManagerProcessor.name, [
-      new CheckBalancesCronJobManager(),
       new RebalanceJobManager(),
       new ExecuteCCTPMintJobManager(),
       new CheckCCTPAttestationJobManager(),

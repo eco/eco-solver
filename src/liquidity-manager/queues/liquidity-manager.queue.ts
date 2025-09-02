@@ -1,7 +1,6 @@
 import { Queue } from 'bullmq'
 import { GatewayTopUpJobData, GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
   CheckCCTPAttestationJob,
   CheckCCTPAttestationJobManager,
@@ -78,9 +77,7 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  startCronJobs(interval: number, walletAddress: string): Promise<void> {
-    return CheckBalancesCronJobManager.start(this.queue, interval, walletAddress)
-  }
+  // Note: CHECK_BALANCES cron has been moved to a dedicated queue/processor.
 
   startCCTPAttestationCheck(data: CheckCCTPAttestationJob['data']): Promise<void> {
     return CheckCCTPAttestationJobManager.start(this.queue, data)
