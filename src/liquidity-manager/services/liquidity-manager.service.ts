@@ -20,14 +20,9 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-<<<<<<< HEAD
-import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
-import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
-=======
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -181,14 +176,9 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async analyzeTokens(walletAddress: string) {
-<<<<<<< HEAD
-    // 1) Build reservation map of amounts already committed to pending rebalances
-    const reservedByToken = await this.getReservedByTokenMap(walletAddress)
-=======
     // 1) Build reservation maps of amounts already committed to pending rebalances
     const reservedByToken = await this.getReservedByTokenMap(walletAddress)
     const incomingByToken = await this.getIncomingByTokenMap(walletAddress)
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -213,19 +203,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         const key = `${item.chainId}:${String(item.config.address).toLowerCase()}`
         const reserved = reservedByToken.get(key) ?? 0n
-<<<<<<< HEAD
-        if (reserved > 0n) {
-          item.balance.balance = item.balance.balance - reserved
-        }
-      } catch {}
-      return item
-    })
-
-    const analysis: TokenDataAnalyzed[] = adjusted.map((item) => ({
-      ...item,
-      analysis: this.analyzeToken(item),
-    }))
-=======
         const incoming = incomingByToken.get(key) ?? 0n
         if (reserved > 0n || incoming > 0n) {
           item.balance.balance = item.balance.balance - reserved + incoming
@@ -262,7 +239,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
       }
     }
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     const groups = groupBy(analysis, (item) => item.analysis.state)
     return {
@@ -289,13 +265,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
       }
       return map
-<<<<<<< HEAD
-    } catch (e) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'Reservation-aware analysis: no reservations applied',
-          properties: { walletAddress, error: (e as any)?.message ?? e },
-=======
     } catch (error) {
       this.logger.debug(
         EcoLogMessage.withError({
@@ -330,7 +299,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           message: 'Reservation-aware analysis: no incoming applied',
           properties: { walletAddress },
           error,
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         }),
       )
       return new Map<string, bigint>()
@@ -393,18 +361,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
     const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
-<<<<<<< HEAD
-    const quotesWithIds = request.quotes.map((quote) => {
-      quote.groupID = groupID
-      quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
-      return quote
-    })
-
-    const result = await this.rebalanceRepository.createBatch(walletAddress, quotesWithIds, groupID)
-
-    if ('error' in result && result.error) {
-      throw result.error
-=======
 
     for (const quote of request.quotes) {
       quote.groupID = groupID
@@ -430,7 +386,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           properties: { quote, walletAddress },
         }),
       )
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
     }
   }
 

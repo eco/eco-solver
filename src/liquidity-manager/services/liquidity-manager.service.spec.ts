@@ -19,10 +19,7 @@ import { EverclearProviderService } from './liquidity-providers/Everclear/evercl
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
-<<<<<<< HEAD
-=======
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -52,14 +49,10 @@ describe('LiquidityManagerService', () => {
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
         {
           provide: RebalanceRepository,
-<<<<<<< HEAD
-          useValue: { getPendingReservedByTokenForWallet: jest.fn() },
-=======
           useValue: {
             getPendingReservedByTokenForWallet: jest.fn(),
             getPendingIncomingByTokenForWallet: jest.fn(),
           },
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         },
       ],
       imports: [
@@ -200,11 +193,9 @@ describe('LiquidityManagerService', () => {
       const reserved = new Map<string, bigint>([[key, 120_000_000n]])
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(reserved)
 
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
+
       const result = await liquidityManagerService.analyzeTokens(wallet)
 
       // usdcOP adjusted current = 200 - 120 = 80 → exactly at min → IN_RANGE
@@ -243,10 +234,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 10_000_000n]]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -269,10 +257,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 5_000_000n]]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -295,10 +280,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 60_000_000n]]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -322,10 +304,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 1_200_000_000_000_000_000n]]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -353,10 +332,7 @@ describe('LiquidityManagerService', () => {
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
         new Map([[key, 120_000_000n]]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const r1 = await liquidityManagerService.analyzeTokens(wallet)
       const c1 = r1.items[0].analysis.balance.current
@@ -383,10 +359,7 @@ describe('LiquidityManagerService', () => {
           [`8453:${'0xElse'.toLowerCase()}`, 1_000_000n],
         ]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item = result.items[0]
@@ -421,10 +394,7 @@ describe('LiquidityManagerService', () => {
           [key8453, 50_000_000n],
         ]),
       )
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       const item10 = result.items.find((t: any) => t.chainId === 10)!
@@ -438,18 +408,13 @@ describe('LiquidityManagerService', () => {
       liquidityManagerService['config'] = mockConfig
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([] as any)
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(new Map())
-<<<<<<< HEAD
-=======
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
       const result = await liquidityManagerService.analyzeTokens(wallet)
       expect(result.items).toHaveLength(0)
       expect(result.surplus.items).toHaveLength(0)
       expect(result.deficit.items).toHaveLength(0)
     })
-<<<<<<< HEAD
-=======
 
     it('adds incoming (pending amountOut) before classification', async () => {
       const wallet = zeroAddress
@@ -472,7 +437,6 @@ describe('LiquidityManagerService', () => {
       const item = result.items[0]
       expect(item.analysis.balance.current).toEqual(49_996_534n)
     })
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   })
 
   describe('getOptimizedRebalancing', () => {
