@@ -70,7 +70,7 @@ export class EcoLogMessage {
       ddtags: `env:${process.env.NODE_ENV || 'development'},service:eco-solver`,
       host: process.env.HOSTNAME || 'eco-solver-instance',
       env: process.env.NODE_ENV || 'development',
-      version: '1.5',
+      version: '1.5', //todo we need to start versioning
       'logger.name': 'EcoLogMessage',
       ...additionalData,
     }
