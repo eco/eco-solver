@@ -137,38 +137,12 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     const { groupID, rebalanceJobID } = jobData
 
     processor.logger.log(
-<<<<<<< HEAD
       EcoLogMessage.withId({
         message: `GatewayTopUpJob: Completed!`,
         id: job.data.id,
         properties: {
           groupID,
           rebalanceJobID,
-          chainId: job.data.chainId,
-          txHash: job.returnvalue,
-        },
-      }),
-    )
-
-    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
-  }
-
-  async onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
-
-    processor.logger.error(
-=======
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
-      EcoLogMessage.withId({
-        message: `GatewayTopUpJob: Completed!`,
-        id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-<<<<<<< HEAD
-          error: (error as any)?.message ?? error,
-=======
           chainId: job.data.chainId,
           txHash: job.returnvalue,
         },
@@ -198,13 +172,8 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
         error: error as any,
         properties: {
           data: job.data,
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         },
       }),
     )
-
-    if (this.isFinalAttempt(job, error)) {
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
   }
 }

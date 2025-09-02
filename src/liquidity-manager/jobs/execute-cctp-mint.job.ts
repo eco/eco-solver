@@ -152,42 +152,26 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param error - The error that occurred.
    */
   async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
-<<<<<<< HEAD
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
-=======
     const isFinal = this.isFinalAttempt(job, error)
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { rebalanceJobID } = jobData
 
     const errorMessage = isFinal
       ? 'CCTP: ExecuteCCTPMintJob: FINAL FAILURE'
       : 'CCTP: ExecuteCCTPMintJob: Failed: Retrying...'
 
-    if (isFinal) {
-      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-      const { rebalanceJobID } = jobData
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
-
     processor.logger.error(
       EcoLogMessage.withErrorAndId({
         message: errorMessage,
         id: job.data.id,
-<<<<<<< HEAD
-        properties: {
-          groupID,
-          rebalanceJobID,
-          error: (error as any)?.message ?? error,
-=======
         error: error as any,
         properties: {
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
           data: job.data,
         },
       }),
     )
 
-    if (this.isFinalAttempt(job, error)) {
+    if (isFinal) {
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
   }

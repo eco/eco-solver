@@ -156,14 +156,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         CCTPLiFiProviderService,
         {
           provide: RebalanceRepository,
-<<<<<<< HEAD
-          useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
-=======
           useValue: (rebalanceRepo = {
             getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
             create: jest.fn().mockResolvedValue({}),
           }),
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         },
         {
           provide: LiFiProviderService,
