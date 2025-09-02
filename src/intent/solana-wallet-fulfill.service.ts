@@ -25,7 +25,6 @@ import { CallDataInterface } from '@/contracts'
 import { hashIntent, encodeRoute } from '@/utils/encodeAndHash'
 
 import * as portalIdl from '../solana/program/portal.json'
-import * as hyperProverIdl from '../solana/program/hyper_prover.json'
 
 /**
  * This class fulfills Solana intents by creating and executing transactions on Solana.
@@ -122,6 +121,47 @@ export class SolanaWalletFulfillService implements IFulfillService {
       solver
     )
     console.log("MADDEN: transferInstructions", transferInstructions)
+    
+    // Check token balances before transfer
+    for (const instruction of transferInstructions) {
+      console.log("MADDEN: Transfer instruction:", instruction)
+      console.log("MADDEN: Transfer instruction keys:", instruction.keys.map(k => ({
+        pubkey: k.pubkey.toString(),
+        isSigner: k.isSigner,
+        isWritable: k.isWritable
+      })))
+      
+      // Check balance of source account (should be first writable account)
+      const sourceAccount = instruction.keys.find(k => k.isWritable)
+      if (sourceAccount) {
+        try {
+          const accountInfo = await connection.getAccountInfo(sourceAccount.pubkey)
+          console.log("MADDEN: Source account info:", {
+            pubkey: sourceAccount.pubkey.toString(),
+            lamports: accountInfo?.lamports || 0,
+            owner: accountInfo?.owner?.toString(),
+            dataLength: accountInfo?.data?.length || 0
+          })
+          
+          // If it's a token account, try to get token balance
+          if (accountInfo?.data && accountInfo.data.length > 0) {
+            try {
+              const tokenAccountInfo = await connection.getParsedAccountInfo(sourceAccount.pubkey)
+              if (tokenAccountInfo.value?.data && 'parsed' in tokenAccountInfo.value.data) {
+                const parsed = tokenAccountInfo.value.data.parsed
+                console.log("MADDEN: Token account balance:", parsed.info?.tokenAmount?.uiAmount || 0)
+                console.log("MADDEN: Token account mint:", parsed.info?.mint)
+              }
+            } catch (e) {
+              console.log("MADDEN: Could not parse token account:", e.message)
+            }
+          }
+        } catch (e) {
+          console.log("MADDEN: Could not get account info:", e.message)
+        }
+      }
+    }
+    
     transaction.add(...transferInstructions)
 
     // Add fulfill instruction
@@ -189,9 +229,11 @@ export class SolanaWalletFulfillService implements IFulfillService {
     if (targetString === tokenProgramId || targetString.toLowerCase() === tokenProgramId.toLowerCase()) {
       const dataHex = call.data as string
       const dataBytes = Buffer.from(dataHex.slice(2), 'hex')
+
+      console.log("MADDEN: dataBytes", dataBytes)
       
       // Check if it's a transfer instruction (instruction type 3)
-      return dataBytes.length >= 9 && dataBytes[0] === 3
+      return dataBytes.length >= 9
     }
     
     return false
@@ -210,7 +252,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
       // Decode the transfer amount from the call data
       const dataHex = call.data as string
       const dataBytes = Buffer.from(dataHex.slice(2), 'hex')
-      const amount = dataBytes.readBigUInt64LE(1)
+      const amount = model.intent.route.tokens[0].amount
 
       console.log("MADDEN: createSPLTransferInstruction amount", amount)
       

@@ -94,26 +94,73 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
   // Create Solana SPL token transfer instruction
   const tokenMintAddress = new PublicKey(routeTokens[0].token) // USDC on Solana
-  const recipientAddress = new PublicKey('FvqiHNhnQpLS1dbCCrxzneeoAxeM5G6pB9jKuigYuAGC') // Destination wallet
+  const recipientAddress = new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh') // Destination wallet
   const transferAmount = BigInt(500) // 0.0005 USDC (half of the route tokens)
 
-  // Create call data in the format expected by the existing SVM parsing logic
-  // The getTransactionTargetData function expects simple instruction data:
-  // - Byte 0: instruction index
-  // - Bytes 1-8: amount (little-endian)
+  // Create SPL token transfer call exactly as in the integration test
+  // The integration test uses: spl_token_2022::instruction::transfer_checked()
   
-  const transferInstructionData = Buffer.alloc(9)
-  transferInstructionData[0] = 3 // Transfer instruction (not TransferChecked to keep it simple)
+  // Get the executor and recipient ATAs for the call
+  const executorAta = await getAssociatedTokenAddress(tokenMintAddress, solanaPortalAddress, true)
+  const recipientAta = await getAssociatedTokenAddress(tokenMintAddress, recipientAddress)
   
-  // Write the amount as 8 bytes little-endian
+  // Create the actual SPL token transfer_checked instruction
+  // This matches exactly what the integration test does
+  // Note: We need to use a function that creates TransferChecked (not Transfer)
+  // to match the 4-account requirement
+  
+  // Create proper TransferChecked instruction data
+  // TransferChecked format: [instruction(1), amount(8), decimals(1)]
+  const transferCheckedInstructionData = Buffer.alloc(10) // 1 + 8 + 1 = 10 bytes
+  transferCheckedInstructionData[0] = 12 // TransferChecked instruction
+  
+  // Write the amount as 8 bytes little-endian  
   const amountBytes = Buffer.alloc(8)
   const view = new DataView(amountBytes.buffer)
   view.setBigUint64(0, transferAmount, true) // true for little-endian
-  amountBytes.copy(transferInstructionData, 1)
+  amountBytes.copy(transferCheckedInstructionData, 1)
+  
+  // Write decimals (6 for USDC)
+  transferCheckedInstructionData[9] = 6
+  
+  const transferCheckedInstruction = {
+    data: transferCheckedInstructionData
+  }
+  
+  console.log("MADDEN: Real SPL instruction data:", transferCheckedInstruction.data.toString('hex'))
+  console.log("MADDEN: Real SPL instruction length:", transferCheckedInstruction.data.length)
+  
+  // Create Calldata struct exactly as in integration test
+  const calldata = {
+    data: Array.from(transferCheckedInstruction.data), // Use the actual instruction data
+    account_count: 4 // 4 accounts as per integration test
+  }
+  
+  console.log("MADDEN: Calldata struct:", calldata)
+  
+  // Serialize the Calldata struct using Borsh format
+  // Based on Rust struct: { data: Vec<u8>, account_count: u8 }
+  // Borsh serialization order: data first (with length), then account_count
+  const dataLength = calldata.data.length
+  const calldataBytes = Buffer.alloc(4 + dataLength + 1)
+  let offset = 0
+  
+  // Write data length (u32 little-endian for Vec<u8>)
+  calldataBytes.writeUInt32LE(dataLength, offset)
+  offset += 4
+  
+  // Write data bytes
+  Buffer.from(calldata.data).copy(calldataBytes, offset)
+  offset += dataLength
+  
+  // Write account_count (u8) - comes after data in Rust struct
+  calldataBytes[offset] = calldata.account_count
+  
+  console.log("MADDEN: Serialized calldata bytes:", calldataBytes.toString('hex'))
 
   const solanaTransferCall = {
     target: TOKEN_PROGRAM_ID, // SPL Token program
-    data: `0x${transferInstructionData.toString('hex')}` as `0x${string}`,
+    data: `0x${calldataBytes.toString('hex')}` as `0x${string}`,
     value: 0n // No SOL value for SPL token transfers
   }
 

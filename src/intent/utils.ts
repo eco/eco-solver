@@ -41,17 +41,50 @@ export function getTransactionTargetData(
   
   // Handle Solana SPL token transfers
   if (vmType === VmType.SVM) {
-    // Check if the target is the SPL Token program
     const targetAddress = call.target as string
-
     const dataHex = call.data as string
     const dataBytes = Buffer.from(dataHex.slice(2), 'hex')
+
+    console.log("MADDEN: Parsing SVM call data:", dataBytes.toString('hex'))
+    console.log("MADDEN: Call data length:", dataBytes.length)
+    
+    // Parse Borsh-serialized Calldata struct:
+    // Based on Rust struct: { data: Vec<u8>, account_count: u8 }
+    // Borsh format: data_length (4 bytes) + data + account_count (1 byte)
+    
+    let amount = 0n
+    
+    if (dataBytes.length >= 5) {
+      // New Borsh format: data first, then account_count
+      const dataLength = dataBytes.readUInt32LE(0)
+      const instructionData = dataBytes.slice(4, 4 + dataLength)
+      const accountCount = dataBytes[4 + dataLength]
+      
+      console.log("MADDEN: Parsed Calldata - data_length:", dataLength)
+      console.log("MADDEN: Parsed Calldata - instruction_data:", instructionData.toString('hex'))
+      console.log("MADDEN: Parsed Calldata - account_count:", accountCount)
+      
+      // Parse SPL token instruction to extract amount
+      if (instructionData.length >= 9) {
+        const instructionIndex = instructionData[0]
+        
+        // For SPL transfer instructions, amount is at bytes 1-8
+        amount = instructionData.readBigUInt64LE(1)
+        
+        console.log("MADDEN: SPL Instruction index:", instructionIndex)
+        console.log("MADDEN: Extracted transfer amount:", amount.toString())
+      }
+    } else {
+      // Fall back to old simple format
+      console.log("MADDEN: Using simple format fallback")
+      amount = dataBytes.readBigUInt64LE(1)
+    }
 
     tx = {
       functionName: 'transfer',
       args: [
         '', // recipient will be determined from accounts
-        dataBytes.readBigUInt64LE(1)
+        amount
       ]
     }
   } else {
