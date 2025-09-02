@@ -4,12 +4,12 @@ import { encodeFunctionData, erc20Abi, Hex, parseUnits, zeroAddress } from 'viem
 import { Injectable, Logger } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { ProofService } from '@/prover/proof.service'
+import { QuoteError } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteRewardDataDTO, QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { randomUUID } from 'crypto'
-import { QuoteError } from '@/quote/errors'
 
 @Injectable()
 export class QuoteV2RequestTransformService {
@@ -26,7 +26,7 @@ export class QuoteV2RequestTransformService {
    * @returns The transformed QuoteIntentDataDTO
    */
   transformToQuoteIntent(v2Request: QuoteV2RequestDTO): QuoteIntentDataDTO {
-    const { dAppID, quoteRequest, contracts } = v2Request
+    const { dAppID, quoteRequest, contracts, gaslessIntentData } = v2Request
 
     this.logger.log(
       EcoLogMessage.fromDefault({
@@ -71,10 +71,15 @@ export class QuoteV2RequestTransformService {
     // Generate a quote ID
     const quoteID = randomUUID()
 
+    // Determine the intent execution type, based on whether gaslessIntentData was provided
+    const intentExecutionType = gaslessIntentData
+      ? IntentExecutionType.GASLESS
+      : IntentExecutionType.SELF_PUBLISH
+
     const quoteIntentData: QuoteIntentDataDTO = {
       quoteID,
       dAppID,
-      intentExecutionTypes: [IntentExecutionType.SELF_PUBLISH.toString()], // Default to self-publish
+      intentExecutionTypes: [intentExecutionType.toString()],
       route,
       reward,
     }
