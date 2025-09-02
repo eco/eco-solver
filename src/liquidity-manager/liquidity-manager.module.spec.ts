@@ -3,7 +3,7 @@
  *
  * Tests the essential repository components and their dependencies without
  * the full complexity of all provider services and external module dependencies.
- * Focuses on verifying that the core data layer (repositories and schemas) 
+ * Focuses on verifying that the core data layer (repositories and schemas)
  * are properly wired for Phase 3 integration.
  */
 import { Test, TestingModule } from '@nestjs/testing'
@@ -73,9 +73,9 @@ describe('LiquidityManagerModule Components', () => {
       providers: [
         // Core repositories only - these are the key components we need to verify
         RebalanceRepository,
-        RebalanceQuoteRejectionRepository, 
+        RebalanceQuoteRejectionRepository,
         RebalancingHealthRepository,
-        
+
         // Mock their minimal dependencies
         {
           provide: getModelToken(RebalanceModel.name),
@@ -118,9 +118,7 @@ describe('LiquidityManagerModule Components', () => {
       expect(healthRepository).toBeDefined()
       expect(healthRepository).toBeInstanceOf(RebalancingHealthRepository)
     })
-
   })
-
 
   describe('Model Dependencies', () => {
     it('should provide RebalanceModel', () => {
