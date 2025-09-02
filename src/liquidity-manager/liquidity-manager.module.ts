@@ -52,6 +52,7 @@ import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.
     EverclearProviderService,
     GatewayProviderService,
     RebalanceRepository,
+    WrappedTokenService,
   ],
   exports: [LiquidityManagerService, RebalanceRepository, WrappedTokenService],
 })
