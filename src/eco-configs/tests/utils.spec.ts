@@ -57,6 +57,7 @@ describe('config utils tests', () => {
       config.util.getEnv = jest.fn().mockReturnValue('production')
       expect(getChainConfig(10)).toEqual(mockRoutes.EcoProtocolAddresses['10'])
 
+      // skipped for now, as I'm using 
       // config.util.getEnv = jest.fn().mockReturnValue('preproduction')
       // expect(getChainConfig(10)).toEqual(mockRoutes.EcoProtocolAddresses['10-pre'])
 

@@ -32,7 +32,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { EcoAnalyticsService } from '@/analytics'
 import { IMessageBridgeProverAbi } from '@/contracts/v2-abi/IMessageBridgeProver'
-import { IntentV2Pure, portalAbi } from '@/contracts/v2-abi/Portal'
+import { IntentV2Pure, portalAbi, RouteV2 } from '@/contracts/v2-abi/Portal'
 import { PortalHashUtils } from '@/common/utils/portal'
 
 /**
@@ -333,8 +333,12 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const intentV2 = IntentDataModel.toIntentV2(model.intent)
-    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
+    const intentV2 = IntentDataModel.toChainIntent(model.intent)
+    const { intentHash, rewardHash } = PortalHashUtils.hashIntent(
+      BigInt(model.intent.route.destination),
+      intentV2.route,
+      intentV2.reward,
+    )
 
     const fulfillIntentData = encodeFunctionData({
       abi: portalAbi,
@@ -372,8 +376,19 @@ export class WalletFulfillService implements IFulfillService {
 
     const fee = await this.getProverFee(model, claimant, hyperProverAddr, messageData)
 
-    const intentV2 = IntentDataModel.toIntentV2(model.intent)
-    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
+    const intentV2 = IntentDataModel.toChainIntent(model.intent)
+    const { intentHash, rewardHash } = PortalHashUtils.hashIntent(
+      BigInt(model.intent.route.destination),
+      intentV2.route,
+      intentV2.reward,
+    )
+
+    console.log('intentV2', intentV2)
+    console.log('intentHash', intentHash)
+    console.log('rewardHash', rewardHash)
+    console.log('hyperProverAddr', hyperProverAddr)
+    console.log('model.intent.route.source', model.intent.route.source)
+    console.log('messageData', messageData)
 
     const fulfillIntentData = encodeFunctionData({
       abi: portalAbi,
@@ -425,8 +440,12 @@ export class WalletFulfillService implements IFulfillService {
     // Metalayer may use the same fee structure as Hyperlane
     const fee = await this.getProverFee(model, claimant, metalayerProverAddr, messageData)
 
-    const intentV2 = IntentDataModel.toIntentV2(model.intent)
-    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
+    const intentV2 = IntentDataModel.toChainIntent(model.intent)
+    const { intentHash, rewardHash } = PortalHashUtils.hashIntent(
+      BigInt(model.intent.route.destination),
+      intentV2.route,
+      intentV2.reward,
+    )
 
     const fulfillIntentData = encodeFunctionData({
       abi: portalAbi,

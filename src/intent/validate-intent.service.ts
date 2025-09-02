@@ -249,7 +249,7 @@ export class ValidateIntentService implements OnModuleInit {
         address: intentSource.sourceAddress,
         abi: portalAbi,
         functionName: 'isIntentFunded',
-        args: [IntentDataModel.toIntentV2(model.intent) as IntentV2Pure],
+        args: [IntentDataModel.toChainIntent(model.intent)],
       })
 
       retryCount++

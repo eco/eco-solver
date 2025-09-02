@@ -1,4 +1,4 @@
-import { V2RouteType } from '@/contracts'
+import { RouteV2 } from '@/contracts/v2-abi/Portal'
 import { TargetCallDataModel, TargetCallDataSchema } from '@/intent/schemas/intent-call-data.schema'
 import {
   TokenAmountDataModel,
@@ -9,7 +9,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
-export class RouteDataModel implements V2RouteType {
+export class RouteDataModel implements RouteV2 {
   @Prop({ required: true, type: String })
   salt: Hex
   @Prop({ required: true, type: BigInt })

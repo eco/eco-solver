@@ -5,12 +5,11 @@ import {
   IntentCreatedEventLog,
   CallDataInterface,
   RewardTokensInterface,
-  V2RouteType,
 } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
-import { IntentV2 } from '@/contracts/v2-abi/Portal'
+import { IntentV2, RouteV2Pure } from '@/contracts/v2-abi/Portal'
 
 export interface CreateIntentDataModelParams {
   quoteID?: string
@@ -137,7 +136,7 @@ export class IntentDataModel implements IntentType {
     sourceChainID: bigint,
     logIndex: number,
     event: IntentCreatedEventLog,
-    route: V2RouteType,
+    route: RouteV2Pure,
   ): IntentDataModel {
     const e = event.args
     return new IntentDataModel({
@@ -157,14 +156,7 @@ export class IntentDataModel implements IntentType {
     })
   }
 
-  static toChainIntent(intent: IntentDataModel): IntentType {
-    return {
-      route: intent.route,
-      reward: intent.reward,
-    }
-  }
-
-  static toIntentV2(intent: IntentDataModel): IntentV2 {
+  static toChainIntent(intent: IntentDataModel): IntentV2 {
     return {
       source: intent.route.source,
       destination: intent.route.destination,

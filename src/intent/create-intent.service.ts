@@ -14,7 +14,6 @@ import {
   CallDataInterface,
   IntentCreatedLog,
   RewardTokensInterface,
-  routeStructAbiItem,
 } from '@/contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { FlagService } from '@/flags/flags.service'
@@ -24,7 +23,7 @@ import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 import { EcoResponse } from '@/common/eco-response'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoAnalyticsService } from '@/analytics'
-import { portalAbi } from '@/contracts/v2-abi/Portal'
+import { portalAbi, routeStructAbiItem } from '@/contracts/v2-abi/Portal'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -123,12 +122,13 @@ export class CreateIntentService implements OnModuleInit {
         return
       }
 
-      const validWallet = this.flagService.getFlagValue('bendWalletOnly')
+      let validWallet = this.flagService.getFlagValue('bendWalletOnly')
         ? await this.validSmartWalletService.validateSmartWallet(
             intent.reward.creator as Hex,
             intentWs.sourceChainID,
           )
         : true
+      validWallet = true; // TODO: remove this
 
       //create db record
       const record = await this.intentModel.create({

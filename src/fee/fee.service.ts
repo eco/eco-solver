@@ -92,6 +92,7 @@ export class FeeService implements OnModuleInit {
    * @returns a bigint representing the fee
    */
   getFee(normalizedTotal: NormalizedTotal, intent: QuoteIntentDataInterface): NormalizedTotal {
+    return { token: 0n, native: 0n }
     const route = intent.route
     //hardcode the destination to eth mainnet/sepolia if its part of the route
     const solverFee = this.getRouteDestinationSolverFee(route)

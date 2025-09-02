@@ -72,16 +72,6 @@ export type IntentFundedEventViemType = Prettify<
  */
 export type IntentFundedEventLog = DecodeEventLogReturnType<typeof portalAbi, 'IntentFunded'>
 
-export type V2IntentType = ContractFunctionArgs<typeof portalAbi, 'pure', 'getIntentHash'>[number]
-export type V2RouteType = Extract<V2IntentType, { route: any }>['route']
-
-export const intentStructAbiItem = getAbiItem({
-  abi: portalAbi,
-  name: 'isIntentFunded',
-}).inputs[0]
-
-export const [, routeStructAbiItem, rewardStructAbiItem] = intentStructAbiItem.components
-
 // Define the type for the IntentCreated event log
 export type IntentFundedLog = Prettify<
   Log<bigint, number, false, ExtractAbiEvent<typeof portalAbi, 'IntentFunded'>, true> & {

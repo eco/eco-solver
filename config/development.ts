@@ -10,10 +10,10 @@ export default {
     keys: {},
     custom: {
       '10': {
-        http: ['https://opt-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
+        http: ['https://opt-mainnet.g.alchemy.com/v2/kxCDQLyqcm6yWGRjVnJGPp_sND0TyQ9f'],
       },
       '8453': {
-        http: ['https://base-mainnet.g.alchemy.com/v2/-YOtVHJkKQ_JCJkZgabr8sQU8GyWWDbU'],
+        http: ['https://base-mainnet.g.alchemy.com/v2/kxCDQLyqcm6yWGRjVnJGPp_sND0TyQ9f'],
       },
     },
   },
@@ -71,7 +71,7 @@ export default {
         '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913': {
           contractType: 'erc20',
           selectors: ['transfer(address,uint256)'],
-          minBalance: 1000,
+          minBalance: 0,
         },
       },
       network: 'base',
@@ -86,7 +86,7 @@ export default {
         '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85': {
           contractType: 'erc20',
           selectors: ['transfer(address,uint256)'],
-          minBalance: 1000,
+          minBalance: 0,
         },
       },
       network: 'optimism',

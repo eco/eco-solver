@@ -6,8 +6,9 @@
  */
 
 import { encodeAbiParameters, encodePacked, Hex, keccak256 } from 'viem'
-import { IntentV2Pure } from '@/contracts/v2-abi/Portal'
-import { rewardStructAbiItem, routeStructAbiItem } from '@/contracts'
+import { IntentV2Pure, RewardV2, RouteV2, RouteV2Pure } from '@/contracts/v2-abi/Portal'
+import { rewardStructAbiItem, routeStructAbiItem } from '@/contracts/v2-abi/Portal'
+import { hashReward } from '@eco-foundation/routes-ts'
 
 export enum ChainType {
   EVM = 'evm',
@@ -16,8 +17,19 @@ export enum ChainType {
 }
 
 export class PortalHashUtils {
+
+  static encodeRoute(route: RouteV2Pure) {
+    return encodeAbiParameters(
+        [{ type: 'tuple', components: routeStructAbiItem }],
+        [route],
+    )
+  }
+
+  static hashRoute(route: RouteV2Pure) {
+    return keccak256(this.encodeRoute(route))
+  }
+
   /**
-   * Recreates the getIntentHash function from IntentSource contract using Viem
    * This replaces the hashIntent function from @eco-foundation/routes-ts
    *
    * Matches the contract's three overloaded versions:
@@ -28,26 +40,22 @@ export class PortalHashUtils {
    * @param intent - intent
    * @returns Object containing intentHash, routeHash, and rewardHash
    */
-  static getIntentHash(intent: IntentV2Pure): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
-    const { destination, reward, route } = intent
-
-    const encodedRoute = encodeAbiParameters([routeStructAbiItem], [route])
-    const routeHash = keccak256(encodedRoute)
-
-    // Encode and hash the reward
-    const encodedReward = encodeAbiParameters([rewardStructAbiItem], [reward])
-    const rewardHash = keccak256(encodedReward)
-
-    // Compute the final intent hash using encodePacked
-    // intentHash = keccak256(abi.encodePacked(destination, routeHash, rewardHash))
+  static hashIntent(destination: bigint, route: RouteV2Pure, reward: RewardV2): {
+    routeHash: Hex
+    rewardHash: Hex
+    intentHash: Hex
+  } {
+    const routeHash = this.hashRoute(route)
+    const rewardHash = hashReward({...reward, nativeValue: reward.nativeAmount})
+  
     const intentHash = keccak256(
       encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, routeHash, rewardHash]),
     )
-
+  
     return {
-      intentHash,
       routeHash,
       rewardHash,
+      intentHash,
     }
   }
 }

@@ -1,4 +1,4 @@
-import { ContractFunctionArgs } from 'viem'
+import { ContractFunctionArgs, getAbiItem } from 'viem'
 
 export const portalAbi = [
   {
@@ -2405,8 +2405,22 @@ export const portalAbi = [
   },
 ] as const
 
-export type IntentV2Pure = ContractFunctionArgs<typeof portalAbi, 'view', 'isIntentFunded'>[0]
+export const intentStructAbiItem = getAbiItem({
+  abi: portalAbi,
+  name: 'isIntentFunded',
+}).inputs[0]
 
-export interface IntentV2 extends IntentV2Pure {
+export const [, routeStructAbiItem, rewardStructAbiItem] = intentStructAbiItem.components
+
+export type IntentV2Pure = ContractFunctionArgs<typeof portalAbi, 'view', 'isIntentFunded'>[0]
+export type RouteV2Pure = IntentV2Pure['route']
+export type RewardV2Pure = IntentV2Pure['reward']
+
+export type IntentV2 = IntentV2Pure & {
   source: bigint
 }
+export type RouteV2 = RouteV2Pure & {
+  source: bigint
+  destination: bigint
+}
+export type RewardV2 = RewardV2Pure;
