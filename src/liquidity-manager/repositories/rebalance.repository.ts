@@ -1,6 +1,5 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { EcoLogger } from '@/common/logging/eco-logger'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
@@ -70,11 +69,11 @@ export class RebalanceRepository {
   /**
    * Creates a new rebalance model
    */
-  async create(rebalanceModel: RebalanceModel): Promise<RebalanceModel>;
+  async create(rebalanceModel: RebalanceModel): Promise<RebalanceModel>
   /**
    * Creates a rebalance from structured data
    */
-  async create(rebalanceData: CreateRebalanceData): Promise<EcoResponse<RebalanceModel>>;
+  async create(rebalanceData: CreateRebalanceData): Promise<EcoResponse<RebalanceModel>>
   /**
    * Method overloading implementation - supports both direct model creation and structured data
    */

@@ -195,7 +195,6 @@ describe('LiquidityManagerService', () => {
 
       rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
-
       const result = await liquidityManagerService.analyzeTokens(wallet)
 
       // usdcOP adjusted current = 200 - 120 = 80 → exactly at min → IN_RANGE
