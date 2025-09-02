@@ -9,6 +9,7 @@ import { SquidProviderService } from './squid-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 const mockedSquid = jest.mocked(Squid)
 const mockSquidInstance = {
@@ -29,6 +30,7 @@ describe('SquidProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SquidProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
           provide: KernelAccountClientService,

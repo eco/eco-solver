@@ -1,23 +1,27 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { gatewayWalletAbi } from '@/liquidity-manager/services/liquidity-providers/Gateway/constants/abis'
 import { Hex, encodeFunctionData, erc20Abi } from 'viem'
-import { Serialize, deserialize } from '@/common/utils/serialize'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { gatewayWalletAbi } from '@/liquidity-manager/services/liquidity-providers/Gateway/constants/abis'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { Serialize, deserialize } from '@/common/utils/serialize'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
-export interface GatewayTopUpJobData {
+export interface GatewayTopUpJobData extends LiquidityManagerQueueDataType {
   chainId: number
   usdc: Hex
   gatewayWallet: Hex
   amount: Serialize<bigint>
   depositor: Hex
-  id?: string
-  [k: string]: unknown
 }
 
 export type GatewayTopUpJob = LiquidityManagerJob<
@@ -27,6 +31,9 @@ export type GatewayTopUpJob = LiquidityManagerJob<
 >
 
 export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTopUpJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   static async start(queue: Queue, data: GatewayTopUpJobData): Promise<void> {
     const amountStr = (deserialize(data.amount) as bigint).toString()
     await queue.add(LiquidityManagerJobName.GATEWAY_TOP_UP, data, {
@@ -125,12 +132,47 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     return txHash
   }
 
-  onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
-    processor.logger.error(
+  async onComplete(job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
+    processor.logger.log(
       EcoLogMessage.withId({
-        message: 'GatewayTopUp: Failed',
+        message: `GatewayTopUpJob: Completed!`,
         id: job.data.id,
-        properties: { error: (error as any)?.message ?? error },
+        properties: {
+          groupID,
+          rebalanceJobID,
+          chainId: job.data.chainId,
+          txHash: job.returnvalue,
+        },
+      }),
+    )
+
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
+  }
+
+  async onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'Gateway: GatewayTopUpJob: FINAL FAILURE'
+      : 'Gateway: GatewayTopUpJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+
+    processor.logger.error(
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
+        id: job.data.id,
+        error: error as any,
+        properties: {
+          data: job.data,
+        },
       }),
     )
   }

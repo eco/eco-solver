@@ -1,7 +1,6 @@
 import { Queue } from 'bullmq'
 import { GatewayTopUpJobData, GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
-import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import {
   CheckCCTPAttestationJob,
   CheckCCTPAttestationJobManager,
@@ -33,14 +32,16 @@ export enum LiquidityManagerJobName {
   GATEWAY_TOP_UP = 'GATEWAY_TOP_UP',
 }
 
-export type LiquidityManagerQueueDataType = {
+export interface LiquidityManagerQueueDataType {
   /**
    * Correlation / tracking identifier that will propagate through every job handled by the
    * Liquidity Manager queue. Having this always present allows us to group logs that belong
    * to the same high-level operation or request.
    */
+  groupID: string // GroupID for tracking related jobs
+  rebalanceJobID: string // JobID for tracking the rebalance job
   id?: string
-  [k: string]: unknown
+  [k: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type LiquidityManagerQueueType = Queue<
@@ -76,9 +77,7 @@ export class LiquidityManagerQueue {
     return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
   }
 
-  startCronJobs(interval: number, walletAddress: string): Promise<void> {
-    return CheckBalancesCronJobManager.start(this.queue, interval, walletAddress)
-  }
+  // Note: CHECK_BALANCES cron has been moved to a dedicated queue/processor.
 
   startCCTPAttestationCheck(data: CheckCCTPAttestationJob['data']): Promise<void> {
     return CheckCCTPAttestationJobManager.start(this.queue, data)
