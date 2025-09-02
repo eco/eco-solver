@@ -5,7 +5,10 @@ import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
@@ -16,17 +19,20 @@ import {
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
 
-type CheckBalancesCronJob = LiquidityManagerJob<
+export interface CheckBalancesCronJobData extends LiquidityManagerQueueDataType {
+  wallet: string
+}
+
+export type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
-  { wallet: string }
+  CheckBalancesCronJobData
 >
 
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
-export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
+export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<CheckBalancesCronJob> {
   static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
-  // static ecoCronJobManager: EcoCronJobManager
   private static ecoCronJobManagers: Record<string, EcoCronJobManager> = {}
 
   /**
@@ -106,6 +112,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       processor.logger.log(
         EcoLogMessage.fromDefault({
           message: `CheckBalancesCronJob: No deficits found`,
+          properties: { walletAddress },
         }),
       )
       return
@@ -120,7 +127,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
         surplus.items,
       )
 
-      if (!rebalancingQuotes.length) {
+      if (rebalancingQuotes.length === 0) {
         processor.logger.debug(
           EcoLogMessage.fromDefault({
             message: 'CheckBalancesCronJob: No rebalancing quotes found',
@@ -133,12 +140,10 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       }
 
       this.updateGroupBalances(processor, surplus.items, rebalancingQuotes)
-
       const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
 
       // Store rebalance request on DB
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
-
       rebalances.push(rebalanceRequest)
     }
 
@@ -146,6 +151,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       processor.logger.warn(
         EcoLogMessage.fromDefault({
           message: 'CheckBalancesCronJob: Rebalancing routes available',
+          properties: { walletAddress },
         }),
       )
       return
@@ -163,15 +169,41 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param error - The error that occurred.
    */
   onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: unknown) {
+    const durationMs = this.getDurationMs(job)
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withError({
         message: `CheckBalancesCronJob: Failed`,
+        error: error as Error,
         properties: {
-          error: (error as any)?.message ?? error,
-          stack: (error as any)?.stack,
+          durationMs,
+          walletAddress: job.data.wallet,
+          queue: job.queueName,
         },
       }),
     )
+  }
+
+  /**
+   * Hook triggered when a job is completed successfully.
+   */
+  onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor) {
+    const durationMs = this.getDurationMs(job)
+    processor.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `CheckBalancesCronJob: completed`,
+        properties: {
+          durationMs,
+          walletAddress: job.data.wallet,
+          queue: job.queueName,
+        },
+      }),
+    )
+  }
+
+  private getDurationMs(job: LiquidityManagerJob) {
+    const finishedOn = job.finishedOn ?? Date.now()
+    const processedOn = job.processedOn ?? finishedOn
+    return finishedOn - processedOn
   }
 
   /**

@@ -25,6 +25,8 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -36,6 +38,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly rebalanceRepository: RebalanceRepository,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
     // Initialize the asset cache manager
@@ -163,22 +166,42 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'LiFi'>) {
-    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
+    try {
+      const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
 
-    if (kernelWalletAddress !== walletAddress) {
-      const error = new Error('LiFi is not configured with the provided wallet')
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          id: quote.id,
-          message: error.message,
-          properties: { walletAddress, kernelWalletAddress },
-        }),
-      )
+      if (kernelWalletAddress !== walletAddress) {
+        const error = new Error('LiFi is not configured with the provided wallet')
+        this.logger.error(
+          EcoLogMessage.withErrorAndId({
+            error,
+            id: quote.id,
+            message: error.message,
+            properties: {
+              groupID: quote.groupID,
+              rebalanceJobID: quote.rebalanceJobID,
+              walletAddress,
+              kernelWalletAddress,
+            },
+          }),
+        )
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+        throw error
+      }
+
+      await this._execute(quote)
+      if (quote.rebalanceJobID) {
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+      }
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
-
-    return this._execute(quote)
   }
 
   /**
@@ -405,6 +428,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         message: 'LiFiProviderService: executing quote',
         id: quote.id,
         properties: {
+          groupID: quote.groupID,
+          rebalanceJobID: quote.rebalanceJobID,
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
           tokenOut: quote.tokenOut.config.address,

@@ -49,7 +49,10 @@ export class EcoCronJobManager {
         message: `start: walletAddress: ${walletAddress}`,
         properties: {
           queueName: queue.name,
+          queuePrefix: (queue as any)?.opts?.prefix,
           interval,
+          jobSchedulerId: this.jobIDPrefix,
+          workerName: 'CheckBalancesProcessor',
         },
       }),
     )
@@ -87,7 +90,9 @@ export class EcoCronJobManager {
   private createJobTemplate(walletAddress: string): JobTemplate {
     return {
       name: this.jobName,
-      data: { wallet: walletAddress },
+      data: {
+        wallet: walletAddress,
+      },
       opts: {
         removeOnComplete: true,
         removeOnFail: true,
@@ -114,6 +119,9 @@ export class EcoCronJobManager {
           properties: {
             jobId: job.id,
             queue: queue.name,
+            queuePrefix: (queue as any)?.opts?.prefix,
+            jobSchedulerId: this.jobIDPrefix,
+            workerName: 'CheckBalancesProcessor',
           },
         }),
       )

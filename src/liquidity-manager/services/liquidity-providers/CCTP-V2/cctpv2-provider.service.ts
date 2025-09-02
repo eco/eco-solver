@@ -9,12 +9,15 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckCCTPV2AttestationJobData } from '@/liquidity-manager/jobs/check-cctpv2-attestation.job'
 import { CCTPV2Config } from '@/eco-configs/eco-config.types'
 import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitter'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
@@ -29,6 +32,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -173,19 +177,32 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         properties: { quote, walletAddress },
       }),
     )
-    const txHash = await this._execute(walletAddress, quote)
+    try {
+      const txHash = await this._execute(walletAddress, quote)
 
-    const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
+      const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
 
-    await this.liquidityManagerQueue.startCCTPV2AttestationCheck({
-      destinationChainId: quote.tokenOut.chainId,
-      transactionHash: txHash,
-      sourceDomain: sourceDomain,
-      context: serialize(quote.context),
-      id: quote.id,
-    })
+      const checkCCTPV2AttestationJobData: CheckCCTPV2AttestationJobData = {
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+        destinationChainId: quote.tokenOut.chainId,
+        transactionHash: txHash,
+        sourceDomain: sourceDomain,
+        context: serialize(quote.context),
+        id: quote.id,
+      }
 
-    return txHash
+      await this.liquidityManagerQueue.startCCTPV2AttestationCheck(checkCCTPV2AttestationJobData)
+
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
+    }
   }
 
   private async _execute(walletAddress: string, quote: RebalanceQuote<'CCTPV2'>): Promise<Hex> {
@@ -290,25 +307,36 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     }
   }
 
+  /**
+   * Receive message from CCTP V2. It does not wait for the transaction receipt.
+   * @param destinationChainId Destination chain ID
+   * @param messageBody Message body
+   * @param attestation Attestation
+   * @param quoteId Quote ID
+   * @returns Transaction hash
+   */
   async receiveV2Message(
     destinationChainId: number,
     messageBody: Hex,
     attestation: Hex,
     quoteId?: string,
   ): Promise<Hex> {
+    const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
+    const walletClient = await this.walletClientService.getClient(destinationChainId)
+
     this.logger.debug(
       EcoLogMessage.withId({
-        message: `CCTPV2: Receiving message on chain ${destinationChainId}`,
+        message: 'CCTPV2: receiveV2Message: submitting',
         id: quoteId,
         properties: {
-          messageLength: messageBody.length,
-          attestationLength: attestation.length,
+          chainId: destinationChainId,
+          messageTransmitter: v2ChainConfig.messageTransmitter,
+          sender: (walletClient as any).account?.address,
+          attestation,
+          messageBody,
         },
       }),
     )
-    const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
-    const walletClient = await this.walletClientService.getClient(destinationChainId)
-    const publicClient = await this.walletClientService.getPublicClient(destinationChainId)
 
     const txHash = await walletClient.writeContract({
       abi: CCTPV2MessageTransmitterABI,
@@ -316,9 +344,12 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       functionName: 'receiveMessage',
       args: [messageBody, attestation],
     })
-
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
     return txHash
+  }
+
+  async getTxReceipt(chainId: number, txHash: Hex) {
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+    return publicClient.waitForTransactionReceipt({ hash: txHash })
   }
 
   private async fetchV2FeeOptions(
