@@ -4,10 +4,10 @@ import { formatUnits, Hex } from 'viem'
 
 @Schema()
 export class RebalanceTokenModel {
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   chainId: number
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   tokenAddress: Hex
 
   @Prop({ required: true })
