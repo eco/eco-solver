@@ -85,6 +85,7 @@ describe('QuoteV2Controller', () => {
 
   const mockQuoteV2Response: QuoteV2ResponseDTO = {
     quoteResponse: {
+      intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
       sourceChainID: 1,
       destinationChainID: 137,
       sourceToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',

@@ -99,6 +99,7 @@ export class QuoteV2TransformService {
     const deadline = parseInt(quoteEntry.expiryTime)
 
     return {
+      intentExecutionType: quoteEntry.intentExecutionType,
       sourceChainID,
       destinationChainID,
       sourceToken,
