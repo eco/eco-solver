@@ -114,8 +114,8 @@ const KernelWalletConfigSchema = z.object({
  * Wallets configuration schema - object with wallet type as keys
  */
 const WalletsSchema = z.object({
-  basic: BasicWalletConfigSchema,
-  kernel: KernelWalletConfigSchema,
+  basic: BasicWalletConfigSchema.optional(),
+  kernel: KernelWalletConfigSchema.optional(),
 });
 
 /**

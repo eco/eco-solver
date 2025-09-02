@@ -4,6 +4,7 @@ import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@
 import { Queue } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { toError } from '@/common/utils/error-handler';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import {
@@ -158,7 +159,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
 
       this.logger.log('Queues shutdown completed');
     } catch (error) {
-      this.logger.error('Error during queue shutdown:', error);
+      this.logger.error('Error during queue shutdown:', toError(error));
     }
   }
 }

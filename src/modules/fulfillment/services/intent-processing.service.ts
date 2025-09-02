@@ -4,6 +4,7 @@ import * as api from '@opentelemetry/api';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { IFulfillmentStrategy } from '@/common/interfaces/strategy-registry.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -134,10 +135,10 @@ export class IntentProcessingService {
         strategy: strategyName,
       });
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
 
-      await this.handleProcessingError(intent, error as Error);
+      await this.handleProcessingError(intent, toError(error));
       throw error;
     } finally {
       span.end();
@@ -170,10 +171,10 @@ export class IntentProcessingService {
 
       return isValid;
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
 
-      this.logger.error(`Intent validation error: ${intent.intentHash}`, error, {
+      this.logger.error(`Intent validation error: ${intent.intentHash}`, toError(error), {
         intentHash: intent.intentHash,
         strategy: strategy.name,
       });
@@ -198,7 +199,7 @@ export class IntentProcessingService {
     const span = this.otelService.startSpan('intent.processing.handleError', {
       attributes: {
         'intent.hash': intent.intentHash,
-        'error.message': error.message,
+        'error.message': getErrorMessage(error),
       },
     });
 
@@ -216,7 +217,7 @@ export class IntentProcessingService {
 
       this.logger.error(
         `Failed to update intent status after error: ${intent.intentHash}`,
-        updateError,
+        toError(updateError),
         { intentHash: intent.intentHash },
       );
     } finally {
@@ -242,7 +243,7 @@ export class IntentProcessingService {
 
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {

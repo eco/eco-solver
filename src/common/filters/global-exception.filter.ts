@@ -16,6 +16,7 @@ export interface ErrorResponse {
   path: string;
   requestId?: string;
   details?: any;
+  [key: string]: any; // Index signature for dynamic properties
 }
 
 @Catch()

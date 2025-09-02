@@ -9,6 +9,8 @@ import { PublicKey } from '@solana/web3.js';
 import { TronWeb } from 'tronweb';
 import { getAddress, isAddress as isViemAddress } from 'viem';
 
+import { getErrorMessage } from '@/common/utils/error-handler';
+
 import {
   BlockchainAddress,
   padTo32Bytes,
@@ -104,7 +106,7 @@ export class AddressNormalizer {
 
       return base58Address as TronAddress;
     } catch (error) {
-      throw new Error(`Failed to denormalize to TVM address: ${error.message}`);
+      throw new Error(`Failed to denormalize to TVM address: ${getErrorMessage(error)}`);
     }
   }
 
@@ -122,7 +124,7 @@ export class AddressNormalizer {
       // Return base58 encoded address
       return publicKey.toBase58();
     } catch (error) {
-      throw new Error(`Failed to denormalize to SVM address: ${error.message}`);
+      throw new Error(`Failed to denormalize to SVM address: ${getErrorMessage(error)}`);
     }
   }
 
@@ -166,7 +168,7 @@ export class AddressNormalizer {
       const normalized = padTo32Bytes(hexAddress);
       return toUniversalAddress(normalized);
     } catch (error) {
-      throw new Error(`Failed to normalize TVM address ${address}: ${error.message}`);
+      throw new Error(`Failed to normalize TVM address ${address}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -182,7 +184,7 @@ export class AddressNormalizer {
       // Solana addresses are already 32 bytes, so no padding needed
       return toUniversalAddress(hex);
     } catch (error) {
-      throw new Error(`Failed to normalize SVM address ${address}: ${error.message}`);
+      throw new Error(`Failed to normalize SVM address ${address}: ${getErrorMessage(error)}`);
     }
   }
 }

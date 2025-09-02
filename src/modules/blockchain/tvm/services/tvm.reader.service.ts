@@ -11,6 +11,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -104,7 +105,7 @@ export class TvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return balanceBigInt;
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {
@@ -171,10 +172,13 @@ export class TvmReaderService extends BaseChainReader {
 
       return isFunded;
     } catch (error) {
-      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, error);
-      span.recordException(error as Error);
+      this.logger.error(
+        `Failed to check if intent ${intent.intentHash} is funded:`,
+        toError(error),
+      );
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Failed to check intent funding status: ${error.message}`);
+      throw new Error(`Failed to check intent funding status: ${getErrorMessage(error)}`);
     } finally {
       span.end();
     }
@@ -187,6 +191,10 @@ export class TvmReaderService extends BaseChainReader {
     chainId: number | string,
     claimant: UniversalAddress,
   ): Promise<bigint> {
+    if (!intent.sourceChainId) {
+      throw new Error('intent sourceChainId is missing');
+    }
+
     // Denormalize addresses to TVM format
     const tvmProver = AddressNormalizer.denormalize(prover, ChainType.TVM);
 
@@ -219,10 +227,13 @@ export class TvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return feeBigInt;
     } catch (error) {
-      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
-      span.recordException(error as Error);
+      this.logger.error(
+        `Failed to fetch prover fee for intent ${intent.intentHash}:`,
+        toError(error),
+      );
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Failed to fetch prover fee: ${error.message}`);
+      throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);
     } finally {
       span.end();
     }

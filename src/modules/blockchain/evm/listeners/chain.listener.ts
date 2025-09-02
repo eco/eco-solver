@@ -7,6 +7,7 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { parseIntentFulfilled, parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
@@ -16,9 +17,9 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 export class ChainListener extends BaseChainListener {
-  private unsubscribeIntentPublished: ReturnType<PublicClient['watchContractEvent']>;
-  private unsubscribeIntentFulfilled: ReturnType<PublicClient['watchContractEvent']>;
-  private unsubscribeIntentWithdrawn: ReturnType<PublicClient['watchContractEvent']>;
+  private unsubscribeIntentPublished: ReturnType<PublicClient['watchContractEvent']> | null = null;
+  private unsubscribeIntentFulfilled: ReturnType<PublicClient['watchContractEvent']> | null = null;
+  private unsubscribeIntentWithdrawn: ReturnType<PublicClient['watchContractEvent']> | null = null;
   private proverUnsubscribers: Map<string, () => void> = new Map();
 
   constructor(
@@ -88,8 +89,8 @@ export class ChainListener extends BaseChainListener {
             span.addEvent('intent.emitted');
             span.setStatus({ code: api.SpanStatusCode.OK });
           } catch (error) {
-            this.logger.error(`Error processing intent event: ${error.message}`, error);
-            span.recordException(error as Error);
+            this.logger.error(`Error processing intent event: ${getErrorMessage(error)}`, toError(error));
+            span.recordException(toError(error));
             span.setStatus({ code: api.SpanStatusCode.ERROR });
           } finally {
             span.end();
@@ -140,8 +141,8 @@ export class ChainListener extends BaseChainListener {
             span.addEvent('intent.fulfilled.emitted');
             span.setStatus({ code: api.SpanStatusCode.OK });
           } catch (error) {
-            this.logger.error(`Error processing IntentFulfilled event: ${error.message}`, error);
-            span.recordException(error as Error);
+            this.logger.error(`Error processing IntentFulfilled event: ${getErrorMessage(error)}`, toError(error));
+            span.recordException(toError(error));
             span.setStatus({ code: api.SpanStatusCode.ERROR });
           } finally {
             span.end();
@@ -212,8 +213,8 @@ export class ChainListener extends BaseChainListener {
               span.setStatus({ code: api.SpanStatusCode.OK });
             } catch (error) {
               this.logger.error(
-                `Error processing IntentProven event from ${proverType} prover: ${error.message}`,
-                error,
+                `Error processing IntentProven event from ${proverType} prover: ${getErrorMessage(error)}`,
+                toError(error),
               );
               span.recordException(error as Error);
               span.setStatus({ code: api.SpanStatusCode.ERROR });
@@ -269,8 +270,8 @@ export class ChainListener extends BaseChainListener {
             span.addEvent('intent.withdrawn.emitted');
             span.setStatus({ code: api.SpanStatusCode.OK });
           } catch (error) {
-            this.logger.error(`Error processing IntentWithdrawn event: ${error.message}`, error);
-            span.recordException(error as Error);
+            this.logger.error(`Error processing IntentWithdrawn event: ${getErrorMessage(error)}`, toError(error));
+            span.recordException(toError(error));
             span.setStatus({ code: api.SpanStatusCode.ERROR });
           } finally {
             span.end();

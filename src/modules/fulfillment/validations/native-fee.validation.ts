@@ -89,12 +89,14 @@ export class NativeFeeValidation implements FeeCalculationValidation {
 
     // Native intents have different fee requirements
     const nativeFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.destination);
-    const baseFee = BigInt(nativeFeeConfig.native.flatFee ?? 0);
+    if (!nativeFeeConfig.native) {
+      throw new ValidationError(`Native fee config not found for chain ${intent.destination}`);
+    }
+
+    const baseFee = BigInt(nativeFeeConfig.native.flatFee);
 
     const base = 1_000;
-    const nativePercentageFeeScalar = BigInt(
-      Math.floor((nativeFeeConfig.native.scalarBps ?? 0) * base),
-    );
+    const nativePercentageFeeScalar = BigInt(Math.floor(nativeFeeConfig.native.scalarBps * base));
 
     const percentageFee = (nativeAmount * nativePercentageFeeScalar) / BigInt(base * 10000);
     const totalRequiredFee = baseFee + percentageFee;

@@ -1,6 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { IntentsService } from '@/modules/intents/intents.service';
@@ -48,7 +49,7 @@ export class WithdrawalService {
       span?.setStatus({ code: 1 });
       return intents;
     } catch (error) {
-      span?.recordException(error as Error);
+      span?.recordException(toError(error));
       span?.setStatus({ code: 2 });
       throw error;
     } finally {
@@ -146,11 +147,11 @@ export class WithdrawalService {
       span?.setStatus({ code: 1 });
       return txHash;
     } catch (error) {
-      span?.recordException(error as Error);
+      span?.recordException(toError(error));
       span?.setStatus({ code: 2 });
       this.logger.error(
-        `Failed to execute withdrawal for chain ${chainId}: ${(error as Error).message}`,
-        error,
+        `Failed to execute withdrawal for chain ${chainId}: ${getErrorMessage(error)}`,
+        toError(error),
       );
       throw error;
     } finally {
@@ -175,7 +176,7 @@ export class WithdrawalService {
           const txHash = await this.executeWithdrawal(chainId, chainIntents);
           results.set(chainId, txHash);
         } catch (error) {
-          this.logger.error(`Failed to process withdrawals for chain ${chainId}`, error);
+          this.logger.error(`Failed to process withdrawals for chain ${chainId}`, toError(error));
         }
       }
 
@@ -187,7 +188,7 @@ export class WithdrawalService {
       span?.setStatus({ code: 1 });
       return results;
     } catch (error) {
-      span?.recordException(error as Error);
+      span?.recordException(toError(error));
       span?.setStatus({ code: 2 });
       throw error;
     } finally {

@@ -5,6 +5,7 @@ import * as api from '@opentelemetry/api';
 
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -72,8 +73,8 @@ export class IntentFulfilledHandler {
       }
     } catch (error) {
       this.logger.error(
-        `Error processing IntentFulfilled event for ${event.intentHash}: ${error.message}`,
-        error,
+        `Error processing IntentFulfilled event for ${event.intentHash}: ${getErrorMessage(error)}`,
+        toError(error),
       );
 
       if (!activeSpan) {

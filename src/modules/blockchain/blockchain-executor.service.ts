@@ -3,6 +3,7 @@ import { Injectable, Optional } from '@nestjs/common';
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getErrorMessage } from '@/common/utils/error-handler';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
@@ -56,7 +57,7 @@ export class BlockchainExecutorService {
             break;
         }
       } catch (error) {
-        this.logger.warn(`Failed to initialize executor for chain ${chainId}: ${error.message}`);
+        this.logger.warn(`Failed to initialize executor for chain ${chainId}: ${getErrorMessage(error)}`);
       }
     }
   }
@@ -151,7 +152,7 @@ export class BlockchainExecutorService {
 
       span.end();
     } catch (error) {
-      this.logger.error(`Error executing intent ${intent.intentHash}:`, error.message);
+      this.logger.error(`Error executing intent ${intent.intentHash}:`, getErrorMessage(error));
       await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
 
       span.recordException(error as Error);

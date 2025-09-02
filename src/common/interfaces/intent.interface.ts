@@ -38,7 +38,7 @@ export interface Intent {
   }>;
   status?: IntentStatus;
   // Additional fields for Portal integration
-  sourceChainId?: bigint; // Source chain context
+  sourceChainId: bigint; // Source chain context
   vaultAddress?: string; // Derived vault address
   // Transaction tracking
   publishTxHash?: string; // Transaction hash where intent was published

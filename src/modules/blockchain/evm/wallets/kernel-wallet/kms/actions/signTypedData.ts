@@ -11,7 +11,7 @@ import { sign } from './sign';
 
 export const signTypedData = (kmsOptions: IKmsOptions): CustomSource['signTypedData'] => {
   return (parameters): Promise<SignTypedDataReturnType> => {
-    return sign(kmsOptions)({
+    return sign(kmsOptions)!({
       hash: hashTypedData(parameters as unknown as SignTypedDataParameters),
     });
   };

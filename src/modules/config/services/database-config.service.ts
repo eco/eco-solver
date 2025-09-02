@@ -12,6 +12,6 @@ export class DatabaseConfigService {
   constructor(private configService: ConfigService) {}
 
   get uri(): DatabaseConfig['uri'] {
-    return this.configService.get<string>('mongodb.uri');
+    return this.configService.get<string>('mongodb.uri')!;
   }
 }

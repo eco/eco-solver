@@ -23,11 +23,11 @@ export class QueueConfigService {
   }
 
   get concurrency(): QueueConfig['concurrency'] {
-    return this.configService.get<number>('queue.concurrency');
+    return this.configService.get<number>('queue.concurrency')!;
   }
 
   get executionConcurrency(): QueueConfig['executionConcurrency'] {
-    return this.configService.get<number>('queue.executionConcurrency');
+    return this.configService.get<number>('queue.executionConcurrency')!;
   }
 
   get maxRetriesPerRequest(): QueueConfig['maxRetriesPerRequest'] {

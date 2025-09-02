@@ -21,6 +21,7 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
+import { toError } from '@/common/utils/error-handler';
 import { OpenTelemetryConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -52,7 +53,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
       await this.initializeOpenTelemetry();
       this.logger.log('OpenTelemetry initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize OpenTelemetry', error);
+      this.logger.error('Failed to initialize OpenTelemetry', toError(error));
     }
   }
 
@@ -62,7 +63,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
         await this.sdk.shutdown();
         this.logger.log('OpenTelemetry shut down successfully');
       } catch (error) {
-        this.logger.error('Error shutting down OpenTelemetry', error);
+        this.logger.error('Error shutting down OpenTelemetry', toError(error));
       }
     }
     if (this.meterProvider) {
@@ -70,7 +71,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
         await this.meterProvider.shutdown();
         this.logger.log('OpenTelemetry metrics shut down successfully');
       } catch (error) {
-        this.logger.error('Error shutting down OpenTelemetry metrics', error);
+        this.logger.error('Error shutting down OpenTelemetry metrics', toError(error));
       }
     }
   }

@@ -9,6 +9,7 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEVMIntent } from '@/common/utils/intent-converter';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -46,7 +47,7 @@ export class EvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return balance;
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {
@@ -83,7 +84,7 @@ export class EvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return balance as bigint;
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {
@@ -143,10 +144,10 @@ export class EvmReaderService extends BaseChainReader {
 
       return Boolean(isFunded);
     } catch (error) {
-      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, error);
-      span.recordException(error as Error);
+      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, toError(error));
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Failed to check intent funding status: ${error.message}`);
+      throw new Error(`Failed to check intent funding status: ${getErrorMessage(error)}`);
     } finally {
       span.end();
     }
@@ -221,10 +222,10 @@ export class EvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return fee as bigint;
     } catch (error) {
-      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, error);
-      span.recordException(error as Error);
+      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, toError(error));
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Failed to fetch prover fee: ${error.message}`);
+      throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);
     } finally {
       span.end();
     }

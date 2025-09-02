@@ -21,6 +21,7 @@ import {
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { sum } from '@/common/utils/math';
 import { minutes, now } from '@/common/utils/time';
 import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
@@ -114,8 +115,8 @@ export class KernelWallet extends BaseEvmWallet {
         });
       } catch (error) {
         const msg = `Failed to create ECDSA validator for kernel wallet`;
-        this.logger.error(msg, error as Error);
-        throw new Error(`${msg}: ${(error as Error).message}`);
+        this.logger.error(msg, toError(error));
+        throw new Error(`${msg}: ${getErrorMessage(error)}`);
       }
 
       try {
@@ -130,8 +131,8 @@ export class KernelWallet extends BaseEvmWallet {
         });
       } catch (error) {
         const msg = `Failed to create kernel account`;
-        this.logger.error(msg, error as Error);
-        throw new Error(`${msg}: ${(error as Error).message}`);
+        this.logger.error(msg, toError(error));
+        throw new Error(`${msg}: ${getErrorMessage(error)}`);
       }
 
       span.setAttribute('kernel.account_address', this.kernelAccount.address);
@@ -144,8 +145,8 @@ export class KernelWallet extends BaseEvmWallet {
         isDeployed = await this.kernelAccount.isDeployed();
       } catch (error) {
         const msg = `Failed to check kernel account deployment status`;
-        this.logger.error(msg, error as Error);
-        throw new Error(`${msg}: ${(error as Error).message}`);
+        this.logger.error(msg, toError(error));
+        throw new Error(`${msg}: ${getErrorMessage(error)}`);
       }
 
       span.setAttribute('kernel.is_deployed', isDeployed);
@@ -171,12 +172,12 @@ export class KernelWallet extends BaseEvmWallet {
 
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({
         code: api.SpanStatusCode.ERROR,
-        message: (error as Error).message,
+        message: getErrorMessage(error),
       });
-      this.logger.error('Kernel wallet initialization failed', error as Error, {
+      this.logger.error('Kernel wallet initialization failed', toError(error), {
         chainId: this.chainId,
         signerAddress: this.signer.address,
       });
@@ -240,10 +241,10 @@ export class KernelWallet extends BaseEvmWallet {
 
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({
         code: api.SpanStatusCode.ERROR,
-        message: (error as Error).message,
+        message: getErrorMessage(error),
       });
       throw error;
     } finally {
@@ -325,10 +326,10 @@ export class KernelWallet extends BaseEvmWallet {
       return result;
     } catch (error) {
       if (!activeSpan) {
-        span.recordException(error as Error);
+        span.recordException(toError(error));
         span.setStatus({
           code: api.SpanStatusCode.ERROR,
-          message: (error as Error).message,
+          message: getErrorMessage(error),
         });
       }
       throw error;
@@ -378,10 +379,10 @@ export class KernelWallet extends BaseEvmWallet {
       return [hash];
     } catch (error) {
       if (!activeSpan) {
-        span.recordException(error as Error);
+        span.recordException(toError(error));
         span.setStatus({
           code: api.SpanStatusCode.ERROR,
-          message: (error as Error).message,
+          message: getErrorMessage(error),
         });
       }
       throw error;
@@ -436,8 +437,8 @@ export class KernelWallet extends BaseEvmWallet {
         })) as bigint;
       } catch (error) {
         const msg = `Failed to get nonce from ECDSA executor`;
-        this.logger.error(msg, error as Error);
-        throw new Error(`${msg}: ${(error as Error).message}`);
+        this.logger.error(msg, toError(error));
+        throw new Error(`${msg}: ${getErrorMessage(error)}`);
       }
 
       // TODO: Make expiration time configurable
@@ -471,8 +472,8 @@ export class KernelWallet extends BaseEvmWallet {
         } as any);
       } catch (error) {
         const msg = `Failed to sign execution hash`;
-        this.logger.error(msg, error as Error);
-        throw new Error(`${msg}: ${(error as Error).message}`);
+        this.logger.error(msg, toError(error));
+        throw new Error(`${msg}: ${getErrorMessage(error)}`);
       }
 
       let hash: Hash;
@@ -494,7 +495,7 @@ export class KernelWallet extends BaseEvmWallet {
         } as any);
       } catch (error) {
         // Check if error is due to executor issues
-        const errorMessage = (error as Error).message.toLowerCase();
+        const errorMessage = getErrorMessage(error).toLowerCase();
         if (errorMessage.includes('expired') || errorMessage.includes('invalid signature')) {
           this.logger.warn('Executor transaction failed, may need to retry', {
             error: errorMessage,
@@ -523,15 +524,15 @@ export class KernelWallet extends BaseEvmWallet {
       return [hash];
     } catch (error) {
       if (!activeSpan) {
-        span.recordException(error as Error);
+        span.recordException(toError(error));
         span.setStatus({
           code: api.SpanStatusCode.ERROR,
-          message: (error as Error).message,
+          message: getErrorMessage(error),
         });
       }
 
       // Log executor-specific error details
-      this.logger.error('Executor transaction failed', error as Error, {
+      this.logger.error('Executor transaction failed', toError(error), {
         executorAddress: this.ecdsaExecutorAddr,
         totalValue: totalValue.toString(),
       });
@@ -579,7 +580,7 @@ export class KernelWallet extends BaseEvmWallet {
         isInstalled = await this.isModuleInstalled(moduleType, this.ecdsaExecutorAddr);
       } catch (error) {
         this.logger.warn('Failed to check module installation status, assuming not installed', {
-          error: (error as Error).message,
+          error: getErrorMessage(error),
           moduleAddress: this.ecdsaExecutorAddr,
         });
         isInstalled = false;
@@ -612,10 +613,10 @@ export class KernelWallet extends BaseEvmWallet {
       this.logger.log('ECDSA executor module installed successfully');
       span.setStatus({ code: api.SpanStatusCode.OK });
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({
         code: api.SpanStatusCode.ERROR,
-        message: (error as Error).message,
+        message: getErrorMessage(error),
       });
       throw error;
     } finally {
@@ -642,7 +643,7 @@ export class KernelWallet extends BaseEvmWallet {
     } catch (error) {
       // If the call fails, it might mean the account doesn't support modules yet
       this.logger.debug('Failed to check module installation status', {
-        error: (error as Error).message,
+        error: getErrorMessage(error),
         moduleType,
         moduleAddress,
       });
@@ -709,10 +710,10 @@ export class KernelWallet extends BaseEvmWallet {
         throw new Error(`${error}. Transaction hash: ${hash}`);
       }
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({
         code: api.SpanStatusCode.ERROR,
-        message: (error as Error).message,
+        message: getErrorMessage(error),
       });
       throw error;
     } finally {

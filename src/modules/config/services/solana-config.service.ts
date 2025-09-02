@@ -19,11 +19,11 @@ export class SolanaConfigService implements IBlockchainConfigService {
   constructor(private configService: ConfigService) {}
 
   get chainId(): SolanaConfig['chainId'] {
-    return this.configService.get<string>('solana.chainId');
+    return this.configService.get<string>('solana.chainId')!;
   }
 
   get rpcUrl(): SolanaConfig['rpcUrl'] {
-    return this.configService.get<string>('solana.rpcUrl');
+    return this.configService.get<string>('solana.rpcUrl')!;
   }
 
   get wsUrl(): SolanaConfig['wsUrl'] {
@@ -31,7 +31,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   get secretKey(): SolanaConfig['secretKey'] {
-    return this.configService.get<string>('solana.secretKey');
+    return this.configService.get<string>('solana.secretKey')!;
   }
 
   get walletAddress(): SolanaConfig['walletAddress'] {
@@ -39,11 +39,11 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   get programId(): SolanaConfig['programId'] {
-    return this.configService.get<string>('solana.programId');
+    return this.configService.get<string>('solana.programId')!;
   }
 
   get portalProgramId(): SolanaConfig['portalProgramId'] {
-    return this.configService.get<string>('solana.portalProgramId');
+    return this.configService.get<string>('solana.portalProgramId')!;
   }
 
   isConfigured(): boolean {

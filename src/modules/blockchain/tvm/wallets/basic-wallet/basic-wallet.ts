@@ -6,6 +6,7 @@ import {
   ITvmWallet,
   TvmTransactionOptions,
 } from '@/common/interfaces/tvm-wallet.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { TvmTransactionSettings } from '@/config/schemas';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { SystemLoggerService } from '@/modules/logging';
@@ -111,8 +112,8 @@ export class BasicWallet implements ITvmWallet {
       this.logger.log(`Smart contract transaction sent: ${txId}`);
       return txId;
     } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: error.message }); // ERROR
+      span.recordException(toError(error));
+      span.setStatus({ code: 2, message: getErrorMessage(error) }); // ERROR
       throw error;
     } finally {
       span.end();

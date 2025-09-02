@@ -1,9 +1,9 @@
-import { WorkerHost } from '@nestjs/bullmq';
-import { Processor } from '@nestjs/bullmq';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Optional } from '@nestjs/common';
 
 import { Job, UnrecoverableError } from 'bullmq';
 
+import { toError } from '@/common/utils/error-handler';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregated-validation.error';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -44,7 +44,7 @@ export class FulfillmentProcessor extends WorkerHost {
             // Update intent with error information
             await this.intentsService.updateStatus(
               jobData.intent.intentHash,
-              jobData.intent.status,
+              jobData.intent.status!,
               {
                 retryCount: j.attemptsMade + 1,
                 lastError: {
@@ -84,7 +84,7 @@ export class FulfillmentProcessor extends WorkerHost {
             // For non-ValidationError errors, log and re-throw normally
             this.logger.error(
               `Non-validation error processing intent ${jobData.intent.intentHash}:`,
-              error,
+              toError(error),
             );
             throw error;
           }

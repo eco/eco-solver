@@ -84,7 +84,7 @@ jest.mock('@/modules/blockchain/evm/utils/events', () => ({
       creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
       prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
       nativeAmount: log.args.rewardNativeAmount,
-      tokens: log.args.rewardTokens.map((token, index) => ({
+      tokens: log.args.rewardTokens.map((token: any, index: number) => ({
         amount: token.amount,
         token: `0x00000000000000000000000TOKEN${index + 1}00000000000000000000000000000000000001`,
       })),
@@ -454,7 +454,7 @@ describe('ChainListener', () => {
 
       // Get the IntentFulfilled callback (should be the second watchContractEvent call)
       const calls = mockPublicClient.watchContractEvent.mock.calls;
-      const intentFulfilledCall = calls.find((call) => call[0].eventName === 'IntentFulfilled');
+      const intentFulfilledCall = calls.find((call: any) => call[0].eventName === 'IntentFulfilled');
       if (intentFulfilledCall) {
         intentFulfilledCallback = intentFulfilledCall[0].onLogs;
       }
@@ -463,7 +463,7 @@ describe('ChainListener', () => {
     it('should watch for IntentFulfilled events', () => {
       // Check that watchContractEvent was called for IntentFulfilled
       const calls = mockPublicClient.watchContractEvent.mock.calls;
-      const intentFulfilledCall = calls.find((call) => call[0].eventName === 'IntentFulfilled');
+      const intentFulfilledCall = calls.find((call: any) => call[0].eventName === 'IntentFulfilled');
 
       expect(intentFulfilledCall).toBeDefined();
       expect(intentFulfilledCall[0]).toMatchObject({

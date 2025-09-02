@@ -6,6 +6,7 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
+import { getErrorMessage } from '@/common/utils/error-handler';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -52,10 +53,14 @@ export class BlockchainReaderService {
    * @param chainId The chain ID
    * @returns The reader for the chain, or undefined if not supported
    */
-  getReaderForChain(chainId: string | number | bigint): BaseChainReader | undefined {
+  getReaderForChain(chainId: string | number | bigint): BaseChainReader {
     // Convert bigint to number for EVM chains
     const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    return this.readers.get(normalizedChainId);
+    const reader = this.readers.get(normalizedChainId);
+    if (!reader) {
+      throw new Error(`Reader not found for chain ${chainId}`);
+    }
+    return reader;
   }
 
   /**
@@ -128,7 +133,7 @@ export class BlockchainReaderService {
       throw new Error(`No reader available for chain ${chainId}`);
     }
     const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    return reader.fetchProverFee(intent, prover, messageData, normalizedChainId, claimant);
+    return reader.fetchProverFee(intent, prover, messageData, normalizedChainId, claimant!);
   }
 
   private initializeReaders() {
@@ -157,7 +162,9 @@ export class BlockchainReaderService {
             break;
         }
       } catch (error) {
-        this.logger.warn(`Failed to initialize reader for chain ${chainId}: ${error.message}`);
+        this.logger.warn(
+          `Failed to initialize reader for chain ${chainId}: ${getErrorMessage(error)}`,
+        );
       }
     }
   }

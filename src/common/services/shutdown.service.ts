@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 
+import { toError } from '@/common/utils/error-handler';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
@@ -22,7 +23,7 @@ export class ShutdownService implements OnModuleDestroy {
       await Promise.race([shutdownPromise, timeoutPromise]);
       this.logger.log('Graceful shutdown completed');
     } catch (error) {
-      this.logger.error('Shutdown error:', error);
+      this.logger.error('Shutdown error:', toError(error));
       process.exit(1);
     }
   }

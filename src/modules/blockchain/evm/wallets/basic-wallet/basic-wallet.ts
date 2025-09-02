@@ -1,9 +1,8 @@
 import { Address, Hash, PublicClient, WalletClient } from 'viem';
 
+import { multicall3Abi } from '@/common/abis/multicall3.constants';
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
-
-import { multicall3Abi } from '../../../../../common/abis/multicall3.constants';
 
 export class BasicWallet extends BaseEvmWallet {
   constructor(
@@ -14,7 +13,7 @@ export class BasicWallet extends BaseEvmWallet {
   }
 
   async getAddress(): Promise<Address> {
-    return this.walletClient.account.address;
+    return this.walletClient.account!.address;
   }
 
   async writeContract(call: Call): Promise<Hash> {
@@ -49,7 +48,7 @@ export class BasicWallet extends BaseEvmWallet {
       const chainConfig = this.publicClient.chain;
 
       if (!chainConfig?.contracts?.multicall3?.address) {
-        throw new Error(`Multicall3 address not found for chain ${chainConfig.id}`);
+        throw new Error(`Multicall3 address not found for chain ${chainConfig?.id}`);
       }
 
       const multicall3Address = chainConfig.contracts.multicall3.address;
@@ -59,7 +58,7 @@ export class BasicWallet extends BaseEvmWallet {
         allowFailure: false,
         target: call.to,
         value: call.value || 0n,
-        callData: call.data,
+        callData: call.data || '0x',
       }));
 
       const totalValue =

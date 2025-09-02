@@ -23,18 +23,18 @@ export class FulfillmentConfigService {
   get defaultStrategy(): FulfillmentConfig['defaultStrategy'] {
     return this.configService.get<FulfillmentConfig['defaultStrategy']>(
       'fulfillment.defaultStrategy',
-    );
+    )!;
   }
 
   get fulfillmentConfig(): FulfillmentConfig {
-    return this.configService.get<FulfillmentConfig>('fulfillment');
+    return this.configService.get<FulfillmentConfig>('fulfillment')!;
   }
 
   get validations(): FulfillmentConfig['validations'] {
-    return this.configService.get<FulfillmentConfig['validations']>('fulfillment.validations');
+    return this.configService.get<FulfillmentConfig['validations']>('fulfillment.validations')!;
   }
 
-  get deadlineDuration(): FulfillmentConfig['deadlineDuration'] {
+  get deadlineDuration(): FulfillmentConfig['deadlineDuration'] | undefined {
     return this.configService.get<FulfillmentConfig['deadlineDuration']>(
       'fulfillment.deadlineDuration',
     );

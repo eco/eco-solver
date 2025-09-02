@@ -100,6 +100,8 @@ export class EvmTransportService implements OnModuleInit {
       } else {
         transport = http(urls[0], options);
       }
+    } else {
+      throw new Error(`No valid RPC or WebSocket configuration found for chain ${chainId}`);
     }
 
     // Wrap transport with OpenTelemetry tracing if available

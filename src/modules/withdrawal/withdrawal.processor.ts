@@ -3,6 +3,7 @@ import { Inject, OnModuleInit, Optional } from '@nestjs/common';
 
 import { Job, Queue } from 'bullmq';
 
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -61,8 +62,8 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
         return { chainId: chainId.toString(), txHash, intentCount: intents.length };
       } catch (error) {
         this.logger.error(
-          `Failed to process withdrawal for chain ${chainId}: ${(error as Error).message}`,
-          error,
+          `Failed to process withdrawal for chain ${chainId}: ${getErrorMessage(error)}`,
+          toError(error),
         );
         throw error;
       }
@@ -145,9 +146,9 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
       });
       span.setStatus({ code: 1 });
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: 2 });
-      this.logger.error('Error processing scheduled withdrawal check', error);
+      this.logger.error('Error processing scheduled withdrawal check', toError(error));
       throw error;
     } finally {
       span.end();

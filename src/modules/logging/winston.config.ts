@@ -1,6 +1,7 @@
 import * as winston from 'winston';
 
 import { AppConfigService } from '@/modules/config/services/app-config.service';
+import { LogData, LogObject } from '@/modules/logging/types/log-data.type';
 
 export function createWinstonConfig(
   appConfig: AppConfigService,
@@ -25,7 +26,7 @@ export function createWinstonConfig(
   };
 }
 
-export function maskSensitiveData(data: any): any {
+export function maskSensitiveData(data: LogData): LogData {
   if (typeof data !== 'object' || data === null) {
     return data;
   }
@@ -43,7 +44,7 @@ export function maskSensitiveData(data: any): any {
     'auth',
   ];
 
-  const masked = { ...data };
+  const masked = { ...(data as LogObject) };
 
   Object.keys(masked).forEach((key) => {
     const lowerKey = key.toLowerCase();

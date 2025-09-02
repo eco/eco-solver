@@ -3,6 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
+import { getErrorMessage } from '@/common/utils/error-handler';
 import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -56,7 +57,7 @@ export class EvmWalletManager implements OnModuleInit {
         );
       } catch (error) {
         this.logger.error(
-          `Failed to initialize ${walletFactory.name} for chain ${chainId}: ${error.message}`,
+          `Failed to initialize ${walletFactory.name} for chain ${chainId}: ${getErrorMessage(error)}`,
         );
         throw error;
       }

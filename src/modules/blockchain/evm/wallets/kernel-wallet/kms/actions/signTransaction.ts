@@ -16,7 +16,7 @@ export const signTransaction = (kmsOptions: IKmsOptions): CustomSource['signTran
     const signableTransaction =
       transaction.type === 'eip4844' ? { ...transaction, sidecars: false } : transaction;
 
-    const signature = await sign(kmsOptions)({
+    const signature = await sign(kmsOptions)!({
       hash: keccak256(serializer(signableTransaction)),
     });
 

@@ -34,7 +34,7 @@ export class MetalayerProver extends BaseProver {
     return this.blockchainReaderService.fetchProverFee(
       chainId,
       intent,
-      this.getContractAddress(Number(chainId)),
+      this.getContractAddress(chainId),
       await this.generateProof(intent),
       claimant,
     );

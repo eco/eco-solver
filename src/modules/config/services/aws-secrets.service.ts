@@ -8,6 +8,7 @@ import {
 import { z } from 'zod';
 
 import { AwsSchema } from '@/config/config.schema';
+import { getErrorMessage } from '@/common/utils/error-handler';
 
 type AwsConfig = z.infer<typeof AwsSchema>;
 
@@ -65,7 +66,7 @@ export class AwsSecretsService {
 
       return secrets;
     } catch (error) {
-      this.logger.error(`Failed to fetch secrets from AWS Secrets Manager: ${error.message}`);
+      this.logger.error(`Failed to fetch secrets from AWS Secrets Manager: ${getErrorMessage(error)}`);
       throw error;
     }
   }

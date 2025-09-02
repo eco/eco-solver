@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
+import { toError } from '@/common/utils/error-handler';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -102,7 +103,10 @@ export class IntentsEventsHandler implements OnModuleInit {
 
       span.setStatus({ code: 1 });
     } catch (error) {
-      this.logger.error(`Failed to handle IntentFulfilled event for ${event.intentHash}`, error);
+      this.logger.error(
+        `Failed to handle IntentFulfilled event for ${event.intentHash}`,
+        toError(error),
+      );
       span.recordException(error as Error);
       span.setStatus({ code: 2 });
     } finally {
@@ -146,7 +150,10 @@ export class IntentsEventsHandler implements OnModuleInit {
 
       span.setStatus({ code: 1 });
     } catch (error) {
-      this.logger.error(`Failed to handle IntentProven event for ${event.intentHash}`, error);
+      this.logger.error(
+        `Failed to handle IntentProven event for ${event.intentHash}`,
+        toError(error),
+      );
       span.recordException(error as Error);
       span.setStatus({ code: 2 });
     } finally {
@@ -192,7 +199,10 @@ export class IntentsEventsHandler implements OnModuleInit {
 
       span.setStatus({ code: 1 });
     } catch (error) {
-      this.logger.error(`Failed to handle IntentWithdrawn event for ${event.intentHash}`, error);
+      this.logger.error(
+        `Failed to handle IntentWithdrawn event for ${event.intentHash}`,
+        toError(error),
+      );
       span.recordException(error as Error);
       span.setStatus({ code: 2 });
     } finally {

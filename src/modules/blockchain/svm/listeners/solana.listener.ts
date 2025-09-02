@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
-import { Connection, Keypair, Logs, PublicKey } from '@solana/web3.js';
+import { Connection, Logs, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { IntentFulfilledEvent, RawEventLogs } from '@/common/interfaces/events.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { toError } from '@/common/utils/error-handler';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import {
   BlockchainConfigService,
@@ -23,7 +23,6 @@ export class SolanaListener extends BaseChainListener {
   private connection: Connection;
   private programId: PublicKey;
   private subscriptionId: number;
-  private keypair: Keypair;
 
   constructor(
     private solanaConfigService: SolanaConfigService,
@@ -46,9 +45,6 @@ export class SolanaListener extends BaseChainListener {
     const chainId = this.solanaConfigService.chainId || 'solana-mainnet';
     const portalProgramId = this.blockchainConfigService.getPortalAddress(chainId);
     this.programId = new PublicKey(portalProgramId);
-    this.keypair = Keypair.fromSecretKey(
-      Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),
-    );
 
     this.subscriptionId = this.connection.onLogs(
       this.programId,
@@ -89,7 +85,7 @@ export class SolanaListener extends BaseChainListener {
         creator: AddressNormalizer.normalize(intentData.creator, ChainType.SVM),
         prover: AddressNormalizer.normalize(intentData.prover, ChainType.SVM),
         nativeAmount: BigInt(intentData.rewardNativeAmount || 0),
-        tokens: (intentData.rewardTokens || []).map((token) => ({
+        tokens: intentData.rewardTokens.map((token) => ({
           amount: token.amount,
           token: AddressNormalizer.normalize(token.token, ChainType.SVM),
         })),
@@ -120,7 +116,7 @@ export class SolanaListener extends BaseChainListener {
         this.logger.log(`IntentWithdrawn event processed: ${withdrawnEvent.intentHash} on Solana`);
       }
     } catch (error) {
-      this.logger.error('Error handling Solana program logs:', error);
+      this.logger.error('Error handling Solana program logs:', toError(error));
     }
   }
 
@@ -226,7 +222,7 @@ export class SolanaListener extends BaseChainListener {
     };
   }
 
-  private parseIntentFromLogs(logs: string[]): Record<string, any> {
+  private parseIntentFromLogs(logs: string[]) {
     // Parse logs to extract intent data
     // This is a placeholder - actual implementation depends on program log format
     const intentData: any = {};
@@ -239,14 +235,14 @@ export class SolanaListener extends BaseChainListener {
     });
 
     return {
-      intentHash: intentData.intentHash || '',
-      destination: intentData.destination || '',
-      route: intentData.route || '',
-      creator: intentData.creator || '',
-      prover: intentData.prover || '',
-      rewardDeadline: intentData.rewardDeadline || 0,
-      rewardNativeAmount: intentData.rewardNativeAmount || '0',
-      rewardTokens: intentData.rewardTokens || [],
+      intentHash: intentData.intentHash,
+      destination: intentData.destination,
+      route: intentData.route,
+      creator: intentData.creator,
+      prover: intentData.prover,
+      rewardDeadline: intentData.rewardDeadline,
+      rewardNativeAmount: intentData.rewardNativeAmount,
+      rewardTokens: intentData.rewardTokens as { token: any; amount: bigint }[],
     };
   }
 }

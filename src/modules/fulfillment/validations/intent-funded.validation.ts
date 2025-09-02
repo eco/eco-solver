@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -78,19 +79,19 @@ export class IntentFundedValidation implements Validation {
       return true;
     } catch (error) {
       if (!activeSpan) {
-        span.recordException(error as Error);
+        span.recordException(toError(error));
         span.setStatus({ code: api.SpanStatusCode.ERROR });
       }
 
       // If it's already our error message, re-throw it
-      if (error.message.includes('is not funded')) {
+      if (getErrorMessage(error).includes('is not funded')) {
         throw error;
       }
 
       // Otherwise, wrap the error as TEMPORARY (network issues, etc.)
-      this.logger.error(`Failed to check funding status for intent ${intent.intentHash}:`, error);
+      this.logger.error(`Failed to check funding status for intent ${intent.intentHash}:`, toError(error));
       throw new ValidationError(
-        `Failed to verify intent funding status: ${error.message}`,
+        `Failed to verify intent funding status: ${getErrorMessage(error)}`,
         ValidationErrorType.TEMPORARY,
         'IntentFundedValidation',
       );

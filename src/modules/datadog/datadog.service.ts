@@ -20,12 +20,9 @@ export class DataDogService implements OnModuleInit {
 
   onModuleInit() {
     // Initialize StatsD client for DataDog
-    const globalTags = this.dataDogConfig.globalTags || {};
-    if (!globalTags.env && this.appConfig) {
+    const globalTags = this.dataDogConfig.globalTags || { service: 'blockchain-intent-solver' };
+    if (!globalTags?.env && this.appConfig) {
       globalTags.env = this.appConfig.env;
-    }
-    if (!globalTags.service) {
-      globalTags.service = 'blockchain-intent-solver';
     }
 
     this.statsD = new StatsD({

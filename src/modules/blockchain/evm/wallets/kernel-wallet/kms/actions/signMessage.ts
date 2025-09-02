@@ -11,6 +11,6 @@ import { IKmsOptions } from '@/modules/blockchain/evm/wallets/kernel-wallet/kms/
 export function signMessage(kmsOptions: IKmsOptions): CustomSource['signMessage'] {
   return async (config) => {
     const { message } = config;
-    return sign(kmsOptions)({ hash: hashMessage(message) });
+    return sign(kmsOptions)!({ hash: hashMessage(message) });
   };
 }

@@ -52,16 +52,15 @@ export class RouteAmountLimitValidation implements Validation {
         );
 
         let limitWei: bigint;
-        if (!limit) {
+        if (!limit?.max) {
           // If no limit is set, return a very large number (effectively no limit)
           limitWei = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
           span.setAttribute(`route.token.${index}.limit`, 'unlimited');
         } else {
           // Extract max value from either number or object format
-          const maxLimit = typeof limit === 'number' ? limit : limit.max;
-          limitWei = parseUnits(maxLimit.toString(), decimals);
+          limitWei = parseUnits(limit.max.toString(), decimals);
           span.setAttributes({
-            [`route.token.${index}.limit`]: maxLimit.toString(),
+            [`route.token.${index}.limit`]: limit.max.toString(),
             [`route.token.${index}.limit_wei`]: limitWei.toString(),
           });
         }

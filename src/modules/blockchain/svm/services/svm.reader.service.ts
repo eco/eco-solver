@@ -10,6 +10,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -66,7 +67,7 @@ export class SvmReaderService extends BaseChainReader {
       return BigInt(tokenAccount.amount.toString());
     } catch (error) {
       // If the associated token account doesn't exist, return 0
-      if (error.message?.includes('could not find account')) {
+      if (getErrorMessage(error).includes('could not find account')) {
         return BigInt(0);
       }
       throw error;
@@ -85,8 +86,8 @@ export class SvmReaderService extends BaseChainReader {
       return false;
       return true;
     } catch (error) {
-      this.logger.error(`Failed to check intent funding for ${intent.intentHash}:`, error);
-      throw new Error(`Failed to check intent funding: ${error.message}`);
+      this.logger.error(`Failed to check intent funding for ${intent.intentHash}:`, toError(error));
+      throw new Error(`Failed to check intent funding: ${getErrorMessage(error)}`);
     }
   }
 

@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { toError } from '@/common/utils/error-handler';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -28,7 +29,7 @@ export class IntentSubmissionService {
    * Queues the intent for fulfillment processing
    * Note: Assumes intent has already been persisted to database by the caller
    */
-  async submitIntent(intent: Intent, strategyName?: FulfillmentStrategyName): Promise<void> {
+  async submitIntent(intent: Intent, strategyName: FulfillmentStrategyName): Promise<void> {
     const span = this.otelService.startSpan('intent.submission.submit', {
       attributes: {
         'intent.hash': intent.intentHash,
@@ -55,7 +56,7 @@ export class IntentSubmissionService {
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
 
-      this.logger.error(`Failed to submit intent: ${intent.intentHash}`, error, {
+      this.logger.error(`Failed to submit intent: ${intent.intentHash}`, toError(error), {
         intentHash: intent.intentHash,
       });
       throw error;

@@ -4,6 +4,7 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
@@ -95,12 +96,12 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
           validationSpan.end();
           return { status: 'fulfilled' as const, value: true };
         } catch (error) {
-          validationSpan.recordException(error as Error);
+          validationSpan.recordException(toError(error));
           validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
           validationSpan.end();
           return {
             status: 'rejected' as const,
-            reason: error instanceof Error ? error : new Error(String(error)),
+            reason: toError(error),
           };
         }
       });
@@ -133,7 +134,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {
@@ -248,7 +249,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
                   }
                   feeSpan.setStatus({ code: api.SpanStatusCode.OK });
                 } catch (error) {
-                  feeSpan.recordException(error as Error);
+                  feeSpan.recordException(toError(error));
                   feeSpan.setStatus({ code: api.SpanStatusCode.ERROR });
                   throw error;
                 } finally {
@@ -276,13 +277,13 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
               };
             }
           } catch (error) {
-            validationSpan.recordException(error as Error);
+            validationSpan.recordException(toError(error));
             validationSpan.setAttribute('validation.passed', false);
             validationSpan.setStatus({ code: api.SpanStatusCode.ERROR });
             return {
               validation: validationName,
               passed: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: getErrorMessage(error),
             };
           } finally {
             validationSpan.end();
@@ -318,7 +319,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
         validationResults,
       };
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
     } finally {

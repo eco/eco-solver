@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { DataDogService } from '@/modules/datadog';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
@@ -84,9 +85,9 @@ export class FulfillmentService {
 
       return interfaceIntent;
     } catch (error) {
-      this.logger.error(`Error submitting intent ${intent.intentHash}:`, error);
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: (error as Error).message });
+      this.logger.error(`Error submitting intent ${intent.intentHash}:`, toError(error));
+      span.recordException(toError(error));
+      span.setStatus({ code: 2, message: getErrorMessage(error) });
       throw error;
     } finally {
       span.end();

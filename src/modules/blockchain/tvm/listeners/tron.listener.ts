@@ -6,6 +6,7 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { RawEventLogs } from '@/common/interfaces/events.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
@@ -101,7 +102,7 @@ export class TronListener extends BaseChainListener {
     // Start polling for events
     this.intervalId = setInterval(() => {
       this.pollForEvents().catch((error) => {
-        this.logger.error(`Error polling for events: ${error.message}`, error);
+        this.logger.error(`Error polling for events: ${getErrorMessage(error)}`, toError(error));
       });
     }, this.transactionSettings.listenerPollInterval);
   }
@@ -188,8 +189,8 @@ export class TronListener extends BaseChainListener {
           }
         } catch (error) {
           this.logger.error(
-            `Error fetching events from ${proverType} prover at ${proverAddress}: ${error.message}`,
-            error,
+            `Error fetching events from ${proverType} prover at ${proverAddress}: ${getErrorMessage(error)}`,
+            toError(error),
           );
         }
       }
@@ -230,7 +231,7 @@ export class TronListener extends BaseChainListener {
       // Update last processed block
       this.lastBlockNumber = currentBlockNumber;
     } catch (error) {
-      this.logger.error(`Error polling for events: ${error.message}`, error);
+      this.logger.error(`Error polling for events: ${getErrorMessage(error)}`, toError(error));
       throw error;
     } finally {
       // Record poll duration
@@ -301,8 +302,8 @@ export class TronListener extends BaseChainListener {
 
       this.logger.log(`Intent discovered: ${intent.intentHash}`);
     } catch (error) {
-      this.logger.error(`Error processing intent event: ${error.message}`, error);
-      span.recordException(error as Error);
+      this.logger.error(`Error processing intent event: ${getErrorMessage(error)}`, toError(error));
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
     } finally {
       span.end();
@@ -338,8 +339,8 @@ export class TronListener extends BaseChainListener {
           intentHash: fulfilledEvent.intentHash,
           claimant,
           txHash: event.transaction_id,
-          blockNumber: BigInt(event.block_number),
-          timestamp: new Date(event.block_timestamp),
+          blockNumber: BigInt(event.block_number || 0),
+          timestamp: new Date(event.block_timestamp || 0),
           chainId: BigInt(this.config.chainId),
         });
       });
@@ -351,8 +352,11 @@ export class TronListener extends BaseChainListener {
         `IntentFulfilled event processed: ${fulfilledEvent.intentHash} on chain ${this.config.chainId}`,
       );
     } catch (error) {
-      this.logger.error(`Error processing IntentFulfilled event: ${error.message}`, error);
-      span.recordException(error as Error);
+      this.logger.error(
+        `Error processing IntentFulfilled event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
     } finally {
       span.end();
@@ -398,8 +402,8 @@ export class TronListener extends BaseChainListener {
           intentHash,
           claimant,
           txHash: event.transaction_id,
-          blockNumber: BigInt(event.block_number),
-          timestamp: new Date(event.block_timestamp),
+          blockNumber: BigInt(event.block_number || 0),
+          timestamp: new Date(event.block_timestamp || 0),
           chainId: BigInt(this.config.chainId),
         });
       });
@@ -412,8 +416,11 @@ export class TronListener extends BaseChainListener {
         `IntentProven event processed${proverInfo}: ${intentHash} on chain ${this.config.chainId}`,
       );
     } catch (error) {
-      this.logger.error(`Error processing IntentProven event: ${error.message}`, error);
-      span.recordException(error as Error);
+      this.logger.error(
+        `Error processing IntentProven event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
     } finally {
       span.end();
@@ -450,8 +457,8 @@ export class TronListener extends BaseChainListener {
           intentHash,
           claimant,
           txHash: event.transaction_id,
-          blockNumber: BigInt(event.block_number),
-          timestamp: new Date(event.block_timestamp),
+          blockNumber: BigInt(event.block_number || 0),
+          timestamp: new Date(event.block_timestamp || 0),
           chainId: BigInt(this.config.chainId),
         });
       });
@@ -463,8 +470,11 @@ export class TronListener extends BaseChainListener {
         `IntentWithdrawn event processed: ${intentHash} on chain ${this.config.chainId}`,
       );
     } catch (error) {
-      this.logger.error(`Error processing IntentWithdrawn event: ${error.message}`, error);
-      span.recordException(error as Error);
+      this.logger.error(
+        `Error processing IntentWithdrawn event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
     } finally {
       span.end();

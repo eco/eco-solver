@@ -12,6 +12,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEVMIntent } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
@@ -86,9 +87,11 @@ export class EvmExecutorService extends BaseChainExecutor {
       const sourceChainType = ChainTypeDetector.detect(sourceChainId);
       const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, sourceChainType);
 
-      const proverAddr = AddressNormalizer.denormalizeToEvm(
-        prover.getContractAddress(destinationChainId),
-      );
+      const proverContract = prover.getContractAddress(destinationChainId);
+      if (!proverContract) {
+        throw new Error(`No prover contract address found for chain ${destinationChainId}`);
+      }
+      const proverAddr = AddressNormalizer.denormalizeToEvm(proverContract);
       const proverFee = await prover.getFee(intent, normalizedClaimant);
       const proofData = await prover.generateProof(intent);
 
@@ -169,14 +172,14 @@ export class EvmExecutorService extends BaseChainExecutor {
         txHash: hash,
       };
     } catch (error) {
-      this.logger.error('EVM execution error:', error);
+      this.logger.error('EVM execution error:', toError(error));
       if (!activeSpan) {
-        span.recordException(error as Error);
+        span.recordException(toError(error));
         span.setStatus({ code: api.SpanStatusCode.ERROR });
       }
       return {
         success: false,
-        error: error.message,
+        error: getErrorMessage(error),
       };
     } finally {
       if (!activeSpan) {
@@ -285,11 +288,11 @@ export class EvmExecutorService extends BaseChainExecutor {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return txHash;
     } catch (error) {
-      span.recordException(error as Error);
+      span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       this.logger.error(
-        `Failed to execute batchWithdraw on chain ${chainId}: ${(error as Error).message}`,
-        error,
+        `Failed to execute batchWithdraw on chain ${chainId}: ${getErrorMessage(error)}`,
+        toError(error),
       );
       throw error;
     } finally {

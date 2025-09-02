@@ -81,11 +81,15 @@ export class QuotesService {
         this.blockchainConfigService.getProverAddress(destinationChainId, 'hyper') ||
         this.blockchainConfigService.getProverAddress(destinationChainId, 'metalayer');
 
-      proverAddress = AddressNormalizer.denormalizeToEvm(proverAddressUA);
+      if (proverAddressUA) {
+        proverAddress = AddressNormalizer.denormalizeToEvm(proverAddressUA);
+      }
     } catch (error) {
       // If no prover found, denormalize the prover address from reward
       const destChainType = ChainTypeDetector.detect(destinationChainId);
-      proverAddress = AddressNormalizer.denormalize(intent.reward.prover, destChainType);
+      const denormalized = AddressNormalizer.denormalize(intent.reward.prover, destChainType);
+      proverAddress =
+        typeof denormalized === 'string' ? (denormalized as `0x${string}`) : undefined;
     }
 
     // TODO: Complete implementation
@@ -128,8 +132,8 @@ export class QuotesService {
         estimatedFulfillTimeSec: 30, // Default estimate, can be made configurable
       },
       contracts: {
-        prover: proverAddress,
-        portal: portalAddress,
+        prover: proverAddress || '',
+        portal: portalAddress || '',
       },
     };
   }
@@ -143,6 +147,7 @@ export class QuotesService {
     const { intentHash } = PortalHashUtils.getIntentHash({
       intentHash: '0x' as Hex, // Placeholder, will be replaced by computed hash
       destination: input.route.destination,
+      sourceChainId: input.route.source,
       route: {
         salt: input.route.salt as Hex,
         deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now

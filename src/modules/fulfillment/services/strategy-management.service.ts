@@ -58,24 +58,24 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
   private async initializeStrategies() {
     // Get strategy configuration from fulfillment config
     const fulfillmentConfig = this.configService.fulfillmentConfig;
-    const strategies = fulfillmentConfig?.strategies || {};
+    const strategies = fulfillmentConfig?.strategies;
 
     // Register each strategy with its metadata
-    const strategyMap: Record<string, IFulfillmentStrategy> = {
+    const strategyMap = {
       standard: this.standardStrategy,
       'crowd-liquidity': this.crowdLiquidityStrategy,
       'native-intents': this.nativeIntentsStrategy,
       'negative-intents': this.negativeIntentsStrategy,
       rhinestone: this.rhinestoneStrategy,
-    };
+    } as const;
 
     for (const [name, strategy] of Object.entries(strategyMap)) {
-      const enabled = strategies[name]?.enabled ?? false;
+      const enabled = strategies?.[name as keyof typeof strategies]?.enabled ?? false;
       const metadata: StrategyMetadata = {
         name,
-        priority: this.getStrategyPriority(name),
         enabled,
         description: this.getStrategyDescription(name),
+        priority: this.getStrategyPriority(name),
       };
 
       this.register(strategy, metadata);
@@ -162,7 +162,7 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
 
   getDefaultStrategy(): IFulfillmentStrategy | undefined {
     const defaultName = this.configService.defaultStrategy;
-    return this.getStrategy(defaultName);
+    return defaultName && this.getStrategy(defaultName);
   }
 
   isStrategyEnabled(name: string): boolean {

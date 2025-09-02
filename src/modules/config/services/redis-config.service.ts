@@ -12,11 +12,11 @@ export class RedisConfigService {
   constructor(private configService: ConfigService) {}
 
   get host(): RedisConfig['host'] {
-    return this.configService.get<string>('redis.host');
+    return this.configService.get<string>('redis.host')!;
   }
 
   get port(): RedisConfig['port'] {
-    return this.configService.get<number>('redis.port');
+    return this.configService.get<number>('redis.port')!;
   }
 
   get password(): RedisConfig['password'] {

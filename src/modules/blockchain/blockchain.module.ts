@@ -40,7 +40,7 @@ export class BlockchainModule {
     }
 
     // Only import TVM module if configured with networks
-    if (configFactory.tvm?.networks?.length > 0) {
+    if (configFactory.tvm?.networks && configFactory.tvm.networks.length > 0) {
       imports.push(TvmModule);
     }
 

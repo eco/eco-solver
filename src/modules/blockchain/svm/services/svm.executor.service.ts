@@ -20,6 +20,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
@@ -135,10 +136,10 @@ export class SvmExecutorService extends BaseChainExecutor {
         txHash: signature,
       };
     } catch (error) {
-      this.logger.error('Solana execution error:', error);
+      this.logger.error('Solana execution error:', toError(error));
       return {
         success: false,
-        error: error.message,
+        error: getErrorMessage(error),
       };
     }
   }

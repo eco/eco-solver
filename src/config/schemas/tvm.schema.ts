@@ -56,7 +56,7 @@ const BasicWalletConfigSchema = z.object({
  * Wallets configuration schema - object with wallet type as keys
  */
 const WalletsSchema = z.object({
-  basic: BasicWalletConfigSchema,
+  basic: BasicWalletConfigSchema.optional(),
 });
 
 /**
@@ -91,9 +91,7 @@ const TvmTransactionSettingsSchema = z.object({
 export const TvmSchema = z
   .object({
     networks: z.array(TvmNetworkSchema).default([]),
-    wallets: WalletsSchema.default({
-      basic: {},
-    }),
+    wallets: WalletsSchema.default({}),
     transactionSettings: TvmTransactionSettingsSchema.default({}),
   })
   .optional();

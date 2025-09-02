@@ -12,6 +12,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -20,7 +21,6 @@ import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { TvmTransactionError } from '../errors';
-import { TronAddress } from '../types/address.types';
 import { TvmClientUtils, TvmTracingUtils, TvmTransactionUtils } from '../utils';
 
 import { TvmWalletManagerService, TvmWalletType } from './tvm-wallet-manager.service';
@@ -182,10 +182,10 @@ export class TvmExecutorService extends BaseChainExecutor {
             txHash: fulfillTxId,
           };
         } catch (error) {
-          this.logger.error('TVM execution error:', error);
+          this.logger.error('TVM execution error:', toError(error));
           return {
             success: false,
-            error: error.message,
+            error: getErrorMessage(error),
           };
         }
       },
@@ -225,7 +225,7 @@ export class TvmExecutorService extends BaseChainExecutor {
         const isConfirmed = txInfo && txInfo.blockNumber && txInfo.receipt?.result === 'SUCCESS';
 
         span.setAttribute('tvm.transaction_confirmed', isConfirmed);
-        return isConfirmed;
+        return Boolean(isConfirmed);
       },
     );
   }
@@ -253,49 +253,6 @@ export class TvmExecutorService extends BaseChainExecutor {
         return BigInt(balance);
       },
     );
-  }
-
-  /**
-   * Creates a TronWeb instance for the given chain
-   * @param chainId - The chain ID to create client for
-   * @returns TronWeb instance
-   */
-  private createTronWebClient(chainId: number | string): TronWeb {
-    const network = this.tvmConfigService.getChain(chainId);
-    return TvmClientUtils.createClient(network);
-  }
-
-  private async waitForTransaction(
-    txId: string,
-    chainId: number | string,
-    maxAttempts?: number,
-  ): Promise<boolean> {
-    const settings = this.tvmConfigService.getTransactionSettings();
-    const client = this.createTronWebClient(chainId);
-
-    return TvmTransactionUtils.waitForTransaction(
-      client,
-      txId,
-      {
-        ...settings,
-        maxTransactionAttempts: maxAttempts ?? settings.maxTransactionAttempts,
-      },
-      this.logger,
-    );
-  }
-
-  private async waitForTransactions(txIds: string[], chainId: number | string): Promise<void> {
-    const settings = this.tvmConfigService.getTransactionSettings();
-    const client = this.createTronWebClient(chainId);
-
-    return TvmTransactionUtils.waitForTransactions(client, txIds, settings, this.logger);
-  }
-
-  private getChainId(chainId: bigint | number | string): number | string {
-    if (typeof chainId === 'bigint') {
-      return Number(chainId);
-    }
-    return chainId;
   }
 
   /**
@@ -403,14 +360,57 @@ export class TvmExecutorService extends BaseChainExecutor {
 
           return txHash;
         } catch (error) {
-          span.recordException(error as Error);
+          span.recordException(toError(error));
           this.logger.error(
-            `Failed to execute batchWithdraw on TVM chain ${chainId}: ${(error as Error).message}`,
-            error,
+            `Failed to execute batchWithdraw on TVM chain ${chainId}: ${getErrorMessage(error)}`,
+            toError(error),
           );
           throw error;
         }
       },
     );
+  }
+
+  /**
+   * Creates a TronWeb instance for the given chain
+   * @param chainId - The chain ID to create client for
+   * @returns TronWeb instance
+   */
+  private createTronWebClient(chainId: number | string): TronWeb {
+    const network = this.tvmConfigService.getChain(chainId);
+    return TvmClientUtils.createClient(network);
+  }
+
+  private async waitForTransaction(
+    txId: string,
+    chainId: number | string,
+    maxAttempts?: number,
+  ): Promise<boolean> {
+    const settings = this.tvmConfigService.getTransactionSettings();
+    const client = this.createTronWebClient(chainId);
+
+    return TvmTransactionUtils.waitForTransaction(
+      client,
+      txId,
+      {
+        ...settings,
+        maxTransactionAttempts: maxAttempts ?? settings.maxTransactionAttempts,
+      },
+      this.logger,
+    );
+  }
+
+  private async waitForTransactions(txIds: string[], chainId: number | string): Promise<void> {
+    const settings = this.tvmConfigService.getTransactionSettings();
+    const client = this.createTronWebClient(chainId);
+
+    return TvmTransactionUtils.waitForTransactions(client, txIds, settings, this.logger);
+  }
+
+  private getChainId(chainId: bigint | number | string): number | string {
+    if (typeof chainId === 'bigint') {
+      return Number(chainId);
+    }
+    return chainId;
   }
 }

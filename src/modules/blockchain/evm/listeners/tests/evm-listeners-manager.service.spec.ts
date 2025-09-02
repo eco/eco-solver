@@ -129,7 +129,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xPortal1',
       });
       expect(calls[0][1]).toBe(transportService);
-      expect(calls[0][2]).toBe(eventEmitter);
+      expect(calls[0][2]).toBe(eventsService);
       expect(calls[0][3]).toBeInstanceOf(SystemLoggerService);
       expect(calls[0][4]).toBe(otelService);
       expect(calls[0][5]).toBe(blockchainConfigService);
@@ -141,7 +141,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xPortal10',
       });
       expect(calls[1][1]).toBe(transportService);
-      expect(calls[1][2]).toBe(eventEmitter);
+      expect(calls[1][2]).toBe(eventsService);
       expect(calls[1][3]).toBeInstanceOf(SystemLoggerService);
       expect(calls[1][4]).toBe(otelService);
       expect(calls[1][5]).toBe(blockchainConfigService);
@@ -153,7 +153,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xPortal137',
       });
       expect(calls[2][1]).toBe(transportService);
-      expect(calls[2][2]).toBe(eventEmitter);
+      expect(calls[2][2]).toBe(eventsService);
       expect(calls[2][3]).toBeInstanceOf(SystemLoggerService);
       expect(calls[2][4]).toBe(otelService);
       expect(calls[2][5]).toBe(blockchainConfigService);
@@ -177,7 +177,7 @@ describe('EvmListenersManagerService', () => {
           EvmListenersManagerService,
           { provide: EvmConfigService, useValue: emptyEvmConfigService },
           { provide: EvmTransportService, useValue: transportService },
-          { provide: EventEmitter2, useValue: eventEmitter },
+          { provide: EventEmitter2, useValue: eventsService },
           { provide: SystemLoggerService, useValue: logger },
           { provide: OpenTelemetryService, useValue: otelService },
           { provide: BlockchainConfigService, useValue: blockchainConfigService },

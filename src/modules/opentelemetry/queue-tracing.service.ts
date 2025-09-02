@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
+
 import { OpenTelemetryService } from './opentelemetry.service';
 
 @Injectable()
@@ -52,10 +54,10 @@ export class QueueTracingService {
             span.setStatus({ code: api.SpanStatusCode.OK });
             return result;
           } catch (error) {
-            span.recordException(error as Error);
+            span.recordException(toError(error));
             span.setStatus({
               code: api.SpanStatusCode.ERROR,
-              message: (error as Error).message,
+              message: getErrorMessage(error),
             });
             throw error;
           }

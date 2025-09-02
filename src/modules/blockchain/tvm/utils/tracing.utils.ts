@@ -66,6 +66,9 @@ export class TvmTracingUtils {
    * @returns Span attributes
    */
   static createIntentAttributes(intent: Intent): TvmSpanAttributes {
+    if (!intent.sourceChainId) {
+      throw new Error('intent sourceChainId is missing');
+    }
     return {
       intentHash: intent.intentHash,
       source_chain: intent.sourceChainId.toString(),

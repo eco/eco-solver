@@ -3,6 +3,7 @@ import { Inject, OnModuleInit, Optional } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
+import { toError } from '@/common/utils/error-handler';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -55,7 +56,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
         } catch (error) {
           this.logger.error(
             `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
-            error,
+            toError(error),
           );
           throw error;
         }

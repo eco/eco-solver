@@ -11,7 +11,7 @@ import { BlockchainConfigService } from '@/modules/config/services';
 @Injectable()
 export abstract class BaseProver implements OnModuleInit {
   abstract readonly type: string;
-  protected blockchainReaderService: BlockchainReaderService;
+  protected blockchainReaderService!: BlockchainReaderService; // Will be initialized in onModuleInit
 
   constructor(
     protected readonly blockchainConfigService: BlockchainConfigService,
@@ -31,11 +31,15 @@ export abstract class BaseProver implements OnModuleInit {
 
   abstract getDeadlineBuffer(): bigint;
 
-  getContractAddress(chainId: string | number | bigint): UniversalAddress | undefined {
-    return this.blockchainConfigService.getProverAddress(
+  getContractAddress(chainId: string | number | bigint): UniversalAddress {
+    const proverAddr = this.blockchainConfigService.getProverAddress(
       chainId,
       this.type as 'hyper' | 'metalayer',
     );
+    if (!proverAddr) {
+      throw new Error('proverAddr is missing');
+    }
+    return proverAddr;
   }
 
   isSupported(chainId: number): boolean {

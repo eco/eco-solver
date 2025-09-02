@@ -1,5 +1,6 @@
 import { TronWeb } from 'tronweb';
 
+import { toError } from '@/common/utils/error-handler';
 import { TvmTransactionSettings } from '@/config/schemas';
 import { SystemLoggerService } from '@/modules/logging';
 
@@ -41,7 +42,7 @@ export class TvmTransactionUtils {
         if (error instanceof TvmTransactionError) {
           throw error;
         }
-        logger?.error(`Error checking transaction ${txId}:`, error);
+        logger?.error(`Error checking transaction ${txId}:`, toError(error));
       }
 
       // Wait before next attempt

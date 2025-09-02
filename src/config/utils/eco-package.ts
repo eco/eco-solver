@@ -6,10 +6,14 @@ import { DeepPartial } from '@/common/types';
 import { Config } from '@/config/config.schema';
 
 export function getEcoNpmPackageConfig(config: DeepPartial<Config>): DeepPartial<Config> {
+  if (!config.evm?.networks) {
+    return {};
+  }
+
   return {
     evm: {
-      networks: config.evm.networks?.map((network) => {
-        if (!network.chainId) return network;
+      networks: config.evm.networks.map((network) => {
+        if (!network?.chainId) return network;
 
         const chainId =
           config.env === 'preproduction' ? `${network.chainId}-pre` : network.chainId.toString();
@@ -19,7 +23,7 @@ export function getEcoNpmPackageConfig(config: DeepPartial<Config>): DeepPartial
 
         const { Inbox, IntentSource, MetaProver, HyperProver } = addresses;
 
-        const provers = { ...network.provers };
+        const provers = { ...network?.provers };
 
         if (HyperProver !== zeroAddress) provers[ProverType.HYPER] = HyperProver;
         if (MetaProver !== zeroAddress) provers[ProverType.METALAYER] = MetaProver;

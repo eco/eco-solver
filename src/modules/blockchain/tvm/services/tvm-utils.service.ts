@@ -36,7 +36,6 @@ export class TvmUtilsService {
   }
 
   static fromEvm(evmAddr: EvmAddress): TronAddress {
-    if (evmAddr.startsWith('0x') && evmAddr.length === 42)
-      return TvmUtilsService.fromHex('0x41' + evmAddr.substring(2));
+    return TvmUtilsService.fromHex('0x41' + evmAddr.substring(2));
   }
 }
