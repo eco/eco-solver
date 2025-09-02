@@ -20,6 +20,7 @@ export class TronListener extends BaseChainListener {
   private intervalId: NodeJS.Timeout | null = null;
   private lastBlockNumber: number = 0;
   private isRunning: boolean = false;
+  private proverAddresses: Map<string, string> = new Map(); // Map of prover type to address
 
   // Metrics instruments
   private pollCounter: api.Counter;
@@ -74,8 +75,20 @@ export class TronListener extends BaseChainListener {
       throw new Error(`No Portal address configured for chain ${this.config.chainId}`);
     }
 
+    // Get prover addresses for this network
+    const network = this.tvmConfigService.getChain(this.config.chainId);
+    const provers = network.provers || {};
+
+    for (const [proverType, proverAddress] of Object.entries(provers)) {
+      if (!proverAddress) continue;
+      this.proverAddresses.set(proverType, proverAddress);
+      this.logger.log(
+        `Will listen for IntentProven events from ${proverType} prover at address: ${proverAddress}`,
+      );
+    }
+
     this.logger.log(
-      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}. Listening for IntentPublished, IntentFulfilled, IntentProven, and IntentWithdrawn events.`,
+      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}. Listening for IntentPublished, IntentFulfilled, and IntentWithdrawn events from Portal, and IntentProven events from ${this.proverAddresses.size} prover(s).`,
     );
 
     this.isRunning = true;
@@ -147,13 +160,43 @@ export class TronListener extends BaseChainListener {
 
       const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
 
-      // Get events from the last processed block to current
-      const events = await client.event.getEventsByContractAddress(portalAddress, {
+      // Get Portal events (IntentPublished, IntentFulfilled, IntentWithdrawn)
+      const portalEvents = await client.event.getEventsByContractAddress(portalAddress, {
         onlyConfirmed: true,
         minBlockTimestamp: this.lastBlockNumber,
         orderBy: 'block_timestamp,asc',
         limit: 200,
       });
+
+      // Get IntentProven events from all configured prover contracts
+      const allProverEvents = [];
+      for (const [proverType, proverAddress] of this.proverAddresses.entries()) {
+        try {
+          const proverEvents = await client.event.getEventsByContractAddress(proverAddress, {
+            onlyConfirmed: true,
+            minBlockTimestamp: this.lastBlockNumber,
+            orderBy: 'block_timestamp,asc',
+            limit: 200,
+          });
+
+          if (proverEvents && Array.isArray(proverEvents)) {
+            // Add prover type to each event for tracking
+            proverEvents.forEach((event) => {
+              event.proverType = proverType;
+            });
+            allProverEvents.push(...proverEvents);
+          }
+        } catch (error) {
+          this.logger.error(
+            `Error fetching events from ${proverType} prover at ${proverAddress}: ${error.message}`,
+            error,
+          );
+        }
+      }
+
+      // Combine all events - ensure we handle the case where portalEvents might not be an array
+      const portalEventArray = portalEvents && Array.isArray(portalEvents) ? portalEvents : [];
+      const events = [...portalEventArray, ...allProverEvents];
 
       const eventCount = events && Array.isArray(events) ? events.length : 0;
       if (eventCount > 0) {
@@ -176,7 +219,8 @@ export class TronListener extends BaseChainListener {
           } else if (event.event_name === 'IntentFulfilled') {
             await this.processIntentFulfilledEvent(event);
           } else if (event.event_name === 'IntentProven') {
-            await this.processIntentProvenEvent(event);
+            // Pass prover type if available (from prover contracts)
+            await this.processIntentProvenEvent(event, event.proverType);
           } else if (event.event_name === 'IntentWithdrawn') {
             await this.processIntentWithdrawnEvent(event);
           }
@@ -315,14 +359,23 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentProvenEvent(event: RawEventLogs.TvmEvent): Promise<void> {
+  private async processIntentProvenEvent(
+    event: RawEventLogs.TvmEvent,
+    proverType?: string,
+  ): Promise<void> {
+    const spanAttributes: any = {
+      'tvm.chain_id': this.config.chainId.toString(),
+      'tvm.event_name': event.event_name,
+      'tvm.transaction_id': event.transaction_id,
+      'tvm.block_number': event.block_number,
+    };
+
+    if (proverType) {
+      spanAttributes['prover.type'] = proverType;
+    }
+
     const span = this.otelService.startSpan('tvm.listener.processIntentProvenEvent', {
-      attributes: {
-        'tvm.chain_id': this.config.chainId.toString(),
-        'tvm.event_name': event.event_name,
-        'tvm.transaction_id': event.transaction_id,
-        'tvm.block_number': event.block_number,
-      },
+      attributes: spanAttributes,
     });
 
     try {
@@ -354,8 +407,9 @@ export class TronListener extends BaseChainListener {
       span.addEvent('intent.proven.emitted');
       span.setStatus({ code: api.SpanStatusCode.OK });
 
+      const proverInfo = proverType ? ` from ${proverType} prover` : '';
       this.logger.log(
-        `IntentProven event processed: ${intentHash} on chain ${this.config.chainId}`,
+        `IntentProven event processed${proverInfo}: ${intentHash} on chain ${this.config.chainId}`,
       );
     } catch (error) {
       this.logger.error(`Error processing IntentProven event: ${error.message}`, error);

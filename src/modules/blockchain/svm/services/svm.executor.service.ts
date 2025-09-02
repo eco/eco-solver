@@ -72,7 +72,9 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       // Get claimant from source chain configuration
       const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
-      const claimantPublicKey = new PublicKey(AddressNormalizer.denormalizeToSvm(configuredClaimant));
+      const claimantPublicKey = new PublicKey(
+        AddressNormalizer.denormalizeToSvm(configuredClaimant),
+      );
 
       // Derive PDAs (Program Derived Addresses)
       const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');

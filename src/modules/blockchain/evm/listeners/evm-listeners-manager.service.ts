@@ -48,6 +48,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         listenerLogger,
         this.otelService,
         this.blockchainConfigService,
+        this.evmConfigService,
       );
 
       await listener.start();

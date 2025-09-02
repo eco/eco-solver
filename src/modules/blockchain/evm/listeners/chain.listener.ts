@@ -1,14 +1,16 @@
 import * as api from '@opentelemetry/api';
 import { PublicClient } from 'viem';
 
+import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { parseIntentFulfilled, parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
-import { BlockchainConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -16,8 +18,8 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 export class ChainListener extends BaseChainListener {
   private unsubscribeIntentPublished: ReturnType<PublicClient['watchContractEvent']>;
   private unsubscribeIntentFulfilled: ReturnType<PublicClient['watchContractEvent']>;
-  private unsubscribeIntentProven: ReturnType<PublicClient['watchContractEvent']>;
   private unsubscribeIntentWithdrawn: ReturnType<PublicClient['watchContractEvent']>;
+  private proverUnsubscribers: Map<string, () => void> = new Map();
 
   constructor(
     private readonly config: EvmChainConfig,
@@ -26,6 +28,7 @@ export class ChainListener extends BaseChainListener {
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
+    private readonly evmConfigService: EvmConfigService,
   ) {
     super();
     // Context is already set by the manager when creating the logger instance
@@ -115,7 +118,7 @@ export class ChainListener extends BaseChainListener {
 
           try {
             const event = parseIntentFulfilled(BigInt(evmConfig.chainId), log);
-            const claimant = AddressNormalizer.normalize(event.claimant, ChainType.EVM);
+            const claimant = event.claimant as UniversalAddress;
 
             span.setAttributes({
               'evm.intent_hash': event.intentHash,
@@ -147,57 +150,82 @@ export class ChainListener extends BaseChainListener {
       },
     });
 
-    // Watch for IntentProven events
-    this.unsubscribeIntentProven = publicClient.watchContractEvent({
-      abi: PortalAbi,
-      eventName: 'IntentProven',
-      address: portalAddress,
-      strict: true,
-      onLogs: (logs) => {
-        logs.forEach((log) => {
-          const span = this.otelService.startSpan('evm.listener.processIntentProvenEvent', {
-            attributes: {
-              'evm.chain_id': this.config.chainId,
-              'evm.event_name': 'IntentProven',
-              'portal.address': portalAddress,
-              'evm.block_number': log.blockNumber?.toString(),
-              'evm.transaction_hash': log.transactionHash,
-            },
-          });
+    // Watch for IntentProven events from all configured prover contracts
+    const network = this.evmConfigService.getChain(evmConfig.chainId);
+    const provers = network.provers || {};
 
-          try {
-            const intentHash = log.args.intentHash;
-            const claimant = AddressNormalizer.normalize(log.args.claimant, ChainType.EVM);
+    for (const [proverType, proverAddress] of Object.entries(provers)) {
+      if (!proverAddress) continue;
 
-            span.setAttributes({
-              'evm.intent_hash': intentHash,
-              'evm.claimant': claimant,
+      const denormalizedProverAddress = AddressNormalizer.denormalizeToEvm(
+        proverAddress as UniversalAddress,
+      );
+
+      this.logger.log(
+        `Listening for IntentProven events from ${proverType} prover at address: ${denormalizedProverAddress}`,
+      );
+
+      const unsubscribe = publicClient.watchContractEvent({
+        abi: messageBridgeProverAbi,
+        eventName: 'IntentProven',
+        address: denormalizedProverAddress,
+        strict: true,
+        onLogs: (logs) => {
+          logs.forEach((log) => {
+            const span = this.otelService.startSpan('evm.listener.processIntentProvenEvent', {
+              attributes: {
+                'evm.chain_id': this.config.chainId,
+                'evm.event_name': 'IntentProven',
+                'prover.type': proverType,
+                'prover.address': denormalizedProverAddress,
+                'evm.block_number': log.blockNumber?.toString(),
+                'evm.transaction_hash': log.transactionHash,
+              },
             });
 
-            // Emit the event within the span context to propagate trace context
-            api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventsService.emit('intent.proven', {
-                intentHash,
-                claimant,
-                txHash: log.transactionHash,
-                blockNumber: log.blockNumber,
-                timestamp: new Date(),
-                chainId: BigInt(evmConfig.chainId),
+            try {
+              const intentHash = log.args.intentHash;
+              const claimant = log.args.claimant as UniversalAddress;
+
+              span.setAttributes({
+                'evm.intent_hash': intentHash,
+                'evm.claimant': claimant,
               });
-            });
 
-            span.addEvent('intent.proven.emitted');
-            span.setStatus({ code: api.SpanStatusCode.OK });
-          } catch (error) {
-            this.logger.error(`Error processing IntentProven event: ${error.message}`, error);
-            span.recordException(error as Error);
-            span.setStatus({ code: api.SpanStatusCode.ERROR });
-          } finally {
-            span.end();
-          }
-        });
-      },
-    });
+              // Emit the event within the span context to propagate trace context
+              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+                this.eventsService.emit('intent.proven', {
+                  intentHash,
+                  claimant,
+                  txHash: log.transactionHash,
+                  blockNumber: log.blockNumber,
+                  timestamp: new Date(),
+                  chainId: BigInt(evmConfig.chainId),
+                });
+              });
+
+              this.logger.log(
+                `IntentProven event processed from ${proverType} prover: ${intentHash}`,
+              );
+
+              span.addEvent('intent.proven.emitted');
+              span.setStatus({ code: api.SpanStatusCode.OK });
+            } catch (error) {
+              this.logger.error(
+                `Error processing IntentProven event from ${proverType} prover: ${error.message}`,
+                error,
+              );
+              span.recordException(error as Error);
+              span.setStatus({ code: api.SpanStatusCode.ERROR });
+            } finally {
+              span.end();
+            }
+          });
+        },
+      });
+
+      this.proverUnsubscribers.set(`${proverType}-${denormalizedProverAddress}`, unsubscribe);
+    }
 
     // Watch for IntentWithdrawn events
     this.unsubscribeIntentWithdrawn = publicClient.watchContractEvent({
@@ -261,10 +289,11 @@ export class ChainListener extends BaseChainListener {
       this.unsubscribeIntentFulfilled();
       this.unsubscribeIntentFulfilled = null;
     }
-    if (this.unsubscribeIntentProven) {
-      this.unsubscribeIntentProven();
-      this.unsubscribeIntentProven = null;
+    // Cleanup all prover subscriptions
+    for (const unsubscribe of this.proverUnsubscribers.values()) {
+      unsubscribe();
     }
+    this.proverUnsubscribers.clear();
     if (this.unsubscribeIntentWithdrawn) {
       this.unsubscribeIntentWithdrawn();
       this.unsubscribeIntentWithdrawn = null;
