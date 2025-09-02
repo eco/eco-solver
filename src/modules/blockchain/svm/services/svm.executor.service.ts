@@ -22,7 +22,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { SolanaConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
@@ -34,6 +34,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   constructor(
     private solanaConfigService: SolanaConfigService,
+    private blockchainConfigService: BlockchainConfigService,
     private readonly logger: SystemLoggerService,
     private proverService: ProverService,
   ) {
@@ -68,6 +69,10 @@ export class SvmExecutorService extends BaseChainExecutor {
       const proofData = await prover.generateProof(intent);
 
       const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, sourceChainType);
+
+      // Get claimant from source chain configuration
+      const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
+      const claimantPublicKey = new PublicKey(AddressNormalizer.denormalizeToSvm(configuredClaimant));
 
       // Derive PDAs (Program Derived Addresses)
       const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
@@ -104,7 +109,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           intentHash: intentHashBuffer,
           route: routeEncoded,
           rewardHash: Buffer.from(rewardHash.slice(2), 'hex'),
-          claimant: this.keypair.publicKey.toBuffer(),
+          claimant: claimantPublicKey.toBuffer(),
           prover: proverAddr!,
           sourceChainId: Number(sourceChainId),
           proofData: Buffer.from(proofData.slice(2), 'hex'),

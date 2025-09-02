@@ -13,7 +13,7 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { TvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
@@ -29,6 +29,7 @@ import { TvmWalletManagerService, TvmWalletType } from './tvm-wallet-manager.ser
 export class TvmExecutorService extends BaseChainExecutor {
   constructor(
     private tvmConfigService: TvmConfigService,
+    private blockchainConfigService: BlockchainConfigService,
     private walletManager: TvmWalletManagerService,
     private proverService: ProverService,
     private readonly logger: SystemLoggerService,
@@ -64,11 +65,10 @@ export class TvmExecutorService extends BaseChainExecutor {
           // Get wallet
           const walletType = walletId || 'basic';
           const wallet = this.walletManager.createWallet(destinationChainId, walletType);
-          const walletAddr = await wallet.getAddress();
 
-          // TODO: Get claimant depending on the source
-          const claimant = walletAddr;
-          const claimantUA = AddressNormalizer.normalizeTvm(claimant as TronAddress);
+          // Get claimant from source chain configuration
+          const claimantUA = this.blockchainConfigService.getClaimant(sourceChainId);
+          const claimant = AddressNormalizer.denormalizeToTvm(claimantUA);
 
           span.setAttribute('tvm.claimant_address', claimant);
 

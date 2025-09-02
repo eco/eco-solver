@@ -72,6 +72,7 @@ const TvmNetworkSchema = z.object({
     portal: TronAddressSchema, // Portal contract address
     // Add TVM-specific contracts here if needed
   }),
+  claimant: TronAddressSchema,
 });
 
 /**

@@ -137,4 +137,16 @@ export class BlockchainConfigService {
     const configService = this.getConfigService(chainType);
     return configService.getProverAddress(chainId, proverType);
   }
+
+  /**
+   * Gets the claimant address for any chain ID
+   * Automatically detects chain type and retrieves from appropriate config
+   * @param chainId The chain ID to get claimant address for
+   * @returns The claimant address
+   */
+  getClaimant(chainId: ChainIdentifier): UniversalAddress {
+    const chainType = ChainTypeDetector.detect(chainId);
+    const configService = this.getConfigService(chainType);
+    return configService.getClaimant(chainId);
+  }
 }

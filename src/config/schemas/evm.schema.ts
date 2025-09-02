@@ -134,6 +134,7 @@ const EvmNetworkSchema = z.object({
       .regex(/^0x[a-fA-F0-9]{40}$/)
       .optional(),
   }),
+  claimant: EvmAddressSchema,
 });
 
 /**

@@ -124,4 +124,12 @@ export class SolanaConfigService implements IBlockchainConfigService {
     // Solana doesn't have prover contracts in current configuration
     return undefined;
   }
+
+  getClaimant(_chainId: ChainIdentifier): UniversalAddress {
+    const claimant = this.configService.get<string>('solana.claimant');
+    if (!claimant) {
+      throw new Error('Solana claimant address not configured');
+    }
+    return AddressNormalizer.normalizeSvm(claimant);
+  }
 }

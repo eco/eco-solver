@@ -69,4 +69,10 @@ export interface IBlockchainConfigService {
     chainId: ChainIdentifier,
     proverType: 'hyper' | 'metalayer',
   ): UniversalAddress | undefined;
+
+  /**
+   * Gets the claimant address for the chain
+   * @param chainId Chain identifier
+   */
+  getClaimant(chainId: ChainIdentifier): UniversalAddress;
 }

@@ -143,6 +143,11 @@ export class EvmConfigService implements IBlockchainConfigService {
     return network.provers?.[proverType];
   }
 
+  getClaimant(chainId: ChainIdentifier): UniversalAddress {
+    const network = this.getChain(Number(chainId));
+    return AddressNormalizer.normalizeEvm(network.claimant);
+  }
+
   private initializeNetworks(): void {
     const networks = this.configService.get<EvmNetworkConfig[]>('evm.networks', []);
     for (const network of networks) {

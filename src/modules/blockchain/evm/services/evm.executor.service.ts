@@ -14,7 +14,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { toEVMIntent } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
@@ -27,6 +27,7 @@ import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 export class EvmExecutorService extends BaseChainExecutor {
   constructor(
     private evmConfigService: EvmConfigService,
+    private blockchainConfigService: BlockchainConfigService,
     private transportService: EvmTransportService,
     private walletManager: EvmWalletManager,
     private proverService: ProverService,
@@ -59,9 +60,10 @@ export class EvmExecutorService extends BaseChainExecutor {
       // Map walletId to wallet type - for backward compatibility
       const wallet = this.walletManager.getWallet(walletId, destinationChainId);
 
-      // TODO: Claimant must be set depending on the source chain
-      const claimant = await wallet.getAddress();
-      const normalizedClaimant = AddressNormalizer.normalizeEvm(claimant);
+      // Get claimant from source chain configuration
+      const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
+      const claimant = AddressNormalizer.denormalizeToEvm(configuredClaimant);
+      const normalizedClaimant = configuredClaimant;
       span.setAttribute('evm.claimant_address', claimant);
 
       // Get Portal address for a destination chain from config

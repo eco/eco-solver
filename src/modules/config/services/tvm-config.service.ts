@@ -174,6 +174,11 @@ export class TvmConfigService implements IBlockchainConfigService {
     });
   }
 
+  getClaimant(chainId: ChainIdentifier): UniversalAddress {
+    const network = this.getChain(chainId);
+    return AddressNormalizer.normalizeTvm(network.claimant);
+  }
+
   private initializeNetworks(): void {
     const networks = this.configService.get<TvmNetworkConfig[]>('tvm.networks', []);
     for (const network of networks) {
