@@ -22,6 +22,7 @@ import { SquidProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 @Module({
   imports: [
@@ -52,6 +53,6 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     GatewayProviderService,
     RebalanceRepository,
   ],
-  exports: [LiquidityManagerService, RebalanceRepository],
+  exports: [LiquidityManagerService, RebalanceRepository, WrappedTokenService],
 })
 export class LiquidityManagerModule {}

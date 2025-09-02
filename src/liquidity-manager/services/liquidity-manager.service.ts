@@ -2,6 +2,8 @@ import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
+import { Hex } from 'viem'
+import { BalanceService } from '@/balance/balance.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
@@ -36,8 +38,8 @@ import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
-import { BalanceService } from '@/balance/balance.service'
 import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -63,6 +65,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rebalanceRepository: RebalanceRepository,
+    private readonly wrappedTokenService: WrappedTokenService,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
     this.checkBalancesQueueWrapper = new CheckBalancesQueue(this.checkBalancesQueue as any)
@@ -113,24 +116,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     await this.ensureGatewayBootstrap()
-  }
-
-  private async ensureGatewayBootstrap() {
-    // Gateway bootstrap deposit (simple one-time) if enabled
-    try {
-      // Access provider through manager; it may not be enabled in strategies, but method is safe
-      const anyProvider = (this.liquidityProviderManager as any).gatewayProviderService
-      if (anyProvider?.ensureBootstrapOnce) {
-        await anyProvider.ensureBootstrapOnce('bootstrap')
-      }
-    } catch (error) {
-      this.logger.warn(
-        EcoLogMessage.withError({
-          message: 'Gateway bootstrap deposit skipped or failed',
-          error,
-        }),
-      )
-    }
   }
 
   async initializeRebalances() {
@@ -249,62 +234,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
   }
 
-  /**
-   * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
-   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
-   */
-  private async getReservedByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
-    try {
-      const map = await this.rebalanceRepository.getPendingReservedByTokenForWallet(walletAddress)
-      if (map.size) {
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Reservation-aware analysis: applied reserved amounts',
-            properties: { walletAddress, tokensAffected: map.size },
-          }),
-        )
-      }
-      return map
-    } catch (error) {
-      this.logger.debug(
-        EcoLogMessage.withError({
-          message: 'Reservation-aware analysis: no reservations applied',
-          properties: { walletAddress },
-          error,
-        }),
-      )
-      return new Map<string, bigint>()
-    }
-  }
-
-  /**
-   * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
-   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
-   */
-  private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
-    try {
-      const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
-      if (map.size) {
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Reservation-aware analysis: applied incoming amounts',
-            properties: { walletAddress, tokensAffected: map.size },
-          }),
-        )
-      }
-      return map
-    } catch (error) {
-      this.logger.debug(
-        EcoLogMessage.withError({
-          message: 'Reservation-aware analysis: no incoming applied',
-          properties: { walletAddress },
-          error,
-        }),
-      )
-      return new Map<string, bigint>()
-    }
-  }
-
   analyzeToken(token: TokenData) {
     return analyzeToken(token.config, token.balance, {
       up: this.config.thresholds.surplus,
@@ -386,6 +315,104 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           properties: { quote, walletAddress },
         }),
       )
+    }
+  }
+
+  /**
+   * Gets all WETH rebalance requests for the given wallet address
+   * This method delegates to the WrappedTokenService for handling wrapped token operations
+   * @param walletAddress The wallet address to check for WETH rebalances
+   * @returns Array of rebalance requests
+   */
+  async getWETHRebalances(walletAddress: string): Promise<RebalanceRequest[]> {
+    try {
+      // Delegate to the specialized WrappedTokenService
+      return await this.wrappedTokenService.getWrappedTokenRebalances(walletAddress as Hex)
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Error getting WETH rebalances',
+          properties: {
+            walletAddress,
+            error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+          },
+        }),
+      )
+      return []
+    }
+  }
+
+  private async ensureGatewayBootstrap() {
+    // Gateway bootstrap deposit (simple one-time) if enabled
+    try {
+      // Access provider through manager; it may not be enabled in strategies, but method is safe
+      const anyProvider = (this.liquidityProviderManager as any).gatewayProviderService
+      if (anyProvider?.ensureBootstrapOnce) {
+        await anyProvider.ensureBootstrapOnce('bootstrap')
+      }
+    } catch (error) {
+      this.logger.warn(
+        EcoLogMessage.withError({
+          message: 'Gateway bootstrap deposit skipped or failed',
+          error,
+        }),
+      )
+    }
+  }
+
+  /**
+   * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
+   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
+   */
+  private async getReservedByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingReservedByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied reserved amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (error) {
+      this.logger.debug(
+        EcoLogMessage.withError({
+          message: 'Reservation-aware analysis: no reservations applied',
+          properties: { walletAddress },
+          error,
+        }),
+      )
+      return new Map<string, bigint>()
+    }
+  }
+
+  /**
+   * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
+   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
+   */
+  private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied incoming amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (error) {
+      this.logger.debug(
+        EcoLogMessage.withError({
+          message: 'Reservation-aware analysis: no incoming applied',
+          properties: { walletAddress },
+          error,
+        }),
+      )
+      return new Map<string, bigint>()
     }
   }
 

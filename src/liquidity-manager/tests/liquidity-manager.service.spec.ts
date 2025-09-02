@@ -18,6 +18,7 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { WrappedTokenService } from '@/liquidity-manager/services/wrapped-token.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -26,6 +27,7 @@ describe('LiquidityManagerService', () => {
   let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let wrappedTokenService: DeepMocked<WrappedTokenService>
   let queue: DeepMocked<Queue>
   let checkQueue: DeepMocked<Queue>
 
@@ -38,6 +40,7 @@ describe('LiquidityManagerService', () => {
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: WrappedTokenService, useValue: createMock<WrappedTokenService>() },
         {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
@@ -71,6 +74,7 @@ describe('LiquidityManagerService', () => {
     liquidityManagerService = chainMod.get(LiquidityManagerService)
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
+    wrappedTokenService = chainMod.get(WrappedTokenService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
     checkQueue = chainMod.get(getQueueToken(CheckBalancesQueue.queueName))
 
@@ -306,6 +310,38 @@ describe('LiquidityManagerService', () => {
       await liquidityManagerService.executeRebalancing(mockRebalanceData as any)
 
       expect(liquidityProviderService.execute).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('getWETHRebalances', () => {
+    it('should delegate to the WrappedTokenService', async () => {
+      const walletAddress = '0xWalletAddress'
+      const mockRebalanceRequests = [{ token: { chainId: 1 }, quotes: [] }]
+
+      // Mock wrapped token service response
+      wrappedTokenService.getWrappedTokenRebalances = jest
+        .fn()
+        .mockResolvedValue(mockRebalanceRequests)
+
+      const result = await liquidityManagerService.getWETHRebalances(walletAddress)
+
+      expect(result).toEqual(mockRebalanceRequests)
+      expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
+    })
+
+    it('should handle errors from WrappedTokenService', async () => {
+      const walletAddress = '0xWalletAddress'
+
+      // Mock wrapped token service to throw an error
+      wrappedTokenService.getWrappedTokenRebalances = jest
+        .fn()
+        .mockRejectedValue(new Error('Test error'))
+
+      const result = await liquidityManagerService.getWETHRebalances(walletAddress)
+
+      // Should return empty array on error
+      expect(result).toEqual([])
+      expect(wrappedTokenService.getWrappedTokenRebalances).toHaveBeenCalledWith(walletAddress)
     })
   })
 })
