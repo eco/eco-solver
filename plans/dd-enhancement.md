@@ -3,24 +3,28 @@
 ## Current State Analysis
 
 ### Existing EcoLogMessage Implementation
+
 The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) provides basic structured logging with:
+
 - Message content with optional properties
-- User ID association (`withUser`)  
+- User ID association (`withUser`)
 - Error logging (`withError`, `withErrorAndUser`, `withErrorAndId`)
 - ID-based logging (`withId`, `withErrorAndId`)
 
 **Current Output Structure:**
+
 ```json
 {
   "msg": "Log message text",
   "userID": "optional-user-id",
-  "error": "error.toString()", 
+  "error": "error.toString()",
   "id": "optional-id",
   "...properties": "additional custom properties"
 }
 ```
 
 ### Usage Patterns
+
 - Primarily used in NestJS services, processors, and controllers
 - Common usage: `this.logger.debug(EcoLogMessage.fromDefault({...}))`
 - Heavy usage in BullMQ processors, liquidity managers, intent services
@@ -29,6 +33,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ## Datadog Structured Logging Best Practices
 
 ### Key Requirements for Analytics Dashboards
+
 1. **JSON Format**: All logs must be in JSON format with consistent structure
 2. **Reserved Attributes**: Use Datadog's reserved attributes for proper parsing
 3. **High-Cardinality Data**: Enable analysis by quote ID, request ID, etc.
@@ -37,6 +42,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 6. **Index Strategy**: Structure data to support efficient querying and visualization
 
 ### Datadog Reserved Attributes
+
 - `message`: Log body content (indexed for full-text search)
 - `host`: Hostname (automatically set by Agent)
 - `service`: Service name (critical for APM correlation)
@@ -53,6 +59,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### 1. Core Structure Improvements
 
 **Enhanced Base Structure:**
+
 ```json
 {
   "@timestamp": "2025-01-15T10:30:00.000Z",
@@ -72,6 +79,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### 2. Business Context Fields
 
 **Core Business Identifiers:**
+
 ```json
 {
   "eco": {
@@ -97,6 +105,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ```
 
 **Operation Context:**
+
 ```json
 {
   "operation": {
@@ -112,6 +121,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### 3. Financial/Liquidity Metrics
 
 **For Analytics Dashboards:**
+
 ```json
 {
   "metrics": {
@@ -136,12 +146,13 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### 4. Error Enrichment
 
 **Enhanced Error Structure:**
+
 ```json
 {
   "error": {
     "kind": "string",
     "message": "string",
-    "stack": "string", 
+    "stack": "string",
     "code": "string|number",
     "recoverable": "boolean",
     "upstream_service": "string",
@@ -159,11 +170,12 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### 5. Performance Metrics
 
 **For SLA Monitoring:**
+
 ```json
 {
   "performance": {
     "response_time_ms": "number",
-    "queue_depth": "number", 
+    "queue_depth": "number",
     "cpu_usage": "number",
     "memory_usage": "number",
     "active_connections": "number"
@@ -184,9 +196,10 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    - Multi-line log detection support
 
 2. **Enhanced EcoLogMessage Factory Methods**
+
    ```typescript
    EcoLogMessage.forIntentOperation(params: IntentOperationLogParams)
-   EcoLogMessage.forLiquidityOperation(params: LiquidityOperationLogParams)  
+   EcoLogMessage.forLiquidityOperation(params: LiquidityOperationLogParams)
    EcoLogMessage.forQuoteGeneration(params: QuoteGenerationLogParams)
    EcoLogMessage.forPerformanceMetric(params: PerformanceMetricLogParams)
    EcoLogMessage.forHealthOperation(params: HealthOperationLogParams)
@@ -194,6 +207,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    ```
 
 3. **Specialized Logger Wrapper Classes**
+
    ```typescript
    class LiquidityManagerLogger extends EcoLogger {
      log(context: LiquidityManagerLogContext, message: string, properties?: object)
@@ -201,21 +215,21 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      warn(context: LiquidityManagerLogContext, message: string, properties?: object)
      debug(context: LiquidityManagerLogContext, message: string, properties?: object)
    }
-   
+
    class IntentOperationLogger extends EcoLogger {
      log(context: IntentOperationLogContext, message: string, properties?: object)
      error(context: IntentOperationLogContext, message: string, error?: Error, properties?: object)
      warn(context: IntentOperationLogContext, message: string, properties?: object)
      debug(context: IntentOperationLogContext, message: string, properties?: object)
    }
-   
+
    class QuoteGenerationLogger extends EcoLogger {
      log(context: QuoteGenerationLogContext, message: string, properties?: object)
      error(context: QuoteGenerationLogContext, message: string, error?: Error, properties?: object)
      warn(context: QuoteGenerationLogContext, message: string, properties?: object)
      debug(context: QuoteGenerationLogContext, message: string, properties?: object)
    }
-   
+
    class HealthOperationLogger extends EcoLogger {
      log(context: HealthOperationLogContext, message: string, properties?: object)
      error(context: HealthOperationLogContext, message: string, error?: Error, properties?: object)
@@ -225,6 +239,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    ```
 
 4. **Context Interfaces for Factory Methods**
+
    ```typescript
    interface IntentOperationLogParams {
      message: string
@@ -248,12 +263,21 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      status: 'started' | 'completed' | 'failed'
      properties?: object
    }
-   
+
    interface LiquidityOperationLogParams {
      message: string
      rebalanceId: string
      walletAddress: string
-     strategy: 'LiFi' | 'Stargate' | 'CCTP' | 'CCTP_V2' | 'Gateway' | 'Everclear' | 'Hyperlane' | 'Relay' | 'Squid'
+     strategy:
+       | 'LiFi'
+       | 'Stargate'
+       | 'CCTP'
+       | 'CCTP_V2'
+       | 'Gateway'
+       | 'Everclear'
+       | 'Hyperlane'
+       | 'Relay'
+       | 'Squid'
      sourceChainId?: number
      destinationChainId?: number
      tokenInAddress?: string
@@ -267,7 +291,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      rejectionReason?: 'HIGH_SLIPPAGE' | 'PROVIDER_ERROR' | 'INSUFFICIENT_LIQUIDITY' | 'TIMEOUT'
      properties?: object
    }
-   
+
    interface HealthOperationLogParams {
      message: string
      healthCheck: string
@@ -276,7 +300,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      dependencies?: string[]
      properties?: object
    }
-   
+
    interface GenericOperationLogParams {
      message: string
      operationType: string
@@ -287,18 +311,28 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    ```
 
 5. **Context Interfaces for Wrapper Classes**
+
    ```typescript
    interface LiquidityManagerLogContext {
      rebalanceId: string
      walletAddress: string
-     strategy: 'LiFi' | 'Stargate' | 'CCTP' | 'CCTP_V2' | 'Gateway' | 'Everclear' | 'Hyperlane' | 'Relay' | 'Squid'
+     strategy:
+       | 'LiFi'
+       | 'Stargate'
+       | 'CCTP'
+       | 'CCTP_V2'
+       | 'Gateway'
+       | 'Everclear'
+       | 'Hyperlane'
+       | 'Relay'
+       | 'Squid'
      sourceChainId?: number
      destinationChainId?: number
      tokenInAddress?: string
      tokenOutAddress?: string
      groupId?: string
    }
-   
+
    interface IntentOperationLogContext {
      intentHash: string
      quoteId?: string
@@ -308,7 +342,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      destinationChainId?: number
      operationType?: 'creation' | 'fulfillment' | 'validation' | 'funding'
    }
-   
+
    interface QuoteGenerationLogContext {
      quoteId: string
      intentHash?: string
@@ -319,7 +353,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      tokenOutAddress?: string
      intentExecutionType?: 'gasless' | 'standard'
    }
-   
+
    interface HealthOperationLogContext {
      healthCheck: string
      dependencies?: string[]
@@ -349,7 +383,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 
 1. **Create Schema Definitions**
    - Business context schema
-   - Error schema  
+   - Error schema
    - Performance metrics schema
    - Financial transaction schema
 
@@ -392,7 +426,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 1. **Dashboard Templates**
    - Executive KPI dashboard
    - Operational health dashboard
-   - User experience dashboard  
+   - User experience dashboard
    - Financial metrics dashboard
 
 2. **Alert Definitions**
@@ -404,6 +438,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ## Expected Benefits
 
 ### For Analytics Teams
+
 - **Standardized Queries**: Consistent field names enable reusable query patterns
 - **High-Cardinality Analysis**: Track individual request flows and intent lifecycles using faceted attributes
 - **Real-time Insights**: Live dashboards with business KPIs leveraging Datadog Log Explorer
@@ -411,6 +446,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 - **Advanced Processing**: Custom processors for log enrichment and parsing
 
 ### for Engineering Teams
+
 - **Debugging**: Rich context for error investigation with structured error.kind and error.stack
 - **Performance Monitoring**: Detailed performance metrics per operation within size limits
 - **Service Health**: Real-time service status and dependency tracking via reserved attributes
@@ -418,6 +454,7 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 - **Multi-line Support**: Automatic detection of complex log structures
 
 ### For Business Teams
+
 - **Service Analytics**: Request patterns and conversion funnels through faceted search
 - **Revenue Metrics**: Transaction volumes, fees, and profitability (respecting 1024 char limit)
 - **Market Intelligence**: Cross-chain activity patterns via indexed business context
@@ -427,27 +464,32 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ## Migration Strategy
 
 ### Phase 1: Enhanced EcoLogMessage (Week 1-2)
+
 - Extend existing EcoLogMessage without breaking changes
 - Add new factory methods with business context
 - Deploy with feature flags
 
 ### Phase 2: Wrapper Logger Classes (Week 3-4)
+
 - Implement `LiquidityManagerLogger` and other specialized loggers
 - Create context interfaces and validation
 - Unit test wrapper functionality
 
-### Phase 3: Service Migration (Week 5-8)  
+### Phase 3: Service Migration (Week 5-8)
+
 - Start with Liquidity Manager services (requirement focus)
 - Migrate intent processors and quote services
 - Update BullMQ processors and job managers
 - Validate structured logging output
 
 ### Phase 4: Schema Enforcement (Week 9-10)
+
 - Add field validation and type checking
 - Optimize Datadog indexes and facets
 - Deprecate old unstructured logging patterns
 
 ### Phase 5: Advanced Analytics (Week 11-12)
+
 - Deploy pre-built dashboards
 - Configure alerting rules
 - Enable Log Workspaces for advanced analysis

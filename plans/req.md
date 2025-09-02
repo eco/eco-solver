@@ -10,7 +10,7 @@ Create a new, lightweight LiquidityManagerLogger class that wraps the existing E
 
 This wrapper's methods (e.g., log, error, warn) will require the LogContext as an argument. It will merge this context with the message and any additional properties before passing a single, structured EcoLogMessage object to the underlying logger.
 
-Refactor key areas of the Liquidity Manager—particularly liquidity-manager.service, liquidity-provider.service, and the *JobManager classes—to use this new LiquidityManagerLogger and provide the required context for every log entry.
+Refactor key areas of the Liquidity Manager—particularly liquidity-manager.service, liquidity-provider.service, and the \*JobManager classes—to use this new LiquidityManagerLogger and provide the required context for every log entry.
 
 Acceptance Criteria:
 

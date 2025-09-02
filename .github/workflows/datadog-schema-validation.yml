@@ -9,7 +9,6 @@ on:
       - 'src/common/logging/**/*.ts'
       - 'src/**/logging/**/*.ts'
       - '.claude/agents/datadog-logging-specialist.md'
-      - 'plans/dd-enhancement.md'
 
   workflow_dispatch:
 
@@ -44,7 +43,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: |
             --max-turns 5
-            --model claude-3-5-sonnet-20241022
+            --model claude-3-5-sonnet-4-20250705
             /validate-datadog-schema
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
