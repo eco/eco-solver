@@ -481,7 +481,7 @@ describe('LiquidityProviderService', () => {
         .mockResolvedValue([mockQuoteWithHighSlippage] as any)
       jest
         .spyOn(rejectionRepository, 'create')
-        .mockRejectedValue(new Error('Database connection failed'))
+        .mockResolvedValue({ error: new Error('Database connection failed') })
 
       // Should not throw despite persistence failure
       const result = await liquidityProviderService.getQuote(

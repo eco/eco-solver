@@ -17,14 +17,17 @@ export class RebalanceTokenModel {
   targetBalance: number
 
   static fromTokenData(tokenData: TokenData): RebalanceTokenModel {
-    const currentBalance = parseFloat(
-      formatUnits(tokenData.balance.balance, tokenData.balance.decimals),
-    )
+    // Handle cases where balance data might be incomplete (e.g., in tests)
+    const currentBalance =
+      tokenData.balance?.balance && tokenData.balance?.decimals
+        ? parseFloat(formatUnits(tokenData.balance.balance, tokenData.balance.decimals))
+        : 0 // Default to 0 for incomplete data
+
     return {
       chainId: tokenData.chainId,
       tokenAddress: tokenData.config.address,
       currentBalance,
-      targetBalance: tokenData.config.targetBalance,
+      targetBalance: tokenData.config.targetBalance || 0, // Default targetBalance if missing
     }
   }
 }

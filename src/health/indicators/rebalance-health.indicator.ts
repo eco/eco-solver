@@ -54,9 +54,14 @@ export class RebalanceHealthIndicator extends HealthIndicator {
 
       throw new HealthCheckError('Rebalancing system failed health check', result)
     } catch (error) {
+      // If it's already a HealthCheckError (from unhealthy status), re-throw it
+      if (error instanceof HealthCheckError) {
+        throw error
+      }
+
       this.logger.error(`Rebalancing health check failed: ${error.message}`)
 
-      // Create a failed health result
+      // Create a failed health result for execution errors only
       const failedResult = this.getStatus('rebalancing', false, {
         error: error.message,
         healthReason: 'Health check execution failed',

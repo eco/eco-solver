@@ -66,6 +66,11 @@ export class LiquidityProviderService {
       }),
     )
 
+    // Track whether we had any quotes that were rejected due to slippage
+    let hadQuotesButRejected = false
+    // Track whether any strategy succeeded in getting quotes (before slippage check)
+    let hadAnyQuotes = false
+
     // Iterate over strategies and return the first quote
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
@@ -79,9 +84,12 @@ export class LiquidityProviderService {
         )
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, quoteId)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
+        hadAnyQuotes = true // Mark that at least one strategy succeeded in getting quotes
 
         const totalSlippage = getTotalSlippage(_.map(quotesArray, 'slippage'))
         if (totalSlippage > maxQuoteSlippage) {
+          hadQuotesButRejected = true
+
           // Persist rejection for analytics (non-blocking)
           this.rejectionRepository.create({
             rebalanceId: quoteId,
@@ -184,7 +192,15 @@ export class LiquidityProviderService {
     }, validQuoteBatches[0])
 
     if (!bestQuotes) {
-      throw new Error('Unable to get quote for route')
+      if (hadAnyQuotes || hadQuotesButRejected) {
+        // Return empty array when:
+        // 1. Quotes were found but rejected due to slippage, OR
+        // 2. Some strategies succeeded but no valid quotes remained (mixed success/failure)
+        return []
+      } else {
+        // Throw error when no quotes were found at all (all strategies failed)
+        throw new Error('Unable to get quote for route')
+      }
     }
 
     this.logger.log(
