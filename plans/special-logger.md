@@ -72,14 +72,24 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 
 #### 1.2 Intent Operation Services
 **Target Files:**
-- `src/intent-initiation/services/*.ts`
-- `src/intent-processor/services/*.ts`
-- `src/watch/intent/*.ts`
+- `src/intent/` - Core intent services (create, fulfill, validate)
+- `src/intent-initiation/services/*.ts` - Intent initiation and permit validation
+- `src/intent-fulfillment/` - Fulfillment processors and jobs
+- `src/intent-processor/services/*.ts` - Intent processing logic
+- `src/watch/intent/*.ts` - Intent event watching services
 
 **Actions:**
-- Replace `EcoLogger` with `IntentOperationLogger`
+- Replace `EcoLogger` with `IntentOperationLogger` in all intent-related services
 - Add intent-specific context to all logging calls
 - Capture intent lifecycle events with proper business context
+- **Enhanced Fulfillment Logging**: Include transaction data and fulfillment metrics
+
+**Key Intent Services to Migrate:**
+- `FulfillIntentService` - Core fulfillment orchestration
+- `WalletFulfillService` - Wallet-based intent fulfillment with transaction handling
+- `CrowdLiquidityService` - Alternative fulfillment mechanism
+- `CreateIntentService` - Intent creation and validation
+- `ValidateIntentService` - Intent validation logic
 
 **Datadog-Specific Optimizations:**
 - **Schema Synchronization**: Map `IntentDataModel` fields to logging:
@@ -88,16 +98,33 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
   - `route.creator` → `eco.creator`, `route.prover` → `eco.prover`
   - `route.source`, `route.destination` → `eco.source_chain_id`, `eco.destination_chain_id`
   - `funder` → `eco.funder` (when available)
+  - `logIndex` → operational metadata for event tracking
+- **Fulfillment Context Enhancement**: Add transaction-specific fields:
+  - `eco.transaction_hash` (fulfillment transaction identifier)
+  - `eco.fulfillment_method` (`smart-wallet-account`, `crowd-liquidity`)
+  - `eco.prover_type` (`hyperlane`, `metalayer`)
+  - `eco.inbox_address` (destination inbox contract)
+  - `eco.wallet_address` (executing wallet for fulfillment)
+- **Financial Metrics**: Structure reward and fee data in `metrics` namespace:
+  - `metrics.native_value` (native token amount)
+  - `metrics.reward_amount` (reward token amounts)
+  - `metrics.prover_fee` (fee paid to prover)
+  - `metrics.gas_used`, `metrics.gas_price` (transaction costs)
+- **Performance Tracking**: Add fulfillment timing in `performance` context:
+  - `performance.fulfillment_time_ms` (total fulfillment duration)
+  - `performance.transaction_confirmation_time_ms`
+  - `performance.feasibility_check_time_ms`
 - **Reserved Attribute Compliance**: Avoid conflicts with Datadog reserved fields
-- **Analytics Optimization**: Structure logs for common intent queries:
-  - Intent creation vs fulfillment tracking
+- **Analytics Optimization**: Structure logs for comprehensive intent analytics:
+  - Intent creation → fulfillment → completion tracking
   - Cross-chain intent analytics by source/destination pairs
-  - Creator/prover performance metrics
+  - Creator/prover/funder performance metrics
+  - Fulfillment method success rates and performance comparison
+  - Transaction failure analysis with detailed error context
 
 #### 1.3 Quote Generation Services
 **Target Files:**
 - `src/quote/*.ts`
-- `src/solver-registration/services/*.ts`
 - Quote-related processor files
 
 **Actions:**
@@ -124,11 +151,13 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - `src/transaction/smart-wallets/**/*.ts`
 - `src/sign/*.ts`
 - `src/permit-processing/*.ts`
+- `src/solver-registration/services/*.ts` - Use generic logger (not quote-specific)
 
 **Actions:**
 - Evaluate need for new specialized logger (`TransactionLogger`)
 - Use appropriate existing logger or extend `BaseStructuredLogger`
 - Remove all `console.*` calls in favor of structured logging
+- For solver registration: Use `BaseStructuredLogger` with generic business context
 
 **Datadog-Specific Optimizations:**
 - **Transaction Context Structure**: Create faceted fields for blockchain operations:
