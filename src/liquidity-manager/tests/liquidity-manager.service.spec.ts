@@ -8,6 +8,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
@@ -16,6 +17,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
@@ -25,6 +27,7 @@ describe('LiquidityManagerService', () => {
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
+  let checkQueue: DeepMocked<Queue>
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -40,16 +43,23 @@ describe('LiquidityManagerService', () => {
           useValue: createMock<EcoAnalyticsService>(),
         },
         {
+          provide: RebalanceRepository,
+          useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
+        },
+        {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
         },
       ],
       imports: [
         BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
+        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
         BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
       ],
     })
       .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      .useValue(createMock<Queue>())
+      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
       .useValue(createMock<Queue>())
       .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
       .useValue(createMock<FlowProducer>())
@@ -62,6 +72,7 @@ describe('LiquidityManagerService', () => {
     kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
     queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
+    checkQueue = chainMod.get(getQueueToken(CheckBalancesQueue.queueName))
 
     Object.defineProperty(queue, 'name', {
       value: LiquidityManagerQueue.queueName,
@@ -112,7 +123,7 @@ describe('LiquidityManagerService', () => {
 
       await liquidityManagerService.onApplicationBootstrap()
 
-      expect(startSpy).toHaveBeenCalledWith(queue, intervalDuration, walletAddress)
+      expect(startSpy).toHaveBeenCalledWith(checkQueue, intervalDuration, walletAddress)
 
       // Cleanup for isolation
       delete (CheckBalancesCronJobManager as any).ecoCronJobManagers[walletAddress]
@@ -237,7 +248,7 @@ describe('LiquidityManagerService', () => {
 
       // Verify the result includes only the quote from getQuote
       // Note: There's a bug in the implementation where fallback quotes are not properly added
-      expect(result).toHaveLength(1)
+      expect(result).toHaveLength(2)
       expect(result[0].amountOut).toEqual(80n) // from getQuote for second token
     })
 

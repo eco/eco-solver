@@ -59,9 +59,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${SolverRegistrationService.name}.onModuleInit()`,
-        properties: {
-          solverRegistrationDTO: this.getSolverRegistrationDTO(),
-        },
       }),
     )
   }
@@ -84,6 +81,13 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   async registerSolver(): Promise<EcoResponse<void>> {
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `${SolverRegistrationService.name}.registerSolver()`,
+          properties: { solverRegistrationDTO },
+        }),
+      )
 
       const { response, error } = await this.apiRequestExecutor.executeRequest<void>({
         method: 'post',
@@ -152,7 +156,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
       quotesV2Url: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
-      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}`,
+      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/initiateGaslessIntent`,
+      gaslessIntentTransactionDataUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/getGaslessIntentTransactionData`,
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
       crossChainRoutes: {

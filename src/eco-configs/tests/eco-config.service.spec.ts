@@ -217,17 +217,11 @@ describe('Eco Config Helper Tests', () => {
         getChain: jest.fn().mockReturnValue({
           rpcUrls: {
             default: {
-              webSocket: ['ws://default-ws.com'],
               http: ['http://default-rpc.com'],
+              webSocket: ['ws://default-ws.com'],
             },
             custom: {},
           },
-        }),
-        getRpcUrlsForChain: jest.fn().mockImplementation((_chainId, options) => {
-          if (options?.isWebSocketEnabled === false) {
-            return ['http://default-rpc.com']
-          }
-          return ['ws://default-ws.com', 'http://default-rpc.com']
         }),
       }
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -237,7 +231,8 @@ describe('Eco Config Helper Tests', () => {
 
     it('should return default websocket urls', () => {
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
-      expect(rpcUrls).toEqual(['ws://default-ws.com', 'http://default-rpc.com'])
+      expect(rpcUrls).toEqual(['ws://default-ws.com'])
+      expect(config.isWebsocket).toBe(true)
     })
 
     it('should return default http urls when websockets are disabled', () => {
@@ -246,6 +241,7 @@ describe('Eco Config Helper Tests', () => {
         .mockReturnValue({ ...mockRpcConfig, config: { webSockets: false } } as any)
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
       expect(rpcUrls).toEqual(['http://default-rpc.com'])
+      expect(config.isWebsocket).toBe(false)
     })
 
     it('should return custom rpc urls if available', () => {
@@ -256,26 +252,19 @@ describe('Eco Config Helper Tests', () => {
       jest.spyOn(ecoConfigService, 'getCustomRPCUrl').mockReturnValue(customRpc as any)
 
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
-      expect(rpcUrls).toEqual([
-        'ws://custom-ws.com',
-        'http://custom-rpc.com',
-        'ws://default-ws.com',
-        'http://default-rpc.com',
-      ])
+      expect(rpcUrls).toEqual(customRpc.webSocket)
+      expect(config.isWebsocket).toBe(true)
     })
 
-    it('should prioritize custom http urls if websocket urls are not available in custom config', () => {
+    it('should use custom http urls if websocket urls are not available in custom config', () => {
       const customRpc = {
         http: ['http://custom-rpc.com'],
       }
       jest.spyOn(ecoConfigService, 'getCustomRPCUrl').mockReturnValue(customRpc as any)
 
       const { rpcUrls, config } = ecoConfigService.getRpcUrls(mockChain)
-      expect(rpcUrls).toEqual([
-        'http://custom-rpc.com',
-        'ws://default-ws.com',
-        'http://default-rpc.com',
-      ])
+      expect(rpcUrls).toEqual(customRpc.http)
+      expect(config.isWebsocket).toBe(false)
     })
 
     it('should pass through transport config from custom rpc config', () => {
@@ -286,21 +275,18 @@ describe('Eco Config Helper Tests', () => {
       jest.spyOn(ecoConfigService, 'getCustomRPCUrl').mockReturnValue(customRpc as any)
 
       const { config } = ecoConfigService.getRpcUrls(mockChain)
+      expect(config.config).toEqual(customRpc.config)
     })
 
     it('should throw an error if no rpc urls are found', () => {
-      const mockEmptyEcoChains = {
-        getChain: jest.fn().mockReturnValue({
-          rpcUrls: {
-            default: {}, // No default URLs
-            custom: {},
-          },
-        }),
-        getRpcUrlsForChain: jest.fn().mockReturnValue([]), // No default URLs
-      }
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      ecoConfigService.ecoChains = mockEmptyEcoChains
+      ecoConfigService.ecoChains.getChain = jest.fn().mockReturnValue({
+        rpcUrls: {
+          default: {}, // No default URLs
+          custom: {},
+        },
+      })
       jest.spyOn(ecoConfigService, 'getCustomRPCUrl').mockReturnValue({} as any)
       jest
         .spyOn(ecoConfigService, 'getRpcConfig')

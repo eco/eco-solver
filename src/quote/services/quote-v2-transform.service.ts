@@ -1,6 +1,6 @@
+import { decodeFunctionData, erc20Abi, Hex } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { decodeAbiParameters, decodeFunctionData, erc20Abi, Hex } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
@@ -9,7 +9,6 @@ import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
 import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
 import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
-import { retryCount } from '@lifi/sdk/src/_types/core/EVM/utils'
 
 @Injectable()
 export class QuoteV2TransformService {
@@ -100,6 +99,7 @@ export class QuoteV2TransformService {
     const deadline = parseInt(quoteEntry.expiryTime)
 
     return {
+      intentExecutionType: quoteEntry.intentExecutionType,
       sourceChainID,
       destinationChainID,
       sourceToken,
@@ -220,9 +220,9 @@ export class QuoteV2TransformService {
     const inbox = quoteIntent.route.inbox
 
     return {
-      intentSource,
+      sourcePortal: intentSource,
       prover,
-      inbox,
+      destinationPortal: inbox,
     }
   }
 }

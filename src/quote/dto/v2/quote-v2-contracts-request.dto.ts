@@ -1,21 +1,33 @@
+import { Address } from 'viem'
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Hex } from 'viem'
-import { IsOptional } from 'class-validator'
+import { IsEthereumAddress, IsOptional } from 'class-validator'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 
 export class QuoteV2ContractsRequestDTO {
-  @ApiPropertyOptional()
-  @ViemAddressTransform()
+  @ApiPropertyOptional({
+    description: 'Contract address for the intent source (where intents are created and managed)',
+    example: '0x1234567890abcdef1234567890abcdef12345678',
+  })
   @IsOptional()
-  intentSource?: Hex
+  @ViemAddressTransform()
+  @IsEthereumAddress()
+  sourcePortal?: Address
 
-  @ApiPropertyOptional()
-  @ViemAddressTransform()
+  @ApiPropertyOptional({
+    description: 'Contract address for the inbox (receives and processes cross-chain messages)',
+    example: '0x567890abcdef1234567890abcdef1234567890ab',
+  })
   @IsOptional()
-  prover?: Hex
+  @ViemAddressTransform()
+  @IsEthereumAddress()
+  destinationPortal?: Address
 
-  @ApiPropertyOptional()
-  @ViemAddressTransform()
+  @ApiPropertyOptional({
+    description: 'Contract address for the prover (handles cross-chain proof verification)',
+    example: '0xabcdef1234567890abcdef1234567890abcdef12',
+  })
   @IsOptional()
-  inbox?: Hex
+  @ViemAddressTransform()
+  @IsEthereumAddress()
+  prover?: Address
 }

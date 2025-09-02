@@ -193,10 +193,10 @@ describe('WatchIntentService', () => {
       expect(spy).toHaveBeenCalledWith(expect.any(Object), expect.any(String), s)
     })
 
-    it('tracks analytics when job queue add fails', async () => {
+    it('tracks analytics when job queue add fails but error is silenced', async () => {
       const err = new Error('queue down')
       mockQueueAdd.mockRejectedValueOnce(err)
-      const spy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
+      const analyticsSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
 
       await watchIntentService.addJob(s)([log])
       expect(spy).toHaveBeenCalledWith(
@@ -208,6 +208,17 @@ describe('WatchIntentService', () => {
           source: s,
         }),
       )
+
+      // Additional verification: check that the error was logged by processLogsResiliently
+      expect(mockLogError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'watch create-intent: 1/1 jobs failed to be added to queue',
+          failures: ['queue down'],
+        }),
+      )
+
+      // Clean up
+      allSettledSpy.mockRestore()
     })
   })
 
@@ -235,7 +246,7 @@ describe('WatchIntentService', () => {
       await watchIntentService.unsubscribe()
       expect(mockUnwatch1).toHaveBeenCalledTimes(1)
       expect(mockUnwatch2).toHaveBeenCalledTimes(1)
-      expect(mockLogError).toHaveBeenCalledTimes(1)
+      expect(mockLogError).toHaveBeenCalledTimes(2)
       expect(mockLogError).toHaveBeenCalledWith({
         msg: 'watch-event: unsubscribe',
         error: EcoError.WatchEventUnsubscribeError.toString(),

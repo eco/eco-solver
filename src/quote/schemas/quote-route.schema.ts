@@ -8,20 +8,42 @@ import {
   QuoteRouteCallDataSchema,
 } from '@/quote/schemas/quote-call.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Type } from 'class-transformer'
+import { IsArray, ValidateNested } from 'class-validator'
 import { Hex } from 'viem'
 
 @Schema({ timestamps: true })
 export class QuoteRouteDataModel implements QuoteRouteDataInterface {
   @Prop({ required: true, type: BigInt })
   source: bigint
+
   @Prop({ required: true, type: BigInt })
   destination: bigint
+
   @Prop({ required: true, type: String })
   inbox: Hex
+
   @Prop({ required: true, type: [TokenAmountDataSchema] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TokenAmountDataModel)
   tokens: TokenAmountDataModel[]
+
   @Prop({ required: true, type: [QuoteRouteCallDataSchema] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuoteRouteCallDataModel)
   calls: QuoteRouteCallDataModel[]
+
+  getQuoteRouteData?(): QuoteRouteDataInterface {
+    return {
+      source: this.source,
+      destination: this.destination,
+      inbox: this.inbox,
+      tokens: this.tokens.map((token) => token.getRewardTokensInterface!()),
+      calls: this.calls.map((call) => call.getCallDataInterface!()),
+    }
+  }
 }
 
 export const QuoteRouteDataSchema = SchemaFactory.createForClass(QuoteRouteDataModel)
