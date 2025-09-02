@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
 import { keccak256, encodePacked, encodeAbiParameters, Hex, decodeAbiParameters } from 'viem';
-import { IntentType, RewardType, RouteType } from '@eco-foundation/routes-ts';
+import { IntentType, RewardType, RouteType } from '@/utils/encodeAndHash';
 import { VmType } from '@/eco-configs/eco-config.types';
 import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
 import { RewardStruct, RouteStruct } from './abi';

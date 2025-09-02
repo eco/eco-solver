@@ -10,7 +10,7 @@ import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData, Hex } from 'viem'
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token'
 import { VmType } from '@/eco-configs/eco-config.types'
-import { RouteType, IntentType, RewardType } from '@eco-foundation/routes-ts'
+import { RouteType, IntentType, RewardType } from '@/utils/encodeAndHash'
 
 // Note: VmType import from @eco-foundation/routes-ts was failing, using string literals directly
 import config from '../config/solana'

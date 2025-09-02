@@ -33,7 +33,10 @@ export function getVmType(chainId: number): VmType {
 }
 
 // Address type that supports both EVM (Hex) and SVM (base58) addresses
-export type Address = EvmAddress | SvmAddress
+export type Address<TVM extends VmType = VmType> = TVM extends VmType.EVM ? EvmAddress : SvmAddress
+
+export type SerializableAddress = Hex
+
 
 // Chain configuration for both EVM and SVM chains
 export type EcoChainConfig = {

@@ -11,7 +11,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 import { getVmType, VmType } from '@/eco-configs/eco-config.types'
-import { Address, SerializableAddress } from '@eco-foundation/routes-ts'
+import { Address, SerializableAddress } from '@/eco-configs/eco-config.types'
 import { EvmBalanceService } from './services/evm-balance.service'
 import { SvmBalanceService } from './services/svm-balance.service'
 
