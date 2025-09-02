@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   AwsSchema,
   BaseSchema,
+  BullBoardSchema,
   DataDogSchema,
   EvmSchema,
   FulfillmentSchema,
@@ -19,6 +20,7 @@ import {
 export {
   AwsSchema,
   BaseSchema,
+  BullBoardSchema,
   DataDogSchema,
   EvmSchema,
   FulfillmentSchema,
@@ -48,6 +50,7 @@ export const ConfigSchema = z
     datadog: DataDogSchema,
     opentelemetry: OpenTelemetrySchema,
     withdrawal: WithdrawalSchema,
+    bullBoard: BullBoardSchema.optional(),
   })
   .extend(BaseSchema.shape);
 

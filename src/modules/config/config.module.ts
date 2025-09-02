@@ -18,6 +18,7 @@ import {
   WithdrawalConfigService,
 } from '@/modules/config/services';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
+import { BullBoardConfigService } from '@/modules/config/services/bull-board-config.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 
 const configProviders = [
@@ -30,6 +31,7 @@ const configProviders = [
   AppConfigService,
   AwsConfigService,
   AwsSecretsService,
+  BullBoardConfigService,
   FulfillmentConfigService,
   DataDogConfigService,
   OpenTelemetryConfigService,

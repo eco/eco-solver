@@ -6,6 +6,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { RequestIdMiddleware } from '@/common/middleware/request-id.middleware';
 import { ApiModule } from '@/modules/api/api.module';
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
+import { BullBoardDashboardModule } from '@/modules/bull-board/bull-board.module';
 import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService, RedisConfigService } from '@/modules/config/services';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
@@ -55,6 +56,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
     WithdrawalModule,
+    BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,
   ],
