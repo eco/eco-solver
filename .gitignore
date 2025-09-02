@@ -43,9 +43,11 @@ lerna-debug.log*
 
 # Configuration files
 config.yaml
+config-sepolia.yaml
 config-2.yaml
 config.yml
 *.config.yaml
 *.config.yml
 # Keep the example
 !config.example.yaml
+

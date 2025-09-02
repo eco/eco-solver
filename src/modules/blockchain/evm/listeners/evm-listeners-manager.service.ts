@@ -1,5 +1,4 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
@@ -7,6 +6,7 @@ import { Logger } from 'winston';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
+import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -19,7 +19,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
-    private eventEmitter: EventEmitter2,
+    private eventsService: EventsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
@@ -44,7 +44,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const listener = new ChainListener(
         config,
         this.transportService,
-        this.eventEmitter,
+        this.eventsService,
         listenerLogger,
         this.otelService,
         this.blockchainConfigService,

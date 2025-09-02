@@ -4,6 +4,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address } from 'viem';
 
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
+import { EventsService } from '@/modules/events/events.service';
+import { createMockEventsService } from '@/modules/events/tests/events.service.mock';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
@@ -17,7 +19,7 @@ describe('EvmListenersManagerService', () => {
   let service: EvmListenersManagerService;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
-  let eventEmitter: jest.Mocked<EventEmitter2>;
+  let eventsService: ReturnType<typeof createMockEventsService>;
   let logger: jest.Mocked<SystemLoggerService>;
   let otelService: jest.Mocked<OpenTelemetryService>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
@@ -69,7 +71,7 @@ describe('EvmListenersManagerService', () => {
     } as any;
 
     transportService = {} as any;
-    eventEmitter = {} as any;
+    eventsService = createMockEventsService();
     logger = {
       setContext: jest.fn(),
       log: jest.fn(),
@@ -91,7 +93,7 @@ describe('EvmListenersManagerService', () => {
         EvmListenersManagerService,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
-        { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: EventsService, useValue: eventsService },
         { provide: SystemLoggerService, useValue: logger },
         { provide: OpenTelemetryService, useValue: otelService },
         { provide: BlockchainConfigService, useValue: blockchainConfigService },

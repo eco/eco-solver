@@ -1,5 +1,3 @@
-import { EventEmitter2 } from '@nestjs/event-emitter';
-
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
 import { Hex } from 'viem';
@@ -14,6 +12,7 @@ import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.ser
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { parseTvmIntentFulfilled } from '@/modules/blockchain/tvm/utils/events.utils';
 import { TvmConfigService } from '@/modules/config/services';
+import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -32,7 +31,7 @@ export class TronListener extends BaseChainListener {
   constructor(
     private readonly config: TvmNetworkConfig,
     private readonly transactionSettings: TvmTransactionSettings,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventsService: EventsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly tvmConfigService: TvmConfigService,
@@ -245,7 +244,7 @@ export class TronListener extends BaseChainListener {
 
       // Emit the intent event within the span context to propagate trace context
       api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-        this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+        this.eventsService.emit('intent.discovered', { intent, strategy: 'standard' });
       });
 
       span.addEvent('intent.emitted');
@@ -282,7 +281,7 @@ export class TronListener extends BaseChainListener {
 
       // Emit the event within the span context to propagate trace context
       api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-        this.eventEmitter.emit('intent.fulfilled', fulfilledEvent);
+        this.eventsService.emit('intent.fulfilled', fulfilledEvent);
       });
 
       span.addEvent('intent.fulfilled.emitted');

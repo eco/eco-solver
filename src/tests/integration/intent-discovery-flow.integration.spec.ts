@@ -13,7 +13,6 @@ import { BasicWalletFactory } from '@/modules/blockchain/evm/wallets/basic-walle
 import { KernelWalletFactory } from '@/modules/blockchain/evm/wallets/kernel-wallet/kernel-wallet.factory';
 import { ConfigModule } from '@/modules/config/config.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsModule } from '@/modules/intents/intents.module';

@@ -30,6 +30,7 @@ export function envVarToPath(envVar: string): string[] {
     USE_AWS_SECRETS: ['aws', 'useAwsSecrets'],
     NODE_ENV: ['env'],
     PORT: ['port'],
+    CONFIG_FILES: ['configFiles'],
   };
 
   if (specialCases[envVar]) {

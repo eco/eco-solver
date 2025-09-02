@@ -1,6 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 
@@ -10,6 +9,7 @@ import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService, RedisConfigService } from '@/modules/config/services';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
+import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
@@ -23,7 +23,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
     LoggingModule,
     OpenTelemetryModule.forRootAsync(),
     DataDogModule.forRootAsync(),
-    EventEmitterModule.forRoot(),
+    EventsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute

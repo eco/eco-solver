@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { Connection, Keypair, Logs, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
@@ -16,6 +15,7 @@ import {
   FulfillmentConfigService,
   SolanaConfigService,
 } from '@/modules/config/services';
+import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
@@ -27,7 +27,7 @@ export class SolanaListener extends BaseChainListener {
 
   constructor(
     private solanaConfigService: SolanaConfigService,
-    private eventEmitter: EventEmitter2,
+    private eventsService: EventsService,
     private fulfillmentConfigService: FulfillmentConfigService,
     private readonly logger: SystemLoggerService,
     private readonly blockchainConfigService: BlockchainConfigService,
@@ -104,10 +104,10 @@ export class SolanaListener extends BaseChainListener {
       if (this.isIntentPublishedLog(logs)) {
         const intent = this.parseIntentFromEvent(logs);
         const defaultStrategy = this.fulfillmentConfigService.defaultStrategy;
-        this.eventEmitter.emit('intent.discovered', { intent, strategy: defaultStrategy });
+        this.eventsService.emit('intent.discovered', { intent, strategy: defaultStrategy });
       } else if (this.isIntentFulfilledLog(logs)) {
         const fulfilledEvent = this.parseIntentFulfilledFromLogs(logs);
-        this.eventEmitter.emit('intent.fulfilled', fulfilledEvent);
+        this.eventsService.emit('intent.fulfilled', fulfilledEvent);
         this.logger.log(
           `IntentFulfilled event processed: ${fulfilledEvent.intentHash} on Solana`,
         );

@@ -1,11 +1,11 @@
-import { EventEmitter2 } from '@nestjs/event-emitter';
-
 import { Address, Hex } from 'viem';
 
 import { PortalAbi } from '@/common/abis/portal.abi';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { BlockchainConfigService } from '@/modules/config/services';
+import { EventsService } from '@/modules/events/events.service';
+import { createMockEventsService } from '@/modules/events/tests/events.service.mock';
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
@@ -102,7 +102,7 @@ jest.mock('@/modules/queue/utils/queue-serializer', () => ({
 describe('ChainListener', () => {
   let listener: ChainListener;
   let transportService: jest.Mocked<EvmTransportService>;
-  let eventEmitter: jest.Mocked<EventEmitter2>;
+  let eventsService: ReturnType<typeof createMockEventsService>;
   let logger: jest.Mocked<SystemLoggerService>;
   let otelService: jest.Mocked<OpenTelemetryService>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
@@ -144,9 +144,7 @@ describe('ChainListener', () => {
       getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
     } as any;
 
-    eventEmitter = {
-      emit: jest.fn(),
-    } as any;
+    eventsService = createMockEventsService();
 
     logger = {
       setContext: jest.fn(),
@@ -176,7 +174,7 @@ describe('ChainListener', () => {
     listener = new ChainListener(
       mockConfig,
       transportService,
-      eventEmitter,
+      eventsService as any,
       logger,
       otelService,
       blockchainConfigService,
@@ -210,7 +208,7 @@ describe('ChainListener', () => {
       // Simulate receiving logs
       onLogsCallback([mockLog]);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
+      expect(eventsService.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: {
           intentHash: '0xIntentHash',
           destination: 10n,
@@ -288,7 +286,7 @@ describe('ChainListener', () => {
 
       onLogsCallback([logWithoutTokens]);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
+      expect(eventsService.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: expect.objectContaining({
           reward: expect.objectContaining({
             tokens: [],
@@ -337,7 +335,7 @@ describe('ChainListener', () => {
 
       onLogsCallback([mockLog]);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith('intent.discovered', {
+      expect(eventsService.emit).toHaveBeenCalledWith('intent.discovered', {
         intent: expect.objectContaining({
           route: expect.objectContaining({
             calls: [],
@@ -479,7 +477,7 @@ describe('ChainListener', () => {
       // Trigger the IntentFulfilled callback
       intentFulfilledCallback([mockLog]);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
+      expect(eventsService.emit).toHaveBeenCalledWith(
         'intent.fulfilled',
         expect.objectContaining({
           intentHash: mockLog.args.intentHash,

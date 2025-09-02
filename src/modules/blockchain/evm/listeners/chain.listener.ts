@@ -1,5 +1,3 @@
-import { EventEmitter2 } from '@nestjs/event-emitter';
-
 import * as api from '@opentelemetry/api';
 import { PublicClient } from 'viem';
 
@@ -10,6 +8,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { parseIntentFulfilled, parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
 import { BlockchainConfigService } from '@/modules/config/services';
+import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -20,7 +19,7 @@ export class ChainListener extends BaseChainListener {
   constructor(
     private readonly config: EvmChainConfig,
     private readonly transportService: EvmTransportService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventsService: EventsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
@@ -75,7 +74,7 @@ export class ChainListener extends BaseChainListener {
 
             // Emit the event within the span context to propagate trace context
             api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventEmitter.emit('intent.discovered', { intent, strategy: 'standard' });
+              this.eventsService.emit('intent.discovered', { intent, strategy: 'standard' });
             });
 
             span.addEvent('intent.emitted');
@@ -119,7 +118,7 @@ export class ChainListener extends BaseChainListener {
 
             // Emit the event within the span context to propagate trace context
             api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventEmitter.emit('intent.fulfilled', event);
+              this.eventsService.emit('intent.fulfilled', event);
             });
 
             span.addEvent('intent.fulfilled.emitted');
