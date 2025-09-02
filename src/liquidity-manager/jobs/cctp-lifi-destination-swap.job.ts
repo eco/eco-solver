@@ -277,15 +277,30 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
+<<<<<<< HEAD
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { groupID, rebalanceJobID } = jobData
+=======
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE'
+      : 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     processor.logger.error(
-      EcoLogMessage.withId({
-        message:
-          'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE - Manual intervention required for stranded USDC',
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+        error: error as any,
         properties: {
+<<<<<<< HEAD
           groupID,
           rebalanceJobID,
           jobId: job.data.id,
@@ -304,5 +319,11 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     if (this.isFinalAttempt(job, error)) {
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
+=======
+          data: job.data,
+        },
+      }),
+    )
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   }
 }

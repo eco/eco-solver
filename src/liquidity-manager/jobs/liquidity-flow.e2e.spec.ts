@@ -107,9 +107,13 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     // ii) receiveMessage: returns mint tx hash
     const receiveMessage = jest
-      .fn<Promise<Hex>, [number, Hex, Hex]>()
+      .fn<Promise<Hex>, [number, Hex, Hex, string?]>()
       .mockResolvedValue('0xminttx' as Hex)
 
+    // ii.5) getTxReceipt: returns receipt
+    const getTxReceipt = jest
+      .fn<Promise<any>, [number, Hex]>()
+      .mockResolvedValue({ status: 'success' })
     // iii) execute: destination swap execute call
     const execute = jest.fn<Promise<any>, [string, any]>().mockResolvedValue({ ok: true })
 
@@ -119,6 +123,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
       cctpProviderService: {
         fetchAttestation,
         receiveMessage,
+        getTxReceipt,
       },
       liquidityManagerService: {
         liquidityProviderManager: { execute },
@@ -268,6 +273,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
       messageBody: '0xbody' as Hex,
       groupID: 'grp-42',
       rebalanceJobID: 'reb-7',
+      id: 'job-123',
       cctpLiFiContext: {
         destinationSwapQuote: {
           id: 'q-1',
@@ -318,7 +324,12 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     // Mint is executed once
     expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledTimes(1)
-    expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledWith(10, '0xbody', '0xatt')
+    expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledWith(
+      10,
+      '0xbody',
+      '0xatt',
+      'job-123',
+    )
 
     // Destination swap executed once
     expect(

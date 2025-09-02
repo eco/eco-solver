@@ -1,5 +1,6 @@
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
+import { EcoLogger } from '@/common/logging/eco-logger'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
@@ -67,51 +68,50 @@ export class RebalanceRepository {
   }
 
   /**
-   * Persists a successful rebalance operation to the database.
-   *
-   * This method logs the operation and handles any persistence errors
-   * gracefully to ensure reliability of the rebalancing system.
-   *
-   * @param rebalanceData - Complete rebalance information
-   * @returns EcoResponse with created model or error details
+   * Creates a new rebalance model
    */
-  async create(rebalanceData: CreateRebalanceData): Promise<EcoResponse<RebalanceModel>>
+  async create(rebalanceModel: RebalanceModel): Promise<RebalanceModel>;
   /**
-   * Creates a rebalance model directly (for existing workflow compatibility)
+   * Creates a rebalance from structured data
    */
-  async create(rebalanceModel: RebalanceModel): Promise<RebalanceModel>
+  async create(rebalanceData: CreateRebalanceData): Promise<EcoResponse<RebalanceModel>>;
+  /**
+   * Method overloading implementation - supports both direct model creation and structured data
+   */
   async create(
-    data: CreateRebalanceData | RebalanceModel,
-  ): Promise<EcoResponse<RebalanceModel> | RebalanceModel> {
-    // Handle direct model creation (existing workflow)
-    if (this.isRebalanceModel(data)) {
-      return this.model.create(data)
+    input: RebalanceModel | CreateRebalanceData,
+  ): Promise<RebalanceModel | EcoResponse<RebalanceModel>> {
+    // Direct model creation (simple case)
+    if (this.isRebalanceModel(input)) {
+      return this.model.create(input as RebalanceModel)
     }
 
-    // Handle structured rebalance data creation (new workflow)
+    // Structured data creation (comprehensive case)
+    const rebalanceData = input as CreateRebalanceData
+
     try {
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Persisting successful rebalance',
           properties: {
-            strategy: data.strategy,
-            wallet: data.wallet,
-            tokenInChain: data.tokenIn.chainId,
-            tokenOutChain: data.tokenOut.chainId,
-            groupId: data.groupId,
+            strategy: rebalanceData.strategy,
+            wallet: rebalanceData.wallet,
+            tokenInChain: rebalanceData.tokenIn.chainId,
+            tokenOutChain: rebalanceData.tokenOut.chainId,
+            groupId: rebalanceData.groupId,
           },
         }),
       )
 
-      const rebalanceModel = await this.model.create(data)
+      const rebalanceModel = await this.model.create(rebalanceData)
 
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Successful rebalance persisted',
           properties: {
             rebalanceId: rebalanceModel._id,
-            strategy: data.strategy,
-            groupId: data.groupId,
+            strategy: rebalanceData.strategy,
+            groupId: rebalanceData.groupId,
           },
         }),
       )
@@ -122,7 +122,7 @@ export class RebalanceRepository {
         EcoLogMessage.fromDefault({
           message: 'Failed to persist successful rebalance',
           properties: {
-            rebalanceData: data,
+            rebalanceData: rebalanceData,
             error: error.message,
           },
         }),
@@ -281,36 +281,49 @@ export class RebalanceRepository {
    * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountIn
    */
   async getPendingReservedByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
-    const map = new Map<string, bigint>()
+    return this.getPendingByTokenForWallet(walletAddress, 'amountIn', 'tokenIn')
+  }
 
-    // Use simple find + in-memory sum for testability and bigint safety
+  /**
+   * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
+   * pending rebalances for the provided wallet.
+   * Key format: `${chainId}:${tokenAddressLowercase}` → bigint amountOut
+   */
+  async getPendingIncomingByTokenForWallet(walletAddress: string): Promise<Map<string, bigint>> {
+    return this.getPendingByTokenForWallet(walletAddress, 'amountOut', 'tokenOut')
+  }
+
+  private async getPendingByTokenForWallet(
+    walletAddress: string,
+    amountKey: 'amountIn' | 'amountOut',
+    tokenKey: 'tokenIn' | 'tokenOut',
+  ): Promise<Map<string, bigint>> {
+    const map = new Map<string, bigint>()
     const docs = await this.model
       .find(
         {
           status: RebalanceStatus.PENDING.toString(),
           wallet: walletAddress,
         },
-        { amountIn: 1, tokenIn: 1, wallet: 1, status: 1 },
+        { [amountKey]: 1, [tokenKey]: 1, wallet: 1, status: 1 },
       )
       .lean()
 
     for (const doc of docs) {
-      const { chainId, tokenAddress } = doc.tokenIn
-      const amountIn = BigInt(doc.amountIn)
+      const { chainId, tokenAddress } = doc[tokenKey]
+      const amount = BigInt(doc[amountKey].toString())
 
-      // Ignore non-positive reservations
-      if (amountIn <= 0n) {
+      if (amount <= 0n) {
         continue
       }
 
       const key = `${chainId}:${String(tokenAddress).toLowerCase()}`
-      const prev = map.get(key) ?? 0n
-      map.set(key, prev + amountIn)
+      const previous = map.get(key) ?? 0n
+      map.set(key, previous + amount)
     }
 
     return map
   }
-
   /**
    * Checks if any successful rebalances occurred in the last hour.
    *

@@ -307,25 +307,36 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     }
   }
 
+  /**
+   * Receive message from CCTP V2. It does not wait for the transaction receipt.
+   * @param destinationChainId Destination chain ID
+   * @param messageBody Message body
+   * @param attestation Attestation
+   * @param quoteId Quote ID
+   * @returns Transaction hash
+   */
   async receiveV2Message(
     destinationChainId: number,
     messageBody: Hex,
     attestation: Hex,
     quoteId?: string,
   ): Promise<Hex> {
+    const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
+    const walletClient = await this.walletClientService.getClient(destinationChainId)
+
     this.logger.debug(
       EcoLogMessage.withId({
-        message: `CCTPV2: Receiving message on chain ${destinationChainId}`,
+        message: 'CCTPV2: receiveV2Message: submitting',
         id: quoteId,
         properties: {
-          messageLength: messageBody.length,
-          attestationLength: attestation.length,
+          chainId: destinationChainId,
+          messageTransmitter: v2ChainConfig.messageTransmitter,
+          sender: (walletClient as any).account?.address,
+          attestation,
+          messageBody,
         },
       }),
     )
-    const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
-    const walletClient = await this.walletClientService.getClient(destinationChainId)
-    const publicClient = await this.walletClientService.getPublicClient(destinationChainId)
 
     const txHash = await walletClient.writeContract({
       abi: CCTPV2MessageTransmitterABI,
@@ -333,9 +344,12 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       functionName: 'receiveMessage',
       args: [messageBody, attestation],
     })
-
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
     return txHash
+  }
+
+  async getTxReceipt(chainId: number, txHash: Hex) {
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+    return publicClient.waitForTransactionReceipt({ hash: txHash })
   }
 
   private async fetchV2FeeOptions(

@@ -39,7 +39,11 @@ export class RebalanceModel {
   @Prop({
     required: true,
     enum: RebalanceStatus.enumKeys,
+<<<<<<< HEAD
     default: RebalanceStatus.COMPLETED.toString(),
+=======
+    default: RebalanceStatus.PENDING.toString(),
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   })
   status: string
 
@@ -61,8 +65,11 @@ export class RebalanceModel {
 export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)
 
 // Define indexes
+<<<<<<< HEAD
 RebalanceSchema.index({ 'tokenIn.chainId': 1, 'tokenIn.tokenAddress': 1 })
 RebalanceSchema.index({ 'tokenOut.chainId': 1, 'tokenOut.tokenAddress': 1 })
+=======
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 RebalanceSchema.index({ rebalanceJobID: 1 }, { unique: false })
 RebalanceSchema.index({ wallet: 1 }, { unique: false })
 RebalanceSchema.index({ status: 1 }, { unique: false })

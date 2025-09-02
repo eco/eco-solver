@@ -121,17 +121,36 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
+<<<<<<< HEAD
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { groupID, rebalanceJobID } = jobData
+=======
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPV2: CheckCCTPV2AttestationJob: FINAL FAILURE'
+      : 'CCTPV2: CheckCCTPV2AttestationJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTPV2: CheckCCTPV2AttestationJob Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+<<<<<<< HEAD
         properties: {
           groupID,
           rebalanceJobID,
           error: (error as any)?.message ?? error,
+=======
+        error: error as any,
+        properties: {
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
           data: job.data,
         },
       }),

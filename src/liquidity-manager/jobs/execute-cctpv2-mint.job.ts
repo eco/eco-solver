@@ -65,12 +65,21 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
       }),
     )
     deserialize(job.data.context) // Deserialize for consistency, though not used here
-    return processor.cctpv2ProviderService.receiveV2Message(
-      destinationChainId,
-      messageBody,
-      attestation,
-      job.data.id,
-    )
+
+    let txHash = job.data.txHash as Hex | undefined
+    if (!txHash) {
+      // receive message not called yet
+      txHash = await processor.cctpv2ProviderService.receiveV2Message(
+        destinationChainId,
+        messageBody,
+        attestation,
+        job.data.id,
+      )
+      job.updateData({ ...job.data, txHash })
+    }
+
+    await processor.cctpv2ProviderService.getTxReceipt(destinationChainId, txHash as Hex)
+    return txHash as Hex
   }
 
   async onComplete(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor) {
@@ -95,17 +104,36 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
   }
 
   async onFailed(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor, error: unknown) {
+<<<<<<< HEAD
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { groupID, rebalanceJobID } = jobData
+=======
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPV2: ExecuteCCTPV2MintJob: FINAL FAILURE'
+      : 'CCTPV2: ExecuteCCTPV2MintJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTPV2: ExecuteCCTPV2MintJob: Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+<<<<<<< HEAD
         properties: {
           groupID,
           rebalanceJobID,
           error: (error as any)?.message ?? error,
+=======
+        error: error as any,
+        properties: {
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
           data: job.data,
         },
       }),

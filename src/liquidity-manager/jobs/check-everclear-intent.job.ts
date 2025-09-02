@@ -87,6 +87,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       EcoLogMessage.withId({
         message: `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
         id: job.data.id,
+<<<<<<< HEAD
         properties: {
           groupID,
           rebalanceJobID,
@@ -112,6 +113,8 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
         message: 'Everclear: Intent check failed',
         id: job.data.id,
         error: error as any,
+=======
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         properties: {
           groupID,
           rebalanceJobID,
@@ -121,8 +124,41 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       }),
     )
 
+<<<<<<< HEAD
     if (this.isFinalAttempt(job, error)) {
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
+=======
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
+  }
+
+  async onFailed(
+    job: CheckEverclearIntentJob,
+    processor: LiquidityManagerProcessor,
+    error: unknown,
+  ) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'Everclear: CheckEverclearIntentJob: FINAL FAILURE'
+      : 'Everclear: CheckEverclearIntentJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+
+    processor.logger.error(
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
+        id: job.data.id,
+        error: error as any,
+        properties: {
+          data: job.data,
+        },
+      }),
+    )
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   }
 }

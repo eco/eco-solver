@@ -1,5 +1,3 @@
-import { Model } from 'mongoose'
-import { InjectModel } from '@nestjs/mongoose'
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
 import { FlowProducer } from 'bullmq'
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
@@ -16,13 +14,20 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+<<<<<<< HEAD
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+=======
+import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 import {
   RebalanceQuote,
   RebalanceRequest,
@@ -45,16 +50,17 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   private config: LiquidityManagerConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
+  private readonly checkBalancesQueueWrapper: CheckBalancesQueue
 
   private readonly tokensPerWallet: Record<string, TokenConfig[]> = {}
 
   constructor(
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
+    @InjectQueue(CheckBalancesQueue.queueName)
+    private readonly checkBalancesQueue: LiquidityManagerQueueType,
     @InjectFlowProducer(LiquidityManagerQueue.flowName)
     protected liquidityManagerFlowProducer: FlowProducer,
-    @InjectModel(RebalanceModel.name)
-    private readonly rebalanceModel: Model<RebalanceModel>,
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderService,
@@ -64,11 +70,45 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     private readonly rebalanceRepository: RebalanceRepository,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
+    this.checkBalancesQueueWrapper = new CheckBalancesQueue(this.checkBalancesQueue as any)
   }
 
   async onApplicationBootstrap() {
-    // Remove existing job schedulers for CHECK_BALANCES
-    await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
+    // Remove existing job schedulers for CHECK_BALANCES (legacy + new queue)
+    try {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: cleaning repeatable jobs on legacy queue',
+          properties: { queue: this.queue.name },
+        }),
+      )
+      await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
+    } catch (e) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: failed to clean legacy queue schedulers',
+          properties: { queue: this.queue.name, error: (e as any)?.message ?? e },
+        }),
+      )
+    }
+
+    // Try to remove any previous schedulers on the new queue as well (idempotent)
+    try {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: cleaning repeatable jobs on dedicated queue',
+          properties: { queue: this.checkBalancesQueueWrapper.name },
+        }),
+      )
+      await removeJobSchedulers(this.checkBalancesQueue, LiquidityManagerJobName.CHECK_BALANCES)
+    } catch (e) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: failed to clean dedicated queue schedulers',
+          properties: { error: (e as any)?.message ?? e },
+        }),
+      )
+    }
 
     // Get wallet addresses we'll be monitoring
     this.config = this.ecoConfigService.getLiquidityManager()
@@ -88,11 +128,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       if (anyProvider?.ensureBootstrapOnce) {
         await anyProvider.ensureBootstrapOnce('bootstrap')
       }
-    } catch (e) {
+    } catch (error) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Gateway bootstrap deposit skipped or failed',
-          properties: { error: (e as any)?.message ?? e },
+          error,
         }),
       )
     }
@@ -105,13 +145,33 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const kernelAddress = client.kernelAccount.address
 
     // Track rebalances for Solver
-    await this.liquidityManagerQueue.startCronJobs(this.config.intervalDuration, kernelAddress)
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'CHECK_BALANCES: scheduling cron (kernel wallet)',
+        properties: {
+          queue: this.checkBalancesQueueWrapper.name,
+          intervalMs: this.config.intervalDuration,
+          wallet: kernelAddress,
+        },
+      }),
+    )
+    await this.checkBalancesQueueWrapper.startCronJobs(this.config.intervalDuration, kernelAddress)
     this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
       const crowdLiquidityPoolAddress = this.crowdLiquidityService.getPoolAddress()
-      await this.liquidityManagerQueue.startCronJobs(
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'CHECK_BALANCES: scheduling cron (crowd-liquidity pool)',
+          properties: {
+            queue: this.checkBalancesQueueWrapper.name,
+            intervalMs: this.config.intervalDuration,
+            wallet: crowdLiquidityPoolAddress,
+          },
+        }),
+      )
+      await this.checkBalancesQueueWrapper.startCronJobs(
         this.config.intervalDuration,
         crowdLiquidityPoolAddress,
       )
@@ -121,8 +181,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   async analyzeTokens(walletAddress: string) {
+<<<<<<< HEAD
     // 1) Build reservation map of amounts already committed to pending rebalances
     const reservedByToken = await this.getReservedByTokenMap(walletAddress)
+=======
+    // 1) Build reservation maps of amounts already committed to pending rebalances
+    const reservedByToken = await this.getReservedByTokenMap(walletAddress)
+    const incomingByToken = await this.getIncomingByTokenMap(walletAddress)
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -147,6 +213,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         const key = `${item.chainId}:${String(item.config.address).toLowerCase()}`
         const reserved = reservedByToken.get(key) ?? 0n
+<<<<<<< HEAD
         if (reserved > 0n) {
           item.balance.balance = item.balance.balance - reserved
         }
@@ -158,6 +225,44 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       ...item,
       analysis: this.analyzeToken(item),
     }))
+=======
+        const incoming = incomingByToken.get(key) ?? 0n
+        if (reserved > 0n || incoming > 0n) {
+          item.balance.balance = item.balance.balance - reserved + incoming
+        }
+      } catch (error) {
+        this.logger.warn(
+          EcoLogMessage.withError({
+            message: 'Reservation-aware analysis: token skipped due to invalid config/input',
+            properties: {
+              walletAddress,
+              token: item?.config,
+            },
+            error,
+          }),
+        )
+      }
+      return item
+    })
+
+    const analysis: TokenDataAnalyzed[] = []
+    for (const item of adjusted) {
+      try {
+        analysis.push({ ...item, analysis: this.analyzeToken(item) })
+      } catch (error) {
+        this.logger.warn(
+          EcoLogMessage.withError({
+            message: 'Reservation-aware analysis: token skipped due to invalid config/input',
+            properties: {
+              walletAddress,
+              token: item?.config,
+            },
+            error,
+          }),
+        )
+      }
+    }
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     const groups = groupBy(analysis, (item) => item.analysis.state)
     return {
@@ -184,11 +289,48 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
       }
       return map
+<<<<<<< HEAD
     } catch (e) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
           message: 'Reservation-aware analysis: no reservations applied',
           properties: { walletAddress, error: (e as any)?.message ?? e },
+=======
+    } catch (error) {
+      this.logger.debug(
+        EcoLogMessage.withError({
+          message: 'Reservation-aware analysis: no reservations applied',
+          properties: { walletAddress },
+          error,
+        }),
+      )
+      return new Map<string, bigint>()
+    }
+  }
+
+  /**
+   * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
+   * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
+   */
+  private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
+    try {
+      const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
+      if (map.size) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Reservation-aware analysis: applied incoming amounts',
+            properties: { walletAddress, tokensAffected: map.size },
+          }),
+        )
+      }
+      return map
+    } catch (error) {
+      this.logger.debug(
+        EcoLogMessage.withError({
+          message: 'Reservation-aware analysis: no incoming applied',
+          properties: { walletAddress },
+          error,
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         }),
       )
       return new Map<string, bigint>()
@@ -251,6 +393,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
   async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
     const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
+<<<<<<< HEAD
     const quotesWithIds = request.quotes.map((quote) => {
       quote.groupID = groupID
       quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
@@ -261,6 +404,33 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     if ('error' in result && result.error) {
       throw result.error
+=======
+
+    for (const quote of request.quotes) {
+      quote.groupID = groupID
+      quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
+
+      await this.rebalanceRepository.create({
+        rebalanceJobID: quote.rebalanceJobID,
+        groupId: quote.groupID,
+        wallet: walletAddress,
+        amountIn: quote.amountIn,
+        amountOut: quote.amountOut,
+        slippage: quote.slippage,
+        strategy: quote.strategy,
+        context: quote.context,
+        tokenIn: RebalanceTokenModel.fromTokenData(quote.tokenIn),
+        tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
+        status: RebalanceStatus.PENDING.toString(),
+      })
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: 'Rebalance stored',
+          properties: { quote, walletAddress },
+        }),
+      )
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
     }
   }
 
@@ -359,16 +529,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         })
 
         this.logger.debug(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withError({
             message: 'Direct route not found, will try with fallback',
             properties: {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
-              error: {
-                message: error.message,
-                stack: error.stack,
-              },
             },
+            error,
           }),
         )
       }
@@ -427,16 +594,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         )
 
         this.logger.error(
-          EcoLogMessage.fromDefault({
+          EcoLogMessage.withError({
             message: 'Unable to find fallback route',
             properties: {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
-              error: {
-                message: fallbackError.message,
-                stack: fallbackError.stack,
-              },
             },
+            error: fallbackError,
           }),
         )
       }

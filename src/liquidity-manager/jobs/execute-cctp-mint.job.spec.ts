@@ -51,13 +51,22 @@ function makeProcessorMock(overrides?: Partial<LiquidityManagerProcessor>) {
   const logger = makeLoggerMock()
   const baseQueue = makeQueueMock()
 
+<<<<<<< HEAD
   const receiveMessage: jest.Mock<Promise<Hex>, [number, Hex, Hex]> = jest.fn()
+=======
+  const receiveMessage: jest.Mock<Promise<Hex>, [number, Hex, Hex, string?]> = jest.fn()
+  const getTxReceipt: jest.Mock<Promise<any>, [number, Hex]> = jest.fn()
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
   return {
     logger,
     queue: overrides?.queue ?? baseQueue, // ← respect injected queue
     cctpProviderService: {
       receiveMessage,
+<<<<<<< HEAD
+=======
+      getTxReceipt,
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
     },
     ...(overrides as any),
   } as unknown as LiquidityManagerProcessor & {
@@ -65,6 +74,10 @@ function makeProcessorMock(overrides?: Partial<LiquidityManagerProcessor>) {
 
     cctpProviderService: {
       receiveMessage
+<<<<<<< HEAD
+=======
+      getTxReceipt
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
     }
   }
 }
@@ -86,6 +99,10 @@ function makeJob(data: Partial<ExecuteCCTPMintJobData>, returnvalue?: Hex): Exec
     opts: {} as any,
     attemptsMade: 0,
     returnvalue: returnvalue as any,
+<<<<<<< HEAD
+=======
+    updateData: jest.fn(),
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   } as unknown as ExecuteCCTPMintJob
 }
 
@@ -176,9 +193,44 @@ describe('ExecuteCCTPMintJobManager', () => {
         10,
         '0xaaaa',
         '0xbbbb',
+<<<<<<< HEAD
       )
       expect(ret).toBe(tx)
     })
+=======
+        job.data.id,
+      )
+      expect(job.updateData).toHaveBeenCalledWith({ ...job.data, txHash: tx })
+      expect(ret).toBe(tx)
+    })
+
+    it('reuses existing txHash if already set', async () => {
+      const processor = makeProcessorMock()
+
+      const existingTxHash = '0xexisting' as Hex
+      const job = makeJob({
+        destinationChainId: 10,
+        messageBody: '0xaaaa' as Hex,
+        attestation: '0xbbbb' as Hex,
+        txHash: existingTxHash,
+      })
+
+      // Add getTxReceipt mock
+      processor.cctpProviderService.getTxReceipt = jest
+        .fn()
+        .mockResolvedValue({ status: 'success' })
+
+      const ret = await mgr.process(job as any, processor)
+
+      // Should not call receiveMessage if txHash already exists
+      expect(processor.cctpProviderService.receiveMessage).not.toHaveBeenCalled()
+      // Should call getTxReceipt with existing txHash
+      expect(processor.cctpProviderService.getTxReceipt).toHaveBeenCalledWith(10, existingTxHash)
+      // Should not call updateData since txHash is already set
+      expect(job.updateData).not.toHaveBeenCalled()
+      expect(ret).toBe(existingTxHash)
+    })
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   })
 
   describe('onComplete()', () => {

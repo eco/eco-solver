@@ -26,6 +26,7 @@ import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types
 import { TokenConfig } from '@/balance/types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
@@ -87,6 +88,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let queue: DeepMocked<Queue>
   let flowProducer: DeepMocked<FlowProducer>
   let rebalanceModel: DeepMocked<Model<RebalanceModel>>
+  let rebalanceRepo: { create: jest.Mock; getPendingReservedByTokenForWallet: jest.Mock }
 
   const walletAddress = '0x1234567890123456789012345678901234567890'
 
@@ -154,7 +156,14 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         CCTPLiFiProviderService,
         {
           provide: RebalanceRepository,
+<<<<<<< HEAD
           useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
+=======
+          useValue: (rebalanceRepo = {
+            getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+            create: jest.fn().mockResolvedValue({}),
+          }),
+>>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
         },
         {
           provide: LiFiProviderService,
@@ -208,10 +217,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           provide: CrowdLiquidityService,
           useValue: createMock<CrowdLiquidityService>(),
         },
-        {
-          provide: getQueueToken(LiquidityManagerQueue.queueName),
-          useValue: queue,
-        },
+        { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: queue },
+        { provide: getQueueToken(CheckBalancesQueue.queueName), useValue: createMock<Queue>() },
         {
           provide: getFlowProducerToken(LiquidityManagerQueue.flowName),
           useValue: flowProducer,
@@ -501,8 +508,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       await liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
 
-      // Verify storage
-      expect(rebalanceModel.create).toHaveBeenCalledWith(
+      // Verify storage via repository
+      expect(rebalanceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           wallet: walletAddress,
           strategy: 'CCTPLiFi',
@@ -1095,7 +1102,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         await liquidityManagerService.storeRebalancing(walletAddress, rebalance)
       }
 
-      expect(rebalanceModel.create).toHaveBeenCalledTimes(2)
+      expect(rebalanceRepo.create).toHaveBeenCalledTimes(2)
     })
   })
 
