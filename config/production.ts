@@ -1,10 +1,10 @@
 export default {
   server: {
-    url: 'https://solver.bend.eco',
+    url: process.env.SERVICE_URL || 'https://solver.bend.eco',
   },
 
   indexer: {
-    url: 'https://protocol-indexer-production.up.railway.app',
+    url: process.env.INDEXER_URL || 'https://protocol-indexer-production.up.railway.app',
   },
 
   aws: [
@@ -29,7 +29,7 @@ export default {
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: 'https://quotes.eco.com',
+      baseUrl: process.env.REGISTRATION_URL || 'https://quotes.eco.com',
     },
   },
 }

@@ -18,6 +18,7 @@ import { CheckCCTPV2AttestationJobManager } from '../jobs/check-cctpv2-attestati
 import { ExecuteCCTPV2MintJobManager } from '../jobs/execute-cctpv2-mint.job'
 import { CheckEverclearIntentJobManager } from '@/liquidity-manager/jobs/check-everclear-intent.job'
 import { EverclearProviderService } from '../services/liquidity-providers/Everclear/everclear-provider.service'
+import { GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -49,6 +50,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new CheckCCTPV2AttestationJobManager(),
       new ExecuteCCTPV2MintJobManager(),
       new CheckEverclearIntentJobManager(),
+      new GatewayTopUpJobManager(),
     ])
   }
 }

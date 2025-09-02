@@ -68,6 +68,28 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       }),
     )
 
+    // Everclear only supports cross-chain transfers of the same token representation.
+    // If origin and destination chains are the same, skip quoting entirely.
+    if (tokenIn.chainId === tokenOut.chainId) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
+          id,
+          properties: {
+            tokenIn: {
+              address: tokenIn.config.address,
+              chainId: tokenIn.chainId,
+            },
+            tokenOut: {
+              address: tokenOut.config.address,
+              chainId: tokenOut.chainId,
+            },
+          },
+        }),
+      )
+      return []
+    }
+
     const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
       this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
       this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
@@ -166,6 +188,14 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     )
 
     const { tokenIn, tokenOut, amountIn, id } = quote
+
+    // Everclear only supports cross-chain transfers of the same token representation.
+    // If origin and destination chains are the same, do not execute.
+    if (tokenIn.chainId === tokenOut.chainId) {
+      throw new Error(
+        `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
+      )
+    }
     const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
       this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
       this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
