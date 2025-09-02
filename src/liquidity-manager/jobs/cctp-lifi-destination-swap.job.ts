@@ -277,10 +277,6 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
-<<<<<<< HEAD
-    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
-=======
     const isFinal = this.isFinalAttempt(job, error)
 
     const errorMessage = isFinal
@@ -292,7 +288,6 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       const { rebalanceJobID } = jobData
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
 
     processor.logger.error(
       EcoLogMessage.withErrorAndId({
@@ -300,11 +295,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         id: job.data.id,
         error: error as any,
         properties: {
-<<<<<<< HEAD
-          groupID,
-          rebalanceJobID,
           jobId: job.data.id,
-          error: (error as any)?.message ?? error,
           walletAddress: job.data.walletAddress,
           chainId: job.data.destinationChainId,
           originalTokenTarget: job.data.originalTokenOut.address,
@@ -312,18 +303,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
           attemptsMade: job.attemptsMade,
           maxAttempts: job.opts?.attempts || 1,
           timestamp: new Date().toISOString(),
-        },
-      }),
-    )
-
-    if (this.isFinalAttempt(job, error)) {
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
-=======
           data: job.data,
         },
       }),
     )
->>>>>>> ed00a4c9dbf61fd5fd6ed44f4db0231297eb2afc
   }
 }
