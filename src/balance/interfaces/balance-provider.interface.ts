@@ -1,4 +1,4 @@
-import { Address, SerializableAddress } from '@eco-foundation/routes-ts'
+import { Address, SerializableAddress } from '@/eco-configs/eco-config.types'
 import { TokenBalance } from '../types'
 
 export interface BalanceProvider {

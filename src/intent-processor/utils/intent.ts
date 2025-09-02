@@ -1,5 +1,6 @@
 import { Hex } from 'viem'
-import { IntentType, RewardType, RouteType, VmType } from '@eco-foundation/routes-ts'
+import { IntentType, RewardType, RouteType } from '@/utils/encodeAndHash'
+import { VmType } from '@/eco-configs/eco-config.types'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 

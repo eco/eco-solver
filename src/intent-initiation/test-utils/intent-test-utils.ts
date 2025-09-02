@@ -6,7 +6,7 @@ import { PermitTestUtils } from '@/intent-initiation/test-utils/permit-test-util
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { zeroAddress } from 'viem'
-import { VmType } from '@eco-foundation/routes-ts'
+import { VmType } from '@/eco-configs/eco-config.types'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {
   usePermit?: boolean

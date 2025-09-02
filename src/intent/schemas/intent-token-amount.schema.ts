@@ -1,5 +1,5 @@
 import { RewardTokensInterface } from '@/contracts'
-import { Address } from '@eco-foundation/routes-ts'
+import { Address } from '@/eco-configs/eco-config.types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

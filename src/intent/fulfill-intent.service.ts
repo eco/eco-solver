@@ -8,7 +8,6 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { isNativeIntent } from './utils'
-import { VmType } from '@eco-foundation/routes-ts'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.

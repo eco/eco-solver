@@ -3,7 +3,7 @@ import {
   QuoteRewardTokenDataModel,
   QuoteRewardTokenDataSchema,
 } from '@/quote/schemas/quote-token.schema'
-import { VmType } from '@eco-foundation/routes-ts'
+import { VmType } from '@/eco-configs/eco-config.types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 

@@ -1,4 +1,4 @@
-import { RewardType, RouteType } from '@eco-foundation/routes-ts'
+import { RewardType, RouteType } from '@/utils/encodeAndHash'
 import { Prettify } from 'viem'
 
 /**

@@ -3,10 +3,11 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeRoute, hashRoute, RouteType, VmType } from '@eco-foundation/routes-ts'
+import { RouteType, encodeRoute, hashRoute } from '@/utils/encodeAndHash'
+import { VmType } from '@/eco-configs/eco-config.types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
-import { Address } from '@eco-foundation/routes-ts'
+import { Address } from '@/eco-configs/eco-config.types'
 
 @Schema({ timestamps: true })
 export class RouteDataModel {

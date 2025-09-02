@@ -4,7 +4,7 @@ import { getAddress, Hex, Mutable } from 'viem'
 import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
 import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
-import { encodeIntent, hashIntent, IntentType, RewardType } from '@eco-foundation/routes-ts'
+import { IntentType, RewardType, encodeIntent, hashIntent } from '@/utils/encodeAndHash'
 import { getChainAddress } from '@/eco-configs/utils'
 import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 

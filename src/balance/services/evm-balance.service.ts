@@ -5,7 +5,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenBalance } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
 import { BalanceProvider } from '../interfaces/balance-provider.interface'
-import { Address, SerializableAddress, VmType } from '@eco-foundation/routes-ts'
+import { Address, SerializableAddress, VmType } from '@/eco-configs/eco-config.types'
 
 @Injectable()
 export class EvmBalanceService implements BalanceProvider {
@@ -24,7 +24,7 @@ export class EvmBalanceService implements BalanceProvider {
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: Address<VmType.EVM>[],
-  ): Promise<Record<SerializableAddress<VmType.EVM>, TokenBalance>> {
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const walletAddress = client.kernelAccount.address
     return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
@@ -41,7 +41,7 @@ export class EvmBalanceService implements BalanceProvider {
     chainID: number,
     walletAddress: Address<VmType.EVM>,
     tokenAddresses: Address<VmType.EVM>[],
-  ): Promise<Record<SerializableAddress<VmType.EVM>, TokenBalance>> {
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     const client = await this.kernelAccountClientService.getClient(chainID)
     const hexTokenAddresses = tokenAddresses as Hex[]
 

@@ -3,7 +3,8 @@ import { getAddress, Hex } from 'viem'
 import { IsArray, IsNotEmpty, ValidateNested } from 'class-validator'
 import { plainToInstance, Transform, Type } from 'class-transformer'
 import { RewardTokensInterface } from '@/contracts'
-import { RewardType, VmType } from '@eco-foundation/routes-ts'
+import { VmType } from '@/eco-configs/eco-config.types'
+import { RewardType } from '@/utils/encodeAndHash'
 import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 
 /**

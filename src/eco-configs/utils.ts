@@ -1,4 +1,5 @@
-import { Address, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { Address } from './eco-config.types'
 import { EcoChainConfig, getVmType, VmType } from './eco-config.types'
 import * as config from 'config'
 import { EcoError } from '../common/errors/eco-error'

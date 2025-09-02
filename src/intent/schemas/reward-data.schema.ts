@@ -2,8 +2,8 @@ import {
   TokenAmountDataModel,
   TokenAmountDataSchema,
 } from '@/intent/schemas/intent-token-amount.schema'
-import { encodeReward, VmType, Address, EvmRewardType, SvmRewardType } from '@eco-foundation/routes-ts'
-import { hashReward } from "@/intent/check-funded-solana"
+import { VmType, Address } from '@/eco-configs/eco-config.types'
+import { RewardType, encodeReward, hashReward } from '@/utils/encodeAndHash'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 @Schema({ timestamps: true })
@@ -43,14 +43,14 @@ export class RewardDataModel {
   }
 
   // Type-safe helpers
-  asEvmReward(): EvmRewardType {
+  asEvmReward(): RewardType<VmType.EVM> {
     if (this.vm !== VmType.EVM) throw new Error('Not an EVM reward')
-    return { ...this } as EvmRewardType
+    return { ...this } as RewardType<VmType.EVM>
   }
 
-  asSvmReward(): SvmRewardType {
+  asSvmReward(): RewardType<VmType.SVM> {
     if (this.vm !== VmType.SVM) throw new Error('Not an SVM reward')
-    return { ...this } as SvmRewardType
+    return { ...this } as RewardType<VmType.SVM>
   }
 
   static getHash(rewardDataModel: RewardDataModel): Hex {

@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
 import { keccak256, encodePacked, encodeAbiParameters, Hex, decodeAbiParameters } from 'viem';
-import { IntentType, RewardType, RouteType } from '@/utils/encodeAndHash';
+import { hashIntent, IntentType, RewardType, RouteType } from '@/utils/encodeAndHash';
 import { VmType } from '@/eco-configs/eco-config.types';
 import { BorshCoder, type Idl, BN } from '@coral-xyz/anchor';
 import { RewardStruct, RouteStruct } from './abi';
@@ -36,46 +36,6 @@ export function getVaultPda(intentHashBytes: Uint8Array): [PublicKey, number] {
     [VAULT_SEED, intentHashBytes],
     PROGRAM_ID
   );
-}
-
-export function hashReward(reward: RewardType): Hex {
-  return keccak256(encodeReward(reward))
-}
-
-
-export function encodeRoute(route: RouteType): Hex {
-  switch (route.vm) {
-    case VmType.EVM:
-      return encodeAbiParameters(
-        [{ type: 'tuple', components: RouteStruct }],
-        [route],
-      )
-    case VmType.SVM:
-      // Use Anchor's BorshCoder for proper Solana serialization
-      const { salt, deadline, portal, tokens, calls } = route;
-      
-      const saltBytes = Buffer.from(salt.slice(2), 'hex');
-      const portalBytes = new PublicKey(portal).toBytes();
-      
-      const encoded = svmCoder.types.encode('Route', {
-        salt: { 0: Array.from(saltBytes) }, // Bytes32 struct format
-        deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
-        portal: { 0: Array.from(portalBytes) }, // Bytes32 struct format
-        tokens: tokens.map(({ token, amount }) => ({
-          token: token instanceof PublicKey ? token : new PublicKey(token),
-          amount: new BN(amount.toString()) // Convert BigInt to BN for u64
-        })),
-        calls: calls.map(({ target, data, value }) => ({
-          target: { 0: Array.from(new PublicKey(target).toBytes()) }, // Bytes32 struct format
-          data: Buffer.from(data.slice(2), 'hex'), // Keep as Buffer for bytes type
-          value: new BN(value.toString()) // Convert BigInt to BN for u64
-        }))
-      });
-      
-      return `0x${encoded.toString('hex')}` as Hex;
-    default:
-      throw new Error(`Unsupported VM type: ${route.vm}`)
-  }
 }
 
 export function decodeRoute(vm: VmType, route: Hex): RouteType {
@@ -118,104 +78,6 @@ export function decodeRoute(vm: VmType, route: Hex): RouteType {
   }
 }
 
-export function hashRoute(route: RouteType): Hex {
-  const encoded = encodeRoute(route)
-  return keccak256(encoded)
-}
-
-
-export function encodeReward(reward: RewardType): Hex {
-  switch (reward.vm) {
-    case VmType.EVM:
-      // Clean the reward object - remove MongoDB fields
-      const cleanReward = {
-        vm: reward.vm,
-        creator: reward.creator,
-        prover: reward.prover,
-        deadline: reward.deadline,
-        nativeValue: reward.nativeAmount || 0n,
-        tokens: (reward.tokens || []).map(t => ({
-          token: t.token,
-          amount: t.amount
-        }))
-      };
-      console.log("ENCREWARD: reward for EVM", cleanReward);
-      return encodeAbiParameters(
-        [{ type: 'tuple', components: RewardStruct }],
-        [cleanReward as any],
-      )
-    case VmType.SVM:
-      const { deadline, creator, prover, nativeAmount, tokens } = reward;
-      
-      const encoded = svmCoder.types.encode('Reward', {
-        deadline: new BN(deadline.toString()),
-        creator: new PublicKey(creator),
-        prover: new PublicKey(prover),
-        native_amount: new BN(nativeAmount.toString()),
-        tokens: tokens.map(({ token, amount }) => ({
-          token: new PublicKey(token),
-          amount: new BN(amount.toString())
-        }))
-      });
-      
-      return `0x${encoded.toString('hex')}` as Hex;
-    default:
-      throw new Error(`Unsupported VM type: ${reward.vm}`)
-  }
-}
-
-export function hashIntent(destination: bigint, route: RouteType, reward: RewardType): {
-  routeHash: Hex
-  rewardHash: Hex
-  intentHash: Hex
-} {
-  const routeHash = hashRoute(route)
-  const rewardHash = hashReward(reward)
-
-  console.log("hashIntent: ", destination, routeHash, rewardHash)
-
-  const intentHash = keccak256(
-    encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, routeHash, rewardHash]),
-  )
-
-  return {
-    routeHash,
-    rewardHash,
-    intentHash,
-  }
-}
-
-export function hashIntentSvm(destination: bigint, route: RouteType, reward: RewardType): {
-  routeHash: Hex
-  rewardHash: Hex
-  intentHash: Hex
-} {
-  const routeHash = hashRoute(route)
-  const rewardHash = hashReward(reward)
-
-
-  // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
-  const destinationBytes = new Uint8Array(8);
-  const view = new DataView(destinationBytes.buffer);
-  view.setBigUint64(0, destination, false);
-
-  // Match Rust: hasher.update(destination.to_be_bytes().as_slice());
-  const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
-  const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
-
-  const combined = new Uint8Array(8 + 32 + 32);
-  combined.set(destinationBytes, 0);
-  combined.set(routeHashBytes, 8);
-  combined.set(rewardHashBytes, 40);
-
-  const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
-
-  return {
-    routeHash,
-    rewardHash,
-    intentHash,
-  }
-}
 
 /**
  * Check if a Solana intent is fully funded by examining vault balances
@@ -274,4 +136,62 @@ export async function checkIntentFunding(
     console.error('Error checking intent funding:', error);
     return false;
   }
+}
+
+// Legacy encodeIntent function that works with the old interface format
+export function encodeIntent(destination: bigint, route: any, reward: any): Hex {
+  // Convert legacy format to new format if needed
+  const newRoute: RouteType = route.vm ? route : {
+    vm: route.destination === 1399811149n ? VmType.SVM : VmType.EVM,
+    salt: route.salt,
+    deadline: route.deadline || 0n,
+    portal: route.portal || route.inbox,
+    tokens: route.tokens,
+    calls: route.calls
+  }
+  
+  const newReward: RewardType = reward.vm ? reward : {
+    vm: destination === 1399811149n ? VmType.SVM : VmType.EVM,
+    creator: reward.creator,
+    prover: reward.prover,
+    deadline: reward.deadline,
+    nativeAmount: reward.nativeAmount || reward.nativeValue || 0n,
+    tokens: reward.tokens || []
+  }
+  
+  const encodedRoute = encodeRoute(newRoute)
+  const encodedReward = encodeReward(newReward)
+  
+  return encodePacked(
+    ['uint64', 'bytes', 'bytes'],
+    [destination, encodedRoute, encodedReward]
+  )
+}
+
+// Legacy hashIntent function that works with the old interface format  
+export function hashIntentLegacy(destination: bigint, route: any, reward: any): {
+  routeHash: Hex
+  rewardHash: Hex
+  intentHash: Hex
+} {
+  // Convert legacy format to new format if needed
+  const newRoute: RouteType = route.vm ? route : {
+    vm: route.destination === 1399811149n ? VmType.SVM : VmType.EVM,
+    salt: route.salt,
+    deadline: route.deadline || 0n,
+    portal: route.portal || route.inbox,
+    tokens: route.tokens,
+    calls: route.calls
+  }
+  
+  const newReward: RewardType = reward.vm ? reward : {
+    vm: destination === 1399811149n ? VmType.SVM : VmType.EVM,
+    creator: reward.creator,
+    prover: reward.prover,
+    deadline: reward.deadline,
+    nativeAmount: reward.nativeAmount || reward.nativeValue || 0n,
+    tokens: reward.tokens || []
+  }
+  
+  return hashIntent(destination, newRoute, newReward)
 }

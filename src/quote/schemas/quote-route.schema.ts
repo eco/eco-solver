@@ -9,7 +9,7 @@ import {
 } from '@/quote/schemas/quote-call.schema'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
-import { VmType } from '@eco-foundation/routes-ts'
+import { VmType } from '@/eco-configs/eco-config.types'
 
 @Schema({ timestamps: true })
 export class QuoteRouteDataModel implements QuoteRouteDataInterface {

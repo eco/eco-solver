@@ -3,7 +3,7 @@ import { EcoConfigService } from '../eco-configs/eco-config.service'
 
 import { Connection, PublicKey } from '@solana/web3.js';
 import { EcoError } from '../common/errors/eco-error'
-import { Address, VmType } from '@eco-foundation/routes-ts'
+import { Address, VmType } from '@/eco-configs/eco-config.types'
 
 export interface SvmChainConfig {
   connection: Connection

@@ -13,7 +13,7 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID 
 } from '@solana/spl-token'
-import { Address, SerializableAddress, VmType } from '@eco-foundation/routes-ts'
+import { Address, SerializableAddress, VmType } from '@/eco-configs/eco-config.types'
 
 @Injectable()
 export class SvmBalanceService implements BalanceProvider {
@@ -32,7 +32,7 @@ export class SvmBalanceService implements BalanceProvider {
   async fetchTokenBalances(
     chainID: number,
     tokenAddresses: Address<VmType.SVM>[],
-  ): Promise<Record<SerializableAddress<VmType.SVM>, TokenBalance>> {
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     // TODO: Get actual wallet address from SVM client
     const walletAddress = this.getSolverWalletAddress(chainID)
     return this.fetchWalletTokenBalances(chainID, walletAddress, tokenAddresses)
@@ -49,7 +49,7 @@ export class SvmBalanceService implements BalanceProvider {
     chainID: number,
     walletAddress: Address<VmType.SVM>,
     tokenAddresses: Address<VmType.SVM>[],
-  ): Promise<Record<SerializableAddress<VmType.SVM>, TokenBalance>> {
+  ): Promise<Record<SerializableAddress, TokenBalance>> {
     const connection = await this.svmMultichainClientService.getConnection(chainID)
 
     this.logger.debug(
@@ -63,7 +63,7 @@ export class SvmBalanceService implements BalanceProvider {
       }),
     )
 
-    const tokenBalances: Record<SerializableAddress<VmType.SVM>, TokenBalance> = {}
+    const tokenBalances: Record<SerializableAddress, TokenBalance> = {}
 
     for (const tokenAddress of tokenAddresses) {
       try {
