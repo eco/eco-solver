@@ -219,9 +219,9 @@ export class QuoteV2TransformService {
     const inbox = quoteIntent.route.inbox
 
     return {
-      intentSource,
+      sourcePortal: intentSource,
       prover,
-      inbox,
+      destinationPortal: inbox,
     }
   }
 }
