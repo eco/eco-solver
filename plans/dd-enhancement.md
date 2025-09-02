@@ -31,20 +31,22 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### Key Requirements for Analytics Dashboards
 1. **JSON Format**: All logs must be in JSON format with consistent structure
 2. **Reserved Attributes**: Use Datadog's reserved attributes for proper parsing
-3. **High-Cardinality Data**: Enable analysis by customer ID, request ID, etc.
+3. **High-Cardinality Data**: Enable analysis by quote ID, request ID, etc.
 4. **Consistent Field Names**: Standardized naming for filtering and grouping
 5. **Proper Data Types**: Ensure numbers, timestamps, and booleans are typed correctly
 6. **Index Strategy**: Structure data to support efficient querying and visualization
 
 ### Datadog Reserved Attributes
+- `message`: Log body content (indexed for full-text search)
+- `host`: Hostname (automatically set by Agent)
+- `service`: Service name (critical for APM correlation)
+- `status`: Log level (DEBUG, INFO, WARN, ERROR)
+- `ddsource`: Log source identification
+- `ddtags`: Tags for log organization
+- `trace_id`: Trace ID for APM correlation
 - `@timestamp`: ISO 8601 timestamp
-- `level`: Log level (DEBUG, INFO, WARN, ERROR)
-- `logger.name`: Logger name/service identifier
-- `service`: Service name
 - `env`: Environment (prod, staging, dev)
 - `version`: Application version
-- `dd.trace_id`: Trace ID for APM correlation
-- `dd.span_id`: Span ID for APM correlation
 
 ## Enhancement Proposal
 
@@ -54,14 +56,16 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ```json
 {
   "@timestamp": "2025-01-15T10:30:00.000Z",
-  "level": "INFO",
   "message": "Human-readable log message",
   "service": "eco-solver",
+  "status": "info",
+  "ddsource": "nodejs",
+  "ddtags": "env:production,service:eco-solver",
+  "host": "eco-solver-pod-123",
   "env": "production",
   "version": "1.5",
   "logger.name": "InboxProcessor",
-  "dd.trace_id": "trace-id",
-  "dd.span_id": "span-id"
+  "trace_id": "trace-id-123"
 }
 ```
 
@@ -71,16 +75,23 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ```json
 {
   "eco": {
-    "intent_id": "string", 
+    "intent_hash": "string",
     "quote_id": "string",
-    "transaction_hash": "string",
-    "chain_id": "number",
-    "request_id": "string",
     "rebalance_id": "string",
+    "transaction_hash": "string",
+    "request_id": "string",
     "wallet_address": "string",
-    "strategy": "string",
+    "creator": "string",
+    "prover": "string",
+    "funder": "string",
+    "inbox": "string",
+    "d_app_id": "string",
+    "group_id": "string",
     "source_chain_id": "number",
-    "destination_chain_id": "number"
+    "destination_chain_id": "number",
+    "strategy": "string",
+    "intent_execution_type": "string",
+    "rejection_reason": "string"
   }
 }
 ```
@@ -104,16 +115,19 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ```json
 {
   "metrics": {
-    "amount_in": "string", // BigNumber as string
+    "amount_in": "string",
     "amount_out": "string",
-    "token_in": "string",
-    "token_out": "string", 
-    "chain_in": "number",
-    "chain_out": "number",
+    "native_value": "string",
+    "swap_amount": "number",
+    "slippage": "number",
+    "deadline": "number",
+    "current_balance": "number",
+    "target_balance": "number",
+    "token_in_address": "string",
+    "token_out_address": "string",
     "fee_amount": "string",
     "gas_used": "number",
     "gas_price": "string",
-    "slippage_tolerance": "number",
     "execution_price": "string"
   }
 }
@@ -125,13 +139,19 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ```json
 {
   "error": {
-    "type": "string",
+    "kind": "string",
     "message": "string",
     "stack": "string", 
     "code": "string|number",
     "recoverable": "boolean",
     "upstream_service": "string",
     "retry_after": "number"
+  },
+  "status": "error",
+  "logger": {
+    "name": "service.class",
+    "method_name": "methodName",
+    "thread_name": "main"
   }
 }
 ```
@@ -156,10 +176,12 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### Phase 1: Enhanced EcoLogMessage Class
 
 1. **Add Datadog Integration**
-   - Automatic timestamp injection (@timestamp)
-   - Environment and service detection
-   - APM trace correlation
-   - Logger name extraction
+   - Automatic reserved attributes injection (message, service, status, host)
+   - Environment and source detection (env, ddsource)
+   - APM trace correlation (trace_id)
+   - Tag management (ddtags)
+   - JSON size validation (256 attributes, 25KB limit)
+   - Multi-line log detection support
 
 2. **Enhanced EcoLogMessage Factory Methods**
    ```typescript
@@ -206,11 +228,24 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    ```typescript
    interface IntentOperationLogParams {
      message: string
-     intentId: string
-     operationType: 'creation' | 'fulfillment' | 'validation'
+     intentHash: string
+     quoteId?: string
+     creator?: string
+     prover?: string
+     funder?: string
+     inbox?: string
+     dAppId?: string
+     sourceChainId?: number
+     destinationChainId?: number
+     tokenInAddress?: string
+     tokenOutAddress?: string
+     amountIn?: string
+     amountOut?: string
+     nativeValue?: string
+     deadline?: number
+     intentExecutionType?: 'gasless' | 'standard'
+     operationType: 'creation' | 'fulfillment' | 'validation' | 'funding'
      status: 'started' | 'completed' | 'failed'
-     chainId?: number
-     metrics?: IntentMetrics
      properties?: object
    }
    
@@ -218,11 +253,18 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
      message: string
      rebalanceId: string
      walletAddress: string
-     strategy: string
+     strategy: 'LiFi' | 'Stargate' | 'CCTP' | 'CCTP_V2' | 'Gateway' | 'Everclear' | 'Hyperlane' | 'Relay' | 'Squid'
      sourceChainId?: number
      destinationChainId?: number
-     operationType: 'rebalancing' | 'liquidity_provision' | 'withdrawal'
-     status: 'started' | 'completed' | 'failed'
+     tokenInAddress?: string
+     tokenOutAddress?: string
+     amountIn?: string
+     amountOut?: string
+     slippage?: number
+     groupId?: string
+     operationType: 'rebalancing' | 'liquidity_provision' | 'withdrawal' | 'quote_rejection'
+     status: 'pending' | 'completed' | 'failed' | 'rejected'
+     rejectionReason?: 'HIGH_SLIPPAGE' | 'PROVIDER_ERROR' | 'INSUFFICIENT_LIQUIDITY' | 'TIMEOUT'
      properties?: object
    }
    
@@ -249,22 +291,33 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    interface LiquidityManagerLogContext {
      rebalanceId: string
      walletAddress: string
-     strategy: string
+     strategy: 'LiFi' | 'Stargate' | 'CCTP' | 'CCTP_V2' | 'Gateway' | 'Everclear' | 'Hyperlane' | 'Relay' | 'Squid'
      sourceChainId?: number
      destinationChainId?: number
+     tokenInAddress?: string
+     tokenOutAddress?: string
+     groupId?: string
    }
    
    interface IntentOperationLogContext {
-     intentId: string
-     chainId?: number
-     operationType?: 'creation' | 'fulfillment' | 'validation'
+     intentHash: string
+     quoteId?: string
+     creator?: string
+     dAppId?: string
+     sourceChainId?: number
+     destinationChainId?: number
+     operationType?: 'creation' | 'fulfillment' | 'validation' | 'funding'
    }
    
    interface QuoteGenerationLogContext {
      quoteId: string
-     chainId?: number
-     tokenIn?: string
-     tokenOut?: string
+     intentHash?: string
+     dAppId?: string
+     sourceChainId?: number
+     destinationChainId?: number
+     tokenInAddress?: string
+     tokenOutAddress?: string
+     intentExecutionType?: 'gasless' | 'standard'
    }
    
    interface HealthOperationLogContext {
@@ -300,7 +353,12 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
    - Performance metrics schema
    - Financial transaction schema
 
-2. **Field Validation**
+2. **Field Validation & Size Limits**
+   - **Max 256 attributes per log event**
+   - **Max 50 characters per attribute key**
+   - **Max 20 nested levels**
+   - **Max 1024 characters per attribute value (for faceted fields)**
+   - **Max log size: 25KB (recommended)**
    - Type checking for critical fields
    - Required field validation
    - Data format validation (addresses, amounts, etc.)
@@ -308,14 +366,18 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 ### Phase 4: Dashboard Optimization
 
 1. **Index Strategy**
-   - High-cardinality fields: intent_id, quote_id, request_id, rebalance_id, wallet_address
-   - Medium-cardinality: operation_type, status, chain_id, strategy
-   - Low-cardinality: service, env, level
+   - **Faceted Attributes** (high-cardinality): intent_hash, quote_id, rebalance_id, wallet_address, creator, prover, funder, group_id, request_id
+   - **Standard Filters** (medium-cardinality): strategy, intent_execution_type, rejection_reason, operation_type, status, source_chain_id, destination_chain_id, token_in_address, token_out_address, d_app_id
+   - **Reserved Attributes** (low-cardinality): service, env, ddsource, host
+   - **Size Consideration**: Faceted fields limited to 1024 characters
 
-2. **Facet Creation**
-   - Business metrics facets
-   - Performance KPI facets
-   - Error categorization facets
+2. **Facet Creation & Processing Pipeline**
+   - **Business metrics facets** (amounts, fees, execution times)
+   - **Performance KPI facets** (response times, queue depths)
+   - **Error categorization facets** (error.kind, error.code)
+   - **Custom Processors**: Date remappers, status remappers
+   - **Grok Parsers**: For complex log format parsing
+   - **Lookup Processors**: For enrichment with external data
 
 3. **Pre-built Query Patterns**
    - Intent success rates by chain
@@ -343,21 +405,24 @@ The current `EcoLogMessage` class (`src/common/logging/eco-log-message.ts`) prov
 
 ### For Analytics Teams
 - **Standardized Queries**: Consistent field names enable reusable query patterns
-- **High-Cardinality Analysis**: Track individual request flows and intent lifecycles  
-- **Real-time Insights**: Live dashboards with business KPIs
-- **Correlation Analysis**: Link service operations to system performance
+- **High-Cardinality Analysis**: Track individual request flows and intent lifecycles using faceted attributes
+- **Real-time Insights**: Live dashboards with business KPIs leveraging Datadog Log Explorer
+- **Correlation Analysis**: APM correlation through trace_id linking logs to distributed traces
+- **Advanced Processing**: Custom processors for log enrichment and parsing
 
-### For Engineering Teams
-- **Debugging**: Rich context for error investigation
-- **Performance Monitoring**: Detailed performance metrics per operation
-- **Service Health**: Real-time service status and dependency tracking
-- **Release Impact**: Version-based performance comparison
+### for Engineering Teams
+- **Debugging**: Rich context for error investigation with structured error.kind and error.stack
+- **Performance Monitoring**: Detailed performance metrics per operation within size limits
+- **Service Health**: Real-time service status and dependency tracking via reserved attributes
+- **Release Impact**: Version-based performance comparison using version field
+- **Multi-line Support**: Automatic detection of complex log structures
 
 ### For Business Teams
-- **Service Analytics**: Request patterns and conversion funnels
-- **Revenue Metrics**: Transaction volumes, fees, and profitability
-- **Market Intelligence**: Cross-chain activity patterns
-- **Operational Efficiency**: Process optimization opportunities
+- **Service Analytics**: Request patterns and conversion funnels through faceted search
+- **Revenue Metrics**: Transaction volumes, fees, and profitability (respecting 1024 char limit)
+- **Market Intelligence**: Cross-chain activity patterns via indexed business context
+- **Operational Efficiency**: Process optimization through pipeline processors and analytics
+- **Data Protection**: Sensitive Data Scanner for compliance and security
 
 ## Migration Strategy
 
