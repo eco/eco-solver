@@ -19,27 +19,33 @@ import { RebalanceQuoteRejectionModel } from './schemas/rebalance-quote-rejectio
 
 // Mock external modules
 jest.mock('@/balance/balance.module', () => ({
-  BalanceModule: {},
+  BalanceModule: class MockBalanceModule {},
 }))
 
 jest.mock('@/intent/intent.module', () => ({
-  IntentModule: {},
+  IntentModule: class MockIntentModule {},
 }))
 
 jest.mock('@/transaction/transaction.module', () => ({
-  TransactionModule: {},
+  TransactionModule: class MockTransactionModule {},
 }))
 
 jest.mock('@/liquidity-manager/queues/liquidity-manager.queue', () => ({
   LiquidityManagerQueue: {
-    init: () => ({ module: 'MockQueueModule' }),
-    initFlow: () => ({ module: 'MockFlowModule' }),
+    init: () => class MockLiquidityManagerQueueModule {},
+    initFlow: () => class MockFlowModule {},
+  },
+}))
+
+jest.mock('@/liquidity-manager/queues/check-balances.queue', () => ({
+  CheckBalancesQueue: {
+    init: () => class MockCheckBalancesQueueModule {},
   },
 }))
 
 jest.mock('@nestjs/cache-manager', () => ({
   CacheModule: {
-    register: () => ({ module: 'MockCacheModule' }),
+    register: () => class MockCacheModule {},
   },
 }))
 
