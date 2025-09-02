@@ -1,7 +1,12 @@
 import { Address, VmType } from "@/eco-configs/eco-config.types"
 import { RewardStruct, RouteStruct } from "@/intent/abi"
-import { BN } from "@coral-xyz/anchor"
+import { BN, BorshCoder, Idl } from "@coral-xyz/anchor"
+import { Buffer } from "buffer"
 import { decodeAbiParameters, encodeAbiParameters, encodePacked, Hex, keccak256 } from "viem"
+import { PublicKey } from "@solana/web3.js"
+
+import * as portalIdl from '../solana/program/portal.json';
+const svmCoder = new BorshCoder(portalIdl as Idl);
 
 export type RouteType<TVM extends VmType = VmType> = {
     vm: TVM

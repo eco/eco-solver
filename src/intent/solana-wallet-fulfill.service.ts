@@ -7,6 +7,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction
 } from '@solana/spl-token'
+import { Buffer } from 'buffer'
 import { Program, AnchorProvider, Wallet, BN, web3 } from '@coral-xyz/anchor'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -21,7 +22,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { CallDataInterface } from '@/contracts'
-import { hashIntent, getVaultPda, encodeRoute } from '@/intent/check-funded-solana'
+import { hashIntent, encodeRoute } from '@/utils/encodeAndHash'
 
 import * as portalIdl from '../solana/program/portal.json'
 import * as hyperProverIdl from '../solana/program/hyper_prover.json'
@@ -308,11 +309,30 @@ export class SolanaWalletFulfillService implements IFulfillService {
     const claimantBytes = keypair.publicKey.toBytes()
     const claimantBytes32 = new Uint8Array(32)
     claimantBytes32.set(claimantBytes)
+
+    console.log("MADDEN: encodeRoute", encodeRoute(model.intent.route))
     
     // Prepare fulfill arguments matching the Rust struct
+    const encodedRoute = encodeRoute(model.intent.route)
+    const routeBytes = Buffer.from(encodedRoute.slice(2), 'hex') // Convert hex to bytes
+    
+    // Try using the route struct directly instead of encoded bytes
     const fulfillArgs = {
       intentHash: { 0: Array.from(intentHashBytes) }, // Bytes32 format
-      route: encodeRoute(model.intent.route),
+      route: {
+        salt: { 0: Array.from(Buffer.from(model.intent.route.salt.slice(2), 'hex')) },
+        deadline: new BN(model.intent.route.deadline.toString()),
+        portal: { 0: Array.from(new web3.PublicKey(model.intent.route.portal).toBytes()) },
+        tokens: model.intent.route.tokens.map(({ token, amount }) => ({
+          token: new web3.PublicKey(token),
+          amount: new BN(amount.toString())
+        })),
+        calls: model.intent.route.calls.map(({ target, data, value }) => ({
+          target: { 0: Array.from(new web3.PublicKey(target).toBytes()) },
+          data: Buffer.from(data.slice(2), 'hex'),
+          value: new BN(value.toString())
+        }))
+      },
       rewardHash: { 0: Array.from(rewardHashBytes) }, // Bytes32 format
       claimant: { 0: Array.from(claimantBytes32) }, // Bytes32 format
     }
@@ -340,6 +360,13 @@ export class SolanaWalletFulfillService implements IFulfillService {
       .remainingAccounts(remainingAccounts)
       .instruction()
     
+    console.log("MADDEN: fulfillInstruction original data", instruction.data.toString('hex'))
+    console.log("MADDEN: routeBytes to insert", routeBytes.toString('hex'))
+    console.log("MADDEN: intentHashBytes", intentHashBytes.toString('hex'))
+    console.log("MADDEN: rewardHashBytes", rewardHashBytes.toString('hex'))
+    
+    console.log("MADDEN: fulfillInstruction with route struct", instruction.data.toString('hex'))
+    
     return instruction
   }
   
@@ -352,6 +379,8 @@ export class SolanaWalletFulfillService implements IFulfillService {
     keypair: web3.Keypair,
     route: any
   ): Promise<web3.AccountMeta[]> {
+    console.log("MADDEN: getTokenTransferAccounts - route.tokens:", route.tokens)
+    console.log("MADDEN: getTokenTransferAccounts - route.calls:", route.calls)
     const accounts: web3.AccountMeta[] = []
     
     // Add accounts for each token transfer
@@ -378,26 +407,91 @@ export class SolanaWalletFulfillService implements IFulfillService {
         true // Allow PDA owner
       )
       
-      // Add accounts in the order expected by the contract
+      // Add accounts in the order expected by the Rust TokenTransferAccounts struct:
+      // [from, to, mint] - exactly 3 accounts per token
       accounts.push(
-        { pubkey: tokenMint, isSigner: false, isWritable: false },
-        { pubkey: sourceTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: destTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: keypair.publicKey, isSigner: false, isWritable: false },
-        { pubkey: executorPda, isSigner: false, isWritable: false }
+        { pubkey: sourceTokenAccount, isSigner: false, isWritable: true }, // from
+        { pubkey: destTokenAccount, isSigner: false, isWritable: true },   // to  
+        { pubkey: tokenMint, isSigner: false, isWritable: false }          // mint
       )
     }
     
-    // Add accounts for calls if any
+    console.log("MADDEN: getTokenTransferAccounts - token accounts:", accounts.length)
+    console.log("MADDEN: getTokenTransferAccounts - expected for tokens:", route.tokens.length, "* 3 (VEC_TOKEN_TRANSFER_ACCOUNTS_CHUNK_SIZE)")
+    
+    // Add accounts for calls - these should be separate from token accounts
+    const callAccounts: web3.AccountMeta[] = []
+    
+    // Get executor PDA for call accounts
+    const EXECUTOR_SEED = Buffer.from("executor")
+    const [executorPda] = web3.PublicKey.findProgramAddressSync(
+      [EXECUTOR_SEED],
+      new web3.PublicKey(portalIdl.address)
+    )
+    
     for (const call of route.calls || []) {
-      // Parse the calldata to get account requirements
-      // This would need to match CalldataWithAccounts from Rust
-      // For now, just add the target program
-      const targetProgram = new web3.PublicKey(call.target)
-      accounts.push({ pubkey: targetProgram, isSigner: false, isWritable: false })
+      console.log("MADDEN: Processing call:", call)
+      console.log("MADDEN: Call target:", call.target)
+      console.log("MADDEN: Call data:", call.data)
+      
+      // Try to decode the call data to understand its format
+      const callDataBytes = Buffer.from(call.data.slice(2), 'hex')
+      console.log("MADDEN: Call data bytes:", callDataBytes)
+      console.log("MADDEN: Call data length:", callDataBytes.length)
+      console.log("MADDEN: First byte (should be account_count):", callDataBytes[0])
+      console.log("MADDEN: Remaining bytes (instruction data):", callDataBytes.slice(1))
+      
+      //for token transfer calls we need 4 accounts:
+      // 1. executor_ata (source) - writable
+      // 2. token mint - read-only  
+      // 3. recipient_ata (destination) - writable
+      // 4. executor PDA (authority) - read-only
+      
+      // Add all the call accounts as per the integration test pattern
+      // The memory issue might be from missing required accounts, not too many accounts
+      
+      // For each token in the route, we need to provide call accounts
+      for (const token of route.tokens || []) {
+        const tokenMint = new web3.PublicKey(token.token)
+        
+        // Executor's associated token account (source)
+        const executorAta = await getAssociatedTokenAddress(
+          tokenMint,
+          executorPda,
+          true // Allow PDA owner
+        )
+        
+        // Recipient's associated token account (destination)
+        // For now, using the solver's address as recipient - this should be parsed from call data
+        const recipientPubkey = keypair.publicKey 
+        const recipientAta = await getAssociatedTokenAddress(
+          tokenMint,
+          recipientPubkey
+        )
+        
+        // Add the 4 accounts needed for the call (matching integration test)
+        callAccounts.push(
+          { pubkey: executorAta, isSigner: false, isWritable: true },      // executor_ata (source)
+          { pubkey: tokenMint, isSigner: false, isWritable: false },       // token mint
+          { pubkey: recipientAta, isSigner: false, isWritable: true },     // recipient_ata (destination)
+          { pubkey: executorPda, isSigner: false, isWritable: false }      // executor authority
+        )
+        
+        console.log("MADDEN: Added call accounts for token:", tokenMint.toString())
+        console.log("  - executorAta:", executorAta.toString())
+        console.log("  - tokenMint:", tokenMint.toString())
+        console.log("  - recipientAta:", recipientAta.toString())
+        console.log("  - executorPda:", executorPda.toString())
+      }
     }
     
-    return accounts
+    console.log("MADDEN: getTokenTransferAccounts - call accounts:", callAccounts.length)
+    console.log("MADDEN: getTokenTransferAccounts - total accounts:", accounts.length + callAccounts.length)
+    console.log("MADDEN: getTokenTransferAccounts - token accounts:", accounts.map(acc => acc.pubkey.toString()))
+    console.log("MADDEN: getTokenTransferAccounts - call accounts:", callAccounts.map(acc => acc.pubkey.toString()))
+    
+    // Return token accounts + call accounts in the correct order
+    return [...accounts, ...callAccounts]
   }
 
   /**

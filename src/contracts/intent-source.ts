@@ -4,7 +4,7 @@ import { Network } from '@/common/alchemy/network'
 import { IIntentSourceAbi } from '@/utils/IIntentSource'
 import { CallDataType, RewardTokensType } from '@/quote/dto/types'
 import { RouteStruct } from '@/intent/abi'
-import { decodeRoute } from '@/intent/check-funded-solana'
+import { decodeRoute } from '@/utils/encodeAndHash'
 import { VmType } from '@/eco-configs/eco-config.types'
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields

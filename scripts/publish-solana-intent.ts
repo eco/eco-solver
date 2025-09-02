@@ -16,7 +16,8 @@ import { RouteType, IntentType, RewardType } from '@/utils/encodeAndHash'
 import config from '../config/solana'
 import { getChainConfig } from '@/eco-configs/utils'
 import { RewardStruct, RouteStruct } from '@/intent/abi'
-import { hashIntent, getVaultPda, hashIntentSvm } from '@/intent/check-funded-solana'
+import { getVaultPda } from '@/intent/check-funded-solana'
+import { hashIntentSvm } from '@/utils/encodeAndHash'
 
 // Load environment variables from .env file
 dotenv.config()
