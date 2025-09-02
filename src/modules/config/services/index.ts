@@ -10,3 +10,4 @@ export * from './queue-config.service';
 export * from './redis-config.service';
 export * from './solana-config.service';
 export * from './tvm-config.service';
+export * from './withdrawal-config.service';

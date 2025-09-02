@@ -72,6 +72,7 @@ describe('IntentFulfilledHandler', () => {
         IntentStatus.FULFILLED,
         {
           lastProcessedAt: expect.any(Date),
+          fulfilledTxHash: mockEvent.transactionHash,
         },
       );
 

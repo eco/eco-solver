@@ -53,6 +53,7 @@ export namespace RawEventLogs {
     event_name: string;
     transaction_id: string;
     block_number?: string;
+    block_timestamp?: number;
     result: Record<string, any>;
   }
 
@@ -122,10 +123,6 @@ export const EventTypeGuards = {
   },
 
   isSvmLogs(logs: any): logs is RawEventLogs.SvmLogs {
-    return (
-      logs &&
-      typeof logs.signature === 'string' &&
-      Array.isArray(logs.logs)
-    );
+    return logs && typeof logs.signature === 'string' && Array.isArray(logs.logs);
   },
 };

@@ -9,6 +9,7 @@ import {
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -16,6 +17,7 @@ import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
+import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { TvmTransactionError } from '../errors';
 import { TronAddress } from '../types/address.types';
@@ -294,5 +296,121 @@ export class TvmExecutorService extends BaseChainExecutor {
       return Number(chainId);
     }
     return chainId;
+  }
+
+  /**
+   * Executes a batch withdrawal of proven intents on TVM
+   * @param chainId - The chain ID where to execute withdrawal
+   * @param withdrawalData - The batch withdrawal data
+   * @param walletId - Optional wallet type to use
+   * @returns Transaction hash
+   */
+  async executeBatchWithdraw(
+    chainId: bigint,
+    withdrawalData: BatchWithdrawData,
+    walletId?: string,
+  ): Promise<string> {
+    return TvmTracingUtils.withSpan(
+      this.otelService,
+      'tvm.executor.batchWithdraw',
+      {
+        chainId: chainId.toString(),
+        wallet_type: walletId || 'basic',
+        intent_count: withdrawalData.destinations.length,
+        operation: 'batchWithdraw',
+      },
+      async (span) => {
+        try {
+          const chainIdNum = this.getChainId(chainId);
+
+          // Get the wallet for this chain
+          const walletType = (walletId as TvmWalletType) || 'basic';
+          const wallet = this.walletManager.createWallet(chainIdNum, walletType);
+          const walletAddress = await wallet.getAddress();
+
+          span.setAttribute('tvm.wallet_address', walletAddress);
+
+          // Get Portal address for the source chain from config
+          const portalAddressUA = this.tvmConfigService.getPortalAddress(chainIdNum);
+          if (!portalAddressUA) {
+            throw new Error(`No Portal address configured for chain ${chainId}`);
+          }
+          const portalAddress = AddressNormalizer.denormalizeToTvm(portalAddressUA);
+
+          span.setAttribute('portal.address', portalAddress);
+
+          // Create TronWeb client
+          const client = this.createTronWebClient(chainIdNum);
+
+          // Convert UniversalAddresses to Tron addresses and prepare the data
+          const destinations = withdrawalData.destinations;
+          const routeHashes = withdrawalData.routeHashes;
+
+          // Get the Portal contract instance
+          const contract = client.contract(PortalAbi, portalAddress);
+
+          // Format rewards as tuples for the contract: [deadline, creator, prover, nativeAmount, tokens[]]
+          const rewards: Parameters<typeof contract.methods.batchWithdraw>[2] =
+            withdrawalData.rewards.map((r) => {
+              return [
+                r.deadline,
+                AddressNormalizer.denormalizeToTvm(r.creator as UniversalAddress),
+                AddressNormalizer.denormalizeToTvm(r.prover as UniversalAddress),
+                r.nativeAmount,
+                r.tokens.map(
+                  (t) =>
+                    [
+                      AddressNormalizer.denormalizeToTvm(t.token as UniversalAddress),
+                      t.amount,
+                    ] as const,
+                ),
+              ] as const;
+            });
+
+          this.logger.log(
+            `Executing batchWithdraw on TVM chain ${chainId} for ${withdrawalData.destinations.length} intents`,
+          );
+
+          // Execute the batchWithdraw function
+          const result = await contract.methods
+            .batchWithdraw(destinations, routeHashes, rewards)
+            .send({
+              from: walletAddress,
+              // Add a fee limit if needed
+              feeLimit: 1_000_000_000, // 1000 TRX
+            });
+
+          if (!result || typeof result !== 'string') {
+            throw new TvmTransactionError('Failed to get transaction ID from batchWithdraw');
+          }
+
+          const txHash = result;
+
+          // Wait for transaction confirmation
+          const confirmed = await this.waitForTransaction(txHash, chainIdNum);
+          if (!confirmed) {
+            throw new TvmTransactionError(`Transaction ${txHash} failed or timed out`);
+          }
+
+          span.setAttributes({
+            'tvm.tx_hash': txHash,
+            'tvm.status': 'success',
+          });
+
+          this.logger.log(
+            `Successfully executed batchWithdraw on TVM chain ${chainId}. TxHash: ${txHash}`,
+          );
+
+          return txHash;
+        } catch (error) {
+          span.recordException(error as Error);
+          this.logger.error(
+            `Failed to execute batchWithdraw on TVM chain ${chainId}: ${(error as Error).message}`,
+            error,
+          );
+          throw error;
+        }
+      },
+    );
   }
 }

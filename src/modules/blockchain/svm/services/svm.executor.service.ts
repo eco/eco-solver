@@ -207,4 +207,19 @@ export class SvmExecutorService extends BaseChainExecutor {
       params.route,
     ]);
   }
+
+  /**
+   * Execute batch withdrawal on Solana
+   * NOTE: This is a placeholder implementation as Solana batch withdrawals
+   * may require different approach than EVM
+   */
+  async executeBatchWithdraw(
+    chainId: bigint,
+    withdrawalData: any,
+    walletId?: string,
+  ): Promise<string> {
+    this.logger.warn('Batch withdrawal not yet implemented for Solana');
+    // TODO: Implement Solana batch withdrawal when Portal contract supports it
+    throw new Error('Batch withdrawal not yet implemented for Solana');
+  }
 }

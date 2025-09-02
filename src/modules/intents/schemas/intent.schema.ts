@@ -111,6 +111,60 @@ export class Intent {
 
   @Prop({ type: Date })
   lastProcessedAt?: Date;
+
+  @Prop({ type: String, index: true })
+  publishTxHash?: string;
+
+  @Prop({
+    type: {
+      claimant: { type: String, required: true },
+      txHash: { type: String, required: true, index: true },
+      blockNumber: { type: String, required: true }, // Store bigint as string
+      timestamp: { type: Date, required: true },
+      chainId: { type: String, required: true }, // Store bigint as string
+    },
+  })
+  fulfilledEvent?: {
+    claimant: string;
+    txHash: string;
+    blockNumber: string;
+    timestamp: Date;
+    chainId: string;
+  };
+
+  @Prop({
+    type: {
+      claimant: { type: String, required: true },
+      txHash: { type: String, required: true, index: true },
+      blockNumber: { type: String, required: true }, // Store bigint as string
+      timestamp: { type: Date, required: true },
+      chainId: { type: String, required: true }, // Store bigint as string
+    },
+  })
+  provenEvent?: {
+    claimant: string;
+    txHash: string;
+    blockNumber: string;
+    timestamp: Date;
+    chainId: string;
+  };
+
+  @Prop({
+    type: {
+      claimant: { type: String, required: true },
+      txHash: { type: String, required: true, index: true },
+      blockNumber: { type: String, required: true }, // Store bigint as string
+      timestamp: { type: Date, required: true },
+      chainId: { type: String, required: true }, // Store bigint as string
+    },
+  })
+  withdrawnEvent?: {
+    claimant: string;
+    txHash: string;
+    blockNumber: string;
+    timestamp: Date;
+    chainId: string;
+  };
 }
 
 export const IntentSchema = SchemaFactory.createForClass(Intent);
@@ -118,3 +172,6 @@ export const IntentSchema = SchemaFactory.createForClass(Intent);
 IntentSchema.index({ 'route.source': 1, status: 1 });
 IntentSchema.index({ 'route.destination': 1, status: 1 });
 IntentSchema.index({ 'reward.creator': 1, status: 1 });
+// Index for finding proven but not withdrawn intents
+IntentSchema.index({ 'provenEvent.chainId': 1, withdrawnEvent: 1 });
+IntentSchema.index({ 'provenEvent.timestamp': 1 });

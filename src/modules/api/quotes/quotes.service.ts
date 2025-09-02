@@ -70,21 +70,22 @@ export class QuotesService {
     const destinationChainId = Number(intent.destination);
 
     // Get contract addresses
-    const portalAddress = this.blockchainConfigService.getPortalAddress(
-      destinationChainId,
-    ) as Address;
+    const portalAddress = this.blockchainConfigService.getPortalAddress(destinationChainId);
 
     // Get prover address - first try to get from the chain config, fallback to generic prover if needed
     let proverAddress: Address | undefined;
     try {
+      // TODO: This is not correct, prover on destination depends on the intent prover
       // Try to get prover address for the destination chain
-      proverAddress =
-        (this.blockchainConfigService.getProverAddress(destinationChainId, 'hyper') as Address) ||
-        (this.blockchainConfigService.getProverAddress(destinationChainId, 'metalayer') as Address);
+      const proverAddressUA =
+        this.blockchainConfigService.getProverAddress(destinationChainId, 'hyper') ||
+        this.blockchainConfigService.getProverAddress(destinationChainId, 'metalayer');
+
+      proverAddress = AddressNormalizer.denormalizeToEvm(proverAddressUA);
     } catch (error) {
       // If no prover found, denormalize the prover address from reward
       const destChainType = ChainTypeDetector.detect(destinationChainId);
-      proverAddress = AddressNormalizer.denormalize(intent.reward.prover, destChainType) as Address;
+      proverAddress = AddressNormalizer.denormalize(intent.reward.prover, destChainType);
     }
 
     // TODO: Complete implementation

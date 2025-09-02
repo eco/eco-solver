@@ -1,5 +1,6 @@
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
@@ -18,7 +19,38 @@ export interface EventMap {
   /**
    * Emitted when an intent is successfully fulfilled on the destination chain
    */
-  'intent.fulfilled': IntentFulfilledEvent;
+  'intent.fulfilled': {
+    intentHash: string;
+    claimant: UniversalAddress;
+    txHash: string;
+    blockNumber: bigint;
+    timestamp: Date;
+    chainId: bigint;
+  };
+
+  /**
+   * Emitted when an intent is proven on the source chain
+   */
+  'intent.proven': {
+    intentHash: string;
+    claimant: UniversalAddress;
+    txHash: string;
+    blockNumber: bigint;
+    timestamp: Date;
+    chainId: bigint;
+  };
+
+  /**
+   * Emitted when an intent is withdrawn on the source chain
+   */
+  'intent.withdrawn': {
+    intentHash: string;
+    claimant: UniversalAddress;
+    txHash: string;
+    blockNumber: bigint;
+    timestamp: Date;
+    chainId: bigint;
+  };
 }
 
 /**
@@ -35,6 +67,11 @@ export type EventPayload<T extends EventName> = EventMap[T];
  * Type guard to check if a string is a valid event name
  */
 export function isValidEventName(event: string): event is EventName {
-  const validEvents: EventName[] = ['intent.discovered', 'intent.fulfilled'];
+  const validEvents: EventName[] = [
+    'intent.discovered',
+    'intent.fulfilled',
+    'intent.proven',
+    'intent.withdrawn',
+  ];
   return validEvents.includes(event as EventName);
 }

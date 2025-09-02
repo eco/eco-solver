@@ -12,6 +12,7 @@ import {
   RedisSchema,
   SolanaSchema,
   TvmSchema,
+  WithdrawalSchema,
 } from '@/config/schemas';
 
 // Re-export individual schemas for use in config services
@@ -27,6 +28,7 @@ export {
   RedisSchema,
   SolanaSchema,
   TvmSchema,
+  WithdrawalSchema,
 } from '@/config/schemas';
 
 /**
@@ -45,6 +47,7 @@ export const ConfigSchema = z
     fulfillment: FulfillmentSchema,
     datadog: DataDogSchema,
     opentelemetry: OpenTelemetrySchema,
+    withdrawal: WithdrawalSchema,
   })
   .extend(BaseSchema.shape);
 

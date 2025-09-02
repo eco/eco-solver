@@ -18,7 +18,7 @@ export function parseTvmIntentFulfilled(
   event: RawEventLogs.TvmEvent,
 ): IntentFulfilledEvent {
   const result = event.result;
-  
+
   return {
     intentHash: (result.intentHash || result.hash) as Hex,
     claimant: result.claimant as Hex,
@@ -37,7 +37,7 @@ export function parseTvmIntentPublished(
   event: RawEventLogs.TvmEvent,
 ): Partial<PortalEventArgs.IntentPublished> & { intentHash: Hex } {
   const result = event.result;
-  
+
   return {
     intentHash: result.hash as Hex,
     destination: BigInt(result.destination),

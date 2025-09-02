@@ -57,7 +57,7 @@ export class SolanaListener extends BaseChainListener {
     );
 
     this.logger.log(
-      `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished and IntentFulfilled events.`,
+      `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished, IntentFulfilled, IntentProven, and IntentWithdrawn events.`,
     );
   }
 
@@ -68,7 +68,7 @@ export class SolanaListener extends BaseChainListener {
     this.logger.log('Solana listener stopped');
   }
 
-  protected parseIntentFromEvent(logs: Logs): Intent {
+  protected parseIntentFromEvent(logs: Logs & { signature: string }): Intent {
     // Parse Solana Portal program logs to extract intent data
     const intentData = this.parseIntentFromLogs(logs.logs);
 
@@ -96,6 +96,7 @@ export class SolanaListener extends BaseChainListener {
       },
       sourceChainId: BigInt('999999999'), // Solana chain ID placeholder
       status: IntentStatus.PENDING,
+      publishTxHash: logs.signature,
     };
   }
 
@@ -108,9 +109,15 @@ export class SolanaListener extends BaseChainListener {
       } else if (this.isIntentFulfilledLog(logs)) {
         const fulfilledEvent = this.parseIntentFulfilledFromLogs(logs);
         this.eventsService.emit('intent.fulfilled', fulfilledEvent);
-        this.logger.log(
-          `IntentFulfilled event processed: ${fulfilledEvent.intentHash} on Solana`,
-        );
+        this.logger.log(`IntentFulfilled event processed: ${fulfilledEvent.intentHash} on Solana`);
+      } else if (this.isIntentProvenLog(logs)) {
+        const provenEvent = this.parseIntentProvenFromLogs(logs);
+        this.eventsService.emit('intent.proven', provenEvent);
+        this.logger.log(`IntentProven event processed: ${provenEvent.intentHash} on Solana`);
+      } else if (this.isIntentWithdrawnLog(logs)) {
+        const withdrawnEvent = this.parseIntentWithdrawnFromLogs(logs);
+        this.eventsService.emit('intent.withdrawn', withdrawnEvent);
+        this.logger.log(`IntentWithdrawn event processed: ${withdrawnEvent.intentHash} on Solana`);
       }
     } catch (error) {
       this.logger.error('Error handling Solana program logs:', error);
@@ -129,10 +136,22 @@ export class SolanaListener extends BaseChainListener {
     );
   }
 
-  private parseIntentFulfilledFromLogs(logs: Logs): IntentFulfilledEvent {
+  private isIntentProvenLog(logs: Logs): boolean {
+    return logs.logs.some(
+      (log: string) => log.includes('IntentProven') || log.includes('intent_proven'),
+    );
+  }
+
+  private isIntentWithdrawnLog(logs: Logs): boolean {
+    return logs.logs.some(
+      (log: string) => log.includes('IntentWithdrawn') || log.includes('intent_withdrawn'),
+    );
+  }
+
+  private parseIntentFulfilledFromLogs(logs: Logs): any {
     // Parse logs to extract IntentFulfilled event data
     const eventData: any = {};
-    
+
     logs.logs.forEach((log: string) => {
       if (log.includes('intentHash:')) {
         eventData.intentHash = log.split('intentHash:')[1].trim();
@@ -142,14 +161,68 @@ export class SolanaListener extends BaseChainListener {
       }
     });
 
-    const chainId = this.solanaConfigService.chainId || 'solana-mainnet';
-    
+    const chainId = BigInt(999999999); // Solana chain ID placeholder
+    const claimant = AddressNormalizer.normalize(eventData.claimant || '', ChainType.SVM);
+
     return {
       intentHash: (eventData.intentHash || '') as Hex,
-      claimant: (eventData.claimant || '') as Hex,
-      chainId: typeof chainId === 'string' ? BigInt(0) : BigInt(chainId), // Handle Solana chain ID
-      transactionHash: logs.signature,
-      blockNumber: undefined, // Solana doesn't use block numbers in the same way
+      claimant,
+      txHash: logs.signature,
+      blockNumber: BigInt(0), // Solana doesn't use block numbers in the same way
+      timestamp: new Date(),
+      chainId,
+    };
+  }
+
+  private parseIntentProvenFromLogs(logs: Logs): any {
+    // Parse logs to extract IntentProven event data
+    const eventData: any = {};
+
+    logs.logs.forEach((log: string) => {
+      if (log.includes('intentHash:')) {
+        eventData.intentHash = log.split('intentHash:')[1].trim();
+      }
+      if (log.includes('claimant:')) {
+        eventData.claimant = log.split('claimant:')[1].trim();
+      }
+    });
+
+    const chainId = BigInt(999999999); // Solana chain ID placeholder
+    const claimant = AddressNormalizer.normalize(eventData.claimant || '', ChainType.SVM);
+
+    return {
+      intentHash: (eventData.intentHash || '') as Hex,
+      claimant,
+      txHash: logs.signature,
+      blockNumber: BigInt(0), // Solana doesn't use block numbers in the same way
+      timestamp: new Date(),
+      chainId,
+    };
+  }
+
+  private parseIntentWithdrawnFromLogs(logs: Logs): any {
+    // Parse logs to extract IntentWithdrawn event data
+    const eventData: any = {};
+
+    logs.logs.forEach((log: string) => {
+      if (log.includes('intentHash:')) {
+        eventData.intentHash = log.split('intentHash:')[1].trim();
+      }
+      if (log.includes('claimant:')) {
+        eventData.claimant = log.split('claimant:')[1].trim();
+      }
+    });
+
+    const chainId = BigInt(999999999); // Solana chain ID placeholder
+    const claimant = AddressNormalizer.normalize(eventData.claimant || '', ChainType.SVM);
+
+    return {
+      intentHash: (eventData.intentHash || '') as Hex,
+      claimant,
+      txHash: logs.signature,
+      blockNumber: BigInt(0), // Solana doesn't use block numbers in the same way
+      timestamp: new Date(),
+      chainId,
     };
   }
 

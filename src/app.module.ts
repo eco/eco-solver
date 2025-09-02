@@ -16,6 +16,7 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
+import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
     IntentsModule,
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
+    WithdrawalModule,
     ApiModule,
     HealthModule,
   ],

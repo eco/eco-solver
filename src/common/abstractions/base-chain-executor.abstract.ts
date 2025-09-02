@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
+import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 export interface ExecutionResult {
   success: boolean;
@@ -22,4 +23,10 @@ export abstract class BaseChainExecutor {
   ): Promise<UniversalAddress>;
 
   abstract isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean>;
+
+  abstract executeBatchWithdraw(
+    chainId: bigint,
+    withdrawalData: BatchWithdrawData,
+    walletId?: string,
+  ): Promise<string>;
 }

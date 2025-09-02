@@ -5,6 +5,7 @@ import { PortalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainType } from '@/common/utils/chain-type-detector';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { parseIntentFulfilled, parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
 import { BlockchainConfigService } from '@/modules/config/services';
@@ -15,6 +16,8 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 export class ChainListener extends BaseChainListener {
   private unsubscribeIntentPublished: ReturnType<PublicClient['watchContractEvent']>;
   private unsubscribeIntentFulfilled: ReturnType<PublicClient['watchContractEvent']>;
+  private unsubscribeIntentProven: ReturnType<PublicClient['watchContractEvent']>;
+  private unsubscribeIntentWithdrawn: ReturnType<PublicClient['watchContractEvent']>;
 
   constructor(
     private readonly config: EvmChainConfig,
@@ -63,6 +66,8 @@ export class ChainListener extends BaseChainListener {
 
           try {
             const intent = parseIntentPublish(BigInt(evmConfig.chainId), log);
+            // Add the transaction hash to the intent
+            intent.publishTxHash = log.transactionHash;
 
             span.setAttributes({
               'evm.intent_id': intent.intentHash,
@@ -110,21 +115,133 @@ export class ChainListener extends BaseChainListener {
 
           try {
             const event = parseIntentFulfilled(BigInt(evmConfig.chainId), log);
+            const claimant = AddressNormalizer.normalize(event.claimant, ChainType.EVM);
 
             span.setAttributes({
               'evm.intent_hash': event.intentHash,
-              'evm.claimant': event.claimant,
+              'evm.claimant': claimant,
             });
 
             // Emit the event within the span context to propagate trace context
             api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventsService.emit('intent.fulfilled', event);
+              this.eventsService.emit('intent.fulfilled', {
+                intentHash: event.intentHash,
+                claimant,
+                txHash: log.transactionHash,
+                blockNumber: log.blockNumber,
+                timestamp: new Date(),
+                chainId: BigInt(evmConfig.chainId),
+              });
             });
 
             span.addEvent('intent.fulfilled.emitted');
             span.setStatus({ code: api.SpanStatusCode.OK });
           } catch (error) {
             this.logger.error(`Error processing IntentFulfilled event: ${error.message}`, error);
+            span.recordException(error as Error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+          } finally {
+            span.end();
+          }
+        });
+      },
+    });
+
+    // Watch for IntentProven events
+    this.unsubscribeIntentProven = publicClient.watchContractEvent({
+      abi: PortalAbi,
+      eventName: 'IntentProven',
+      address: portalAddress,
+      strict: true,
+      onLogs: (logs) => {
+        logs.forEach((log) => {
+          const span = this.otelService.startSpan('evm.listener.processIntentProvenEvent', {
+            attributes: {
+              'evm.chain_id': this.config.chainId,
+              'evm.event_name': 'IntentProven',
+              'portal.address': portalAddress,
+              'evm.block_number': log.blockNumber?.toString(),
+              'evm.transaction_hash': log.transactionHash,
+            },
+          });
+
+          try {
+            const intentHash = log.args.intentHash;
+            const claimant = AddressNormalizer.normalize(log.args.claimant, ChainType.EVM);
+
+            span.setAttributes({
+              'evm.intent_hash': intentHash,
+              'evm.claimant': claimant,
+            });
+
+            // Emit the event within the span context to propagate trace context
+            api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+              this.eventsService.emit('intent.proven', {
+                intentHash,
+                claimant,
+                txHash: log.transactionHash,
+                blockNumber: log.blockNumber,
+                timestamp: new Date(),
+                chainId: BigInt(evmConfig.chainId),
+              });
+            });
+
+            span.addEvent('intent.proven.emitted');
+            span.setStatus({ code: api.SpanStatusCode.OK });
+          } catch (error) {
+            this.logger.error(`Error processing IntentProven event: ${error.message}`, error);
+            span.recordException(error as Error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+          } finally {
+            span.end();
+          }
+        });
+      },
+    });
+
+    // Watch for IntentWithdrawn events
+    this.unsubscribeIntentWithdrawn = publicClient.watchContractEvent({
+      abi: PortalAbi,
+      eventName: 'IntentWithdrawn',
+      address: portalAddress,
+      strict: true,
+      onLogs: (logs) => {
+        logs.forEach((log) => {
+          const span = this.otelService.startSpan('evm.listener.processIntentWithdrawnEvent', {
+            attributes: {
+              'evm.chain_id': this.config.chainId,
+              'evm.event_name': 'IntentWithdrawn',
+              'portal.address': portalAddress,
+              'evm.block_number': log.blockNumber?.toString(),
+              'evm.transaction_hash': log.transactionHash,
+            },
+          });
+
+          try {
+            const intentHash = log.args.intentHash;
+            const claimant = AddressNormalizer.normalize(log.args.claimant, ChainType.EVM);
+
+            span.setAttributes({
+              'evm.intent_hash': intentHash,
+              'evm.claimant': claimant,
+            });
+
+            // Emit the event within the span context to propagate trace context
+            api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+              this.eventsService.emit('intent.withdrawn', {
+                intentHash,
+                claimant,
+                txHash: log.transactionHash,
+                blockNumber: log.blockNumber,
+                timestamp: new Date(),
+                chainId: BigInt(evmConfig.chainId),
+              });
+            });
+
+            span.addEvent('intent.withdrawn.emitted');
+            span.setStatus({ code: api.SpanStatusCode.OK });
+          } catch (error) {
+            this.logger.error(`Error processing IntentWithdrawn event: ${error.message}`, error);
             span.recordException(error as Error);
             span.setStatus({ code: api.SpanStatusCode.ERROR });
           } finally {
@@ -143,6 +260,14 @@ export class ChainListener extends BaseChainListener {
     if (this.unsubscribeIntentFulfilled) {
       this.unsubscribeIntentFulfilled();
       this.unsubscribeIntentFulfilled = null;
+    }
+    if (this.unsubscribeIntentProven) {
+      this.unsubscribeIntentProven();
+      this.unsubscribeIntentProven = null;
+    }
+    if (this.unsubscribeIntentWithdrawn) {
+      this.unsubscribeIntentWithdrawn();
+      this.unsubscribeIntentWithdrawn = null;
     }
     this.logger.warn(`EVM listener stopped for chain ${this.config.chainId}`);
   }

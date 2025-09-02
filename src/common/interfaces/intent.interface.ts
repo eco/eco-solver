@@ -40,6 +40,8 @@ export interface Intent {
   // Additional fields for Portal integration
   sourceChainId?: bigint; // Source chain context
   vaultAddress?: string; // Derived vault address
+  // Transaction tracking
+  publishTxHash?: string; // Transaction hash where intent was published
 }
 
 export enum IntentStatus {
@@ -48,13 +50,4 @@ export enum IntentStatus {
   EXECUTING = 'EXECUTING',
   FULFILLED = 'FULFILLED',
   FAILED = 'FAILED',
-}
-
-/**
- * Call structure for Portal compatibility
- */
-export interface Call {
-  target: UniversalAddress;
-  data: Hex;
-  value: bigint;
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, encodeFunctionData, erc20Abi, pad } from 'viem';
+import { Address, encodeFunctionData, erc20Abi, Hex, pad } from 'viem';
 
 import { PortalAbi } from '@/common/abis/portal.abi';
 import {
@@ -18,6 +18,7 @@ import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
+import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { EvmTransportService } from './evm-transport.service';
 import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
@@ -64,10 +65,12 @@ export class EvmExecutorService extends BaseChainExecutor {
       span.setAttribute('evm.claimant_address', claimant);
 
       // Get Portal address for a destination chain from config
-      const portalAddress = this.evmConfigService.getPortalAddress(destinationChainId) as Address;
-      if (!portalAddress) {
+      const portalAddressUA = this.evmConfigService.getPortalAddress(destinationChainId);
+      if (!portalAddressUA) {
         throw new Error(`No Portal address configured for chain ${destinationChainId}`);
       }
+
+      const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
 
       // Denormalize prover address for use with ProverService
       const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
@@ -198,11 +201,97 @@ export class EvmExecutorService extends BaseChainExecutor {
     try {
       const publicClient = this.transportService.getPublicClient(chainId);
       const receipt = await publicClient.getTransactionReceipt({
-        hash: txHash as Address,
+        hash: txHash as Hex,
       });
       return receipt.status === 'success';
     } catch {
       return false;
+    }
+  }
+
+  async executeBatchWithdraw(
+    chainId: bigint,
+    withdrawalData: BatchWithdrawData,
+    walletId?: string,
+  ): Promise<string> {
+    const span = this.otelService.startSpan('evm.executor.batchWithdraw', {
+      attributes: {
+        'evm.chain_id': chainId.toString(),
+        'evm.wallet_type': walletId || 'basic',
+        'evm.intent_count': withdrawalData.destinations.length,
+        'evm.operation': 'batchWithdraw',
+      },
+    });
+
+    try {
+      const chainIdNum = Number(chainId);
+
+      // Get the wallet for this chain
+      const walletType = (walletId as WalletType) || 'basic';
+      const wallet = this.walletManager.getWallet(walletType, chainIdNum);
+      const walletAddress = await wallet.getAddress();
+
+      span.setAttribute('evm.wallet_address', walletAddress);
+
+      // Get Portal address for the source chain from config
+      const portalAddressUA = this.evmConfigService.getPortalAddress(chainIdNum);
+      if (!portalAddressUA) {
+        throw new Error(`No Portal address configured for chain ${chainId}`);
+      }
+      const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
+
+      span.setAttribute('portal.address', portalAddress);
+
+      // Convert UniversalAddresses to EVM addresses and prepare the data
+      const destinations = withdrawalData.destinations.map((d) => d);
+      const routeHashes = withdrawalData.routeHashes.map((h) => h as Hex);
+      const rewards = withdrawalData.rewards.map((r) => ({
+        deadline: r.deadline,
+        creator: AddressNormalizer.denormalizeToEvm(r.creator as UniversalAddress),
+        prover: AddressNormalizer.denormalizeToEvm(r.prover as UniversalAddress),
+        nativeAmount: r.nativeAmount,
+        tokens: r.tokens.map((t) => ({
+          token: AddressNormalizer.denormalizeToEvm(t.token as UniversalAddress),
+          amount: t.amount,
+        })),
+      }));
+
+      // Encode the batchWithdraw function call
+      const data = encodeFunctionData({
+        abi: PortalAbi,
+        functionName: 'batchWithdraw',
+        args: [destinations, routeHashes, rewards],
+      });
+
+      this.logger.log(
+        `Executing batchWithdraw on chain ${chainId} for ${withdrawalData.destinations.length} intents`,
+      );
+
+      // Execute the transaction using the encoded data
+      const txHash = await wallet.writeContract({
+        to: portalAddress,
+        data,
+      });
+
+      span.setAttributes({
+        'evm.tx_hash': txHash,
+        'evm.status': 'success',
+      });
+
+      this.logger.log(`Successfully executed batchWithdraw on chain ${chainId}. TxHash: ${txHash}`);
+
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return txHash;
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      this.logger.error(
+        `Failed to execute batchWithdraw on chain ${chainId}: ${(error as Error).message}`,
+        error,
+      );
+      throw error;
+    } finally {
+      span.end();
     }
   }
 }

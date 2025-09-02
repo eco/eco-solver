@@ -28,12 +28,12 @@ export class EvmConfigService implements IBlockchainConfigService {
     return Array.from(this._networks.keys());
   }
 
-  getSupportedChainIds(): (number | string)[] {
-    return this.supportedChainIds;
-  }
-
   get wallets(): EvmWalletsConfig {
     return this.configService.get<EvmWalletsConfig>('evm.wallets', {});
+  }
+
+  getSupportedChainIds(): (number | string)[] {
+    return this.supportedChainIds;
   }
 
   getBasicWalletConfig() {
@@ -57,8 +57,7 @@ export class EvmConfigService implements IBlockchainConfigService {
     decimals: number;
     limit?: number | { min?: number; max?: number };
   }> {
-    const network = this.getChain(Number(chainId));
-    return network.tokens.map((token) => ({
+    return this.getEvmSupportedTokens(chainId).map((token) => ({
       address: AddressNormalizer.normalizeEvm(token.address),
       decimals: token.decimals,
       limit: token.limit,
@@ -66,7 +65,7 @@ export class EvmConfigService implements IBlockchainConfigService {
   }
 
   // Legacy method for backward compatibility
-  getEvmSupportedTokens(chainId: number | bigint): EvmTokenConfig[] {
+  getEvmSupportedTokens(chainId: ChainIdentifier): EvmTokenConfig[] {
     const network = this.getChain(Number(chainId));
     return network.tokens;
   }
@@ -85,13 +84,7 @@ export class EvmConfigService implements IBlockchainConfigService {
     decimals: number;
     limit?: number | { min?: number; max?: number };
   } {
-    const tokens = this.getEvmSupportedTokens(Number(chainId));
-    const tokenConfig = tokens.find(
-      (token) => AddressNormalizer.normalizeEvm(token.address) === tokenAddress,
-    );
-    if (!tokenConfig) {
-      throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
-    }
+    const tokenConfig = this.getEvmTokenConfig(chainId, tokenAddress);
     return {
       address: AddressNormalizer.normalizeEvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
@@ -100,8 +93,8 @@ export class EvmConfigService implements IBlockchainConfigService {
   }
 
   // Legacy method for backward compatibility
-  getEvmTokenConfig(chainId: bigint | number, tokenAddress: UniversalAddress): EvmTokenConfig {
-    const tokens = this.getEvmSupportedTokens(chainId);
+  getEvmTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): EvmTokenConfig {
+    const tokens = this.getEvmSupportedTokens(Number(chainId));
     const tokenConfig = tokens.find(
       (token) => AddressNormalizer.normalizeEvm(token.address) === tokenAddress,
     );
@@ -124,28 +117,30 @@ export class EvmConfigService implements IBlockchainConfigService {
 
   getPortalAddress(chainId: ChainIdentifier): UniversalAddress {
     const network = this.getChain(Number(chainId));
-    return AddressNormalizer.normalizeEvm(network.contracts.portal as Address);
+    return AddressNormalizer.normalizeEvm(network.contracts.portal);
   }
 
   // Legacy method for backward compatibility
   getEvmPortalAddress(chainId: number): Address {
     const network = this.getChain(chainId);
-    return network.contracts.portal as Address;
+    return network.contracts.portal;
   }
 
   getProverAddress(
     chainId: ChainIdentifier,
     proverType: 'hyper' | 'metalayer',
   ): UniversalAddress | undefined {
-    const network = this.getChain(Number(chainId));
-    const address = network.provers?.[proverType] as Address | undefined;
+    const address = this.getEvmProverAddress(chainId, proverType);
     return address ? AddressNormalizer.normalizeEvm(address) : undefined;
   }
 
   // Legacy method for backward compatibility
-  getEvmProverAddress(chainId: number, proverType: 'hyper' | 'metalayer'): Address | undefined {
-    const network = this.getChain(chainId);
-    return network.provers?.[proverType] as Address | undefined;
+  getEvmProverAddress(
+    chainId: ChainIdentifier,
+    proverType: 'hyper' | 'metalayer',
+  ): Address | undefined {
+    const network = this.getChain(Number(chainId));
+    return network.provers?.[proverType];
   }
 
   private initializeNetworks(): void {

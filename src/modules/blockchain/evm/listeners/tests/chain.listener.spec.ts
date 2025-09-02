@@ -9,8 +9,8 @@ import { createMockEventsService } from '@/modules/events/tests/events.service.m
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
+import * as eventsModule from '../../utils/events';
 import { ChainListener } from '../chain.listener';
-import * as eventsModule from '../utils/events';
 
 // Mock AddressNormalizer at module level
 jest.mock('@/common/utils/address-normalizer', () => ({
@@ -248,6 +248,7 @@ describe('ChainListener', () => {
             ],
           },
           sourceChainId: 1n,
+          publishTxHash: '0xTxHash',
         },
         strategy: 'standard',
       });
@@ -268,7 +269,7 @@ describe('ChainListener', () => {
 
       onLogsCallback([mockLog, log2]);
 
-      expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
+      expect(eventsService.emit).toHaveBeenCalledTimes(2);
     });
 
     it('should handle empty reward tokens', async () => {
@@ -351,7 +352,7 @@ describe('ChainListener', () => {
       await listener.start();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalled();
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(2); // Called for both IntentPublished and IntentFulfilled
     });
 
     it('should handle stop without start', async () => {
@@ -365,7 +366,7 @@ describe('ChainListener', () => {
       await listener.stop();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(2); // Called twice for both events
     });
   });
 
@@ -385,7 +386,7 @@ describe('ChainListener', () => {
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
       // eventEmitter throws error
-      eventEmitter.emit.mockImplementation(() => {
+      eventsService.emit.mockImplementation(() => {
         throw new Error('Event emitter error');
       });
 
@@ -423,7 +424,7 @@ describe('ChainListener', () => {
       const customListener = new ChainListener(
         customConfig,
         transportService,
-        eventEmitter,
+        eventsService as unknown as EventsService,
         logger,
         otelService,
         blockchainConfigService,
@@ -439,29 +440,39 @@ describe('ChainListener', () => {
     let intentFulfilledCallback: Function;
 
     beforeEach(async () => {
+      // Reset mocks
+      jest.clearAllMocks();
+
       mockPublicClient = {
         watchContractEvent: jest.fn((config) => {
-          if (config.eventName === 'IntentFulfilled') {
-            intentFulfilledCallback = config.onLogs;
-          }
-          return jest.fn(); // Return unsubscribe function
+          return mockUnsubscribe; // Return the same mock unsubscribe function
         }),
       };
       transportService.getPublicClient.mockReturnValue(mockPublicClient);
 
       await listener.start();
+
+      // Get the IntentFulfilled callback (should be the second watchContractEvent call)
+      const calls = mockPublicClient.watchContractEvent.mock.calls;
+      const intentFulfilledCall = calls.find((call) => call[0].eventName === 'IntentFulfilled');
+      if (intentFulfilledCall) {
+        intentFulfilledCallback = intentFulfilledCall[0].onLogs;
+      }
     });
 
     it('should watch for IntentFulfilled events', () => {
-      expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          abi: PortalAbi,
-          eventName: 'IntentFulfilled',
-          address: '0xPortalAddress',
-          strict: true,
-          onLogs: expect.any(Function),
-        }),
-      );
+      // Check that watchContractEvent was called for IntentFulfilled
+      const calls = mockPublicClient.watchContractEvent.mock.calls;
+      const intentFulfilledCall = calls.find((call) => call[0].eventName === 'IntentFulfilled');
+
+      expect(intentFulfilledCall).toBeDefined();
+      expect(intentFulfilledCall[0]).toMatchObject({
+        abi: PortalAbi,
+        eventName: 'IntentFulfilled',
+        address: expect.any(String), // The address is denormalized from universal format
+        strict: true,
+        onLogs: expect.any(Function),
+      });
     });
 
     it('should emit intent.fulfilled event when IntentFulfilled is received', () => {
@@ -473,6 +484,9 @@ describe('ChainListener', () => {
         transactionHash: '0xfedcba9876543210',
         blockNumber: 12345678n,
       };
+
+      // Ensure callback was set
+      expect(intentFulfilledCallback).toBeDefined();
 
       // Trigger the IntentFulfilled callback
       intentFulfilledCallback([mockLog]);
@@ -498,6 +512,9 @@ describe('ChainListener', () => {
         transactionHash: '0xfedcba',
         blockNumber: 12345678n,
       };
+
+      // Ensure callback was set
+      expect(intentFulfilledCallback).toBeDefined();
 
       // Mock parseIntentFulfilled to throw an error
       jest.spyOn(eventsModule, 'parseIntentFulfilled').mockImplementation(() => {
@@ -532,17 +549,20 @@ describe('ChainListener', () => {
         },
       ];
 
+      // Ensure callback was set
+      expect(intentFulfilledCallback).toBeDefined();
+
       intentFulfilledCallback(mockLogs);
 
-      expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
-      expect(eventEmitter.emit).toHaveBeenNthCalledWith(
+      expect(eventsService.emit).toHaveBeenCalledTimes(2);
+      expect(eventsService.emit).toHaveBeenNthCalledWith(
         1,
         'intent.fulfilled',
         expect.objectContaining({
           intentHash: mockLogs[0].args.intentHash,
         }),
       );
-      expect(eventEmitter.emit).toHaveBeenNthCalledWith(
+      expect(eventsService.emit).toHaveBeenNthCalledWith(
         2,
         'intent.fulfilled',
         expect.objectContaining({

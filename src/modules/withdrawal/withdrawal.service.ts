@@ -1,0 +1,197 @@
+import { Injectable, Optional } from '@nestjs/common';
+
+import { Intent } from '@/common/interfaces/intent.interface';
+import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
+import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentConverter } from '@/modules/intents/utils/intent-converter';
+import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
+import { BatchWithdrawData } from './interfaces/withdrawal-job.interface';
+
+@Injectable()
+export class WithdrawalService {
+  constructor(
+    private readonly intentsService: IntentsService,
+    private readonly blockchainExecutor: BlockchainExecutorService,
+    private readonly logger: SystemLoggerService,
+    @Optional() private readonly otelService?: OpenTelemetryService,
+  ) {
+    this.logger.setContext(WithdrawalService.name);
+  }
+
+  /**
+   * Find all proven intents that haven't been withdrawn yet
+   */
+  async findIntentsForWithdrawal(sourceChainId?: bigint): Promise<Intent[]> {
+    const span = this.otelService?.startSpan('withdrawal.findIntentsForWithdrawal', {
+      attributes: {
+        'withdrawal.source_chain_id': sourceChainId?.toString(),
+      },
+    });
+
+    try {
+      const intentsFromDb = await this.intentsService.findProvenNotWithdrawn(sourceChainId);
+      const intents = intentsFromDb.map((intent) => IntentConverter.toInterface(intent));
+
+      span?.setAttributes({
+        'withdrawal.intent_count': intents.length,
+      });
+
+      this.logger.log(
+        `Found ${intents.length} proven intents for withdrawal${
+          sourceChainId ? ` on chain ${sourceChainId}` : ''
+        }`,
+      );
+
+      span?.setStatus({ code: 1 });
+      return intents;
+    } catch (error) {
+      span?.recordException(error as Error);
+      span?.setStatus({ code: 2 });
+      throw error;
+    } finally {
+      span?.end();
+    }
+  }
+
+  /**
+   * Group intents by source chain for batch processing
+   */
+  groupIntentsByChain(intents: Intent[]): Map<bigint, Intent[]> {
+    const grouped = new Map<bigint, Intent[]>();
+
+    for (const intent of intents) {
+      const chainId = intent.sourceChainId;
+      if (!chainId) continue;
+
+      if (!grouped.has(chainId)) {
+        grouped.set(chainId, []);
+      }
+      grouped.get(chainId)!.push(intent);
+    }
+
+    return grouped;
+  }
+
+  /**
+   * Prepare withdrawal data for batch withdrawal
+   */
+  prepareWithdrawalData(intents: Intent[]): BatchWithdrawData {
+    return {
+      destinations: intents.map((i) => i.destination),
+      routeHashes: intents.map((i) => {
+        const { routeHash } = PortalHashUtils.getIntentHash(i);
+        return routeHash;
+      }),
+      rewards: intents.map((i) => ({
+        deadline: i.reward.deadline,
+        creator: i.reward.creator,
+        prover: i.reward.prover,
+        nativeAmount: i.reward.nativeAmount,
+        tokens: i.reward.tokens.map((t) => ({
+          token: t.token,
+          amount: t.amount,
+        })),
+      })),
+    };
+  }
+
+  /**
+   * Execute batch withdrawal for a set of intents on a specific chain
+   */
+  async executeWithdrawal(chainId: bigint, intents: Intent[], walletId?: string): Promise<string> {
+    const span = this.otelService?.startSpan('withdrawal.executeWithdrawal', {
+      attributes: {
+        'withdrawal.chain_id': chainId.toString(),
+        'withdrawal.intent_count': intents.length,
+        'withdrawal.wallet_id': walletId,
+      },
+    });
+
+    try {
+      this.logger.log(`Executing withdrawal for ${intents.length} intents on chain ${chainId}`);
+
+      const withdrawalData = this.prepareWithdrawalData(intents);
+
+      // Get the appropriate executor for the chain
+      const executor = this.blockchainExecutor.getExecutorForChain(chainId);
+
+      // Execute the batch withdrawal
+      const txHash = await executor.executeBatchWithdraw(chainId, withdrawalData, walletId);
+
+      span?.setAttributes({
+        'withdrawal.tx_hash': txHash,
+      });
+
+      this.logger.log(
+        `Successfully executed withdrawal for ${intents.length} intents on chain ${chainId}. TxHash: ${txHash}`,
+      );
+
+      // Update intents with withdrawal event data
+      // Note: The actual event data will be updated when we receive the IntentWithdrawn event
+      // This is just to mark that we've initiated the withdrawal
+      const timestamp = new Date();
+      for (const intent of intents) {
+        await this.intentsService.updateWithdrawnEvent(intent.intentHash, {
+          claimant: intent.reward.creator, // Assuming creator is the claimant for withdrawals
+          txHash,
+          blockNumber: 0n, // Will be updated when event is received
+          timestamp,
+          chainId,
+        });
+      }
+
+      span?.setStatus({ code: 1 });
+      return txHash;
+    } catch (error) {
+      span?.recordException(error as Error);
+      span?.setStatus({ code: 2 });
+      this.logger.error(
+        `Failed to execute withdrawal for chain ${chainId}: ${(error as Error).message}`,
+        error,
+      );
+      throw error;
+    } finally {
+      span?.end();
+    }
+  }
+
+  /**
+   * Process withdrawals for all chains
+   */
+  async processAllWithdrawals(): Promise<Map<bigint, string>> {
+    const span = this.otelService?.startSpan('withdrawal.processAllWithdrawals');
+
+    try {
+      const intents = await this.findIntentsForWithdrawal();
+      const groupedIntents = this.groupIntentsByChain(intents);
+
+      const results = new Map<bigint, string>();
+
+      for (const [chainId, chainIntents] of groupedIntents) {
+        try {
+          const txHash = await this.executeWithdrawal(chainId, chainIntents);
+          results.set(chainId, txHash);
+        } catch (error) {
+          this.logger.error(`Failed to process withdrawals for chain ${chainId}`, error);
+        }
+      }
+
+      span?.setAttributes({
+        'withdrawal.chains_processed': results.size,
+        'withdrawal.total_intents': intents.length,
+      });
+
+      span?.setStatus({ code: 1 });
+      return results;
+    } catch (error) {
+      span?.recordException(error as Error);
+      span?.setStatus({ code: 2 });
+      throw error;
+    } finally {
+      span?.end();
+    }
+  }
+}

@@ -66,9 +66,7 @@ describe('TVM Event Utils', () => {
           prover: 'prover_hex',
           rewardDeadline: '1234567890',
           nativeAmount: '1000000000000000000',
-          rewardTokens: [
-            { token: 'token_hex', amount: '5000' },
-          ],
+          rewardTokens: [{ token: 'token_hex', amount: '5000' }],
           route: 'route_data_hex',
         },
       };

@@ -17,4 +17,5 @@ export const createMockEventsService = () => ({
   eventNames: jest.fn(),
   listeners: jest.fn(),
   listenerCount: jest.fn(),
+  eventEmitter: jest.fn(), // Add the missing property
 });

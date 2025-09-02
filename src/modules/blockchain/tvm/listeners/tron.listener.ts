@@ -75,7 +75,7 @@ export class TronListener extends BaseChainListener {
     }
 
     this.logger.log(
-      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}. Listening for IntentPublished and IntentFulfilled events.`,
+      `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}. Listening for IntentPublished, IntentFulfilled, IntentProven, and IntentWithdrawn events.`,
     );
 
     this.isRunning = true;
@@ -175,6 +175,10 @@ export class TronListener extends BaseChainListener {
             await this.processIntentEvent(event);
           } else if (event.event_name === 'IntentFulfilled') {
             await this.processIntentFulfilledEvent(event);
+          } else if (event.event_name === 'IntentProven') {
+            await this.processIntentProvenEvent(event);
+          } else if (event.event_name === 'IntentWithdrawn') {
+            await this.processIntentWithdrawnEvent(event);
           }
         }
       }
@@ -232,6 +236,7 @@ export class TronListener extends BaseChainListener {
           tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens) : [],
         },
         sourceChainId: BigInt(this.config.chainId),
+        publishTxHash: event.transaction_id,
       };
 
       span.setAttributes({
@@ -273,15 +278,26 @@ export class TronListener extends BaseChainListener {
     try {
       // Parse the IntentFulfilled event
       const fulfilledEvent = parseTvmIntentFulfilled(BigInt(this.config.chainId), event);
+      const claimant = AddressNormalizer.normalize(
+        TvmUtilsService.fromHex(fulfilledEvent.claimant),
+        ChainType.TVM,
+      );
 
       span.setAttributes({
         'tvm.intent_hash': fulfilledEvent.intentHash,
-        'tvm.claimant': fulfilledEvent.claimant,
+        'tvm.claimant': claimant,
       });
 
       // Emit the event within the span context to propagate trace context
       api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-        this.eventsService.emit('intent.fulfilled', fulfilledEvent);
+        this.eventsService.emit('intent.fulfilled', {
+          intentHash: fulfilledEvent.intentHash,
+          claimant,
+          txHash: event.transaction_id,
+          blockNumber: BigInt(event.block_number),
+          timestamp: new Date(event.block_timestamp),
+          chainId: BigInt(this.config.chainId),
+        });
       });
 
       span.addEvent('intent.fulfilled.emitted');
@@ -292,6 +308,108 @@ export class TronListener extends BaseChainListener {
       );
     } catch (error) {
       this.logger.error(`Error processing IntentFulfilled event: ${error.message}`, error);
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+    } finally {
+      span.end();
+    }
+  }
+
+  private async processIntentProvenEvent(event: RawEventLogs.TvmEvent): Promise<void> {
+    const span = this.otelService.startSpan('tvm.listener.processIntentProvenEvent', {
+      attributes: {
+        'tvm.chain_id': this.config.chainId.toString(),
+        'tvm.event_name': event.event_name,
+        'tvm.transaction_id': event.transaction_id,
+        'tvm.block_number': event.block_number,
+      },
+    });
+
+    try {
+      // Parse event result
+      const result = event.result;
+      const intentHash = result.intentHash || result.hash;
+      const claimant = AddressNormalizer.normalize(
+        TvmUtilsService.fromHex(result.claimant),
+        ChainType.TVM,
+      );
+
+      span.setAttributes({
+        'tvm.intent_hash': intentHash,
+        'tvm.claimant': claimant,
+      });
+
+      // Emit the event within the span context to propagate trace context
+      api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+        this.eventsService.emit('intent.proven', {
+          intentHash,
+          claimant,
+          txHash: event.transaction_id,
+          blockNumber: BigInt(event.block_number),
+          timestamp: new Date(event.block_timestamp),
+          chainId: BigInt(this.config.chainId),
+        });
+      });
+
+      span.addEvent('intent.proven.emitted');
+      span.setStatus({ code: api.SpanStatusCode.OK });
+
+      this.logger.log(
+        `IntentProven event processed: ${intentHash} on chain ${this.config.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(`Error processing IntentProven event: ${error.message}`, error);
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+    } finally {
+      span.end();
+    }
+  }
+
+  private async processIntentWithdrawnEvent(event: RawEventLogs.TvmEvent): Promise<void> {
+    const span = this.otelService.startSpan('tvm.listener.processIntentWithdrawnEvent', {
+      attributes: {
+        'tvm.chain_id': this.config.chainId.toString(),
+        'tvm.event_name': event.event_name,
+        'tvm.transaction_id': event.transaction_id,
+        'tvm.block_number': event.block_number,
+      },
+    });
+
+    try {
+      // Parse event result
+      const result = event.result;
+      const intentHash = result.intentHash || result.hash;
+      const claimant = AddressNormalizer.normalize(
+        TvmUtilsService.fromHex(result.claimant),
+        ChainType.TVM,
+      );
+
+      span.setAttributes({
+        'tvm.intent_hash': intentHash,
+        'tvm.claimant': claimant,
+      });
+
+      // Emit the event within the span context to propagate trace context
+      api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+        this.eventsService.emit('intent.withdrawn', {
+          intentHash,
+          claimant,
+          txHash: event.transaction_id,
+          blockNumber: BigInt(event.block_number),
+          timestamp: new Date(event.block_timestamp),
+          chainId: BigInt(this.config.chainId),
+        });
+      });
+
+      span.addEvent('intent.withdrawn.emitted');
+      span.setStatus({ code: api.SpanStatusCode.OK });
+
+      this.logger.log(
+        `IntentWithdrawn event processed: ${intentHash} on chain ${this.config.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(`Error processing IntentWithdrawn event: ${error.message}`, error);
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
     } finally {

@@ -15,6 +15,7 @@ import {
   RedisConfigService,
   SolanaConfigService,
   TvmConfigService,
+  WithdrawalConfigService,
 } from '@/modules/config/services';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
@@ -34,6 +35,7 @@ const configProviders = [
   OpenTelemetryConfigService,
   BlockchainConfigService,
   TokenConfigService,
+  WithdrawalConfigService,
 ];
 
 @Global()
