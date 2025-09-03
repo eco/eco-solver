@@ -20,6 +20,7 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 export class TronListener extends BaseChainListener {
   private intervalId: NodeJS.Timeout | null = null;
   private lastBlockNumber: number = 0;
+  private lastBlockTimestamp: number = 0;
   private isRunning: boolean = false;
   private proverAddresses: Map<string, string> = new Map(); // Map of prover type to address
 
@@ -94,10 +95,11 @@ export class TronListener extends BaseChainListener {
 
     this.isRunning = true;
 
-    // Get the current block number to start from
+    // Get the current block number and timestamp to start from
     const client = this.createTronWebClient();
     const currentBlock = await client.trx.getCurrentBlock();
     this.lastBlockNumber = currentBlock.block_header.raw_data.number;
+    this.lastBlockTimestamp = currentBlock.block_header.raw_data.timestamp;
 
     // Start polling for events
     this.intervalId = setInterval(() => {
@@ -164,7 +166,7 @@ export class TronListener extends BaseChainListener {
       // Get Portal events (IntentPublished, IntentFulfilled, IntentWithdrawn)
       const portalEvents = await client.event.getEventsByContractAddress(portalAddress, {
         onlyConfirmed: true,
-        minBlockTimestamp: this.lastBlockNumber,
+        minBlockTimestamp: this.lastBlockTimestamp,
         orderBy: 'block_timestamp,asc',
         limit: 200,
       });
@@ -175,7 +177,7 @@ export class TronListener extends BaseChainListener {
         try {
           const proverEvents = await client.event.getEventsByContractAddress(proverAddress, {
             onlyConfirmed: true,
-            minBlockTimestamp: this.lastBlockNumber,
+            minBlockTimestamp: this.lastBlockTimestamp,
             orderBy: 'block_timestamp,asc',
             limit: 200,
           });
@@ -228,8 +230,9 @@ export class TronListener extends BaseChainListener {
         }
       }
 
-      // Update last processed block
+      // Update last processed block and timestamp
       this.lastBlockNumber = currentBlockNumber;
+      this.lastBlockTimestamp = currentBlock.block_header.raw_data.timestamp;
     } catch (error) {
       this.logger.error(`Error polling for events: ${getErrorMessage(error)}`, toError(error));
       throw error;
