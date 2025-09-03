@@ -19,6 +19,7 @@ import {
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { EvmAddress } from '@/modules/blockchain/evm/types/address';
+import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 
 export class AddressNormalizer {
@@ -54,7 +55,7 @@ export class AddressNormalizer {
       : chainType extends ChainType.EVM
         ? EvmAddress
         : chainType extends ChainType.SVM
-          ? ChainType.SVM
+          ? SvmAddress
           : never,
   >(address: UniversalAddress, chainType: chainType): Addr {
     switch (chainType) {

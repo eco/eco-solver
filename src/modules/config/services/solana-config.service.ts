@@ -9,6 +9,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { SolanaSchema } from '@/config/config.schema';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
+import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
 import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
@@ -36,15 +37,15 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   get walletAddress(): SolanaConfig['walletAddress'] {
-    return this.configService.get<string>('solana.walletAddress');
+    return this.configService.get<SvmAddress>('solana.walletAddress');
   }
 
   get programId(): SolanaConfig['programId'] {
-    return this.configService.get<string>('solana.programId')!;
+    return this.configService.get<SvmAddress>('solana.programId')!;
   }
 
   get portalProgramId(): SolanaConfig['portalProgramId'] {
-    return this.configService.get<string>('solana.portalProgramId')!;
+    return this.configService.get<SvmAddress>('solana.portalProgramId')!;
   }
 
   isConfigured(): boolean {

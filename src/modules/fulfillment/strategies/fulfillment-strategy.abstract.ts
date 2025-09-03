@@ -198,6 +198,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
         this,
         this.blockchainExecutor,
         this.blockchainReader,
+        { quoting: true },
       );
 
       const validations = this.getValidations();

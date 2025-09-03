@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
+
+export const SvmAddressSchema = z.string().transform((v) => v as SvmAddress);
+
 /**
  * Solana configuration schema
  */
@@ -11,9 +15,9 @@ export const SolanaSchema = z.object({
     .regex(/^wss?:/)
     .optional(),
   secretKey: z.string(), // alias for privateKey
-  walletAddress: z.string().optional(),
-  programId: z.string(),
-  portalProgramId: z.string(),
+  walletAddress: SvmAddressSchema.optional(),
+  programId: SvmAddressSchema,
+  portalProgramId: SvmAddressSchema,
   claimant: z.string(), // Solana public key as base58 string (required)
 });
 

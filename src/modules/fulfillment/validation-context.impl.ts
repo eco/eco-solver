@@ -11,12 +11,17 @@ import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-c
  * Thread-safe since all properties are readonly and set via constructor
  */
 export class ValidationContextImpl implements ValidationContext {
+  public readonly quoting: ValidationContext['quoting'];
+
   constructor(
     private readonly intent: Intent,
     private readonly strategy: IFulfillmentStrategy,
     private readonly blockchainExecutor: BlockchainExecutorService,
     private readonly blockchainReader: BlockchainReaderService,
-  ) {}
+    options?: { quoting?: boolean },
+  ) {
+    this.quoting = options?.quoting;
+  }
 
   async getWalletId(): Promise<string> {
     return this.strategy.getWalletIdForIntent(this.intent);

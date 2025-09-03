@@ -23,7 +23,7 @@ export class IntentFundedValidation implements Validation {
     this.logger.setContext(IntentFundedValidation.name);
   }
 
-  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
+  async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
     const activeSpan = api.trace.getActiveSpan();
     const span =
       activeSpan ||
@@ -35,6 +35,13 @@ export class IntentFundedValidation implements Validation {
           'intent.destination_chain': intent.destination.toString(),
         },
       });
+
+    if (context.quoting) {
+      // Skip validation when is quoting
+      span.setAttribute('validation.skipped', true);
+      span.setAttribute('validation.quoting', true);
+      return true;
+    }
 
     const sourceChainId = intent.sourceChainId;
 

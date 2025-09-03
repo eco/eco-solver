@@ -1,12 +1,12 @@
 import { extendApi } from '@anatine/zod-openapi';
 import { z } from 'zod';
 
-import { zodAddress, zodHex } from '@/common/utils/zod-to-swagger.util';
+import { zodBlockchainAddress, zodHex } from '@/common/utils/zod-to-swagger.util';
 
 // Token info schema
 const TokenInfoSchema = extendApi(
   z.object({
-    address: zodAddress('Token contract address'),
+    address: zodBlockchainAddress('Token contract address'),
     decimals: extendApi(z.number(), {
       description: 'Token decimals',
       example: 18,
@@ -87,8 +87,9 @@ const QuoteDataSchema = extendApi(
 // Contracts schema with OpenAPI metadata
 const ContractsSchema = extendApi(
   z.object({
-    prover: zodHex('Prover contract address'),
-    portal: zodHex('Portal contract address on destination chain'),
+    sourcePortal: zodBlockchainAddress('Portal contract address on source chain'),
+    destinationPortal: zodBlockchainAddress('Portal contract address on destination chain'),
+    prover: zodBlockchainAddress('Prover contract address on source chain'),
   }),
   {
     description: 'Contract addresses involved in the intent',

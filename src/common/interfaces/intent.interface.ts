@@ -1,38 +1,42 @@
 import { Hex } from 'viem';
 
-import { UniversalAddress } from '@/common/types/universal-address.type';
+import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
+import { ChainType } from '@/common/utils/chain-type-detector';
 
-export interface Intent {
+export interface Intent<
+  sourceAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
+  destAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
+> {
   intentHash: Hex; // Changed from intentHash for consistency
   destination: bigint; // Target chain ID (moved from route)
   route: Readonly<{
     salt: Hex;
     deadline: bigint; // Added deadline to route (Portal structure)
-    portal: UniversalAddress; // Changed from inbox
+    portal: destAddr; // Changed from inbox
     nativeAmount: bigint; // Changed from nativeAmount
     tokens: Readonly<
       {
         amount: bigint;
-        token: UniversalAddress;
+        token: destAddr;
       }[]
     >;
     calls: Readonly<
       {
         data: Hex;
-        target: UniversalAddress;
+        target: destAddr;
         value: bigint;
       }[]
     >;
   }>;
   reward: Readonly<{
     deadline: bigint;
-    creator: UniversalAddress;
-    prover: UniversalAddress;
+    creator: sourceAddr;
+    prover: sourceAddr;
     nativeAmount: bigint;
     tokens: Readonly<
       {
         amount: bigint;
-        token: UniversalAddress;
+        token: sourceAddr;
       }[]
     >;
   }>;
@@ -43,6 +47,11 @@ export interface Intent {
   // Transaction tracking
   publishTxHash?: string; // Transaction hash where intent was published
 }
+
+export type BlockchainIntent<source extends ChainType, dest extends ChainType> = Intent<
+  BlockchainAddress<source>,
+  BlockchainAddress<dest>
+>;
 
 export enum IntentStatus {
   PENDING = 'PENDING',

@@ -7,7 +7,9 @@
 
 import { Hex, pad } from 'viem';
 
+import { ChainType } from '@/common/utils/chain-type-detector';
 import { EvmAddress } from '@/modules/blockchain/evm/types/address';
+import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 
 /**
@@ -16,7 +18,14 @@ import { TronAddress } from '@/modules/blockchain/tvm/types';
  */
 export type UniversalAddress = string & { readonly __brand: 'UniversalAddress' };
 
-export type BlockchainAddress = EvmAddress | TronAddress;
+export type BlockchainAddress<chainType extends ChainType = ChainType> =
+  chainType extends ChainType.TVM
+    ? TronAddress
+    : chainType extends ChainType.EVM
+      ? EvmAddress
+      : chainType extends ChainType.SVM
+        ? SvmAddress
+        : never;
 
 /**
  * Type guard to check if a value is a UniversalAddress

@@ -33,6 +33,13 @@ export class StandardFeeValidation implements FeeCalculationValidation {
         },
       });
 
+    if (context.quoting) {
+      // Skip validation when is quoting
+      span.setAttribute('validation.skipped', true);
+      span.setAttribute('validation.quoting', true);
+      return true;
+    }
+
     try {
       if (intent.route.nativeAmount > 0n) {
         throw new Error(`Route native amount must be zero`);

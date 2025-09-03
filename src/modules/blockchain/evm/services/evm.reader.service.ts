@@ -119,14 +119,7 @@ export class EvmReaderService extends BaseChainReader {
       const evmIntent = toEVMIntent(intent);
       const portalIntent = {
         destination: evmIntent.destination,
-        route: {
-          salt: evmIntent.route.salt,
-          deadline: evmIntent.route.deadline,
-          portal: evmIntent.route.portal,
-          nativeAmount: evmIntent.route.nativeAmount,
-          tokens: evmIntent.route.tokens,
-          calls: evmIntent.route.calls,
-        },
+        route: evmIntent.route,
         reward: evmIntent.reward,
       };
 

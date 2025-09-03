@@ -6,6 +6,11 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
  */
 export interface ValidationContext {
   /**
+   * Flag enabled when requesting a quote
+   */
+  quoting?: boolean;
+
+  /**
    * Get the wallet address that will be used for execution on a specific chain
    * @param chainId The chain ID to get the wallet address for
    * @returns The wallet address
