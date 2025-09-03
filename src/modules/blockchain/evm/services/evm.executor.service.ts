@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi, Hex, pad } from 'viem';
 
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { portalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
   ExecutionResult,
@@ -11,7 +11,6 @@ import {
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEVMIntent } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -84,8 +83,7 @@ export class EvmExecutorService extends BaseChainExecutor {
       // TODO: Domain ID must be provided by the prover service
       const sourceDomainId = BigInt(sourceChainId);
 
-      const sourceChainType = ChainTypeDetector.detect(sourceChainId);
-      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, sourceChainType);
+      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
 
       const proverContract = prover.getContractAddress(destinationChainId);
       if (!proverContract) {
@@ -119,7 +117,7 @@ export class EvmExecutorService extends BaseChainExecutor {
         to: portalAddress,
         value: proverFee,
         data: encodeFunctionData({
-          abi: PortalAbi,
+          abi: portalAbi,
           functionName: 'fulfillAndProve',
           args: [
             intent.intentHash,
@@ -263,7 +261,7 @@ export class EvmExecutorService extends BaseChainExecutor {
 
       // Encode the batchWithdraw function call
       const data = encodeFunctionData({
-        abi: PortalAbi,
+        abi: portalAbi,
         functionName: 'batchWithdraw',
         args: [destinations, routeHashes, rewards],
       });

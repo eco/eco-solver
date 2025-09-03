@@ -1,6 +1,8 @@
 import { TronWeb } from 'tronweb';
 import { Abi, ContractFunctionName } from 'viem';
 
+import { TronAddress } from '@/modules/blockchain/tvm/types';
+
 /**
  * Contract function parameter type
  */
@@ -33,7 +35,7 @@ export interface ITvmWallet {
    * Gets the wallet address
    * @returns The wallet address in base58 format
    */
-  getAddress(): Promise<string>;
+  getAddress(): Promise<TronAddress>;
 
   /**
    * Triggers a smart contract function

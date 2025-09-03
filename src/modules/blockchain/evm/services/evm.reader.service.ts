@@ -4,7 +4,7 @@ import * as api from '@opentelemetry/api';
 import { Address, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
@@ -132,7 +132,7 @@ export class EvmReaderService extends BaseChainReader {
 
       const isFunded = await client.readContract({
         address: portalAddress,
-        abi: PortalAbi,
+        abi: portalAbi,
         functionName: 'isIntentFunded',
         args: [portalIntent],
       });
@@ -144,7 +144,10 @@ export class EvmReaderService extends BaseChainReader {
 
       return Boolean(isFunded);
     } catch (error) {
-      this.logger.error(`Failed to check if intent ${intent.intentHash} is funded:`, toError(error));
+      this.logger.error(
+        `Failed to check if intent ${intent.intentHash} is funded:`,
+        toError(error),
+      );
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to check intent funding status: ${getErrorMessage(error)}`);
@@ -222,7 +225,10 @@ export class EvmReaderService extends BaseChainReader {
       span.setStatus({ code: api.SpanStatusCode.OK });
       return fee as bigint;
     } catch (error) {
-      this.logger.error(`Failed to fetch prover fee for intent ${intent.intentHash}:`, toError(error));
+      this.logger.error(
+        `Failed to fetch prover fee for intent ${intent.intentHash}:`,
+        toError(error),
+      );
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);

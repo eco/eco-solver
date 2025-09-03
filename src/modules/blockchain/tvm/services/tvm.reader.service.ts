@@ -5,7 +5,7 @@ import { TronWeb } from 'tronweb';
 import { encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
@@ -82,11 +82,12 @@ export class TvmReaderService extends BaseChainReader {
   ): Promise<bigint> {
     // Denormalize to TVM address format
     const tvmTokenAddress = AddressNormalizer.denormalize(tokenAddress, ChainType.TVM);
+    const tvmWalletAddress = AddressNormalizer.denormalize(walletAddress, ChainType.TVM);
     const span = this.otelService.startSpan('tvm.reader.getTokenBalance', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.token_address': tokenAddress,
-        'tvm.wallet_address': walletAddress,
+        'tvm.token_address': tvmTokenAddress,
+        'tvm.wallet_address': tvmWalletAddress,
         'tvm.operation': 'getTokenBalance',
       },
     });
@@ -96,7 +97,9 @@ export class TvmReaderService extends BaseChainReader {
       const contract = client.contract(erc20Abi, tvmTokenAddress);
 
       // Call TRC20 balanceOf function
-      const balance = await contract.balanceOf(tvmTokenAddress).call();
+      const balance = await contract.methods
+        .balanceOf(tvmWalletAddress)
+        .call({ from: tvmWalletAddress });
 
       // Extract balance from the result
       const balanceBigInt = BigInt(balance);
@@ -104,6 +107,50 @@ export class TvmReaderService extends BaseChainReader {
       span.setAttribute('tvm.token_balance', balanceBigInt.toString());
       span.setStatus({ code: api.SpanStatusCode.OK });
       return balanceBigInt;
+    } catch (error) {
+      span.recordException(toError(error));
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
+  }
+
+  async getTokenAllowance(
+    tokenAddress: UniversalAddress,
+    ownerAddress: UniversalAddress,
+    spenderAddress: UniversalAddress,
+    chainId: number | string,
+  ): Promise<bigint> {
+    // Denormalize to TVM address format
+    const tvmTokenAddress = AddressNormalizer.denormalize(tokenAddress, ChainType.TVM);
+    const tvmOwnerAddress = AddressNormalizer.denormalize(ownerAddress, ChainType.TVM);
+    const tvmSpenderAddress = AddressNormalizer.denormalize(spenderAddress, ChainType.TVM);
+    const span = this.otelService.startSpan('tvm.reader.getTokenAllowance', {
+      attributes: {
+        'tvm.chain_id': chainId.toString(),
+        'tvm.token_address': tvmTokenAddress,
+        'tvm.owner_address': tvmOwnerAddress,
+        'tvm.spender_address': tvmSpenderAddress,
+        'tvm.operation': 'getTokenBalance',
+      },
+    });
+
+    try {
+      const client = this.createTronWebClient(chainId);
+      const contract = client.contract(erc20Abi, tvmTokenAddress);
+
+      // Call TRC20 balanceOf function
+      const allowance = await contract.methods
+        .allowance(tvmOwnerAddress, tvmSpenderAddress)
+        .call({ from: tvmOwnerAddress });
+
+      // Extract balance from the result
+      const allowanceBigInt = BigInt(allowance);
+
+      span.setAttribute('tvm.token_allowance', allowanceBigInt.toString());
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return allowanceBigInt;
     } catch (error) {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
@@ -131,7 +178,7 @@ export class TvmReaderService extends BaseChainReader {
       span.setAttribute('tvm.chain_id', chainId);
       span.setAttribute('tvm.portal_address', portalAddr);
 
-      const contract = client.contract(PortalAbi, portalAddr);
+      const contract = client.contract(portalAbi, portalAddr);
 
       // Structure route data for TronWeb contract call
       const routeData: Parameters<typeof contract.isIntentFunded>[0][1] = [

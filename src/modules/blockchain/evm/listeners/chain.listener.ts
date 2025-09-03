@@ -2,7 +2,7 @@ import * as api from '@opentelemetry/api';
 import { PublicClient } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
@@ -52,7 +52,7 @@ export class ChainListener extends BaseChainListener {
 
     // Watch for IntentPublished events
     this.unsubscribeIntentPublished = publicClient.watchContractEvent({
-      abi: PortalAbi,
+      abi: portalAbi,
       eventName: 'IntentPublished',
       address: portalAddress,
       strict: true,
@@ -104,7 +104,7 @@ export class ChainListener extends BaseChainListener {
 
     // Watch for IntentFulfilled events
     this.unsubscribeIntentFulfilled = publicClient.watchContractEvent({
-      abi: PortalAbi,
+      abi: portalAbi,
       eventName: 'IntentFulfilled',
       address: portalAddress,
       strict: true,
@@ -236,7 +236,7 @@ export class ChainListener extends BaseChainListener {
 
     // Watch for IntentWithdrawn events
     this.unsubscribeIntentWithdrawn = publicClient.watchContractEvent({
-      abi: PortalAbi,
+      abi: portalAbi,
       eventName: 'IntentWithdrawn',
       address: portalAddress,
       strict: true,

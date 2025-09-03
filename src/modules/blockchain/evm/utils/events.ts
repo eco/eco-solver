@@ -1,6 +1,6 @@
 import { decodeEventLog, Hex, WatchContractEventOnLogsParameter } from 'viem';
 
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { portalAbi } from '@/common/abis/portal.abi';
 import {
   IntentFulfilledEvent,
   PortalEventArgs,
@@ -19,7 +19,7 @@ import { PortalEncoder } from '@/common/utils/portal-encoder';
  */
 export function parseIntentPublish(sourceChainId: bigint, rawLog: RawEventLogs.EvmLog): Intent {
   const log = decodeEventLog({
-    abi: PortalAbi,
+    abi: portalAbi,
     eventName: 'IntentPublished',
     topics: rawLog.topics as any,
     data: rawLog.data,
@@ -60,7 +60,7 @@ export function parseIntentFulfilled(
   rawLog: RawEventLogs.EvmLog,
 ): IntentFulfilledEvent {
   const log = decodeEventLog({
-    abi: PortalAbi,
+    abi: portalAbi,
     eventName: 'IntentFulfilled',
     topics: rawLog.topics as any,
     data: rawLog.data,

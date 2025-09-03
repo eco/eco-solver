@@ -19,7 +19,7 @@ import {
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -58,7 +58,6 @@ export class SvmExecutorService extends BaseChainExecutor {
         throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
       }
       const sourceChainId = intent.sourceChainId;
-      const sourceChainType = ChainTypeDetector.detect(sourceChainId);
 
       // Get prover and generate proof data
       const prover = this.proverService.getProver(Number(sourceChainId), intent.reward.prover);
@@ -69,7 +68,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       const proverAddr = prover.getContractAddress(Number(intent.destination));
       const proofData = await prover.generateProof(intent);
 
-      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, sourceChainType);
+      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
 
       // Get claimant from source chain configuration
       const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
@@ -181,6 +180,21 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   /**
+   * Execute batch withdrawal on Solana
+   * NOTE: This is a placeholder implementation as Solana batch withdrawals
+   * may require different approach than EVM
+   */
+  async executeBatchWithdraw(
+    _chainId: bigint,
+    _withdrawalData: any,
+    _walletId?: string,
+  ): Promise<string> {
+    this.logger.warn('Batch withdrawal not yet implemented for Solana');
+    // TODO: Implement Solana batch withdrawal when Portal contract supports it
+    throw new Error('Batch withdrawal not yet implemented for Solana');
+  }
+
+  /**
    * Encodes fulfillAndProve instruction data for the Portal program
    * This is a simplified implementation - actual encoding would depend on the program's IDL
    */
@@ -214,20 +228,5 @@ export class SvmExecutorService extends BaseChainExecutor {
       params.proofData,
       params.route,
     ]);
-  }
-
-  /**
-   * Execute batch withdrawal on Solana
-   * NOTE: This is a placeholder implementation as Solana batch withdrawals
-   * may require different approach than EVM
-   */
-  async executeBatchWithdraw(
-    chainId: bigint,
-    withdrawalData: any,
-    walletId?: string,
-  ): Promise<string> {
-    this.logger.warn('Batch withdrawal not yet implemented for Solana');
-    // TODO: Implement Solana batch withdrawal when Portal contract supports it
-    throw new Error('Batch withdrawal not yet implemented for Solana');
   }
 }

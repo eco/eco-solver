@@ -1,6 +1,6 @@
 import { Address, Hex } from 'viem';
 
-import { PortalAbi } from '@/common/abis/portal.abi';
+import { portalAbi } from '@/common/abis/portal.abi';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { BlockchainConfigService } from '@/modules/config/services';
@@ -191,7 +191,7 @@ describe('ChainListener', () => {
 
       expect(transportService.getPublicClient).toHaveBeenCalledWith(1);
       expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith({
-        abi: PortalAbi,
+        abi: portalAbi,
         eventName: 'IntentPublished',
         address: '0xPortalAddress',
         strict: true,
@@ -454,7 +454,9 @@ describe('ChainListener', () => {
 
       // Get the IntentFulfilled callback (should be the second watchContractEvent call)
       const calls = mockPublicClient.watchContractEvent.mock.calls;
-      const intentFulfilledCall = calls.find((call: any) => call[0].eventName === 'IntentFulfilled');
+      const intentFulfilledCall = calls.find(
+        (call: any) => call[0].eventName === 'IntentFulfilled',
+      );
       if (intentFulfilledCall) {
         intentFulfilledCallback = intentFulfilledCall[0].onLogs;
       }
@@ -463,11 +465,13 @@ describe('ChainListener', () => {
     it('should watch for IntentFulfilled events', () => {
       // Check that watchContractEvent was called for IntentFulfilled
       const calls = mockPublicClient.watchContractEvent.mock.calls;
-      const intentFulfilledCall = calls.find((call: any) => call[0].eventName === 'IntentFulfilled');
+      const intentFulfilledCall = calls.find(
+        (call: any) => call[0].eventName === 'IntentFulfilled',
+      );
 
       expect(intentFulfilledCall).toBeDefined();
       expect(intentFulfilledCall[0]).toMatchObject({
-        abi: PortalAbi,
+        abi: portalAbi,
         eventName: 'IntentFulfilled',
         address: expect.any(String), // The address is denormalized from universal format
         strict: true,

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 import { ITvmWallet } from '@/common/interfaces/tvm-wallet.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { SystemLoggerService } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
@@ -43,8 +45,8 @@ export class TvmWalletManagerService {
   async getWalletAddress(
     chainId: number | string,
     walletType: TvmWalletType = 'basic',
-  ): Promise<string> {
+  ): Promise<UniversalAddress> {
     const wallet = this.createWallet(chainId, walletType);
-    return wallet.getAddress();
+    return AddressNormalizer.normalizeTvm(await wallet.getAddress());
   }
 }
