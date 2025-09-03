@@ -404,6 +404,11 @@ export interface LiquidityManagerConfig {
   walletStrategies: {
     [walletName: string]: Strategy[]
   }
+  // Whitelist of tokens to include as SURPLUS-only (targetBalance=0) per wallet
+  // These tokens will be added to tokensPerWallet so the system can drain them when deficits exist
+  strandedWhitelist?: {
+    tokens: { chainId: number; tokenAddress: Hex }[]
+  }
 }
 
 export interface LiFiConfigType {

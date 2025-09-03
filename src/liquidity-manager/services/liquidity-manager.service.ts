@@ -151,7 +151,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       }),
     )
     await this.checkBalancesQueueWrapper.startCronJobs(this.config.intervalDuration, kernelAddress)
-    this.tokensPerWallet[kernelAddress] = this.balanceService.getInboxTokens()
+    const inboxTokens = this.balanceService.getInboxTokens()
+    this.tokensPerWallet[kernelAddress] = this.getSupportedTokensWithStrandedWhitelist(inboxTokens)
 
     if (this.ecoConfigService.getFulfill().type === 'crowd-liquidity') {
       // Track rebalances for Crowd Liquidity
@@ -170,9 +171,45 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         this.config.intervalDuration,
         crowdLiquidityPoolAddress,
       )
+      const crowdLiquidityTokens = this.crowdLiquidityService.getSupportedTokens()
       this.tokensPerWallet[crowdLiquidityPoolAddress] =
-        this.crowdLiquidityService.getSupportedTokens()
+        this.getSupportedTokensWithStrandedWhitelist(crowdLiquidityTokens)
     }
+  }
+
+  /**
+   * Gets the supported tokens with the stranded whitelist applied.
+   * @param baseTokens
+   * @returns The supported tokens with the stranded whitelist applied
+   */
+  private getSupportedTokensWithStrandedWhitelist(baseTokens: TokenConfig[]): TokenConfig[] {
+    const whitelist = this.ecoConfigService.getLiquidityManager().strandedWhitelist?.tokens || []
+    if (!whitelist.length) return baseTokens
+
+    const baseKey = (t: TokenConfig) => `${t.chainId}:${String(t.address).toLowerCase()}`
+    const seen = new Set(baseTokens.map(baseKey))
+
+    const whitelistAsConfigs: TokenConfig[] = whitelist
+      .map((item) => ({
+        address: item.tokenAddress,
+        chainId: item.chainId,
+        minBalance: 0, // No min balance for stranded tokens
+        targetBalance: 0, // No target balance for stranded tokens since they're surplus-only
+        type: 'erc20' as const,
+      }))
+      // Deduplicate if already present in configured tokens
+      .filter((cfg) => !seen.has(baseKey(cfg)))
+
+    if (whitelistAsConfigs.length) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'StrandedWhitelist applied to tokensPerWallet',
+          properties: { added: whitelistAsConfigs },
+        }),
+      )
+    }
+
+    return [...baseTokens, ...whitelistAsConfigs]
   }
 
   async analyzeTokens(walletAddress: string) {

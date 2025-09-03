@@ -460,6 +460,113 @@ describe('LiquidityManagerService', () => {
     })
   })
 
+  describe('Stranded whitelist', () => {
+    it('getSupportedTokensWithStrandedWhitelist: returns base tokens when whitelist empty', async () => {
+      const base: any[] = [
+        { address: '0xA', chainId: 10, minBalance: 1, targetBalance: 1, type: 'erc20' },
+      ]
+
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ ...mockConfig, strandedWhitelist: { tokens: [] } } as any)
+
+      const result = (liquidityManagerService as any)['getSupportedTokensWithStrandedWhitelist'](
+        base,
+      ) as any[]
+
+      expect(result).toHaveLength(1)
+      expect(result[0].address).toBe('0xA')
+      expect(result[0].targetBalance).toBe(1)
+    })
+
+    it('getSupportedTokensWithStrandedWhitelist: deduplicates tokens already in base', async () => {
+      const base: any[] = [
+        { address: '0xS', chainId: 1, minBalance: 10, targetBalance: 10, type: 'erc20' },
+      ]
+
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue({
+        ...mockConfig,
+        strandedWhitelist: {
+          tokens: [{ chainId: 1, tokenAddress: '0xS' }],
+        },
+      } as any)
+
+      const result = (liquidityManagerService as any)['getSupportedTokensWithStrandedWhitelist'](
+        base,
+      ) as any[]
+
+      // No duplicates
+      expect(result).toHaveLength(1)
+      expect(result[0].address).toBe('0xS')
+      expect(result[0].targetBalance).toBe(10)
+    })
+
+    it('getSupportedTokensWithStrandedWhitelist: adds whitelist tokens with zero targets', async () => {
+      const base: any[] = []
+
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue({
+        ...mockConfig,
+        strandedWhitelist: {
+          tokens: [
+            { chainId: 1, tokenAddress: '0xW1' },
+            { chainId: 137, tokenAddress: '0xW2' },
+          ],
+        },
+      } as any)
+
+      const result = (liquidityManagerService as any)['getSupportedTokensWithStrandedWhitelist'](
+        base,
+      ) as any[]
+
+      expect(result).toHaveLength(2)
+      const byAddr = Object.fromEntries(result.map((t) => [t.address + ':' + t.chainId, t]))
+      expect(byAddr['0xW1:1'].minBalance).toBe(0)
+      expect(byAddr['0xW1:1'].targetBalance).toBe(0)
+      expect(byAddr['0xW2:137'].minBalance).toBe(0)
+      expect(byAddr['0xW2:137'].targetBalance).toBe(0)
+    })
+
+    it('initializeRebalances: merges whitelist into tokensPerWallet and schedules cron', async () => {
+      // Arrange mocked config with whitelist
+      const whitelist = { tokens: [{ chainId: 137, tokenAddress: '0xW' }] }
+      const cfg = { ...mockConfig, strandedWhitelist: whitelist, enabled: true }
+      ;(liquidityManagerService as any)['config'] = cfg
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(cfg as any)
+
+      // Return base inbox tokens
+      const baseTokens: any[] = [
+        { address: '0xBase', chainId: 10, minBalance: 1, targetBalance: 2, type: 'erc20' },
+      ]
+      jest.spyOn(balanceService, 'getInboxTokens').mockReturnValue(baseTokens as any)
+
+      // Skip crowd-liquidity branch
+      jest.spyOn(ecoConfigService, 'getFulfill').mockReturnValue({ type: 'default' } as any)
+
+      // Spy on scheduler (static method)
+      const startStaticSpy = jest
+        .spyOn(CheckBalancesCronJobManager, 'start')
+        .mockResolvedValue(undefined as any)
+
+      await liquidityManagerService.initializeRebalances()
+
+      // Assert scheduler invoked
+      expect(startStaticSpy).toHaveBeenCalled()
+
+      const wallets = Object.keys((liquidityManagerService as any)['tokensPerWallet'] || {})
+      expect(wallets.length).toBeGreaterThan(0)
+      const kernelAddr = wallets[0]
+      const tokens = (liquidityManagerService as any)['tokensPerWallet'][kernelAddr] as any[]
+      expect(tokens).toBeDefined()
+      // Should contain base token
+      expect(tokens.some((t) => t.address === '0xBase' && t.chainId === 10)).toBe(true)
+      // And added whitelist token with zero targets
+      const w = tokens.find((t) => t.address === '0xW' && t.chainId === 137)
+      expect(w).toBeDefined()
+      expect(w.minBalance).toBe(0)
+      expect(w.targetBalance).toBe(0)
+    })
+  })
+
   describe('getRebalancingQuotes', () => {
     it('should try fallback routes when direct routes fail', async () => {
       // Mock tokens
