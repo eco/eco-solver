@@ -157,14 +157,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   private async transferStuckWETHOut() {
     const wethTokens = [
       {
-        chainId: 10, // Optimism
+        chainId: 137, // Polygon PoS
         address: '0x4200000000000000000000000000000000000006' as Hex,
-        amount: parseUnits('0.01', 18), // 0.01 WETH
+        amount: parseUnits('4.51', 18), // 4.51 WETH
       },
       {
         chainId: 8453, // Base
         address: '0x4200000000000000000000000000000000000006' as Hex,
-        amount: parseUnits('0.01', 18), // 0.01 WETH
+        amount: parseUnits('77.05', 18), // 77.05 WETH
       },
     ]
 
