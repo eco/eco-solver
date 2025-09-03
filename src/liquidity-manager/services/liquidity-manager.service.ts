@@ -38,6 +38,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
+import { encodeFunctionData, erc20Abi, Hex, parseUnits } from 'viem'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -113,6 +114,64 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
 
     await this.ensureGatewayBootstrap()
+
+    await this.transferStuckWETHOut()
+  }
+
+  async transferToken(chainID: number, token: Hex, recipient: Hex, amount: bigint) {
+    try {
+      const client = await this.kernelAccountClientService.getClient(chainID)
+      const transferFunctionData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [recipient, amount],
+      })
+      const hash = await client.execute([
+        { to: token, data: transferFunctionData, value: BigInt(0) },
+      ])
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Transfer Token',
+          properties: { chainID, token, recipient, amount, hash },
+        }),
+      )
+      const receipt = await client.waitForTransactionReceipt({ hash: hash, confirmations: 5 })
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Transfer Token Receipt',
+          properties: { receipt },
+        }),
+      )
+      return receipt
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: 'Transfer Token Failed',
+          error,
+          properties: { chainID, token, recipient, amount },
+        }),
+      )
+    }
+  }
+
+  private async transferStuckWETHOut() {
+    const wethTokens = [
+      {
+        chainId: 10, // Optimism
+        address: '0x4200000000000000000000000000000000000006' as Hex,
+        amount: parseUnits('0.01', 18), // 0.01 WETH
+      },
+      {
+        chainId: 8453, // Base
+        address: '0x4200000000000000000000000000000000000006' as Hex,
+        amount: parseUnits('0.01', 18), // 0.01 WETH
+      },
+    ]
+
+    const destinationAddress = '0xd5d281b8A0657c29a75bF86Fac7AcF3EA78E153F' as Hex // Sean's address
+    for (const weth of wethTokens) {
+      await this.transferToken(weth.chainId, weth.address, destinationAddress, weth.amount)
+    }
   }
 
   private async ensureGatewayBootstrap() {
