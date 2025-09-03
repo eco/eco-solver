@@ -184,7 +184,9 @@ export function hashIntent(destination: bigint, route: RouteType, reward: Reward
     const routeHash = hashRoute(route)
     const rewardHash = hashReward(reward)
   
-    console.log("hashIntent: ", destination, routeHash, rewardHash)
+    console.log("hashIntent: ", destination)
+    console.log("hashIntent", Array.from(Buffer.from(routeHash.slice(2), 'hex')))
+    console.log("hashIntent", Array.from(Buffer.from(rewardHash.slice(2), 'hex')))
   
     const intentHash = keccak256(
       encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, routeHash, rewardHash]),
@@ -198,33 +200,60 @@ export function hashIntent(destination: bigint, route: RouteType, reward: Reward
   }
 
 export function hashIntentSvm(destination: bigint, route: RouteType, reward: RewardType): {
-    routeHash: Hex
-    rewardHash: Hex
-    intentHash: Hex
+  routeHash: Hex
+  rewardHash: Hex
+  intentHash: Hex
 } {
-    const routeHash = hashRoute(route)
-    const rewardHash = hashReward(reward)
+  const routeHash = hashRoute(route)
+  const rewardHash = hashReward(reward)
 
 
-    // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
-    const destinationBytes = new Uint8Array(8);
-    const view = new DataView(destinationBytes.buffer);
-    view.setBigUint64(0, destination, false);
+  // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
+  const destinationBytes = new Uint8Array(8);
+  const view = new DataView(destinationBytes.buffer);
+  view.setBigUint64(0, destination, false);
 
-    // Match Rust: hasher.update(destination.to_be_bytes().as_slice());
-    const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
-    const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
+  // Match Rust: hasher.update(destination.to_be_bytes().as_slice());
+  const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
+  const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
 
-    const combined = new Uint8Array(8 + 32 + 32);
-    combined.set(destinationBytes, 0);
-    combined.set(routeHashBytes, 8);
-    combined.set(rewardHashBytes, 40);
+  const combined = new Uint8Array(8 + 32 + 32);
+  combined.set(destinationBytes, 0);
+  combined.set(routeHashBytes, 8);
+  combined.set(rewardHashBytes, 40);
 
-    const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
+  const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
 
-    return {
+  return {
     routeHash,
     rewardHash,
     intentHash,
-    }
+  }
+}
+
+export function hashIntentPremix(destination: bigint, routeHash: Hex, rewardHash: Hex): Hex {
+  
+  // Convert destination to big-endian bytes (u64 as 8 bytes)
+  const destinationBytes = new Uint8Array(8);
+  const view = new DataView(destinationBytes.buffer);
+  view.setBigUint64(0, destination, false); // false = big-endian
+  
+  // Convert hashes to bytes
+  const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
+  const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
+
+  console.log("hashIntentPremix: ", destination)
+  console.log("hashIntentPremix routeHash", Array.from(Buffer.from(routeHash.slice(2), 'hex')))
+  console.log("hashIntentPremix rewardHash", Array.from(Buffer.from(rewardHash.slice(2), 'hex')))
+  
+  // Combine all bytes in order: destination + route_hash + reward_hash
+  const combined = new Uint8Array(8 + 32 + 32);
+  combined.set(destinationBytes, 0);
+  combined.set(routeHashBytes, 8);
+  combined.set(rewardHashBytes, 40);
+  
+  // Apply keccak256 hash
+  const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
+  
+  return intentHash;
 }

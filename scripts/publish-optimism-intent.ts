@@ -75,7 +75,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   const rewardTokens: TokenAmount[] = [
     {
       token: config.intentSources[1].tokens[0], // USDC on Optimism
-      amount: 35_500 // 0.0355 USDC reward (6 decimals) - includes solver fee
+      amount: 36_000 // 0.0355 USDC reward (6 decimals) - includes solver fee
     }
   ]
 
@@ -95,7 +95,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   // Create Solana SPL token transfer instruction
   const tokenMintAddress = new PublicKey(routeTokens[0].token) // USDC on Solana
   const recipientAddress = new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh') // Destination wallet
-  const transferAmount = BigInt(500) // 0.0005 USDC (half of the route tokens)
+  const transferAmount = BigInt(1000)
 
   // Create SPL token transfer call exactly as in the integration test
   // The integration test uses: spl_token_2022::instruction::transfer_checked()
@@ -114,7 +114,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   const transferCheckedInstructionData = Buffer.alloc(10) // 1 + 8 + 1 = 10 bytes
   transferCheckedInstructionData[0] = 12 // TransferChecked instruction
   
-  // Write the amount as 8 bytes little-endian  
+  // Write the amount as 8 bytes little-endian  []
   const amountBytes = Buffer.alloc(8)
   const view = new DataView(amountBytes.buffer)
   view.setBigUint64(0, transferAmount, true) // true for little-endian

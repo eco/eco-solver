@@ -22,7 +22,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { CallDataInterface } from '@/contracts'
-import { hashIntent, encodeRoute } from '@/utils/encodeAndHash'
+import { hashIntent, encodeRoute, hashIntentPremix } from '@/utils/encodeAndHash'
 
 import * as portalIdl from '../solana/program/portal.json'
 
@@ -318,19 +318,18 @@ export class SolanaWalletFulfillService implements IFulfillService {
       commitment: 'confirmed',
       preflightCommitment: 'confirmed',
     })
-    
-    console.log("MADDEN: destination", model.intent.destination)
-    console.log("MADDEN: intent.reward", model.intent.reward)
-    console.log("MADDEN: intent.route", model.intent.route)
     const program = new Program(portalIdl, provider)
     
     // Get the intent hash
-    const { intentHash, rewardHash } = hashIntent(
+    const { intentHash, routeHash, rewardHash } = hashIntent(
       model.intent.destination,
       model.intent.route,
       model.intent.reward
     )
-    const intentHashBytes = Buffer.from(intentHash.slice(2), 'hex')
+
+    const intentHashPremix = hashIntentPremix(model.intent.destination, routeHash, rewardHash)
+    console.log("MADDEN: intentHashPremix", intentHashPremix)
+    const intentHashBytes = Buffer.from(intentHashPremix.slice(2), 'hex')
     const rewardHashBytes = Buffer.from(rewardHash.slice(2), 'hex')
     
     // Get executor PDA - matches executor_pda() in Rust
