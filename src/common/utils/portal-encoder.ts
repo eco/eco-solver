@@ -78,8 +78,12 @@ export class PortalEncoder {
             data.salt,
             data.deadline,
             AddressNormalizer.denormalizeToEvm(data.portal),
-            data.tokens.map((t) => [AddressNormalizer.denormalizeToEvm(t.token), t.amount] as const),
-            data.calls.map((c) => [AddressNormalizer.denormalizeToEvm(c.target), c.data, c.value] as const),
+            data.tokens.map(
+              (t) => [AddressNormalizer.denormalizeToEvm(t.token), t.amount] as const,
+            ),
+            data.calls.map(
+              (c) => [AddressNormalizer.denormalizeToEvm(c.target), c.data, c.value] as const,
+            ),
           ],
         ],
       );
@@ -93,7 +97,9 @@ export class PortalEncoder {
             AddressNormalizer.denormalizeToEvm(data.creator),
             AddressNormalizer.denormalizeToEvm(data.prover),
             data.nativeAmount,
-            data.tokens.map((t) => [AddressNormalizer.denormalizeToEvm(t.token), t.amount] as const),
+            data.tokens.map(
+              (t) => [AddressNormalizer.denormalizeToEvm(t.token), t.amount] as const,
+            ),
           ],
         ],
       );

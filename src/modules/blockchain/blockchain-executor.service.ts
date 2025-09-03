@@ -57,7 +57,9 @@ export class BlockchainExecutorService {
             break;
         }
       } catch (error) {
-        this.logger.warn(`Failed to initialize executor for chain ${chainId}: ${getErrorMessage(error)}`);
+        this.logger.warn(
+          `Failed to initialize executor for chain ${chainId}: ${getErrorMessage(error)}`,
+        );
       }
     }
   }

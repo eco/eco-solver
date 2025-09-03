@@ -1,3 +1,4 @@
+import { TronWeb } from 'tronweb';
 import { Hex } from 'viem';
 
 /**
@@ -48,15 +49,6 @@ export namespace RawEventLogs {
     removed?: boolean;
   }
 
-  /** TVM/Tron raw event structure */
-  export interface TvmEvent {
-    event_name: string;
-    transaction_id: string;
-    block_number?: string;
-    block_timestamp?: number;
-    result: Record<string, any>;
-  }
-
   /** SVM/Solana raw logs structure */
   export interface SvmLogs {
     signature: string;
@@ -89,40 +81,5 @@ export namespace PortalEventArgs {
   }
 }
 
-/**
- * Type guards for event types
- */
-export const EventTypeGuards = {
-  isIntentFulfilledEvent(event: any): event is IntentFulfilledEvent {
-    return (
-      event &&
-      typeof event.intentHash === 'string' &&
-      typeof event.claimant === 'string' &&
-      typeof event.chainId === 'bigint' &&
-      typeof event.transactionHash === 'string'
-    );
-  },
-
-  isEvmLog(log: any): log is RawEventLogs.EvmLog {
-    return (
-      log &&
-      typeof log.address === 'string' &&
-      Array.isArray(log.topics) &&
-      typeof log.data === 'string' &&
-      typeof log.transactionHash === 'string'
-    );
-  },
-
-  isTvmEvent(event: any): event is RawEventLogs.TvmEvent {
-    return (
-      event &&
-      typeof event.event_name === 'string' &&
-      typeof event.transaction_id === 'string' &&
-      typeof event.result === 'object'
-    );
-  },
-
-  isSvmLogs(logs: any): logs is RawEventLogs.SvmLogs {
-    return logs && typeof logs.signature === 'string' && Array.isArray(logs.logs);
-  },
-};
+export type TvmEventResponse = Awaited<ReturnType<TronWeb['event']['getEventsByContractAddress']>>;
+export type TvmEvent = Extract<TvmEventResponse['data'], unknown[]>[number];

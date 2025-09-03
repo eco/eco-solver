@@ -3,7 +3,7 @@ import { TronWeb } from 'tronweb';
 import { Hex } from 'viem';
 
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { RawEventLogs } from '@/common/interfaces/events.interface';
+import { TvmEvent, TvmEventResponse } from '@/common/interfaces/events.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -163,31 +163,83 @@ export class TronListener extends BaseChainListener {
 
       const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
 
+      // {
+      //   "data": [
+      //   {
+      //     "block_number": 57652937,
+      //     "block_timestamp": 1756892487000,
+      //     "caller_contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
+      //     "contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
+      //     "event_index": 0,
+      //     "event_name": "IntentFulfilled",
+      //     "result": {
+      //       "0": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
+      //       "1": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3",
+      //       "intentHash": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
+      //       "claimant": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3"
+      //     },
+      //     "result_type": {
+      //       "intentHash": "bytes32",
+      //       "claimant": "bytes32"
+      //     },
+      //     "event": "IntentFulfilled(bytes32 indexed intentHash, bytes32 indexed claimant)",
+      //     "transaction_id": "10d1b80be3be07959b0be011c846abddf6cbc08f55719ed2e1acd43d80533083"
+      //   },
+      //   {
+      //     "block_number": 57652937,
+      //     "block_timestamp": 1756892487000,
+      //     "caller_contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
+      //     "contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
+      //     "event_index": 4,
+      //     "event_name": "IntentProven",
+      //     "result": {
+      //       "0": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
+      //       "1": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3",
+      //       "intentHash": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
+      //       "claimant": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3"
+      //     },
+      //     "result_type": {
+      //       "intentHash": "bytes32",
+      //       "claimant": "bytes32"
+      //     },
+      //     "event": "IntentProven(bytes32 indexed intentHash, bytes32 indexed claimant)",
+      //     "transaction_id": "10d1b80be3be07959b0be011c846abddf6cbc08f55719ed2e1acd43d80533083"
+      //   }
+      // ],
+      //     "success": true,
+      //     "meta": {
+      //   "at": 1756892865144,
+      //       "page_size": 2
+      // }
+      // }
+
       // Get Portal events (IntentPublished, IntentFulfilled, IntentWithdrawn)
-      const portalEvents = await client.event.getEventsByContractAddress(portalAddress, {
-        onlyConfirmed: true,
-        minBlockTimestamp: this.lastBlockTimestamp,
-        orderBy: 'block_timestamp,asc',
-        limit: 200,
-      });
+      const portalEventsResponse: TvmEventResponse = await client.event.getEventsByContractAddress(
+        portalAddress,
+        {
+          onlyConfirmed: true,
+          minBlockTimestamp: this.lastBlockTimestamp,
+          orderBy: 'block_timestamp,asc',
+          limit: 200,
+        },
+      );
 
       // Get IntentProven events from all configured prover contracts
-      const allProverEvents = [];
+      const allProverEvents: TvmEventResponse['data'] = [];
       for (const [proverType, proverAddress] of this.proverAddresses.entries()) {
         try {
-          const proverEvents = await client.event.getEventsByContractAddress(proverAddress, {
-            onlyConfirmed: true,
-            minBlockTimestamp: this.lastBlockTimestamp,
-            orderBy: 'block_timestamp,asc',
-            limit: 200,
-          });
+          const proverEventsResponse = await client.event.getEventsByContractAddress(
+            proverAddress,
+            {
+              onlyConfirmed: true,
+              minBlockTimestamp: this.lastBlockTimestamp,
+              orderBy: 'block_timestamp,asc',
+              limit: 200,
+            },
+          );
 
-          if (proverEvents && Array.isArray(proverEvents)) {
-            // Add prover type to each event for tracking
-            proverEvents.forEach((event) => {
-              event.proverType = proverType;
-            });
-            allProverEvents.push(...proverEvents);
+          if ((proverEventsResponse.data?.length || 0) > 0) {
+            allProverEvents.push(...proverEventsResponse.data!);
           }
         } catch (error) {
           this.logger.error(
@@ -197,11 +249,13 @@ export class TronListener extends BaseChainListener {
         }
       }
 
-      // Combine all events - ensure we handle the case where portalEvents might not be an array
-      const portalEventArray = portalEvents && Array.isArray(portalEvents) ? portalEvents : [];
-      const events = [...portalEventArray, ...allProverEvents];
+      // Combine all events
+      const events: TvmEventResponse['data'] = [
+        ...(portalEventsResponse.data || []),
+        ...allProverEvents,
+      ];
 
-      const eventCount = events && Array.isArray(events) ? events.length : 0;
+      const eventCount = events.length;
       if (eventCount > 0) {
         // Record events found in metrics
         this.eventsFoundCounter.add(eventCount, attributes);
@@ -215,18 +269,16 @@ export class TronListener extends BaseChainListener {
       }
 
       // Process events
-      if (events && Array.isArray(events)) {
-        for (const event of events) {
-          if (event.event_name === 'IntentPublished') {
-            await this.processIntentEvent(event);
-          } else if (event.event_name === 'IntentFulfilled') {
-            await this.processIntentFulfilledEvent(event);
-          } else if (event.event_name === 'IntentProven') {
-            // Pass prover type if available (from prover contracts)
-            await this.processIntentProvenEvent(event, event.proverType);
-          } else if (event.event_name === 'IntentWithdrawn') {
-            await this.processIntentWithdrawnEvent(event);
-          }
+      for (const event of events) {
+        if (event.event_name === 'IntentPublished') {
+          await this.processIntentEvent(event);
+        } else if (event.event_name === 'IntentFulfilled') {
+          await this.processIntentFulfilledEvent(event);
+        } else if (event.event_name === 'IntentProven') {
+          // Pass prover type if available (from prover contracts)
+          await this.processIntentProvenEvent(event);
+        } else if (event.event_name === 'IntentWithdrawn') {
+          await this.processIntentWithdrawnEvent(event);
         }
       }
 
@@ -243,7 +295,7 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentEvent(event: RawEventLogs.TvmEvent): Promise<void> {
+  private async processIntentEvent(event: TvmEvent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentEvent', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
@@ -281,7 +333,7 @@ export class TronListener extends BaseChainListener {
           ),
           deadline: BigInt(result.rewardDeadline),
           nativeAmount: BigInt(result.nativeAmount),
-          tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens) : [],
+          tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens as any) : [],
         },
         sourceChainId: BigInt(this.config.chainId),
         publishTxHash: event.transaction_id,
@@ -313,7 +365,7 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentFulfilledEvent(event: RawEventLogs.TvmEvent): Promise<void> {
+  private async processIntentFulfilledEvent(event: TvmEvent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentFulfilledEvent', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
@@ -366,20 +418,13 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentProvenEvent(
-    event: RawEventLogs.TvmEvent,
-    proverType?: string,
-  ): Promise<void> {
+  private async processIntentProvenEvent(event: TvmEvent): Promise<void> {
     const spanAttributes: any = {
       'tvm.chain_id': this.config.chainId.toString(),
       'tvm.event_name': event.event_name,
       'tvm.transaction_id': event.transaction_id,
       'tvm.block_number': event.block_number,
     };
-
-    if (proverType) {
-      spanAttributes['prover.type'] = proverType;
-    }
 
     const span = this.otelService.startSpan('tvm.listener.processIntentProvenEvent', {
       attributes: spanAttributes,
@@ -414,9 +459,8 @@ export class TronListener extends BaseChainListener {
       span.addEvent('intent.proven.emitted');
       span.setStatus({ code: api.SpanStatusCode.OK });
 
-      const proverInfo = proverType ? ` from ${proverType} prover` : '';
       this.logger.log(
-        `IntentProven event processed${proverInfo}: ${intentHash} on chain ${this.config.chainId}`,
+        `IntentProven event processed: ${intentHash} on chain ${this.config.chainId}`,
       );
     } catch (error) {
       this.logger.error(
@@ -430,7 +474,7 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentWithdrawnEvent(event: RawEventLogs.TvmEvent): Promise<void> {
+  private async processIntentWithdrawnEvent(event: TvmEvent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentWithdrawnEvent', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),

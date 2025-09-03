@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
+
 import { RedisService } from '../../redis/redis.service';
 
 @Injectable()

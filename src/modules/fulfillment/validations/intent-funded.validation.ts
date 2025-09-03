@@ -89,7 +89,10 @@ export class IntentFundedValidation implements Validation {
       }
 
       // Otherwise, wrap the error as TEMPORARY (network issues, etc.)
-      this.logger.error(`Failed to check funding status for intent ${intent.intentHash}:`, toError(error));
+      this.logger.error(
+        `Failed to check funding status for intent ${intent.intentHash}:`,
+        toError(error),
+      );
       throw new ValidationError(
         `Failed to verify intent funding status: ${getErrorMessage(error)}`,
         ValidationErrorType.TEMPORARY,

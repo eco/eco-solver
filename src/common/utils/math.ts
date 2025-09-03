@@ -3,7 +3,7 @@ export function sum<
   Key extends Item extends bigint ? never : keyof Item,
 >(items: Item[], key?: Key): bigint {
   return items.reduce((sum, item) => {
-    const amount = typeof item === 'bigint' ? item : (key ? ((item[key] ?? 0n) as bigint) : 0n);
+    const amount = typeof item === 'bigint' ? item : key ? ((item[key] ?? 0n) as bigint) : 0n;
     return sum + amount;
   }, 0n);
 }

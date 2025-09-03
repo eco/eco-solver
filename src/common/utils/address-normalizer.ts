@@ -9,8 +9,6 @@ import { PublicKey } from '@solana/web3.js';
 import { TronWeb } from 'tronweb';
 import { getAddress, isAddress as isViemAddress } from 'viem';
 
-import { getErrorMessage } from '@/common/utils/error-handler';
-
 import {
   BlockchainAddress,
   padTo32Bytes,
@@ -19,6 +17,7 @@ import {
   unpadFrom32Bytes,
 } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
+import { getErrorMessage } from '@/common/utils/error-handler';
 import { EvmAddress } from '@/modules/blockchain/evm/types/address';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 
