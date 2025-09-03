@@ -22,7 +22,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { CallDataInterface } from '@/contracts'
-import { hashIntent, encodeRoute, hashIntentPremix } from '@/utils/encodeAndHash'
+import { hashIntent, encodeRoute, hashIntentPremix, hashIntentSvm, hashIntentSvm2 } from '@/utils/encodeAndHash'
 
 import * as portalIdl from '../solana/program/portal.json'
 
@@ -384,6 +384,9 @@ export class SolanaWalletFulfillService implements IFulfillService {
       keypair,
       model.intent.route
     )
+
+    const intentHashPremixRecomputed = hashIntentSvm2(model.intent.destination, model.intent.route, model.intent.reward, remainingAccounts.callAccounts)
+    console.log("MADDEN: intentHashPremixRecomputed", intentHashPremixRecomputed)
     
     // Build the fulfill instruction matching the Rust accounts structure
     const instruction = await program.methods
@@ -398,7 +401,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
       })
-      .remainingAccounts(remainingAccounts)
+      .remainingAccounts([...remainingAccounts.tokenAccounts, ...remainingAccounts.callAccounts])
       .instruction()
     
     console.log("MADDEN: fulfillInstruction original data", instruction.data.toString('hex'))
@@ -419,7 +422,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
     connection: web3.Connection,
     keypair: web3.Keypair,
     route: any
-  ): Promise<web3.AccountMeta[]> {
+  ): Promise<{tokenAccounts: web3.AccountMeta[], callAccounts: web3.AccountMeta[]}> {
     console.log("MADDEN: getTokenTransferAccounts - route.tokens:", route.tokens)
     console.log("MADDEN: getTokenTransferAccounts - route.calls:", route.calls)
     const accounts: web3.AccountMeta[] = []
@@ -532,7 +535,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
     console.log("MADDEN: getTokenTransferAccounts - call accounts:", callAccounts.map(acc => acc.pubkey.toString()))
     
     // Return token accounts + call accounts in the correct order
-    return [...accounts, ...callAccounts]
+    return { tokenAccounts: accounts, callAccounts: callAccounts }
   }
 
   /**

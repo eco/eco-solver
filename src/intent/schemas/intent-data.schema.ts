@@ -173,7 +173,6 @@ export class IntentDataModel implements IntentType {
       source: intent.route.source,
       route: intent.route,
       reward: intent.reward,
-
     }
   }
 }
