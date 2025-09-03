@@ -158,13 +158,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const wethTokens = [
       {
         chainId: 137, // Polygon PoS
-        address: '0x4200000000000000000000000000000000000006' as Hex,
+        address: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619' as Hex,
         amount: parseUnits('4.51', 18), // 4.51 WETH
-      },
-      {
-        chainId: 8453, // Base
-        address: '0x4200000000000000000000000000000000000006' as Hex,
-        amount: parseUnits('77.05', 18), // 77.05 WETH
       },
     ]
 
