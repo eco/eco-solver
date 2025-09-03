@@ -13,6 +13,7 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { SmartAccount } from 'viem/account-abstraction'
+import { getSlippage } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -73,7 +74,17 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         throw EcoError.RebalancingRouteNotFound()
       }
 
-      const slippage = 1 - Number(amountOut) / Number(amountIn)
+      let amountInBase6 = amountIn
+      if (tokenIn.balance.decimals !== 6) {
+        // Use amountUsd for slippage calculation to ensure 1:1
+        // Assuming only tokenIn can have non-6 decimals or not be a stable coin
+        if (!relayQuote.details?.currencyIn?.amountUsd) {
+          throw EcoError.RebalancingRouteNotFound()
+        }
+        amountInBase6 = parseUnits(relayQuote.details?.currencyIn?.amountUsd, 6).toString()
+      }
+
+      const slippage = getSlippage(amountOut, amountInBase6)
 
       return {
         slippage,

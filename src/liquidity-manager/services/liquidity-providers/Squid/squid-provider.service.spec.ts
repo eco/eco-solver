@@ -82,6 +82,7 @@ describe('SquidProviderService', () => {
       const mockRoute = {
         estimate: {
           fromAmount: '100000000000000000000',
+          fromAmountUSD: '1000000000000',
           toAmount: '99000000',
           toAmountMin: '98010000',
         },
@@ -133,7 +134,7 @@ describe('SquidProviderService', () => {
     it('should execute a valid quote', async () => {
       await squidProviderService.onModuleInit()
       const mockRoute = {
-        estimate: { fromAmount: '100', toAmount: '95', toAmountMin: '94' },
+        estimate: { fromAmount: '100', toAmount: '95', toAmountMin: '94', fromAmountUSD: '0.0001' },
         transactionRequest: {
           target: zeroAddress,
           data: '0xdeadbeef',

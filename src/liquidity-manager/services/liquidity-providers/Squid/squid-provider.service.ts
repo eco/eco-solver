@@ -68,7 +68,17 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     try {
       const { route } = await this.squid.getRoute(params)
 
-      const slippage = getSlippage(route.estimate.toAmountMin, route.estimate.fromAmount)
+      let fromAmountBase6 = route.estimate.fromAmount
+      if (tokenIn.balance.decimals !== 6) {
+        if (!route.estimate.fromAmountUSD) {
+          throw EcoError.RebalancingRouteNotFound()
+        }
+        // Use fromAmountUSD for slippage calculation to ensure 1:1
+        // Assuming only tokenIn can have non-6 decimals or not be a stable coin
+        fromAmountBase6 = parseUnits(route.estimate.fromAmountUSD, 6).toString()
+      }
+
+      const slippage = getSlippage(route.estimate.toAmountMin, fromAmountBase6)
 
       const quote: RebalanceQuote<'Squid'> = {
         amountIn: BigInt(route.estimate.fromAmount),

@@ -27,6 +27,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { getSlippage } from '@/liquidity-manager/utils/math'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -150,8 +151,14 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const result = await getRoutes(routesRequest)
     const route = this.selectRoute(result.routes)
 
-    // This assumes tokens are 1:1
-    const slippage = 1 - parseFloat(route.toAmountMin) / parseFloat(route.fromAmount)
+    let fromAmountBase6 = route.fromAmount
+    if (tokenIn.balance.decimals !== 6) {
+      // Use fromAmountUSD for slippage calculation to ensure 1:1
+      // Assuming only tokenIn can have non-6 decimals or not be a stable coin
+      fromAmountBase6 = parseUnits(route.fromAmountUSD, 6).toString()
+    }
+
+    const slippage = getSlippage(route.toAmountMin, fromAmountBase6)
 
     return {
       amountIn: BigInt(route.fromAmount),

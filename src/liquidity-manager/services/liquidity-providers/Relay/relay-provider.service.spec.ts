@@ -15,6 +15,7 @@ jest.mock('@reservoir0x/relay-sdk', () => {
     details: {
       currencyIn: {
         amount: '1000000000000000000',
+        amountUsd: '1000000000000',
       },
       currencyOut: {
         minimumAmount: '990000000000000000',

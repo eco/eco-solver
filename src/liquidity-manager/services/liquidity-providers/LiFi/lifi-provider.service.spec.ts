@@ -144,6 +144,7 @@ describe('LiFiProviderService', () => {
       }
       const mockRoute = {
         fromAmount: '1000000000000000000',
+        fromAmountUSD: '1000000000000',
         toAmount: '1000000000000000000',
         toAmountMin: '900000000000000000',
         steps: [],
