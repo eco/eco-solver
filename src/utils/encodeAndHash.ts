@@ -56,8 +56,7 @@ case VmType.SVM:
         
         const saltBytes = Buffer.from(salt.slice(2), 'hex');
         const portalBytes = new PublicKey(portal).toBytes();
-        // console.log
-        
+
         const encoded = svmCoder.types.encode('Route', {
         salt: { 0: Array.from(saltBytes) }, // Bytes32 struct format
         deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
@@ -95,7 +94,7 @@ export function encodeRoute2(route: RouteType, accounts: web3.AccountMeta[]): He
             
             const encoded = svmCoder.types.encode('Route', {
                 salt: { 0: Array.from(saltBytes) }, // Bytes32 struct format
-                deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
+                deadline: new BN(deadline.toString()),
                 portal: { 0: Array.from(portalBytes) }, // Bytes32 struct format
                 tokens: tokens.map(({ token, amount }) => ({
                     token: token instanceof PublicKey ? token : new PublicKey(token),
@@ -156,8 +155,7 @@ export function encodeRoute2(route: RouteType, accounts: web3.AccountMeta[]): He
                     //  CalldataWithAccounts: calldata + accounts
                     const serializedCalldata = Buffer.concat([calldataBytes, accountsLength, accountsData])
                     
-                    console.log(`encodeRoute2: manual Calldata serialization:`, calldataBytes.toString('hex'))
-                    console.log(`encodeRoute2: manual accounts serialization:`, Array.from(Buffer.concat([accountsLength, accountsData])))
+                    console.log(`encodeRoute2: manual accounts serialization:`, Array.from(Buffer.concat([calldataBytes, accountsLength, accountsData])))
                     
                     console.log(`encodeRoute2: serialized calldata:`, serializedCalldata.toString('hex'))
                     
@@ -334,6 +332,7 @@ export function hashIntentSvm2(destination: bigint, route: RouteType, reward: Re
     intentHash: Hex
   } {
     const routeHash = keccak256(encodeRoute2(route, accounts))
+    console.log("hashIntentSvm2: routeHash", Array.from(Buffer.from(routeHash.slice(2), 'hex')))
     const rewardHash = hashReward(reward)
   
   
@@ -342,7 +341,6 @@ export function hashIntentSvm2(destination: bigint, route: RouteType, reward: Re
     const view = new DataView(destinationBytes.buffer);
     view.setBigUint64(0, destination, false);
   
-    // Match Rust: hasher.update(destination.to_be_bytes().as_slice());
     const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
     const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
   
@@ -359,30 +357,3 @@ export function hashIntentSvm2(destination: bigint, route: RouteType, reward: Re
       intentHash,
     }
   }
-
-export function hashIntentPremix(destination: bigint, routeHash: Hex, rewardHash: Hex): Hex {
-  
-  // Convert destination to big-endian bytes (u64 as 8 bytes)
-  const destinationBytes = new Uint8Array(8);
-  const view = new DataView(destinationBytes.buffer);
-  view.setBigUint64(0, destination, false); // false = big-endian
-  
-  // Convert hashes to bytes
-  const routeHashBytes = new Uint8Array(Buffer.from(routeHash.slice(2), 'hex'));
-  const rewardHashBytes = new Uint8Array(Buffer.from(rewardHash.slice(2), 'hex'));
-
-  console.log("hashIntentPremix: ", destination)
-  console.log("hashIntentPremix routeHash", Array.from(Buffer.from(routeHash.slice(2), 'hex')))
-  console.log("hashIntentPremix rewardHash", Array.from(Buffer.from(rewardHash.slice(2), 'hex')))
-  
-  // Combine all bytes in order: destination + route_hash + reward_hash
-  const combined = new Uint8Array(8 + 32 + 32);
-  combined.set(destinationBytes, 0);
-  combined.set(routeHashBytes, 8);
-  combined.set(rewardHashBytes, 40);
-  
-  // Apply keccak256 hash
-  const intentHash = keccak256(`0x${Buffer.from(combined).toString('hex')}` as Hex);
-  
-  return intentHash;
-}

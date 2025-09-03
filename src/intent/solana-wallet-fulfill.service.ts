@@ -7,6 +7,9 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction
 } from '@solana/spl-token'
+import { 
+  ComputeBudgetProgram 
+} from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { Program, AnchorProvider, Wallet, BN, web3 } from '@coral-xyz/anchor'
 import { EcoError } from '@/common/errors/eco-error'
@@ -22,7 +25,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { CallDataInterface } from '@/contracts'
-import { hashIntent, encodeRoute, hashIntentPremix, hashIntentSvm, hashIntentSvm2 } from '@/utils/encodeAndHash'
+import { hashIntent, encodeRoute, hashIntentSvm, hashIntentSvm2 } from '@/utils/encodeAndHash'
 
 import * as portalIdl from '../solana/program/portal.json'
 
@@ -112,6 +115,13 @@ export class SolanaWalletFulfillService implements IFulfillService {
     solver: Solver
   ): Promise<string> {
     const transaction = new web3.Transaction()
+    
+    // Add compute budget instruction to increase CU limit
+    // The transaction is consuming ~395k CUs, so we'll set limit to 600k for safety margin
+    const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+      units: 600_000,
+    })
+    transaction.add(computeBudgetIx)
     
     // Add token transfer instructions if needed
     const transferInstructions = await this.createTokenTransferInstructions(
@@ -327,10 +337,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
       model.intent.reward
     )
 
-    const intentHashPremix = hashIntentPremix(model.intent.destination, routeHash, rewardHash)
-    console.log("MADDEN: intentHashPremix", intentHashPremix)
-    const intentHashBytes = Buffer.from(intentHashPremix.slice(2), 'hex')
-    const rewardHashBytes = Buffer.from(rewardHash.slice(2), 'hex')
+    
     
     // Get executor PDA - matches executor_pda() in Rust
     const EXECUTOR_SEED = Buffer.from("executor")
@@ -341,10 +348,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
     
     // Get fulfill marker PDA - matches FulfillMarker::pda() in Rust
     const FULFILL_MARKER_SEED = Buffer.from("fulfill_marker")
-    const [fulfillMarkerPda] = web3.PublicKey.findProgramAddressSync(
-      [FULFILL_MARKER_SEED, intentHashBytes],
-      portalAddress
-    )
+    
     
     // Convert claimant address to Bytes32 format (32-byte array)
     const claimantBytes = keypair.publicKey.toBytes()
@@ -357,6 +361,25 @@ export class SolanaWalletFulfillService implements IFulfillService {
     const encodedRoute = encodeRoute(model.intent.route)
     const routeBytes = Buffer.from(encodedRoute.slice(2), 'hex') // Convert hex to bytes
     
+    
+    
+    // Get remaining accounts for token transfers and calls
+    const remainingAccounts = await this.getTokenTransferAccounts(
+      connection,
+      keypair,
+      model.intent.route
+    )
+
+    const intentHashPremix = hashIntentSvm2(model.intent.destination, model.intent.route, model.intent.reward, remainingAccounts.callAccounts)
+    console.log("MADDEN: intentHashPremix", intentHashPremix)
+    const intentHashBytes = Buffer.from(intentHashPremix.intentHash.slice(2), 'hex')
+    const rewardHashBytes = Buffer.from(rewardHash.slice(2), 'hex')
+
+    const [fulfillMarkerPda] = web3.PublicKey.findProgramAddressSync(
+      [FULFILL_MARKER_SEED, intentHashBytes],
+      portalAddress
+    )
+
     // Try using the route struct directly instead of encoded bytes
     const fulfillArgs = {
       intentHash: { 0: Array.from(intentHashBytes) }, // Bytes32 format
@@ -377,16 +400,6 @@ export class SolanaWalletFulfillService implements IFulfillService {
       rewardHash: { 0: Array.from(rewardHashBytes) }, // Bytes32 format
       claimant: { 0: Array.from(claimantBytes32) }, // Bytes32 format
     }
-    
-    // Get remaining accounts for token transfers and calls
-    const remainingAccounts = await this.getTokenTransferAccounts(
-      connection,
-      keypair,
-      model.intent.route
-    )
-
-    const intentHashPremixRecomputed = hashIntentSvm2(model.intent.destination, model.intent.route, model.intent.reward, remainingAccounts.callAccounts)
-    console.log("MADDEN: intentHashPremixRecomputed", intentHashPremixRecomputed)
     
     // Build the fulfill instruction matching the Rust accounts structure
     const instruction = await program.methods
