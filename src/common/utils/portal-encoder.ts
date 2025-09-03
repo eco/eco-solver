@@ -8,6 +8,8 @@
  * - SVM: Borsh serialization
  */
 
+import { PublicKey } from '@solana/web3.js';
+import { deserialize, Schema, serialize } from 'borsh';
 import { decodeAbiParameters, encodeAbiParameters, Hex, parseAbiParameters } from 'viem';
 
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services';
@@ -143,39 +145,114 @@ export class PortalEncoder {
   }
 
   /**
-   * SVM encoding using simplified JSON (Borsh would require more complex setup)
-   * In production, this should use Borsh serialization
+   * Borsh schemas for SVM types using classic borsh library
+   */
+  private static readonly SVM_ROUTE_SCHEMA: Schema = {
+    struct: {
+      salt: { array: { type: 'u8', len: 32 } },
+      deadline: 'u64',
+      portal: { array: { type: 'u8', len: 32 } },
+      tokens: {
+        array: {
+          type: {
+            struct: {
+              token: { array: { type: 'u8', len: 32 } },
+              amount: 'u64',
+            },
+          },
+        },
+      },
+      calls: {
+        array: {
+          type: {
+            struct: {
+              target: { array: { type: 'u8', len: 32 } },
+              data: { array: { type: 'u8' } },
+              value: 'u64',
+            },
+          },
+        },
+      },
+    },
+  };
+
+  private static readonly SVM_REWARD_SCHEMA: Schema = {
+    struct: {
+      deadline: 'u64',
+      creator: { array: { type: 'u8', len: 32 } },
+      prover: { array: { type: 'u8', len: 32 } },
+      nativeAmount: 'u64',
+      tokens: {
+        array: {
+          type: {
+            struct: {
+              token: { array: { type: 'u8', len: 32 } },
+              amount: 'u64',
+            },
+          },
+        },
+      },
+    },
+  };
+
+  /**
+   * SVM encoding using proper Borsh serialization
    */
   private static encodeSvm(data: Intent['route'] | Intent['reward']): Buffer {
     if (this.isRoute(data)) {
-      const svmData = {
-        salt: Array.from(Buffer.from(data.salt.slice(2), 'hex')), // Convert hex to byte array
+      // Prepare route data for Borsh
+      const routeData = {
+        salt: Array.from(Buffer.from(data.salt.slice(2), 'hex')),
         deadline: data.deadline.toString(),
-        portal: AddressNormalizer.denormalize(data.portal, ChainType.SVM),
+        portal: this.addressToBytes32(AddressNormalizer.denormalizeToSvm(data.portal)),
         tokens: data.tokens.map((t) => ({
-          token: AddressNormalizer.denormalize(t.token, ChainType.SVM),
+          token: Array.from(new PublicKey(AddressNormalizer.denormalizeToSvm(t.token)).toBytes()),
           amount: t.amount.toString(),
         })),
         calls: data.calls.map((c) => ({
-          target: AddressNormalizer.denormalize(c.target, ChainType.SVM),
+          target: this.addressToBytes32(AddressNormalizer.denormalizeToSvm(c.target)),
           data: Array.from(Buffer.from(c.data.slice(2), 'hex')),
           value: c.value.toString(),
         })),
       };
-      return Buffer.from(JSON.stringify(svmData), 'utf8');
+
+      // Serialize using Borsh
+      return Buffer.from(serialize(this.SVM_ROUTE_SCHEMA, routeData));
     } else {
-      const svmData = {
+      // Prepare reward data for Borsh
+      const rewardData = {
         deadline: data.deadline.toString(),
-        creator: AddressNormalizer.denormalize(data.creator, ChainType.SVM),
-        prover: AddressNormalizer.denormalize(data.prover, ChainType.SVM),
+        creator: Array.from(
+          new PublicKey(AddressNormalizer.denormalizeToSvm(data.creator)).toBytes(),
+        ),
+        prover: Array.from(
+          new PublicKey(AddressNormalizer.denormalizeToSvm(data.prover)).toBytes(),
+        ),
         nativeAmount: data.nativeAmount.toString(),
         tokens: data.tokens.map((t) => ({
-          token: AddressNormalizer.denormalize(t.token, ChainType.SVM),
+          token: Array.from(new PublicKey(AddressNormalizer.denormalizeToSvm(t.token)).toBytes()),
           amount: t.amount.toString(),
         })),
       };
-      return Buffer.from(JSON.stringify(svmData), 'utf8');
+
+      // Serialize using Borsh
+      return Buffer.from(serialize(this.SVM_REWARD_SCHEMA, rewardData));
     }
+  }
+
+  /**
+   * Helper to convert address to 32-byte array for SVM
+   */
+  private static addressToBytes32(address: string): number[] {
+    if (address.startsWith('0x')) {
+      const bytes = Buffer.from(address.slice(2), 'hex');
+      const result = new Uint8Array(32);
+      result.set(bytes.slice(0, 32));
+      return Array.from(result);
+    }
+    // For Solana base58 addresses
+    const publicKey = new PublicKey(address);
+    return Array.from(publicKey.toBytes());
   }
 
   /**
@@ -266,43 +343,58 @@ export class PortalEncoder {
   }
 
   /**
-   * SVM decoding from JSON to Intent format
+   * SVM decoding from Borsh to Intent format
    */
   private static decodeSvm<Type extends 'route' | 'reward'>(
     data: Buffer | string,
     dataType: Type,
   ): Type extends 'route' ? Intent['route'] : Intent['reward'] {
-    const jsonStr = typeof data === 'string' ? data : data.toString('utf8');
-    const parsed = JSON.parse(jsonStr);
+    const buffer = typeof data === 'string' ? Buffer.from(data, 'hex') : data;
 
     if (dataType === 'route') {
+      // Decode route using Borsh
+      const decoded = deserialize(this.SVM_ROUTE_SCHEMA, buffer) as any;
+
       return {
-        salt: ('0x' + Buffer.from(parsed.salt).toString('hex')) as Hex,
-        deadline: BigInt(parsed.deadline),
-        portal: AddressNormalizer.normalize(parsed.portal, ChainType.SVM),
-        nativeAmount: BigInt(parsed.nativeAmount || '0'),
-        tokens: parsed.tokens.map((t: any) => ({
-          token: AddressNormalizer.normalize(t.token, ChainType.SVM),
+        salt: ('0x' + Buffer.from(decoded.salt).toString('hex')) as Hex,
+        deadline: BigInt(decoded.deadline),
+        portal: AddressNormalizer.normalizeSvm(this.bytes32ToAddress(decoded.portal)),
+        nativeAmount: 0n, // Route doesn't have nativeAmount in the schema
+        tokens: decoded.tokens.map((t: any) => ({
+          token: AddressNormalizer.normalizeSvm(this.bytes32ToAddress(t.token)),
           amount: BigInt(t.amount),
         })),
-        calls: parsed.calls.map((c: any) => ({
-          target: AddressNormalizer.normalize(c.target, ChainType.SVM),
+        calls: decoded.calls.map((c: any) => ({
+          target: AddressNormalizer.normalizeSvm(this.bytes32ToAddress(c.target)),
           data: ('0x' + Buffer.from(c.data).toString('hex')) as Hex,
           value: BigInt(c.value),
         })),
       } as Type extends 'route' ? Intent['route'] : Intent['reward'];
     }
 
+    // Decode reward using Borsh
+    const decoded = deserialize(this.SVM_REWARD_SCHEMA, buffer) as any;
+
     return {
-      deadline: BigInt(parsed.deadline),
-      creator: AddressNormalizer.normalize(parsed.creator, ChainType.SVM),
-      prover: AddressNormalizer.normalize(parsed.prover, ChainType.SVM),
-      nativeAmount: BigInt(parsed.nativeAmount),
-      tokens: parsed.tokens.map((t: any) => ({
-        token: AddressNormalizer.normalize(t.token, ChainType.SVM),
+      deadline: BigInt(decoded.deadline),
+      creator: AddressNormalizer.normalizeSvm(this.bytes32ToAddress(decoded.creator)),
+      prover: AddressNormalizer.normalizeSvm(this.bytes32ToAddress(decoded.prover)),
+      nativeAmount: BigInt(decoded.nativeAmount),
+      tokens: decoded.tokens.map((t: any) => ({
+        token: AddressNormalizer.normalizeSvm(this.bytes32ToAddress(t.token)),
         amount: BigInt(t.amount),
       })),
     } as Type extends 'route' ? Intent['route'] : Intent['reward'];
+  }
+
+  /**
+   * Helper to convert 32-byte array to address for SVM
+   */
+  private static bytes32ToAddress(bytes: number[] | Uint8Array): string {
+    const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    // Check if it looks like a Solana public key (32 bytes, non-zero)
+    const pubkey = new PublicKey(buffer);
+    return pubkey.toString();
   }
 
   /**

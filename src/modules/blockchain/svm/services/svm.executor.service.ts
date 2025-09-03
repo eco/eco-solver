@@ -1,57 +1,65 @@
 import { Injectable } from '@nestjs/common';
 
+import { AnchorProvider, BN, Program, setProvider } from '@coral-xyz/anchor';
+import {
+  createTransferInstruction,
+  getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
   Connection,
-  Keypair,
   PublicKey,
-  sendAndConfirmTransaction,
   SystemProgram,
   Transaction,
   TransactionInstruction,
+  VersionedTransaction,
 } from '@solana/web3.js';
 import { Hex } from 'viem';
 
-// Types for route and reward are now from the SVMIntent conversion
 import {
   BaseChainExecutor,
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
-import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
+import { portalIDL } from '@/modules/blockchain/svm/idl/portal';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
+import { SvmWalletManagerService } from './svm-wallet-manager.service';
+
+// Use untyped Program for Portal to avoid IDL type issues
+type PortalProgram = Program;
+
 @Injectable()
 export class SvmExecutorService extends BaseChainExecutor {
   private readonly connection: Connection;
-  private readonly keypair: Keypair;
-  private readonly portalProgramId: PublicKey;
+  private portalProgram: PortalProgram | null = null;
+  private wallet: ISvmWallet | null = null;
 
   constructor(
     private solanaConfigService: SolanaConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private readonly logger: SystemLoggerService,
     private proverService: ProverService,
+    private walletManager: SvmWalletManagerService,
   ) {
     super();
     this.logger.setContext(SvmExecutorService.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
-    this.keypair = Keypair.fromSecretKey(
-      Uint8Array.from(JSON.parse(this.solanaConfigService.secretKey)),
-    );
-    this.portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
+    this.initializeProgram();
   }
 
-  async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
-    if (!this.connection || !this.keypair || !this.portalProgramId) {
-      throw new Error('Solana executor not initialized - missing configuration');
+  async fulfill(intent: Intent, walletId?: string): Promise<ExecutionResult> {
+    if (!this.portalProgram || !this.wallet) {
+      throw new Error('Portal program not initialized');
     }
+
     try {
       // Get source chain info for hash calculation
       if (!intent.sourceChainId) {
@@ -68,67 +76,71 @@ export class SvmExecutorService extends BaseChainExecutor {
       const proverAddr = prover.getContractAddress(Number(intent.destination));
       const proofData = await prover.generateProof(intent);
 
+      // Calculate hashes
       const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
+      const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
 
-      // Get claimant from source chain configuration
+      // Get claimant from configuration
       const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
       const claimantPublicKey = new PublicKey(
         AddressNormalizer.denormalizeToSvm(configuredClaimant),
       );
 
       // Derive PDAs (Program Derived Addresses)
-      const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
-
       const [vaultPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('vault'), intentHashBuffer],
-        this.portalProgramId,
+        this.portalProgram.programId,
       );
 
       const [fulfillMarkerPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('fulfill_marker'), intentHashBuffer],
-        this.portalProgramId,
+        this.portalProgram.programId,
       );
 
-      const [proverPDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from('prover'), Buffer.from(proverAddr!.slice(2), 'hex')],
-        this.portalProgramId,
+      const [executorPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('executor')],
+        this.portalProgram.programId,
       );
 
-      // Encode route for Solana using SVM encoding - pass Intent route directly
-      const routeEncoded = PortalEncoder.encodeForChain(intent.route, ChainType.SVM);
+      // Convert prover address to Bytes32 format expected by the program
+      const proverBytes32 = this.addressToBytes32(proverAddr!);
 
-      // Build Portal fulfillAndProve instruction
-      const instruction = new TransactionInstruction({
-        programId: this.portalProgramId,
-        keys: [
-          { pubkey: vaultPDA, isSigner: false, isWritable: true },
-          { pubkey: fulfillMarkerPDA, isSigner: false, isWritable: true },
-          { pubkey: proverPDA, isSigner: false, isWritable: false },
-          { pubkey: this.keypair.publicKey, isSigner: true, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
-        data: this.encodeFulfillAndProveInstruction({
-          intentHash: intentHashBuffer,
-          route: routeEncoded,
-          rewardHash: Buffer.from(rewardHash.slice(2), 'hex'),
-          claimant: claimantPublicKey.toBuffer(),
-          prover: proverAddr!,
-          sourceChainId: Number(sourceChainId),
-          proofData: Buffer.from(proofData.slice(2), 'hex'),
-        }),
+      // Prepare route data for the instruction
+      const routeData = this.prepareRouteData(intent.route);
+
+      // Build fulfill instruction using Anchor (untyped)
+      const fulfillMethod = (this.portalProgram.methods as any).fulfill(
+        Array.from(intentHashBuffer), // intent_hash as [u8; 32]
+        routeData, // route
+        Array.from(Buffer.from(rewardHash.slice(2), 'hex')), // reward_hash as [u8; 32]
+        this.publicKeyToBytes32(claimantPublicKey), // claimant as [u8; 32]
+      );
+
+      const fulfillIx = await fulfillMethod
+        .accounts({
+          vault: vaultPDA,
+          fulfillMarker: fulfillMarkerPDA,
+          executor: executorPDA,
+          solver: this.wallet.getKeypair().publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      // Build and send transaction
+      const transaction = new Transaction().add(fulfillIx);
+
+      // Process token transfers if needed
+      if (intent.route.tokens && intent.route.tokens.length > 0) {
+        const transferInstructions = await this.buildTokenTransferInstructions(intent);
+        transferInstructions.forEach((ix) => transaction.add(ix));
+      }
+
+      const signature = await this.wallet.sendTransaction(transaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
       });
 
-      // Execute transaction with Portal instruction
-      const transaction = new Transaction().add(instruction);
-
-      const signature = await sendAndConfirmTransaction(
-        this.connection,
-        transaction,
-        [this.keypair],
-        {
-          commitment: 'confirmed',
-        },
-      );
+      this.logger.log(`Intent ${intent.intentHash} fulfilled with signature: ${signature}`);
 
       return {
         success: true,
@@ -143,19 +155,130 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
+  async fulfillAndProve(intent: Intent, walletId?: string): Promise<ExecutionResult> {
+    if (!this.portalProgram || !this.wallet) {
+      throw new Error('Portal program not initialized');
+    }
+
+    try {
+      // Get source chain info
+      if (!intent.sourceChainId) {
+        throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
+      }
+      const sourceChainId = intent.sourceChainId;
+
+      // Get prover and generate proof data
+      const prover = this.proverService.getProver(Number(sourceChainId), intent.reward.prover);
+      if (!prover) {
+        throw new Error('Prover not found for intent fulfillment');
+      }
+
+      const proverAddr = prover.getContractAddress(Number(intent.destination));
+      const proofData = await prover.generateProof(intent);
+
+      // Calculate hashes
+      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
+      const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
+
+      // Get claimant
+      const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
+      const claimantPublicKey = new PublicKey(
+        AddressNormalizer.denormalizeToSvm(configuredClaimant),
+      );
+
+      // Derive PDAs
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('vault'), intentHashBuffer],
+        this.portalProgram.programId,
+      );
+
+      const [fulfillMarkerPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('fulfill_marker'), intentHashBuffer],
+        this.portalProgram.programId,
+      );
+
+      const [proverPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('prover'), Buffer.from(proverAddr!.slice(2), 'hex')],
+        this.portalProgram.programId,
+      );
+
+      const [executorPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('executor')],
+        this.portalProgram.programId,
+      );
+
+      // Prepare data
+      const routeData = this.prepareRouteData(intent.route);
+      const proverBytes32 = this.addressToBytes32(proverAddr!);
+
+      // Build fulfillAndProve instruction using Anchor (untyped)
+      const fulfillAndProveMethod = (this.portalProgram.methods as any).fulfillAndProve(
+        Array.from(intentHashBuffer),
+        routeData,
+        Array.from(Buffer.from(rewardHash.slice(2), 'hex')),
+        this.publicKeyToBytes32(claimantPublicKey),
+        proverBytes32,
+        new BN(sourceChainId.toString()),
+        Array.from(Buffer.from(proofData.slice(2), 'hex')),
+      );
+
+      const fulfillAndProveIx = await fulfillAndProveMethod
+        .accounts({
+          vault: vaultPDA,
+          fulfillMarker: fulfillMarkerPDA,
+          prover: proverPDA,
+          executor: executorPDA,
+          solver: this.wallet.getKeypair().publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      // Build and send transaction
+      const transaction = new Transaction().add(fulfillAndProveIx);
+
+      // Process token transfers if needed
+      if (intent.route.tokens && intent.route.tokens.length > 0) {
+        const transferInstructions = await this.buildTokenTransferInstructions(intent);
+        transferInstructions.forEach((ix) => transaction.add(ix));
+      }
+
+      const signature = await this.wallet.sendTransaction(transaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      this.logger.log(
+        `Intent ${intent.intentHash} fulfilled and proven with signature: ${signature}`,
+      );
+
+      return {
+        success: true,
+        txHash: signature,
+      };
+    } catch (error) {
+      this.logger.error('Solana fulfillAndProve error:', toError(error));
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
+    }
+  }
+
   async getBalance(address: string, _chainId: number): Promise<bigint> {
-    // Solana doesn't use numeric chain IDs, so we ignore the parameter
     const publicKey = new PublicKey(address);
     const balance = await this.connection.getBalance(publicKey);
     return BigInt(balance);
   }
 
   async getWalletAddress(): Promise<UniversalAddress> {
-    return AddressNormalizer.normalizeSvm(this.keypair.publicKey.toString());
+    if (!this.wallet) {
+      throw new Error('Wallet not initialized');
+    }
+    const publicKey = await this.wallet.getAddress();
+    return AddressNormalizer.normalizeSvm(publicKey.toString());
   }
 
   async isTransactionConfirmed(txHash: string, _chainId: number): Promise<boolean> {
-    // Solana doesn't use numeric chain IDs, so we ignore the parameter
     try {
       const status = await this.connection.getSignatureStatus(txHash);
       return (
@@ -171,10 +294,13 @@ export class SvmExecutorService extends BaseChainExecutor {
    * Derives vault PDA for the given intent
    */
   deriveVaultPDA(intentHash: Hex): PublicKey {
+    if (!this.portalProgram) {
+      throw new Error('Portal program not initialized');
+    }
     const intentHashBuffer = Buffer.from(intentHash.slice(2), 'hex');
     const [vaultPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('vault'), intentHashBuffer],
-      this.portalProgramId,
+      this.portalProgram.programId,
     );
     return vaultPDA;
   }
@@ -194,39 +320,151 @@ export class SvmExecutorService extends BaseChainExecutor {
     throw new Error('Batch withdrawal not yet implemented for Solana');
   }
 
-  /**
-   * Encodes fulfillAndProve instruction data for the Portal program
-   * This is a simplified implementation - actual encoding would depend on the program's IDL
-   */
-  private encodeFulfillAndProveInstruction(params: {
-    intentHash: Buffer;
-    route: Buffer;
-    rewardHash: Buffer;
-    claimant: Buffer;
-    prover: string;
-    sourceChainId: number;
-    proofData: Buffer;
-  }): Buffer {
-    // Instruction discriminator for fulfillAndProve (placeholder - would come from IDL)
-    const discriminator = Buffer.from([0, 1, 2, 3, 4, 5, 6, 8]); // Different discriminator from fulfill
+  private async initializeProgram() {
+    try {
+      // Get wallet
+      this.wallet = this.walletManager.createWallet();
+      const keypair = this.wallet.getKeypair();
 
-    // Source chain ID as 8-byte buffer (uint64)
-    const sourceChainIdBuffer = Buffer.alloc(8);
-    sourceChainIdBuffer.writeBigUInt64LE(BigInt(params.sourceChainId));
+      // Create Anchor provider with wallet adapter
+      const wallet = {
+        publicKey: keypair.publicKey,
+        signTransaction: async <T extends Transaction | VersionedTransaction>(
+          tx: T,
+        ): Promise<T> => {
+          if ('version' in tx) {
+            // Versioned transaction
+            (tx as VersionedTransaction).sign([keypair]);
+          } else {
+            // Legacy transaction
+            (tx as Transaction).partialSign(keypair);
+          }
+          return tx;
+        },
+        signAllTransactions: async <T extends Transaction | VersionedTransaction>(
+          txs: T[],
+        ): Promise<T[]> => {
+          return txs.map((tx) => {
+            if ('version' in tx) {
+              (tx as VersionedTransaction).sign([keypair]);
+            } else {
+              (tx as Transaction).partialSign(keypair);
+            }
+            return tx;
+          });
+        },
+      };
 
-    // Prover address as 32-byte buffer (remove 0x prefix and convert to bytes)
-    const proverBuffer = Buffer.from(params.prover.slice(2), 'hex');
+      const provider = new AnchorProvider(this.connection, wallet as any, {
+        commitment: 'confirmed',
+      });
+      setProvider(provider);
 
-    // Simple concatenation - actual encoding would use Borsh or similar
-    return Buffer.concat([
-      discriminator,
-      params.intentHash,
-      params.rewardHash,
-      params.claimant,
-      proverBuffer,
-      sourceChainIdBuffer,
-      params.proofData,
-      params.route,
-    ]);
+      // Initialize Portal program with IDL
+      const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
+      // Pass programId through the IDL object for Anchor v0.31
+      const idlWithAddress = {
+        ...portalIDL,
+        address: portalProgramId.toString(),
+      };
+      this.portalProgram = new Program(idlWithAddress, provider);
+
+      this.logger.log(`Portal program initialized at ${portalProgramId.toString()}`);
+    } catch (error) {
+      this.logger.error('Failed to initialize Portal program:', toError(error));
+    }
+  }
+
+  private async buildTokenTransferInstructions(intent: Intent): Promise<TransactionInstruction[]> {
+    const instructions: TransactionInstruction[] = [];
+
+    if (!this.wallet) {
+      throw new Error('Wallet not initialized');
+    }
+
+    const senderPublicKey = await this.wallet.getAddress();
+
+    for (const token of intent.route.tokens) {
+      try {
+        // Denormalize token address to Solana format
+        const tokenMint = new PublicKey(AddressNormalizer.denormalizeToSvm(token.token));
+
+        // Get recipient from first call target (simplified - adjust based on your logic)
+        const recipientAddress = intent.route.calls[0]?.target;
+        if (!recipientAddress) continue;
+
+        const recipientPublicKey = new PublicKey(
+          AddressNormalizer.denormalizeToSvm(recipientAddress),
+        );
+
+        // Get or create associated token accounts
+        const sourceTokenAccount = getAssociatedTokenAddressSync(
+          tokenMint,
+          senderPublicKey,
+          false,
+          TOKEN_PROGRAM_ID, // Try standard token program first
+        );
+
+        const destinationTokenAccount = getAssociatedTokenAddressSync(
+          tokenMint,
+          recipientPublicKey,
+          false,
+          TOKEN_PROGRAM_ID,
+        );
+
+        // Create transfer instruction
+        const transferIx = createTransferInstruction(
+          sourceTokenAccount,
+          destinationTokenAccount,
+          senderPublicKey,
+          token.amount,
+          [],
+          TOKEN_PROGRAM_ID,
+        );
+
+        instructions.push(transferIx);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to create token transfer for ${token.token}: ${getErrorMessage(error)}`,
+        );
+      }
+    }
+
+    return instructions;
+  }
+
+  private prepareRouteData(route: Intent['route']): any {
+    return {
+      salt: Array.from(Buffer.from(route.salt.slice(2), 'hex')),
+      deadline: new BN(route.deadline.toString()),
+      portal: this.addressToBytes32(AddressNormalizer.denormalizeToSvm(route.portal)),
+      tokens: route.tokens.map((t) => ({
+        token: new PublicKey(AddressNormalizer.denormalizeToSvm(t.token)),
+        amount: new BN(t.amount.toString()),
+      })),
+      calls: route.calls.map((c) => ({
+        target: this.addressToBytes32(AddressNormalizer.denormalizeToSvm(c.target)),
+        data: Array.from(Buffer.from(c.data.slice(2), 'hex')),
+        value: new BN(c.value.toString()),
+      })),
+    };
+  }
+
+  private addressToBytes32(address: string): number[] {
+    // Convert Solana address or hex address to 32-byte array
+    if (address.startsWith('0x')) {
+      return Array.from(Buffer.from(address.slice(2), 'hex'));
+    }
+    // For Solana base58 addresses, decode and pad/truncate to 32 bytes
+    const publicKey = new PublicKey(address);
+    const bytes = publicKey.toBytes();
+    const result = new Uint8Array(32);
+    result.set(bytes.slice(0, 32));
+    return Array.from(result);
+  }
+
+  private publicKeyToBytes32(publicKey: PublicKey): number[] {
+    const bytes = publicKey.toBytes();
+    return Array.from(bytes);
   }
 }

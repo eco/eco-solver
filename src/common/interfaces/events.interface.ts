@@ -32,6 +32,9 @@ export interface IntentDiscoveredEventPayload {
   strategy: string;
 }
 
+/** TVM Event Response type helper */
+export type TvmEventResponse = Awaited<ReturnType<TronWeb['event']['getEventsByContractAddress']>>;
+
 /**
  * Raw event log types for different blockchains
  */
@@ -55,6 +58,9 @@ export namespace RawEventLogs {
     logs: string[];
     err?: any;
   }
+
+  /** TVM/Tron event structure */
+  export type TvmEvent = Extract<TvmEventResponse['data'], unknown[]>[number];
 }
 
 /**
@@ -81,5 +87,5 @@ export namespace PortalEventArgs {
   }
 }
 
-export type TvmEventResponse = Awaited<ReturnType<TronWeb['event']['getEventsByContractAddress']>>;
-export type TvmEvent = Extract<TvmEventResponse['data'], unknown[]>[number];
+// TvmEvent types are now exported from RawEventLogs namespace
+export type TvmEvent = RawEventLogs.TvmEvent;

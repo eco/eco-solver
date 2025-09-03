@@ -38,6 +38,14 @@ export function parseTvmIntentPublished(
 ): Partial<PortalEventArgs.IntentPublished> & { intentHash: Hex } {
   const result = event.result;
 
+  // Parse reward tokens with proper type
+  const rewardTokens = Array.isArray(result.rewardTokens)
+    ? result.rewardTokens.map((token: any) => ({
+        token: TvmUtilsService.fromHex(token.token || token.address) as unknown as Hex,
+        amount: BigInt(token.amount),
+      }))
+    : [];
+
   return {
     intentHash: result.hash as Hex,
     destination: BigInt(result.destination),
@@ -45,7 +53,7 @@ export function parseTvmIntentPublished(
     prover: TvmUtilsService.fromHex(result.prover) as unknown as Hex,
     rewardDeadline: BigInt(result.rewardDeadline),
     rewardNativeAmount: BigInt(result.nativeAmount),
-    rewardTokens: result.rewardTokens || [],
+    rewardTokens,
     route: result.route as Hex,
   };
 }

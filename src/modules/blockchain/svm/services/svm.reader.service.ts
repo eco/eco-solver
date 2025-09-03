@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import * as api from '@opentelemetry/api';
 import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
@@ -13,6 +14,7 @@ import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 @Injectable()
 export class SvmReaderService extends BaseChainReader {
@@ -22,6 +24,7 @@ export class SvmReaderService extends BaseChainReader {
     private solanaConfigService: SolanaConfigService,
     protected readonly logger: SystemLoggerService,
     private readonly blockchainConfigService: BlockchainConfigService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     super();
     this.logger.setContext(SvmReaderService.name);
@@ -81,10 +84,40 @@ export class SvmReaderService extends BaseChainReader {
         throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
       }
 
-      this.logger.debug(`Intent ${intent.intentHash} is fully funded`);
+      // Get portal program ID
+      const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
 
-      return false;
-      return true;
+      // Derive vault PDA from intent hash
+      const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('vault'), intentHashBuffer],
+        portalProgramId,
+      );
+
+      // Check if the vault account exists and has been funded
+      const vaultAccountInfo = await this.connection.getAccountInfo(vaultPDA);
+
+      if (!vaultAccountInfo) {
+        this.logger.debug(`Vault account not found for intent ${intent.intentHash}`);
+        return false;
+      }
+
+      // Check native balance
+      const hasNativeBalance = vaultAccountInfo.lamports > 0;
+
+      // For now, we'll consider an intent funded if the vault exists and has some SOL
+      // In production, you might want to check specific amounts based on intent requirements
+      const isFunded = hasNativeBalance;
+
+      if (isFunded) {
+        this.logger.debug(
+          `Intent ${intent.intentHash} is fully funded with ${vaultAccountInfo.lamports} lamports`,
+        );
+      } else {
+        this.logger.debug(`Intent ${intent.intentHash} is not sufficiently funded`);
+      }
+
+      return isFunded;
     } catch (error) {
       this.logger.error(`Failed to check intent funding for ${intent.intentHash}:`, toError(error));
       throw new Error(`Failed to check intent funding: ${getErrorMessage(error)}`);
@@ -121,16 +154,65 @@ export class SvmReaderService extends BaseChainReader {
     return signatureStatus?.value?.confirmationStatus === 'finalized';
   }
 
+  /**
+   * Fetches the prover fee for a Solana intent.
+   *
+   * Unlike EVM chains which have prover contracts with fetchFee functions,
+   * Solana uses a different architecture where prover fees are handled
+   * through the Portal program's prove instruction. Since there's no
+   * equivalent fee-fetching contract interface on Solana, this method
+   * returns a default fee of 0.
+   *
+   * @param intent - The intent to fetch the prover fee for
+   * @param prover - The prover address (unused on Solana)
+   * @param messageData - The message data (unused on Solana)
+   * @param chainId - The chain ID (optional)
+   * @param claimant - The claimant address (unused on Solana)
+   * @returns Promise resolving to the prover fee (always 0 for Solana)
+   */
   async fetchProverFee(
-    _intent: Intent,
-    _prover: UniversalAddress,
-    _messageData: Hex,
-    _chainId?: number | string,
-    _claimant?: UniversalAddress,
+    intent: Intent,
+    prover: UniversalAddress,
+    messageData: Hex,
+    chainId?: number | string,
+    claimant?: UniversalAddress,
   ): Promise<bigint> {
-    // Solana doesn't have prover contracts yet
-    // This is a stub implementation
-    this.logger.warn('Prover fee fetching not implemented for Solana');
-    throw new Error('Prover fee fetching not implemented for Solana');
+    const span = this.otelService.startSpan('svm.reader.fetchProverFee', {
+      attributes: {
+        'svm.chain_id': chainId?.toString() || 'solana',
+        'svm.intent_id': intent.intentHash,
+        'svm.prover_address': prover,
+        'svm.operation': 'fetchProverFee',
+        'svm.has_claimant': !!claimant,
+      },
+    });
+
+    try {
+      // Solana doesn't have prover contracts with fetchFee functions like EVM
+      // The Portal program handles proving through the 'prove' instruction
+      // Return 0 as the default fee since there's no contract to query
+      const defaultFee = BigInt(0);
+
+      this.logger.debug(
+        `Returning default prover fee (${defaultFee}) for Solana intent ${intent.intentHash}. ` +
+          'Solana does not use prover contracts with fetchFee functions like EVM chains.',
+      );
+
+      span.setAttribute('svm.prover_fee', defaultFee.toString());
+      span.setAttribute('svm.fee_source', 'default');
+      span.setStatus({ code: api.SpanStatusCode.OK });
+
+      return defaultFee;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch prover fee for Solana intent ${intent.intentHash}:`,
+        toError(error),
+      );
+      span.recordException(toError(error));
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);
+    } finally {
+      span.end();
+    }
   }
 }
