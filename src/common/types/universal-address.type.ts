@@ -65,5 +65,5 @@ export function unpadFrom32Bytes(hex: string): string {
 
   // Remove leading zeros, but keep at least one character
   const unpadded = cleanHex.replace(/^0+/, '') || '0';
-  return pad(('0x' + unpadded) as Hex, { size: 20 });
+  return '0x' + unpadded.padStart(40, '0');
 }

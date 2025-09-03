@@ -38,7 +38,7 @@ export class TvmConfigService implements IBlockchainConfigService {
   }
 
   get wallets(): TvmWalletsConfig {
-    return this.configService.get<TvmWalletsConfig>('tvm.wallets', {});
+    return this.configService.get<TvmWalletsConfig>('tvm.wallets')!;
   }
 
   getBasicWalletConfig() {

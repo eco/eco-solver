@@ -25,10 +25,6 @@ export class BasicWalletFactory {
   create(chainId: number | string): BasicWallet {
     const walletConfig = this.tvmConfigService.getBasicWalletConfig();
 
-    if (!walletConfig?.privateKey) {
-      throw new Error('TVM basic wallet private key not configured');
-    }
-
     // Create a new instance with the private key
     const network = this.tvmConfigService.getChain(chainId);
     const tronWebWithKey = TvmClientUtils.createClient(network, walletConfig.privateKey);

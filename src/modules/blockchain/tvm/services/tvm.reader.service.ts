@@ -96,7 +96,7 @@ export class TvmReaderService extends BaseChainReader {
       const contract = client.contract(erc20Abi, tvmTokenAddress);
 
       // Call TRC20 balanceOf function
-      const [balance] = await contract.balanceOf(tokenAddress).call();
+      const balance = await contract.balanceOf(tvmTokenAddress).call();
 
       // Extract balance from the result
       const balanceBigInt = BigInt(balance);

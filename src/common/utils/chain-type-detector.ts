@@ -15,19 +15,10 @@ export enum ChainType {
  * Chain ID ranges and specific identifiers for different blockchain types
  */
 const CHAIN_TYPE_MAPPINGS = {
-  // EVM chain IDs (standard Ethereum chain IDs)
-  EVM_CHAIN_IDS: [
-    1, // Ethereum Mainnet
-    10, // Optimism
-    137, // Polygon
-    42161, // Arbitrum One
-    11155111, // Sepolia testnet
-    // Add more EVM chain IDs as needed
-  ],
-
   // TVM chain IDs (Tron-specific)
   TVM_CHAIN_IDS: [
-    728126428, // Tron Shasta testnet
+    728126428, // Tron mainnet
+    2494104990, // Tron Shasta testnet
     // Add more TVM chain IDs as needed
   ],
 
@@ -54,11 +45,6 @@ export class ChainTypeDetector {
 
     // Convert bigint to number for comparison
     const chainId = typeof chainIdentifier === 'bigint' ? Number(chainIdentifier) : chainIdentifier;
-
-    // Check EVM chains
-    if (CHAIN_TYPE_MAPPINGS.EVM_CHAIN_IDS.includes(chainId)) {
-      return ChainType.EVM;
-    }
 
     // Check TVM chains
     if (CHAIN_TYPE_MAPPINGS.TVM_CHAIN_IDS.includes(chainId)) {

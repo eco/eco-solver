@@ -51,3 +51,4 @@ config.yml
 # Keep the example
 !config.example.yaml
 
+CLAUDE.md
