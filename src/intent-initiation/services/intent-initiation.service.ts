@@ -1,8 +1,7 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
 import { EcoResponse } from '@/common/eco-response'
 import { encodeFunctionData, Hex } from 'viem'
 import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
@@ -28,7 +27,7 @@ import * as _ from 'lodash'
 
 @Injectable()
 export class IntentInitiationService implements OnModuleInit {
-  private logger = new EcoLogger(IntentInitiationService.name)
+  private logger = new IntentOperationLogger('IntentInitiationService')
   private quoteRepository: QuoteRepository
   private permitProcessor: PermitProcessor
   private permit2Processor: Permit2Processor
@@ -71,13 +70,13 @@ export class IntentInitiationService implements OnModuleInit {
       return await this._initiateGaslessIntent(gaslessIntentRequestDTO)
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `initiateGaslessIntent: error`,
-          properties: {
-            error: ex.message,
-          },
-        }),
-        ex.stack,
+        {
+          intentHash: 'initiation-error',
+          dAppId: gaslessIntentRequestDTO.dAppID,
+          operationType: 'creation',
+        },
+        `initiateGaslessIntent: error`,
+        ex,
       )
 
       return { error: InternalQuoteError(ex) }
@@ -91,9 +90,12 @@ export class IntentInitiationService implements OnModuleInit {
 
     if (!this.gaslessIntentdAppIDs.includes(dAppID)) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `checkGaslessIntentSupported: dAppID: ${dAppID} not supported for gasless intents`,
-        }),
+        {
+          intentHash: 'gasless-check',
+          dAppId: dAppID,
+          operationType: 'validation',
+        },
+        `checkGaslessIntentSupported: dAppID: ${dAppID} not supported for gasless intents`,
       )
 
       return { error: EcoError.GaslessIntentsNotSupported }
@@ -128,12 +130,14 @@ export class IntentInitiationService implements OnModuleInit {
     // const receipt = await kernelAccountClient.waitForTransactionReceipt({ hash: txHash })
 
     this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `_initiateGaslessIntent`,
-        properties: {
-          transactionHash,
-        },
-      }),
+      {
+        intentHash: 'gasless-initiation',
+        dAppId: gaslessIntentRequestDTO.dAppID,
+        sourceChainId: gaslessIntentRequestDTO.getSourceChainID!(),
+        operationType: 'creation',
+      },
+      `_initiateGaslessIntent`,
+      { transactionHash },
     )
 
     return {
@@ -180,14 +184,18 @@ export class IntentInitiationService implements OnModuleInit {
       const gasCost = totalWithBuffer * gasPrice
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `calculateGasQuoteForIntent: estimated gas details`,
-          properties: {
-            estimatedGas: estimatedGasInWei,
-            price: gasPrice,
-            totalCost: gasCost,
-          },
-        }),
+        {
+          intentHash: 'gas-calculation',
+          dAppId: gaslessIntentRequest.dAppID,
+          sourceChainId: gaslessIntentRequest.getSourceChainID!(),
+          operationType: 'validation',
+        },
+        `calculateGasQuoteForIntent: estimated gas details`,
+        {
+          estimatedGas: estimatedGasInWei,
+          price: gasPrice,
+          totalCost: gasCost,
+        },
       )
 
       return {
@@ -209,12 +217,13 @@ export class IntentInitiationService implements OnModuleInit {
       return gasPrice
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `getGasPrice: error`,
-          properties: {
-            error: ex.message,
-          },
-        }),
+        {
+          intentHash: 'gas-price-fetch',
+          sourceChainId: chainID,
+          operationType: 'validation',
+        },
+        `getGasPrice: error`,
+        ex,
       )
 
       return defaultValue
@@ -292,14 +301,6 @@ export class IntentInitiationService implements OnModuleInit {
       reward,
     )
 
-    // function fundFor(
-    //   bytes32 routeHash,
-    //   Reward calldata reward,
-    //   address funder,
-    //   address permitContact,
-    //   bool allowPartial
-    // )
-
     const args = [
       realRouteHash,
       reward,
@@ -309,16 +310,21 @@ export class IntentInitiationService implements OnModuleInit {
     ] as const
 
     this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `getIntentFundForTx: encodeFunctionData args:`,
-        properties: {
-          routeHash: realRouteHash,
-          reward: quote!.reward,
-          funder: gaslessIntentRequestDTO.getFunder!(),
-          permitContact: gaslessIntentRequestDTO.getPermitContractAddress!(),
-          allowPartial: false,
-        },
-      }),
+      {
+        intentHash: realRouteHash,
+        quoteId: quoteID,
+        dAppId: gaslessIntentRequestDTO.dAppID,
+        sourceChainId: gaslessIntentRequestDTO.getSourceChainID!(),
+        operationType: 'funding',
+      },
+      `getIntentFundForTx: encodeFunctionData args:`,
+      {
+        routeHash: realRouteHash,
+        reward: quote!.reward,
+        funder: gaslessIntentRequestDTO.getFunder!(),
+        permitContact: gaslessIntentRequestDTO.getPermitContractAddress!(),
+        allowPartial: false,
+      },
     )
 
     // Encode transaction

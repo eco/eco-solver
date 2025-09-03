@@ -1,6 +1,5 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable } from '@nestjs/common'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
@@ -19,7 +18,7 @@ import * as _ from 'lodash'
 
 @Injectable()
 export class PermitValidationService {
-  private logger = new EcoLogger(PermitValidationService.name)
+  private logger = new IntentOperationLogger('PermitValidationService')
 
   constructor(
     private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
@@ -103,9 +102,12 @@ export class PermitValidationService {
       return {}
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `batchSimulatePermits: error simulating permits: ${ex.message}`,
-        }),
+        {
+          intentHash: 'permit-simulation',
+          operationType: 'validation',
+        },
+        `batchSimulatePermits: error simulating permits: ${ex.message}`,
+        ex,
       )
 
       return { error: EcoError.PermitSimulationsFailed }
@@ -127,9 +129,11 @@ export class PermitValidationService {
     }
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `✅ Vault funded and valid for intent ${intentHash}`,
-      }),
+      {
+        intentHash,
+        operationType: 'validation',
+      },
+      `✅ Vault funded and valid for intent ${intentHash}`,
     )
 
     return {}
@@ -221,9 +225,12 @@ export class PermitValidationService {
       return isAddressEqual(spender, expectedVault) ? {} : { error: EcoError.InvalidVaultAddress }
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `isAddressEqual: error comparing addresses: ${ex.message}`,
-        }),
+        {
+          intentHash: 'vault-validation',
+          operationType: 'validation',
+        },
+        `isAddressEqual: error comparing addresses: ${ex.message}`,
+        ex,
       )
 
       return { error: EcoError.InvalidVaultAddress }

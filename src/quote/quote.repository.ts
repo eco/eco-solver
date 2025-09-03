@@ -1,9 +1,9 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { QuoteGenerationLogger } from '@/common/logging/loggers'
 import { InjectModel } from '@nestjs/mongoose'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
@@ -21,7 +21,7 @@ type QuoteUpdate = UpdateQuery<QuoteIntentModel>
  */
 @Injectable()
 export class QuoteRepository {
-  private logger = new Logger(QuoteRepository.name)
+  private logger = new QuoteGenerationLogger('QuoteRepository')
   private quotesConfig: QuotesConfig
 
   constructor(
@@ -64,15 +64,21 @@ export class QuoteRepository {
 
       if (error) {
         this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `storeQuoteIntentData: error storing quote for: ${intentExecutionType}`,
-            properties: {
-              quoteID: quoteIntentDataDTO.quoteID,
-              dAppID: quoteIntentDataDTO.dAppID,
-              intentExecutionType,
-              error,
-            },
-          }),
+          {
+            quoteId: quoteIntentDataDTO.quoteID,
+            dAppId: quoteIntentDataDTO.dAppID,
+            intentExecutionType,
+            operationType: 'quote_generation',
+            status: 'failed',
+          },
+          `Error storing quote for: ${intentExecutionType}`,
+          error,
+          {
+            quoteID: quoteIntentDataDTO.quoteID,
+            dAppID: quoteIntentDataDTO.dAppID,
+            intentExecutionType,
+            error,
+          },
         )
 
         // Track database error
@@ -118,28 +124,38 @@ export class QuoteRepository {
 
       const record = await this.quoteIntentModel.create(quoteModelData)
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `storeQuoteIntentDataForExecutionType: Recorded quote intent`,
-          properties: {
-            quoteID: quoteModelData.quoteID,
-            dAppID: quoteModelData.dAppID,
-            intentExecutionType: quoteModelData.intentExecutionType,
-            recordId: record._id,
-          },
-        }),
+        {
+          quoteId: quoteModelData.quoteID,
+          dAppId: quoteModelData.dAppID,
+          intentExecutionType: quoteModelData.intentExecutionType,
+          operationType: 'quote_generation',
+          status: 'completed',
+        },
+        'Recorded quote intent',
+        {
+          quoteID: quoteModelData.quoteID,
+          dAppID: quoteModelData.dAppID,
+          intentExecutionType: quoteModelData.intentExecutionType,
+          recordId: record._id,
+        },
       )
       return { response: record }
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `storeQuoteIntentDataForExecutionType: error storing quote intent`,
-          properties: {
-            quoteID: quoteModelData.quoteID,
-            dAppID: quoteModelData.dAppID,
-            intentExecutionType: quoteModelData.intentExecutionType,
-            error: ex.message,
-          },
-        }),
+        {
+          quoteId: quoteModelData.quoteID,
+          dAppId: quoteModelData.dAppID,
+          intentExecutionType: quoteModelData.intentExecutionType,
+          operationType: 'quote_generation',
+          status: 'failed',
+        },
+        'Error storing quote intent',
+        ex,
+        {
+          quoteID: quoteModelData.quoteID,
+          dAppID: quoteModelData.dAppID,
+          intentExecutionType: quoteModelData.intentExecutionType,
+        },
       )
       return { error: ex }
     }
@@ -185,13 +201,14 @@ export class QuoteRepository {
       return { response: quoteIntentData }
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `fetchQuoteIntentData: Error fetching quote intent data`,
-          properties: {
-            query,
-            error: ex.message,
-          },
-        }),
+        {
+          quoteId: 'unknown',
+          operationType: 'quote_validation',
+          status: 'failed',
+        },
+        'Error fetching quote intent data',
+        ex,
+        { query },
       )
       return { error: ex }
     }
@@ -208,13 +225,14 @@ export class QuoteRepository {
       return count > 0
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error checking quote existence`,
-          properties: {
-            query,
-            error: ex.message,
-          },
-        }),
+        {
+          quoteId: 'unknown',
+          operationType: 'quote_validation',
+          status: 'failed',
+        },
+        'Error checking quote existence',
+        ex,
+        { query },
       )
       return false
     }
@@ -232,14 +250,17 @@ export class QuoteRepository {
   ): Promise<EcoResponse<QuoteIntentModel>> {
     try {
       this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `updateQuoteDb`,
-          properties: {
-            quoteId: quoteIntentModel._id,
-            hasError: Boolean(updateQuoteParams.error),
-            hasQuoteDataEntry: Boolean(updateQuoteParams.quoteDataEntry),
-          },
-        }),
+        {
+          quoteId: quoteIntentModel.quoteID,
+          operationType: 'quote_generation',
+          status: 'started',
+        },
+        'Updating quote in database',
+        {
+          quoteId: quoteIntentModel._id,
+          hasError: Boolean(updateQuoteParams.error),
+          hasQuoteDataEntry: Boolean(updateQuoteParams.quoteDataEntry),
+        },
       )
 
       const updateQuery = this.buildUpdateQuery(quoteIntentModel, updateQuoteParams)
@@ -258,13 +279,16 @@ export class QuoteRepository {
       return { response: updatedModel }
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error updating quote in database`,
-          properties: {
-            quoteID: quoteIntentModel.quoteID,
-            error: ex.message,
-          },
-        }),
+        {
+          quoteId: quoteIntentModel.quoteID,
+          operationType: 'quote_generation',
+          status: 'failed',
+        },
+        'Error updating quote in database',
+        ex,
+        {
+          quoteID: quoteIntentModel.quoteID,
+        },
       )
       return { error: EcoError.QuoteDBUpdateError }
     }

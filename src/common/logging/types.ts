@@ -30,7 +30,7 @@ export interface LiquidityOperationLogParams {
   message: string
   rebalanceId: string
   walletAddress: string
-  strategy: Strategy
+  strategy: Strategy | string // Allow string for system operations
   sourceChainId?: number
   destinationChainId?: number
   tokenInAddress?: string
@@ -56,7 +56,7 @@ export interface QuoteGenerationLogParams {
   tokenOutAddress?: string
   amountIn?: string
   amountOut?: string
-  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number]
+  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number] | string
   operationType: 'quote_generation' | 'quote_validation' | 'quote_rejection'
   status: 'started' | 'completed' | 'failed'
   properties?: object
@@ -94,7 +94,7 @@ export interface PerformanceMetricLogParams {
 export interface LiquidityManagerLogContext {
   rebalanceId: string
   walletAddress: string
-  strategy: Strategy
+  strategy: Strategy | string // Allow string for system operations like 'check-balances', 'system', etc.
   sourceChainId?: number
   destinationChainId?: number
   tokenInAddress?: string
@@ -120,7 +120,9 @@ export interface QuoteGenerationLogContext {
   destinationChainId?: number
   tokenInAddress?: string
   tokenOutAddress?: string
-  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number]
+  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number] | string
+  operationType?: 'quote_generation' | 'quote_validation' | 'quote_rejection'
+  status?: 'started' | 'completed' | 'failed'
 }
 
 export interface HealthOperationLogContext {

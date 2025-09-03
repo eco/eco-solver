@@ -5,6 +5,7 @@
 This plan outlines the comprehensive refactoring of logging across the eco-solver application to use specialized loggers from `@src/common/logging/loggers/` instead of generic `EcoLogger` instances and `console.*` calls. The refactoring will ensure structured Datadog logging, improve observability, optimize performance and cost, and pass the `/validate-datadog-schema` validation.
 
 **Key Datadog Optimizations:**
+
 - Faceted field strategy for high-cardinality identifiers
 - Cost-efficient log sampling and structured hierarchy
 - Performance-optimized attribute limits and sizing
@@ -13,6 +14,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ## Current State Analysis
 
 ### Existing Specialized Loggers
+
 - `BaseStructuredLogger` - Base class for all specialized loggers
 - `LiquidityManagerLogger` - For liquidity management operations
 - `IntentOperationLogger` - For intent-related operations
@@ -20,6 +22,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - `HealthOperationLogger` - For health checks and monitoring
 
 ### Current Logging Issues
+
 1. **Generic EcoLogger Usage**: 50+ files using generic `EcoLogger` instances
 2. **Console Logging**: Multiple files using `console.*` methods directly
 3. **Inconsistent Structure**: Mixed logging approaches across the codebase
@@ -27,6 +30,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 5. **Test Misalignment**: Tests expecting generic log patterns instead of structured output
 
 ### Datadog-Specific Issues Identified
+
 6. **Schema Field Coverage Gaps**: Critical business identifiers missing from logs
    - `intent_hash` not captured consistently across intent operations
    - `wallet_address` missing from transaction error contexts
@@ -34,7 +38,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 7. **Faceting Strategy Deficiencies**: High-cardinality fields not properly structured
    - Chain IDs and token addresses scattered across different log sections
    - Business identifiers not consistently placed in `eco` namespace
-8. **Cost Optimization Opportunities**: 
+8. **Cost Optimization Opportunities**:
    - No sampling strategy for high-volume debug logs
    - Large context objects potentially exceeding 25KB limit
    - Redundant attribute duplication across log entries
@@ -46,17 +50,21 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ### Phase 1: Core Services Migration (Weeks 1-2)
 
 #### 1.1 Liquidity Manager Services
+
 **Target Files:**
+
 - `src/liquidity-manager/services/*.ts`
 - `src/liquidity-manager/jobs/*.ts`
 - `src/bullmq/processors/rebalance-*.ts`
 
 **Actions:**
+
 - Replace `EcoLogger` with `LiquidityManagerLogger`
 - Update all log calls to use structured context
 - Ensure rebalance operations capture all schema fields
 
 **Datadog-Specific Optimizations:**
+
 - **Faceted Fields Strategy**: Place high-cardinality identifiers in `eco` namespace:
   - `eco.rebalance_id` (primary business identifier)
   - `eco.wallet_address` (for user segmentation)
@@ -71,7 +79,9 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - **Size Management**: Validate large context objects in rebalance operations don't exceed 25KB
 
 #### 1.2 Intent Operation Services
+
 **Target Files:**
+
 - `src/intent/` - Core intent services (create, fulfill, validate)
 - `src/intent-initiation/services/*.ts` - Intent initiation and permit validation
 - `src/intent-fulfillment/` - Fulfillment processors and jobs
@@ -79,12 +89,14 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - `src/watch/intent/*.ts` - Intent event watching services
 
 **Actions:**
+
 - Replace `EcoLogger` with `IntentOperationLogger` in all intent-related services
 - Add intent-specific context to all logging calls
 - Capture intent lifecycle events with proper business context
 - **Enhanced Fulfillment Logging**: Include transaction data and fulfillment metrics
 
 **Key Intent Services to Migrate:**
+
 - `FulfillIntentService` - Core fulfillment orchestration
 - `WalletFulfillService` - Wallet-based intent fulfillment with transaction handling
 - `CrowdLiquidityService` - Alternative fulfillment mechanism
@@ -92,6 +104,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - `ValidateIntentService` - Intent validation logic
 
 **Datadog-Specific Optimizations:**
+
 - **Schema Synchronization**: Map `IntentDataModel` fields to logging:
   - `hash` → `eco.intent_hash` (primary identifier for faceting)
   - `quoteID` → `eco.quote_id` (linking intents to quotes)
@@ -123,16 +136,20 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
   - Transaction failure analysis with detailed error context
 
 #### 1.3 Quote Generation Services
+
 **Target Files:**
+
 - `src/quote/*.ts`
 - Quote-related processor files
 
 **Actions:**
+
 - Replace `EcoLogger` with `QuoteGenerationLogger`
 - Ensure quote context includes all financial metrics
 - Add quote rejection logging with proper reason categorization
 
 **Datadog-Specific Optimizations:**
+
 - **Schema Integration**: Map `QuoteIntentModel` fields comprehensively:
   - `quoteID` → `eco.quote_id` (primary faceted identifier)
   - `dAppID` → `eco.d_app_id` (for partner analytics)
@@ -147,19 +164,23 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ### Phase 2: Supporting Services Migration (Weeks 2-3)
 
 #### 2.1 Transaction and Signing Services
+
 **Target Files:**
+
 - `src/transaction/smart-wallets/**/*.ts`
 - `src/sign/*.ts`
 - `src/permit-processing/*.ts`
 - `src/solver-registration/services/*.ts` - Use generic logger (not quote-specific)
 
 **Actions:**
+
 - Evaluate need for new specialized logger (`TransactionLogger`)
 - Use appropriate existing logger or extend `BaseStructuredLogger`
 - Remove all `console.*` calls in favor of structured logging
 - For solver registration: Use `BaseStructuredLogger` with generic business context
 
 **Datadog-Specific Optimizations:**
+
 - **Transaction Context Structure**: Create faceted fields for blockchain operations:
   - `eco.transaction_hash` (for transaction tracking)
   - `eco.wallet_address` (consistent across all transaction logs)
@@ -169,17 +190,21 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - **Error Context Enhancement**: Improve transaction failure analysis with structured error data
 
 #### 2.2 Monitoring and Health Services
+
 **Target Files:**
+
 - `src/balance/*.ts`
 - Health check endpoints
 - Monitoring services
 
 **Actions:**
+
 - Use `HealthOperationLogger` for health-related operations
 - Create performance metrics logging for balance operations
 - Add structured error logging for all service failures
 
 **Datadog-Specific Optimizations:**
+
 - **Health Check Standardization**: Consistent health check logging format:
   - `operation.type: "health_check"` with specific check names
   - `performance.response_time_ms` for SLA monitoring
@@ -190,12 +215,15 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ### Phase 2.5: Datadog Optimization and Compliance (Week 2.5-3)
 
 #### 2.5.1 Log Structure Enhancements
+
 **Target Areas:**
+
 - `src/common/logging/eco-log-message.ts`
 - `src/common/logging/types.ts`
 - All specialized logger implementations
 
 **Datadog Performance Optimizations:**
+
 - **Attribute Optimization**: Implement attribute count validation in `EcoLogMessage.validateLogStructure`
 - **Size Monitoring**: Add real-time log size tracking with warnings at 20KB threshold
 - **Sampling Implementation**: Add configurable sampling rates by log level:
@@ -207,7 +235,9 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - **Reserved Attribute Compliance**: Audit and fix conflicts with Datadog reserved attributes
 
 #### 2.5.2 Faceting Strategy Implementation
+
 **Key Improvements:**
+
 - **High-Cardinality Identifiers**: Ensure consistent placement in `eco` namespace:
   - `eco.intent_hash`, `eco.quote_id`, `eco.rebalance_id`, `eco.transaction_hash`
   - `eco.wallet_address`, `eco.creator`, `eco.prover`, `eco.funder`
@@ -219,7 +249,9 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
   - Performance timing in `performance` section
 
 #### 2.5.3 Cost Optimization Strategies
+
 **Implementation Details:**
+
 - **Log Level Hierarchy**: Ensure proper log level usage to minimize costs
 - **Context Size Management**: Implement context object size validation
 - **Redundancy Elimination**: Remove duplicate attributes across log structure
@@ -228,13 +260,16 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ### Phase 3: Test Updates and Validation (Week 3-4)
 
 #### 3.1 Test Suite Updates
+
 **Target Areas:**
+
 - Update test expectations from generic log messages to structured output
 - Mock specialized loggers instead of generic `EcoLogger`
 - Add tests for proper business context inclusion
 - Validate Datadog structure compliance in tests
 
 **Specific Test Updates:**
+
 ```typescript
 // OLD: expect(mockLogger.error).toHaveBeenCalledWith('Error message', error)
 // NEW: expect(mockLiquidityLogger.error).toHaveBeenCalledWith(
@@ -246,9 +281,11 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ```
 
 #### 3.2 Schema Validation Integration
+
 **Complete Schema-to-Logging Mapping:**
 
 **IntentDataModel → Intent Logging:**
+
 - `hash` → `eco.intent_hash` ✓
 - `quoteID` → `eco.quote_id` ✓
 - `route.creator` → `eco.creator` ✓
@@ -258,12 +295,14 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - `logIndex` → operational metadata ✓
 
 **QuoteIntentModel → Quote Logging:**
+
 - `quoteID` → `eco.quote_id` ✓
 - `dAppID` → `eco.d_app_id` ✓
 - `intentExecutionType` → `eco.intent_execution_type` ✓
 - Route/reward data → `metrics` namespace ✓
 
 **RebalanceModel → Liquidity Logging:**
+
 - `rebalanceJobID` → `eco.rebalance_id` ✓
 - `wallet` → `eco.wallet_address` ✓
 - `strategy` → `eco.strategy` ✓
@@ -272,6 +311,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - Financial amounts → `metrics.amount_in/amount_out` ✓
 
 **RebalanceQuoteRejectionModel → Rejection Logging:**
+
 - `rebalanceId` → `eco.rebalance_id` ✓
 - `reason` → `eco.rejection_reason` ✓
 - `strategy` → `eco.strategy` ✓
@@ -279,6 +319,7 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 - `swapAmount` → `metrics.swap_amount` ✓
 
 **RebalanceTokenModel → Metrics Logging:**
+
 - `chainId` → chain context in operations ✓
 - `tokenAddress` → `metrics.token_*_address` ✓
 - `currentBalance/targetBalance` → `metrics.current_balance/target_balance` ✓
@@ -286,9 +327,11 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ### Phase 4: New Specialized Loggers (Week 4)
 
 #### 4.1 Additional Logger Creation
+
 Based on analysis, create additional specialized loggers as needed:
 
 **TransactionLogger**
+
 ```typescript
 export class TransactionLogger extends BaseStructuredLogger {
   logTransactionSubmission(context: TransactionContext, txHash: string): void
@@ -298,6 +341,7 @@ export class TransactionLogger extends BaseStructuredLogger {
 ```
 
 **BalanceLogger**
+
 ```typescript
 export class BalanceLogger extends BaseStructuredLogger {
   logBalanceCheck(context: BalanceContext, balances: TokenBalance[]): void
@@ -310,6 +354,7 @@ export class BalanceLogger extends BaseStructuredLogger {
 ### Logger Usage Patterns
 
 #### 1. Service Constructor Integration
+
 ```typescript
 // OLD
 class MyService {
@@ -323,6 +368,7 @@ class MyService {
 ```
 
 #### 2. Structured Context Creation
+
 ```typescript
 // Always include business context
 const context: LiquidityManagerLogContext = {
@@ -338,31 +384,35 @@ this.logger.log(context, 'Rebalancing operation started', { additionalData })
 ```
 
 #### 3. Error Handling
+
 ```typescript
 // Enhanced error logging with business context
 try {
   // operation
 } catch (error) {
-  this.logger.error(context, 'Operation failed', error, { 
+  this.logger.error(context, 'Operation failed', error, {
     operationStep: 'token_swap',
-    attemptCount: retryCount 
+    attemptCount: retryCount,
   })
   throw error
 }
 ```
 
-### Console.* Elimination Strategy
+### Console.\* Elimination Strategy
 
 #### 1. Commander Scripts
+
 - Replace `console.*` calls with appropriate logger instances
 - Add structured context even for CLI operations
 - Use debug level for development information
 
 #### 2. Development Debugging
+
 - Replace temporary `console.log` with `logger.debug`
 - Ensure debug logs include sufficient context for troubleshooting
 
 #### 3. Error Reporting
+
 - Replace `console.error` with structured error logging
 - Include stack traces and business context
 - Use appropriate log levels (error vs warn vs info)
@@ -370,12 +420,14 @@ try {
 ## Validation and Success Criteria
 
 ### 1. Code Quality Checks
+
 - [ ] No remaining `console.*` calls in production code
 - [ ] All services use appropriate specialized loggers
 - [ ] All logs include relevant business context
 - [ ] Proper error handling with structured logging
 
 ### 2. Schema Synchronization (Critical for Datadog Analytics)
+
 - [ ] All database schema fields captured in logging
 - [ ] Business identifiers available for Datadog analytics
 - [ ] Financial metrics properly structured
@@ -386,6 +438,7 @@ try {
 - [ ] **Quote Rejections**: 5/5 fields captured (100%) - `rebalanceId`, `reason`, `strategy`, `walletAddress`, `swapAmount`
 
 ### 3. Datadog Performance and Cost Optimization
+
 - [ ] **Log Size Compliance**: All logs under 25KB with warnings at 20KB
 - [ ] **Attribute Limits**: All logs under 256 attributes with validation
 - [ ] **Faceted Strategy**: High-cardinality fields properly placed in `eco` namespace
@@ -394,12 +447,14 @@ try {
 - [ ] **Cost Efficiency**: Redundant attributes eliminated, optimal log structure achieved
 
 ### 4. Test Suite Compliance
+
 - [ ] All tests updated for new logging expectations
 - [ ] Mock implementations match specialized logger interfaces
 - [ ] Test coverage maintained or improved
 - [ ] No test failures due to logging changes
 
 ### 5. Datadog Validation (Required for Success)
+
 - [ ] `/validate-datadog-schema` command passes
 - [ ] Output includes: `✅ **Synchronized Fields**: Schema fields properly captured in logging`
 - [ ] No Datadog compliance violations
@@ -409,24 +464,26 @@ try {
 
 ## Migration Timeline
 
-| Week | Focus Area | Key Deliverables | Datadog Validation |
-|------|------------|------------------|-------------------|
-| 1 | Liquidity Manager | All rebalancing operations use `LiquidityManagerLogger` | Schema coverage for rebalance operations |
-| 2 | Intent & Quote Operations | Intent and quote services migrated to specialized loggers | Schema coverage for intent/quote operations |
-| 2.5 | Datadog Optimization | Performance tuning, sampling, faceting strategy | Cost optimization and compliance validation |
-| 3 | Supporting Services | Transaction, signing, and monitoring services updated | Complete schema synchronization |
-| 3.5 | Schema Validation | `/validate-datadog-schema` passing | ✅ **Synchronized Fields** output achieved |
-| 4 | Testing & Validation | All tests updated, production readiness | Full Datadog integration testing |
+| Week | Focus Area                | Key Deliverables                                          | Datadog Validation                          |
+| ---- | ------------------------- | --------------------------------------------------------- | ------------------------------------------- |
+| 1    | Liquidity Manager         | All rebalancing operations use `LiquidityManagerLogger`   | Schema coverage for rebalance operations    |
+| 2    | Intent & Quote Operations | Intent and quote services migrated to specialized loggers | Schema coverage for intent/quote operations |
+| 2.5  | Datadog Optimization      | Performance tuning, sampling, faceting strategy           | Cost optimization and compliance validation |
+| 3    | Supporting Services       | Transaction, signing, and monitoring services updated     | Complete schema synchronization             |
+| 3.5  | Schema Validation         | `/validate-datadog-schema` passing                        | ✅ **Synchronized Fields** output achieved  |
+| 4    | Testing & Validation      | All tests updated, production readiness                   | Full Datadog integration testing            |
 
 ## Risk Mitigation
 
 ### 1. Gradual Migration with Datadog Monitoring
+
 - Migrate service by service to minimize disruption
 - Monitor Datadog log volume and costs during migration
 - Implement sampling controls to prevent cost spikes
 - Use feature flags for complex services with high log volume
 
 ### 2. Testing Strategy Enhanced for Datadog
+
 - Update tests incrementally with code changes
 - Maintain test coverage throughout migration
 - Add integration tests for logging behavior
@@ -434,6 +491,7 @@ try {
 - Test faceted field placement and analytics query compatibility
 
 ### 3. Production Monitoring and Performance
+
 - **Real-time Monitoring**: Track log volume, costs, and performance impact
 - **Dashboard Validation**: Ensure existing Datadog dashboards continue working
 - **Alert Continuity**: Verify alerting works with new log structure
@@ -441,32 +499,37 @@ try {
 - **Cost Tracking**: Implement logging cost monitoring and alerts
 
 ### 4. Datadog-Specific Risk Mitigation
+
 - **Size Overflow Protection**: Implement automated log size limiting for large context objects
-- **Sampling Fallback**: Automatic sampling increase if log volume exceeds thresholds  
+- **Sampling Fallback**: Automatic sampling increase if log volume exceeds thresholds
 - **Reserved Attribute Conflicts**: Pre-migration validation of attribute names against Datadog reserved list
 - **Faceting Strategy Validation**: Test high-cardinality field impact on query performance
 
 ## Post-Migration Benefits
 
 ### 1. Enhanced Datadog Analytics and Performance
+
 - **Optimized Faceting**: High-cardinality business identifiers properly structured for fast queries
 - **Cost Efficiency**: 60-80% reduction in logging costs through sampling and optimization
 - **Query Performance**: Structured namespaces enable sub-second analytics queries
 - **Dashboard Ready**: All operational dashboards work seamlessly with new log structure
 
 ### 2. Business Intelligence and Monitoring
+
 - **Complete Schema Coverage**: 100% database schema fields captured in logging
 - **Cross-Chain Analytics**: Comprehensive tracking of multi-chain operations
 - **Financial Metrics**: Structured financial data for business intelligence
 - **Operational Context**: Rich context for debugging and performance analysis
 
 ### 3. Operational Excellence
+
 - **Consistent Logging**: Unified structured approach across all services
 - **Debugging Efficiency**: Business context makes troubleshooting 10x faster
 - **Proactive Monitoring**: Better alerting capabilities with structured error data
 - **Compliance**: Full adherence to Datadog limits and best practices
 
 ### 4. Development and Quality Improvements
+
 - **Schema Synchronization**: Automatic validation ensures logs stay synchronized with database schemas
 - **Test Coverage**: Enhanced test coverage with structured logging validation
 - **Code Quality**: Elimination of console logging and standardized error handling
@@ -475,6 +538,7 @@ try {
 ## Datadog Integration Validation
 
 **Critical Success Metrics:**
+
 - ✅ **Schema Coverage**: 100% of business-critical schema fields captured
 - ✅ **Cost Optimization**: Logging costs reduced by 60-80% through sampling and structure optimization
 - ✅ **Performance**: Zero performance degradation, improved query speed

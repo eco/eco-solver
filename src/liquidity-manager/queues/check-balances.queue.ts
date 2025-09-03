@@ -1,13 +1,12 @@
 import { Queue } from 'bullmq'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 
 export class CheckBalancesQueue {
   public static readonly prefix = '{check-balances}'
   public static readonly queueName = CheckBalancesQueue.name
-  private readonly logger = new EcoLogger(CheckBalancesQueue.name)
+  private readonly logger = new LiquidityManagerLogger('CheckBalancesQueue')
 
   constructor(private readonly queue: Queue) {}
 
@@ -29,10 +28,13 @@ export class CheckBalancesQueue {
 
   startCronJobs(interval: number, walletAddress: string): Promise<void> {
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'startCronJobs called',
-        properties: { queue: this.queue.name, intervalMs: interval, walletAddress },
-      }),
+      {
+        rebalanceId: 'check-balances-queue',
+        walletAddress,
+        strategy: 'check-balances',
+      },
+      'startCronJobs called',
+      { queue: this.queue.name, intervalMs: interval },
     )
     return CheckBalancesCronJobManager.start(this.queue, interval, walletAddress)
   }

@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import * as _ from 'lodash'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -26,7 +26,7 @@ import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rej
 
 @Injectable()
 export class LiquidityProviderService {
-  private logger = new Logger(LiquidityProviderService.name)
+  private logger = new LiquidityManagerLogger('LiquidityProviderService')
   private config: LiquidityManagerConfig
 
   constructor(
@@ -59,11 +59,13 @@ export class LiquidityProviderService {
     const quoteId = uuidv4()
 
     this.logger.log(
-      EcoLogMessage.withId({
-        message: 'Getting quote',
-        properties: { walletAddress, tokenIn, tokenOut, swapAmount },
-        id: quoteId,
-      }),
+      {
+        rebalanceId: quoteId,
+        walletAddress,
+        strategy: 'multi-strategy',
+      },
+      'Getting quote',
+      { tokenIn, tokenOut, swapAmount },
     )
 
     // Track whether we had any quotes that were rejected due to slippage
@@ -76,11 +78,13 @@ export class LiquidityProviderService {
       try {
         const service = this.getStrategyService(strategy)
         this.logger.log(
-          EcoLogMessage.withId({
-            message: 'Getting quote for strategy',
-            properties: { strategy, tokenIn, tokenOut, swapAmount },
-            id: quoteId,
-          }),
+          {
+            rebalanceId: quoteId,
+            walletAddress,
+            strategy,
+          },
+          'Getting quote for strategy',
+          { tokenIn, tokenOut, swapAmount },
         )
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, quoteId)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
@@ -110,22 +114,25 @@ export class LiquidityProviderService {
             walletAddress,
           })
 
-          this.logger.warn(
-            EcoLogMessage.withId({
-              message: 'Quote rejected due to excessive slippage',
-              properties: {
-                strategy,
-                maxQuoteSlippage,
-                tokenIn: this.formatToken(tokenIn),
-                tokenOut: this.formatToken(tokenOut),
-                quotes: quotesArray.map((quote) => ({
-                  slippage: quote.slippage,
-                  amountIn: quote.amountIn.toString(),
-                  amountOut: quote.amountOut.toString(),
-                })),
-              },
-              id: quoteId,
-            }),
+          this.logger.logQuoteRejection(
+            {
+              rebalanceId: quoteId,
+              walletAddress,
+              strategy,
+              tokenInAddress: tokenIn.config.address,
+              tokenOutAddress: tokenOut.config.address,
+              sourceChainId: tokenIn.config.chainId,
+              destinationChainId: tokenOut.config.chainId,
+            },
+            RejectionReason.HIGH_SLIPPAGE,
+            {
+              maxQuoteSlippage,
+              quotes: quotesArray.map((quote) => ({
+                slippage: quote.slippage,
+                amountIn: quote.amountIn.toString(),
+                amountOut: quote.amountOut.toString(),
+              })),
+            },
           )
 
           return undefined
@@ -165,12 +172,18 @@ export class LiquidityProviderService {
         )
 
         this.logger.error(
-          EcoLogMessage.withErrorAndId({
-            message: 'Unable to get quote from strategy',
-            error,
-            properties: { walletAddress, strategy, tokenIn, tokenOut, swapAmount },
-            id: quoteId,
-          }),
+          {
+            rebalanceId: quoteId,
+            walletAddress,
+            strategy,
+            sourceChainId: tokenIn.config.chainId,
+            destinationChainId: tokenOut.config.chainId,
+            tokenInAddress: tokenIn.config.address,
+            tokenOutAddress: tokenOut.config.address,
+          },
+          'Unable to get quote from strategy',
+          error,
+          { tokenIn, tokenOut, swapAmount },
         )
       }
     })
@@ -204,34 +217,45 @@ export class LiquidityProviderService {
     }
 
     this.logger.log(
-      EcoLogMessage.withId({
-        message: 'Quotes for route',
-        properties: {
-          walletAddress,
-          tokenIn: this.formatToken(tokenIn),
-          tokenOut: this.formatToken(tokenOut),
-          bestQuote: this.formatQuoteBatch(bestQuotes),
-          quoteBatches: quoteBatchResults.map((quoteBatch, index) => {
-            const strategy = strategies[index]
-            if (!quoteBatch) {
-              return `Failed to get quote for strategy ${strategy}`
-            }
-            return {
-              strategy,
-              quotes: this.formatQuoteBatch(quoteBatch),
-            }
-          }),
-        },
-        id: quoteId,
-      }),
+      {
+        rebalanceId: quoteId,
+        walletAddress,
+        strategy: 'best-quote-selection',
+        sourceChainId: tokenIn.config.chainId,
+        destinationChainId: tokenOut.config.chainId,
+        tokenInAddress: tokenIn.config.address,
+        tokenOutAddress: tokenOut.config.address,
+      },
+      'Quotes for route',
+      {
+        tokenIn: this.formatToken(tokenIn),
+        tokenOut: this.formatToken(tokenOut),
+        bestQuote: this.formatQuoteBatch(bestQuotes),
+        quoteBatches: quoteBatchResults.map((quoteBatch, index) => {
+          const strategy = strategies[index]
+          if (!quoteBatch) {
+            return `Failed to get quote for strategy ${strategy}`
+          }
+          return {
+            strategy,
+            quotes: this.formatQuoteBatch(quoteBatch),
+          }
+        }),
+      },
     )
 
     this.logger.log(
-      EcoLogMessage.withId({
-        message: 'Best quote',
-        properties: { bestQuote: this.formatQuoteBatch(bestQuotes) },
-        id: quoteId,
-      }),
+      {
+        rebalanceId: quoteId,
+        walletAddress,
+        strategy: 'best-quote',
+        sourceChainId: tokenIn.config.chainId,
+        destinationChainId: tokenOut.config.chainId,
+        tokenInAddress: tokenIn.config.address,
+        tokenOutAddress: tokenOut.config.address,
+      },
+      'Best quote',
+      { bestQuote: this.formatQuoteBatch(bestQuotes) },
     )
 
     return bestQuotes
@@ -239,11 +263,18 @@ export class LiquidityProviderService {
 
   async execute(walletAddress: string, quote: RebalanceQuote) {
     this.logger.log(
-      EcoLogMessage.withId({
-        message: 'Executing quote',
-        properties: { quote },
-        id: quote.id,
-      }),
+      {
+        rebalanceId: quote.rebalanceJobID || quote.id || 'unknown',
+        walletAddress,
+        strategy: quote.strategy,
+        sourceChainId: quote.tokenIn.config.chainId,
+        destinationChainId: quote.tokenOut.config.chainId,
+        tokenInAddress: quote.tokenIn.config.address,
+        tokenOutAddress: quote.tokenOut.config.address,
+        groupId: quote.groupID,
+      },
+      'Executing quote',
+      { quote },
     )
     const service = this.getStrategyService(quote.strategy)
     return service.execute(walletAddress, quote)
@@ -293,20 +324,28 @@ export class LiquidityProviderService {
         walletAddress,
       })
 
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Fallback quote rejected due to excessive slippage',
-          properties: {
-            slippage: slippage,
-            maxQuoteSlippage,
-            quotes: quotes.map((quote) => ({
-              tokenIn: this.formatToken(tokenIn),
-              tokenOut: this.formatToken(tokenOut),
-              amountIn: quote.amountIn.toString(),
-              amountOut: quote.amountOut.toString(),
-            })),
-          },
-        }),
+      this.logger.logQuoteRejection(
+        {
+          rebalanceId: fallbackQuoteId,
+          walletAddress: walletAddress || 'unknown',
+          strategy: 'LiFi',
+          sourceChainId: tokenIn.config.chainId,
+          destinationChainId: tokenOut.config.chainId,
+          tokenInAddress: tokenIn.config.address,
+          tokenOutAddress: tokenOut.config.address,
+        },
+        RejectionReason.HIGH_SLIPPAGE,
+        {
+          slippage,
+          maxQuoteSlippage,
+          fallback: true,
+          quotes: quotes.map((quote) => ({
+            tokenIn: this.formatToken(tokenIn),
+            tokenOut: this.formatToken(tokenOut),
+            amountIn: quote.amountIn.toString(),
+            amountOut: quote.amountOut.toString(),
+          })),
+        },
       )
       throw new Error(
         `Fallback quote slippage ${slippage} exceeds maximum allowed ${maxQuoteSlippage}`,
