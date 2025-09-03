@@ -150,4 +150,16 @@ export class BlockchainConfigService {
     const configService = this.getConfigService(chainType);
     return configService.getClaimant(chainId);
   }
+
+  /**
+   * Gets the default prover type for any chain ID
+   * Automatically detects chain type and retrieves from appropriate config
+   * @param chainId The chain ID to get default prover for
+   * @returns The default prover type
+   */
+  getDefaultProver(chainId: ChainIdentifier): TProverType {
+    const chainType = ChainTypeDetector.detect(chainId);
+    const configService = this.getConfigService(chainType);
+    return configService.getDefaultProver(chainId);
+  }
 }

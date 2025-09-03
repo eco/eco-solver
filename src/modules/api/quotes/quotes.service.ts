@@ -3,12 +3,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { BlockchainAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 
 import { QuoteRequest } from './schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from './schemas/quote-response.schema';
@@ -21,18 +21,13 @@ export class QuotesService {
     private readonly blockchainConfigService: BlockchainConfigService,
   ) {}
 
-  async getQuote(
-    intentInput: QuoteRequest['intent'],
-    strategyName?: QuoteRequest['strategy'],
-  ): Promise<QuoteResponse> {
-    // Convert the input to a proper Intent interface with correct types
-    const intent = this.convertToIntent(intentInput);
+  async getQuote(request: QuoteRequest): Promise<QuoteResponse> {
+    // Convert the simplified request to a proper Intent interface with correct types
+    const intent = this.convertToIntent(request);
 
-    // Determine strategy to use
-    const selectedStrategyName = strategyName || this.fulfillmentConfigService.defaultStrategy;
-    const strategy = this.fulfillmentService.getStrategy(
-      selectedStrategyName as FulfillmentStrategyName,
-    );
+    // Always use the default strategy for simplified quotes
+    const selectedStrategyName = this.fulfillmentConfigService.defaultStrategy;
+    const strategy = this.fulfillmentService.getStrategy(selectedStrategyName);
 
     if (!strategy) {
       throw new BadRequestException(`Unknown strategy: ${selectedStrategyName}`);
@@ -72,14 +67,14 @@ export class QuotesService {
     // Get contract addresses
     const portalAddress = this.blockchainConfigService.getPortalAddress(destinationChainId);
 
-    // Get prover address - first try to get from the chain config, fallback to generic prover if needed
+    // Get prover address for the destination chain using the default prover
     let proverAddress: Address | undefined;
     try {
-      // TODO: This is not correct, prover on destination depends on the intent prover
-      // Try to get prover address for the destination chain
-      const proverAddressUA =
-        this.blockchainConfigService.getProverAddress(destinationChainId, 'hyper') ||
-        this.blockchainConfigService.getProverAddress(destinationChainId, 'metalayer');
+      const defaultProver = this.blockchainConfigService.getDefaultProver(destinationChainId);
+      const proverAddressUA = this.blockchainConfigService.getProverAddress(
+        destinationChainId,
+        defaultProver,
+      );
 
       if (proverAddressUA) {
         proverAddress = AddressNormalizer.denormalizeToEvm(proverAddressUA);
@@ -138,72 +133,100 @@ export class QuotesService {
     };
   }
 
-  private convertToIntent(input: QuoteRequest['intent']): Intent {
+  private convertToIntent(request: QuoteRequest): Intent {
+    const { quoteRequest } = request;
+    const sourceChainId = BigInt(quoteRequest.sourceChainID);
+    const destinationChainId = BigInt(quoteRequest.destinationChainID);
     // Determine source chain type for normalization
-    const sourceChainType = ChainTypeDetector.detect(input.route.source);
-    const destinationChainType = ChainTypeDetector.detect(input.route.destination);
+    const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+    const destinationChainType = ChainTypeDetector.detect(destinationChainId);
+
+    // Generate a random salt for intent uniqueness
+    const salt = ('0x' +
+      Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(
+        '',
+      )) as Hex;
+
+    // Set deadline to 1 hour from now
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
+    // Get portal address for destination chain
+    const portalAddressUA = this.blockchainConfigService.getPortalAddress(
+      Number(destinationChainId),
+    );
+    if (!portalAddressUA) {
+      throw new BadRequestException(
+        `Portal address not configured for chain ${destinationChainId}`,
+      );
+    }
+    const portalAddressDenorm = AddressNormalizer.denormalize(
+      portalAddressUA,
+      destinationChainType,
+    );
+    // Cast to BlockchainAddress - we know it's valid since it came from our config
+    const portalAddress = (
+      destinationChainType === ChainType.SVM ? String(portalAddressDenorm) : portalAddressDenorm
+    ) as BlockchainAddress;
+
+    // Get default prover for the source chain
+    const defaultProver = this.blockchainConfigService.getDefaultProver(Number(sourceChainId));
+    const proverAddressUA = this.blockchainConfigService.getProverAddress(
+      Number(sourceChainId),
+      defaultProver,
+    );
+    if (!proverAddressUA) {
+      throw new BadRequestException(`Default prover ${defaultProver} not configured for chain ${sourceChainId}`);
+    }
+    const proverAddressDenorm = AddressNormalizer.denormalize(proverAddressUA, sourceChainType);
+    // Cast to BlockchainAddress - we know it's valid since it came from our config
+    const proverAddress = (
+      sourceChainType === ChainType.SVM ? String(proverAddressDenorm) : proverAddressDenorm
+    ) as BlockchainAddress;
+
+    // Create the route and reward objects from simplified input
+    const route = {
+      salt,
+      deadline,
+      portal: AddressNormalizer.normalize(portalAddress, destinationChainType),
+      nativeAmount: BigInt(0), // No native amount for token swaps
+      tokens: [
+        {
+          amount: BigInt(quoteRequest.sourceAmount),
+          token: AddressNormalizer.normalize(quoteRequest.destinationToken, destinationChainType),
+        },
+      ],
+      calls: [
+        {
+          data: '0x' as Hex, // Empty data for simple transfer
+          target: AddressNormalizer.normalize(quoteRequest.recipient, destinationChainType),
+          value: BigInt(0),
+        },
+      ],
+    };
+
+    const reward = {
+      deadline,
+      creator: AddressNormalizer.normalize(quoteRequest.funder, sourceChainType),
+      prover: AddressNormalizer.normalize(proverAddress, sourceChainType),
+      nativeAmount: BigInt(0), // Fee will be calculated by the strategy
+      tokens: [], // No token rewards for simplified quotes
+    };
 
     // Generate intent hash using the new Viem-based function
     const { intentHash } = PortalHashUtils.getIntentHash({
       intentHash: '0x' as Hex, // Placeholder, will be replaced by computed hash
-      destination: input.route.destination,
-      sourceChainId: input.route.source,
-      route: {
-        salt: input.route.salt as Hex,
-        deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
-        portal: AddressNormalizer.normalize(input.route.portal, destinationChainType),
-        nativeAmount: input.route.nativeAmount || BigInt(0),
-        tokens: input.route.tokens.map((t) => ({
-          amount: t.amount,
-          token: AddressNormalizer.normalize(t.token, destinationChainType),
-        })),
-        calls: input.route.calls.map((c) => ({
-          data: c.data as Hex,
-          target: AddressNormalizer.normalize(c.target, destinationChainType),
-          value: c.value,
-        })),
-      },
-      reward: {
-        deadline: input.reward.deadline,
-        creator: AddressNormalizer.normalize(input.reward.creator, sourceChainType),
-        prover: AddressNormalizer.normalize(input.reward.prover, sourceChainType),
-        nativeAmount: input.reward.nativeAmount || BigInt(0),
-        tokens: input.reward.tokens.map((t) => ({
-          amount: t.amount,
-          token: AddressNormalizer.normalize(t.token, sourceChainType),
-        })),
-      },
+      destination: destinationChainId,
+      sourceChainId,
+      route,
+      reward,
     });
 
     return {
-      intentHash: intentHash,
-      destination: input.route.destination,
-      reward: {
-        prover: AddressNormalizer.normalize(input.reward.prover, sourceChainType),
-        creator: AddressNormalizer.normalize(input.reward.creator, sourceChainType),
-        deadline: input.reward.deadline,
-        nativeAmount: input.reward.nativeAmount || BigInt(0),
-        tokens: input.reward.tokens.map((t) => ({
-          amount: t.amount,
-          token: AddressNormalizer.normalize(t.token, sourceChainType),
-        })),
-      },
-      route: {
-        salt: input.route.salt as Hex,
-        deadline: BigInt(Math.floor(Date.now() / 1000) + 3600), // Default 1 hour from now
-        portal: AddressNormalizer.normalize(input.route.portal, sourceChainType),
-        nativeAmount: input.route.nativeAmount || BigInt(0),
-        calls: input.route.calls.map((c) => ({
-          data: c.data as Hex,
-          target: AddressNormalizer.normalize(c.target, sourceChainType),
-          value: c.value,
-        })),
-        tokens: input.route.tokens.map((t) => ({
-          amount: t.amount,
-          token: AddressNormalizer.normalize(t.token, sourceChainType),
-        })),
-      },
-      sourceChainId: input.route.source,
+      intentHash,
+      destination: destinationChainId,
+      reward,
+      route,
+      sourceChainId,
     };
   }
 }

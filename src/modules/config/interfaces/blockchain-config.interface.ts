@@ -73,4 +73,10 @@ export interface IBlockchainConfigService {
    * @param chainId Chain identifier
    */
   getClaimant(chainId: ChainIdentifier): UniversalAddress;
+
+  /**
+   * Gets the default prover type for the chain
+   * @param chainId Chain identifier
+   */
+  getDefaultProver(chainId: ChainIdentifier): TProverType;
 }

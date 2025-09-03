@@ -128,6 +128,7 @@ const EvmNetworkSchema = z.object({
   tokens: z.array(EvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
   provers: z.record(z.enum(ProverTypeValues), EvmAddressSchema),
+  defaultProver: z.enum(ProverTypeValues),
   contracts: z.object({
     portal: EvmAddressSchema,
     ecdsaExecutor: z

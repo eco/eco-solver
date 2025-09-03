@@ -133,4 +133,14 @@ export class SolanaConfigService implements IBlockchainConfigService {
     }
     return AddressNormalizer.normalizeSvm(claimant);
   }
+
+  /**
+   * Gets the default prover type for Solana
+   * @param _chainId Chain identifier (unused for Solana)
+   * @returns Default prover type - always 'dummy' for Solana
+   */
+  getDefaultProver(_chainId: ChainIdentifier): TProverType {
+    // Solana doesn't have provers, so return 'dummy' as default
+    return 'dummy';
+  }
 }

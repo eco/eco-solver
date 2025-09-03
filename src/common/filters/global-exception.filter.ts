@@ -12,6 +12,7 @@ export interface ErrorResponse {
   statusCode: number;
   message: string | string[];
   error?: string;
+  errors?: any[]; // Validation errors from ZodValidationPipe
   timestamp: string;
   path: string;
   requestId?: string;
@@ -34,6 +35,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
     let error: string | undefined;
+    let errors: any[] | undefined;
     let details: any;
 
     if (exception instanceof HttpException) {
@@ -45,6 +47,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       } else if (typeof response === 'object' && response !== null) {
         message = (response as any).message || message;
         error = (response as any).error;
+        errors = (response as any).errors; // Extract validation errors
         details = (response as any).details;
       }
     } else if (exception instanceof Error) {
@@ -70,6 +73,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       statusCode,
       message,
       error,
+      errors,
       timestamp: new Date().toISOString(),
       path: request.url,
       requestId,

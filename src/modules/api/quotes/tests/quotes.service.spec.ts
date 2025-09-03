@@ -52,6 +52,14 @@ describe('QuotesService', () => {
     }).compile();
 
     service = module.get<QuotesService>(QuotesService);
+
+    // Reset mocks to ensure getProverAddress and getPortalAddress return expected values
+    mockBlockchainConfigService.getPortalAddress.mockReturnValue(
+      '0x1234567890123456789012345678901234567890',
+    );
+    mockBlockchainConfigService.getProverAddress.mockReturnValue(
+      '0x1234567890123456789012345678901234567890',
+    );
   });
 
   afterEach(() => {
@@ -59,38 +67,16 @@ describe('QuotesService', () => {
   });
 
   describe('getQuote', () => {
-    const mockIntentInput: QuoteRequest['intent'] = {
-      reward: {
-        prover: '0x1234567890123456789012345678901234567890',
-        creator: '0x1234567890123456789012345678901234567890',
-        deadline: BigInt('1735689600'),
-        nativeAmount: BigInt('1000000000000000000'),
-        tokens: [
-          {
-            amount: BigInt('5000000000000000000'),
-            token: '0x1234567890123456789012345678901234567890',
-          },
-        ],
-      },
-      route: {
-        source: BigInt('1'),
-        destination: BigInt('10'),
-        salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-        portal: '0x1234567890123456789012345678901234567890',
-        nativeAmount: BigInt('0'),
-        calls: [
-          {
-            target: '0x1234567890123456789012345678901234567890',
-            value: BigInt('0'),
-            data: '0x',
-          },
-        ],
-        tokens: [
-          {
-            amount: BigInt('5000000000000000000'),
-            token: '0x1234567890123456789012345678901234567890',
-          },
-        ],
+    const mockQuoteRequest: QuoteRequest = {
+      dAppID: 'test-dapp',
+      quoteRequest: {
+        sourceChainID: 1,
+        destinationChainID: 10,
+        sourceToken: '0x1234567890123456789012345678901234567890',
+        destinationToken: '0x1234567890123456789012345678901234567890',
+        sourceAmount: '5000000000000000000',
+        funder: '0x1234567890123456789012345678901234567890',
+        recipient: '0x1234567890123456789012345678901234567890',
       },
     };
 
@@ -117,7 +103,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockIntentInput, 'standard');
+      const result = await service.getQuote(mockQuoteRequest);
 
       expect(result).toEqual({
         quoteResponse: {
@@ -142,7 +128,7 @@ describe('QuotesService', () => {
               amount: '1050000000000000',
             },
           ],
-          deadline: 1735689600,
+          deadline: expect.any(Number),
           estimatedFulfillTimeSec: 30,
         },
         contracts: {
@@ -159,7 +145,7 @@ describe('QuotesService', () => {
       );
     });
 
-    it('should use default strategy when none provided', async () => {
+    it('should always use default strategy', async () => {
       const mockQuoteResult: QuoteResult = {
         valid: true,
         strategy: 'standard',
@@ -173,16 +159,16 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await service.getQuote(mockIntentInput);
+      await service.getQuote(mockQuoteRequest);
 
       expect(mockFulfillmentService.getStrategy).toHaveBeenCalledWith('standard');
     });
 
-    it('should throw BadRequestException when strategy not found', async () => {
+    it('should throw BadRequestException when default strategy not found', async () => {
       mockFulfillmentService.getStrategy.mockReturnValue(undefined);
 
-      await expect(service.getQuote(mockIntentInput, 'unknown' as any)).rejects.toThrow(
-        new BadRequestException('Unknown strategy: unknown'),
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('Unknown strategy: standard'),
       );
     });
 
@@ -192,8 +178,24 @@ describe('QuotesService', () => {
       );
       mockStrategy.canHandle.mockReturnValue(false);
 
-      await expect(service.getQuote(mockIntentInput, 'standard')).rejects.toThrow(
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Strategy standard cannot handle this intent'),
+      );
+    });
+
+    it('should throw BadRequestException when no portal address configured', async () => {
+      mockBlockchainConfigService.getPortalAddress.mockReturnValue(undefined);
+
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('Portal address not configured for chain 10'),
+      );
+    });
+
+    it('should throw BadRequestException when no prover address configured', async () => {
+      mockBlockchainConfigService.getProverAddress.mockReturnValue(undefined);
+
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('No prover configured for chain 1'),
       );
     });
 
@@ -224,7 +226,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await expect(service.getQuote(mockIntentInput, 'standard')).rejects.toThrow(
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException({
           validations: {
             passed: ['IntentFundedValidation'],
@@ -253,7 +255,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockIntentInput, 'standard');
+      const result = await service.getQuote(mockQuoteRequest);
 
       expect(result).toEqual({
         quoteResponse: {
@@ -267,7 +269,7 @@ describe('QuotesService', () => {
           refundRecipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
           recipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
           fees: [],
-          deadline: 1735689600,
+          deadline: expect.any(Number),
           estimatedFulfillTimeSec: 30,
         },
         contracts: {
@@ -277,7 +279,7 @@ describe('QuotesService', () => {
       });
     });
 
-    it('should generate consistent intent hash', async () => {
+    it('should throw BadRequestException when intent sourceChainId is missing', async () => {
       const mockQuoteResult: QuoteResult = {
         valid: true,
         strategy: 'standard',
@@ -291,18 +293,21 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await service.getQuote(mockIntentInput, 'standard');
+      // Mock the intent conversion to not include sourceChainId
+      const intentWithoutSourceChainId = {
+        sourceChainId: undefined,
+      } as any;
 
-      const firstCallIntent = (mockStrategy.canHandle as jest.Mock).mock.calls[0][0] as Intent;
+      jest
+        .spyOn(service as any, 'convertToIntent')
+        .mockReturnValue(intentWithoutSourceChainId as Intent);
 
-      await service.getQuote(mockIntentInput, 'standard');
-
-      const secondCallIntent = (mockStrategy.canHandle as jest.Mock).mock.calls[1][0] as Intent;
-
-      expect(firstCallIntent.intentHash).toBe(secondCallIntent.intentHash);
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('Intent sourceChainId is required'),
+      );
     });
 
-    it('should properly convert intent input to Intent interface', async () => {
+    it('should properly convert quote request to Intent interface', async () => {
       const mockQuoteResult: QuoteResult = {
         valid: true,
         strategy: 'standard',
@@ -316,7 +321,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await service.getQuote(mockIntentInput, 'standard');
+      await service.getQuote(mockQuoteRequest);
 
       expect(mockStrategy.canHandle).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -326,11 +331,11 @@ describe('QuotesService', () => {
           reward: expect.objectContaining({
             prover: '0x0000000000000000000000001234567890123456789012345678901234567890',
             creator: '0x0000000000000000000000001234567890123456789012345678901234567890',
-            deadline: BigInt('1735689600'),
-            nativeAmount: BigInt('1000000000000000000'),
+            deadline: expect.any(BigInt),
+            nativeAmount: BigInt('0'),
           }),
           route: expect.objectContaining({
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+            salt: expect.stringMatching(/^0x[a-fA-F0-9]{64}$/),
             portal: '0x0000000000000000000000001234567890123456789012345678901234567890',
           }),
         }),

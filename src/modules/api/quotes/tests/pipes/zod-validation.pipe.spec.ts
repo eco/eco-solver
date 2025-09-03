@@ -65,7 +65,7 @@ describe('ZodValidationPipe', () => {
         pipe.transform(invalidData, metadata);
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        expect(error.getResponse()).toEqual({
+        expect((error as BadRequestException).getResponse()).toEqual({
           message: 'Validation failed',
           errors: expect.arrayContaining([
             expect.objectContaining({
@@ -103,7 +103,7 @@ describe('ZodValidationPipe', () => {
         nestedPipe.transform(invalidData, metadata);
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        expect(error.getResponse()).toEqual({
+        expect((error as BadRequestException).getResponse()).toEqual({
           message: 'Validation failed',
           errors: [
             {

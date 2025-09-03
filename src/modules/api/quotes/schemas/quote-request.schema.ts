@@ -1,95 +1,53 @@
 import { extendApi } from '@anatine/zod-openapi';
 import { z } from 'zod';
 
-import { zodAddress, zodBigIntString, zodHex } from '@/common/utils/zod-to-swagger.util';
+import { EvmAddressSchema, TronAddressSchema } from '@/config/schemas';
 
-// Token schema with OpenAPI metadata
-const TokenSchema = extendApi(
-  z.object({
-    amount: zodBigIntString('Amount of the token'),
-    token: zodAddress('ERC20 token contract address'),
-  }),
-  {
-    description: 'Token transfer details',
-  },
-);
+// Helper function to create a BlockchainAddress schema
+function zodBlockchainAddress(description?: string) {
+  return extendApi(z.union([EvmAddressSchema, TronAddressSchema]), {
+    type: 'string',
+    description: description || 'Blockchain address (EVM or Tron)',
+    example: '0x1234567890123456789012345678901234567890',
+  });
+}
 
-// Call schema with OpenAPI metadata
-const CallSchema = extendApi(
+// Inner quote request schema
+const QuoteRequestInnerSchema = extendApi(
   z.object({
-    data: zodHex('Encoded function call data'),
-    target: zodAddress('Target contract address for the call'),
-    value: zodBigIntString('Native token value to send with the call'),
-  }),
-  {
-    description: 'Function call to execute on destination chain',
-  },
-);
-
-// Reward schema with OpenAPI metadata
-const RewardSchema = extendApi(
-  z.object({
-    prover: zodAddress('Address of the prover contract'),
-    creator: zodAddress('Address of the intent creator'),
-    deadline: zodBigIntString('Deadline timestamp for the intent'),
-    nativeAmount: zodBigIntString('Native amount reward value'),
-    tokens: extendApi(z.array(TokenSchema), {
-      description: 'Array of ERC20 token rewards',
+    sourceChainID: extendApi(z.number().transform(BigInt), {
+      description: 'Source chain ID',
+      example: 1,
     }),
-  }),
-  {
-    description: 'Reward configuration for the intent',
-  },
-);
-
-// Route schema with OpenAPI metadata
-const RouteSchema = extendApi(
-  z.object({
-    source: zodBigIntString('Source chain ID'),
-    destination: zodBigIntString('Destination chain ID'),
-    salt: zodHex('Salt value for intent uniqueness'),
-    portal: zodAddress('Portal contract address on destination chain'),
-    nativeAmount: zodBigIntString('Native amount route value'),
-    calls: extendApi(z.array(CallSchema), {
-      description: 'Array of calls to execute on destination chain',
+    destinationChainID: extendApi(z.number().transform(BigInt), {
+      description: 'Destination chain ID',
+      example: 10,
     }),
-    tokens: extendApi(z.array(TokenSchema), {
-      description: 'Array of tokens to transfer on the route',
+    sourceToken: zodBlockchainAddress('Source token address'),
+    destinationToken: zodBlockchainAddress('Destination token address'),
+    sourceAmount: extendApi(z.string().transform(BigInt), {
+      description: 'Source amount in Wei (as string for BigInt compatibility)',
+      example: '1000000000000000000',
     }),
+    funder: zodBlockchainAddress('Address funding the swap'),
+    recipient: zodBlockchainAddress('Address receiving tokens on destination'),
   }),
   {
-    description: 'Route configuration for cross-chain execution',
+    description: 'Quote request details for cross-chain token swap',
   },
 );
 
-// Intent schema with OpenAPI metadata
-export const IntentSchema = extendApi(
-  z.object({
-    reward: RewardSchema,
-    route: RouteSchema,
-  }),
-  {
-    description: 'Intent object containing reward and route information',
-  },
-);
-
-// Quote request schema with OpenAPI metadata
+// Main quote request schema with OpenAPI metadata
 export const QuoteRequestSchema = extendApi(
   z.object({
-    intent: IntentSchema,
-    strategy: extendApi(
-      z
-        .enum(['standard', 'crowd-liquidity', 'native-intents', 'negative-intents', 'rhinestone'])
-        .optional(),
-      {
-        description:
-          'Strategy to use for fulfillment. If not specified, the default strategy is used.',
-        example: 'standard',
-      },
-    ),
+    dAppID: extendApi(z.string(), {
+      description: 'Identifier of the requesting dApp',
+      example: 'my-dapp-v1',
+    }),
+    quoteRequest: QuoteRequestInnerSchema,
   }),
   {
-    description: 'Request body for getting a quote for an intent',
+    description: 'Request body for getting a quote for a cross-chain token swap',
   },
 );
 

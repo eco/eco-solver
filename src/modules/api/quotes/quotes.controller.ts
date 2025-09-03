@@ -34,19 +34,18 @@ export class QuotesController {
   @Post()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Get a quote for an intent',
+    summary: 'Get a quote for a cross-chain token swap',
     description:
-      'Validates an intent and returns a quote with fee requirements. ' +
-      'This endpoint performs comprehensive validation using the selected strategy ' +
-      'and calculates all required fees for fulfillment.',
+      'Validates a cross-chain swap request and returns a quote with fee requirements. ' +
+      'This endpoint performs comprehensive validation and calculates all required fees for fulfillment.',
   })
-  @ApiZodBody(QuoteRequestSchema, 'Intent data and optional strategy selection')
+  @ApiZodBody(QuoteRequestSchema, 'Cross-chain token swap request')
   @ApiZodResponse(
     HttpStatus.OK,
     SuccessfulQuoteResponseSchema,
     'Quote successfully generated with fees and contract addresses',
   )
-  @ApiZodResponse(HttpStatus.BAD_REQUEST, FailedQuoteResponseSchema, 'Intent validation failed')
+  @ApiZodResponse(HttpStatus.BAD_REQUEST, FailedQuoteResponseSchema, 'Validation failed')
   @ApiZodResponse(
     HttpStatus.BAD_REQUEST,
     BadRequestResponseSchema,
@@ -54,6 +53,6 @@ export class QuotesController {
   )
   @ValidateRequest(QuoteRequestSchema)
   async getQuote(@Body() quoteRequest: QuoteRequest): Promise<QuoteResponse> {
-    return this.quotesService.getQuote(quoteRequest.intent, quoteRequest.strategy);
+    return this.quotesService.getQuote(quoteRequest);
   }
 }

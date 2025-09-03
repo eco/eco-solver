@@ -51,43 +51,18 @@ describe('QuotesController', () => {
   });
 
   describe('getQuote', () => {
-    it('should call quotesService.getQuote with intent and strategy', async () => {
+    it('should call quotesService.getQuote with the request', async () => {
       const mockRequest: QuoteRequest = {
-        intent: {
-          reward: {
-            prover: '0x1234567890123456789012345678901234567890',
-            creator: '0x1234567890123456789012345678901234567890',
-            deadline: BigInt('1735689600'),
-            nativeAmount: BigInt('1000000000000000000'),
-            tokens: [
-              {
-                amount: BigInt('5000000000000000000'),
-                token: '0x1234567890123456789012345678901234567890',
-              },
-            ],
-          },
-          route: {
-            source: BigInt('1'),
-            destination: BigInt('10'),
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            portal: '0x1234567890123456789012345678901234567890',
-            nativeAmount: BigInt('0'),
-            calls: [
-              {
-                target: '0x1234567890123456789012345678901234567890',
-                value: BigInt('0'),
-                data: '0x',
-              },
-            ],
-            tokens: [
-              {
-                amount: BigInt('5000000000000000000'),
-                token: '0x1234567890123456789012345678901234567890',
-              },
-            ],
-          },
+        dAppID: 'test-dapp',
+        quoteRequest: {
+          sourceChainID: 1,
+          destinationChainID: 10,
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceAmount: '5000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
         },
-        strategy: 'standard',
       };
 
       const mockResponse: SuccessfulQuoteResponse = {
@@ -126,29 +101,21 @@ describe('QuotesController', () => {
 
       const result = await controller.getQuote(mockRequest);
 
-      expect(quotesService.getQuote).toHaveBeenCalledWith(mockRequest.intent, mockRequest.strategy);
+      expect(quotesService.getQuote).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockResponse);
     });
 
-    it('should call quotesService.getQuote without strategy when not provided', async () => {
+    it('should handle minimal request with only required fields', async () => {
       const mockRequest: QuoteRequest = {
-        intent: {
-          reward: {
-            prover: '0x1234567890123456789012345678901234567890',
-            creator: '0x1234567890123456789012345678901234567890',
-            deadline: BigInt('1735689600'),
-            nativeAmount: BigInt('1000000000000000000'),
-            tokens: [],
-          },
-          route: {
-            source: BigInt('1'),
-            destination: BigInt('10'),
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            portal: '0x1234567890123456789012345678901234567890',
-            nativeAmount: BigInt('0'),
-            calls: [],
-            tokens: [],
-          },
+        dAppID: 'minimal-dapp',
+        quoteRequest: {
+          sourceChainID: 1,
+          destinationChainID: 10,
+          sourceToken: '0x0000000000000000000000000000000000000000',
+          destinationToken: '0x0000000000000000000000000000000000000000',
+          sourceAmount: '1000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
         },
       };
 
@@ -158,8 +125,8 @@ describe('QuotesController', () => {
           destinationChainID: 10,
           sourceToken: '0x0000000000000000000000000000000000000000',
           destinationToken: '0x0000000000000000000000000000000000000000',
-          sourceAmount: '0',
-          destinationAmount: '0',
+          sourceAmount: '1000000000000000000',
+          destinationAmount: '1000000000000000000',
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
@@ -177,34 +144,25 @@ describe('QuotesController', () => {
 
       const result = await controller.getQuote(mockRequest);
 
-      expect(quotesService.getQuote).toHaveBeenCalledWith(mockRequest.intent, undefined);
+      expect(quotesService.getQuote).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockResponse);
     });
 
     it('should propagate errors from quotesService', async () => {
       const mockRequest: QuoteRequest = {
-        intent: {
-          reward: {
-            prover: '0x1234567890123456789012345678901234567890',
-            creator: '0x1234567890123456789012345678901234567890',
-            deadline: BigInt('1735689600'),
-            nativeAmount: BigInt('0'),
-            tokens: [],
-          },
-          route: {
-            source: BigInt('1'),
-            destination: BigInt('10'),
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            portal: '0x1234567890123456789012345678901234567890',
-            nativeAmount: BigInt('0'),
-            calls: [],
-            tokens: [],
-          },
+        dAppID: 'error-dapp',
+        quoteRequest: {
+          sourceChainID: 999,
+          destinationChainID: 999,
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
+          sourceAmount: '1000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
         },
-        strategy: 'invalid-strategy' as any,
       };
 
-      const error = new Error('Unknown strategy: invalid-strategy');
+      const error = new Error('Portal address not configured for chain 999');
       mockQuotesService.getQuote.mockRejectedValue(error);
 
       await expect(controller.getQuote(mockRequest)).rejects.toThrow(error);

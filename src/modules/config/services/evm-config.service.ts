@@ -146,6 +146,16 @@ export class EvmConfigService implements IBlockchainConfigService {
     return AddressNormalizer.normalizeEvm(network.claimant);
   }
 
+  /**
+   * Gets the default prover type for the chain
+   * @param chainId Chain identifier
+   * @returns Default prover type
+   */
+  getDefaultProver(chainId: ChainIdentifier): TProverType {
+    const network = this.getChain(Number(chainId));
+    return network.defaultProver;
+  }
+
   private initializeNetworks(): void {
     const networks = this.configService.get<EvmNetworkConfig[]>('evm.networks', []);
     for (const network of networks) {

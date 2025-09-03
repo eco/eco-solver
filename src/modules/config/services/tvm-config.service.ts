@@ -180,6 +180,16 @@ export class TvmConfigService implements IBlockchainConfigService {
     return AddressNormalizer.normalizeTvm(network.claimant);
   }
 
+  /**
+   * Gets the default prover type for the chain
+   * @param chainId Chain identifier
+   * @returns Default prover type
+   */
+  getDefaultProver(chainId: ChainIdentifier): TProverType {
+    const network = this.getChain(chainId);
+    return network.defaultProver;
+  }
+
   private initializeNetworks(): void {
     const networks = this.configService.get<TvmNetworkConfig[]>('tvm.networks', []);
     for (const network of networks) {

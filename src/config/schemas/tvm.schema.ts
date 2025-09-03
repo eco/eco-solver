@@ -4,7 +4,7 @@ import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 
-const TronAddressSchema = z
+export const TronAddressSchema = z
   .string()
   .regex(/^T[a-zA-Z0-9]{33}$/)
   .transform((value) => value as TronAddress);
@@ -69,6 +69,7 @@ const TvmNetworkSchema = z.object({
   tokens: z.array(TvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
   provers: z.record(z.enum(ProverTypeValues), TronAddressSchema),
+  defaultProver: z.enum(ProverTypeValues),
   contracts: z.object({
     portal: TronAddressSchema, // Portal contract address
     // Add TVM-specific contracts here if needed
