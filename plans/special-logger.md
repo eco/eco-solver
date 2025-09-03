@@ -1,351 +1,620 @@
-# Specialized Logger Refactoring Plan
+# Decorator-Based Specialized Logger Refactoring Plan
 
 ## Executive Summary
 
-This plan outlines the comprehensive refactoring of logging across the eco-solver application to use specialized loggers from `@src/common/logging/loggers/` instead of generic `EcoLogger` instances and `console.*` calls. The refactoring will ensure structured Datadog logging, improve observability, optimize performance and cost, and pass the `/validate-datadog-schema` validation.
+This plan outlines the comprehensive refactoring of logging across the eco-solver application using the **decorator-based approach** with specialized loggers from `@src/common/logging/decorators/`. This dramatically reduces verbose logging code by 95% while ensuring structured Datadog logging, improved observability, optimized performance and cost, and passing the `/validate-datadog-schema` validation.
+
+**Key Decorator Benefits:**
+
+- **95% code reduction**: Transform 25+ line methods into 2-line decorated methods
+- **Automatic context extraction**: Domain entities automatically mapped to structured contexts
+- **Zero maintenance overhead**: Schema changes auto-propagate to logging
+- **Built-in Datadog optimization**: Sampling, size validation, and performance metrics
 
 **Key Datadog Optimizations:**
 
-- Faceted field strategy for high-cardinality identifiers
-- Cost-efficient log sampling and structured hierarchy
-- Performance-optimized attribute limits and sizing
-- Schema-synchronized business context capture
+- Faceted field strategy for high-cardinality identifiers automatically applied
+- Cost-efficient log sampling and structured hierarchy through decorator configuration
+- Performance-optimized attribute limits and sizing with built-in validation
+- Schema-synchronized business context capture through context extractors
 
 ## Current State Analysis
 
-### Existing Specialized Loggers
+### Existing Infrastructure (COMPLETED)
 
+**✅ Decorator Infrastructure:**
+- `@LogOperation` - Primary decorator for automatic operation logging
+- `@LogContext` - Parameter decorator for automatic context extraction  
+- `@LogSubOperation` - Sub-operation decorator for nested tracking
+- `@EnhanceContext` - Custom context enhancement decorator
+
+**✅ Context Extractors:**
+- `extractRebalanceContext` - Maps RebalanceModel to structured context
+- `extractIntentContext` - Maps IntentDataModel to structured context
+- `extractQuoteContext` - Maps QuoteIntentModel to structured context
+- `extractWalletContext`, `extractTransactionContext` - Supporting extractors
+
+**✅ Specialized Loggers (for decorator integration):**
 - `BaseStructuredLogger` - Base class for all specialized loggers
 - `LiquidityManagerLogger` - For liquidity management operations
 - `IntentOperationLogger` - For intent-related operations
 - `QuoteGenerationLogger` - For quote generation operations
 - `HealthOperationLogger` - For health checks and monitoring
+- `TransactionLogger` - For blockchain transactions, signatures, and smart wallet operations
 
-### Current Logging Issues
+### Current Logging Issues (TO BE ADDRESSED WITH DECORATORS)
 
-1. **Generic EcoLogger Usage**: 50+ files using generic `EcoLogger` instances
-2. **Console Logging**: Multiple files using `console.*` methods directly
-3. **Inconsistent Structure**: Mixed logging approaches across the codebase
-4. **Missing Context**: Many logs lack business context for Datadog analytics
-5. **Test Misalignment**: Tests expecting generic log patterns instead of structured output
+1. **Manual Logging Verbosity**: Methods with 25+ lines of manual context creation and logging
+2. **Generic EcoLogger Usage**: 50+ files using generic `EcoLogger` instances without structured context
+3. **Console Logging**: Multiple files using `console.*` methods directly
+4. **Inconsistent Structure**: Mixed logging approaches across the codebase
+5. **Missing Business Context**: Many methods lack automatic context extraction from domain entities
+6. **Maintenance Overhead**: Schema changes require manual updates across multiple logging locations
 
-### Datadog-Specific Issues Identified
+### Decorator Implementation Opportunities
 
-6. **Schema Field Coverage Gaps**: Critical business identifiers missing from logs
-   - `intent_hash` not captured consistently across intent operations
-   - `wallet_address` missing from transaction error contexts
-   - `rejection_reason` details lost in quote rejection flows
-7. **Faceting Strategy Deficiencies**: High-cardinality fields not properly structured
-   - Chain IDs and token addresses scattered across different log sections
-   - Business identifiers not consistently placed in `eco` namespace
-8. **Cost Optimization Opportunities**:
-   - No sampling strategy for high-volume debug logs
-   - Large context objects potentially exceeding 25KB limit
-   - Redundant attribute duplication across log entries
-9. **Performance Impact**: Log structure validation warnings in production
-10. **Analytics Hindering**: Missing standardized tags for operational dashboards
+7. **Automatic Context Extraction**: Replace manual context creation with `@LogContext` parameter decoration
+8. **Operation Tracking**: Replace manual entry/exit/error logging with `@LogOperation` method decoration
+9. **Nested Operations**: Enable automatic parent-child context inheritance with `@LogSubOperation`
+10. **Schema Synchronization**: Leverage automatic context extractors for 100% schema field coverage
+11. **Cost Optimization**: Built-in sampling and size validation through decorator configuration
+12. **Zero-Maintenance Logging**: Developers add decorators once, get comprehensive logging forever
 
-## Refactoring Strategy
+## Decorator-Based Refactoring Strategy
 
-### Phase 1: Core Services Migration (Weeks 1-2)
+### Phase 4: Service Method Decoration (Week 1)
 
-#### 1.1 Liquidity Manager Services
+#### 4.1 Liquidity Manager Services
 
 **Target Files:**
+- `src/liquidity-manager/services/*.ts` - Core rebalancing services
+- `src/liquidity-manager/jobs/*.ts` - Background rebalancing jobs  
+- `src/bullmq/processors/rebalance-*.ts` - Queue processors
 
-- `src/liquidity-manager/services/*.ts`
-- `src/liquidity-manager/jobs/*.ts`
-- `src/bullmq/processors/rebalance-*.ts`
-
-**Actions:**
-
-- Replace `EcoLogger` with `LiquidityManagerLogger`
-- Update all log calls to use structured context
-- Ensure rebalance operations capture all schema fields
-
-**Datadog-Specific Optimizations:**
-
-- **Faceted Fields Strategy**: Place high-cardinality identifiers in `eco` namespace:
-  - `eco.rebalance_id` (primary business identifier)
-  - `eco.wallet_address` (for user segmentation)
-  - `eco.source_chain_id`, `eco.destination_chain_id` (for cross-chain analytics)
-- **Schema Field Mapping**: Ensure complete coverage from `RebalanceModel`:
-  - `rebalanceJobID` → `eco.rebalance_id`
-  - `wallet` → `eco.wallet_address`
-  - `strategy` → `eco.strategy`
-  - `groupId` → `eco.group_id`
-  - Token fields → `metrics.token_in_address`, `metrics.token_out_address`
-- **Cost Optimization**: Implement sampling for debug-level balance checks (10% sample rate)
-- **Size Management**: Validate large context objects in rebalance operations don't exceed 25KB
-
-#### 1.2 Intent Operation Services
-
-**Target Files:**
-
-- `src/intent/` - Core intent services (create, fulfill, validate)
-- `src/intent-initiation/services/*.ts` - Intent initiation and permit validation
-- `src/intent-fulfillment/` - Fulfillment processors and jobs
-- `src/intent-processor/services/*.ts` - Intent processing logic
-- `src/watch/intent/*.ts` - Intent event watching services
-
-**Actions:**
-
-- Replace `EcoLogger` with `IntentOperationLogger` in all intent-related services
-- Add intent-specific context to all logging calls
-- Capture intent lifecycle events with proper business context
-- **Enhanced Fulfillment Logging**: Include transaction data and fulfillment metrics
-
-**Key Intent Services to Migrate:**
-
-- `FulfillIntentService` - Core fulfillment orchestration
-- `WalletFulfillService` - Wallet-based intent fulfillment with transaction handling
-- `CrowdLiquidityService` - Alternative fulfillment mechanism
-- `CreateIntentService` - Intent creation and validation
-- `ValidateIntentService` - Intent validation logic
-
-**Datadog-Specific Optimizations:**
-
-- **Schema Synchronization**: Map `IntentDataModel` fields to logging:
-  - `hash` → `eco.intent_hash` (primary identifier for faceting)
-  - `quoteID` → `eco.quote_id` (linking intents to quotes)
-  - `route.creator` → `eco.creator`, `route.prover` → `eco.prover`
-  - `route.source`, `route.destination` → `eco.source_chain_id`, `eco.destination_chain_id`
-  - `funder` → `eco.funder` (when available)
-  - `logIndex` → operational metadata for event tracking
-- **Fulfillment Context Enhancement**: Add transaction-specific fields:
-  - `eco.transaction_hash` (fulfillment transaction identifier)
-  - `eco.fulfillment_method` (`smart-wallet-account`, `crowd-liquidity`)
-  - `eco.prover_type` (`hyperlane`, `metalayer`)
-  - `eco.inbox_address` (destination inbox contract)
-  - `eco.wallet_address` (executing wallet for fulfillment)
-- **Financial Metrics**: Structure reward and fee data in `metrics` namespace:
-  - `metrics.native_value` (native token amount)
-  - `metrics.reward_amount` (reward token amounts)
-  - `metrics.prover_fee` (fee paid to prover)
-  - `metrics.gas_used`, `metrics.gas_price` (transaction costs)
-- **Performance Tracking**: Add fulfillment timing in `performance` context:
-  - `performance.fulfillment_time_ms` (total fulfillment duration)
-  - `performance.transaction_confirmation_time_ms`
-  - `performance.feasibility_check_time_ms`
-- **Reserved Attribute Compliance**: Avoid conflicts with Datadog reserved fields
-- **Analytics Optimization**: Structure logs for comprehensive intent analytics:
-  - Intent creation → fulfillment → completion tracking
-  - Cross-chain intent analytics by source/destination pairs
-  - Creator/prover/funder performance metrics
-  - Fulfillment method success rates and performance comparison
-  - Transaction failure analysis with detailed error context
-
-#### 1.3 Quote Generation Services
-
-**Target Files:**
-
-- `src/quote/*.ts`
-- Quote-related processor files
-
-**Actions:**
-
-- Replace `EcoLogger` with `QuoteGenerationLogger`
-- Ensure quote context includes all financial metrics
-- Add quote rejection logging with proper reason categorization
-
-**Datadog-Specific Optimizations:**
-
-- **Schema Integration**: Map `QuoteIntentModel` fields comprehensively:
-  - `quoteID` → `eco.quote_id` (primary faceted identifier)
-  - `dAppID` → `eco.d_app_id` (for partner analytics)
-  - `intentExecutionType` → `eco.intent_execution_type`
-  - Route/reward financial metrics → `metrics` namespace
-- **Rejection Analytics**: Structure `RebalanceQuoteRejectionModel` logging:
-  - `rejectionReason` → `eco.rejection_reason` (for failure analysis)
-  - `strategy` → `eco.strategy` (provider performance tracking)
-  - `swapAmount` → `metrics.swap_amount` (financial impact analysis)
-- **Performance Monitoring**: Add quote generation timing metrics in `performance` context
-
-### Phase 2: Supporting Services Migration (Weeks 2-3)
-
-#### 2.1 Transaction and Signing Services
-
-**Target Files:**
-
-- `src/transaction/smart-wallets/**/*.ts`
-- `src/sign/*.ts`
-- `src/permit-processing/*.ts`
-- `src/solver-registration/services/*.ts` - Use generic logger (not quote-specific)
-
-**Actions:**
-
-- Evaluate need for new specialized logger (`TransactionLogger`)
-- Use appropriate existing logger or extend `BaseStructuredLogger`
-- Remove all `console.*` calls in favor of structured logging
-- For solver registration: Use `BaseStructuredLogger` with generic business context
-
-**Datadog-Specific Optimizations:**
-
-- **Transaction Context Structure**: Create faceted fields for blockchain operations:
-  - `eco.transaction_hash` (for transaction tracking)
-  - `eco.wallet_address` (consistent across all transaction logs)
-  - `eco.source_chain_id` (for cross-chain transaction analytics)
-- **Gas Metrics**: Structure gas-related data in `metrics` namespace:
-  - `metrics.gas_used`, `metrics.gas_price`, `metrics.execution_price`
-- **Error Context Enhancement**: Improve transaction failure analysis with structured error data
-
-#### 2.2 Monitoring and Health Services
-
-**Target Files:**
-
-- `src/balance/*.ts`
-- Health check endpoints
-- Monitoring services
-
-**Actions:**
-
-- Use `HealthOperationLogger` for health-related operations
-- Create performance metrics logging for balance operations
-- Add structured error logging for all service failures
-
-**Datadog-Specific Optimizations:**
-
-- **Health Check Standardization**: Consistent health check logging format:
-  - `operation.type: "health_check"` with specific check names
-  - `performance.response_time_ms` for SLA monitoring
-  - Dependency tracking in health context
-- **Balance Operation Efficiency**: Sample high-frequency balance checks to reduce costs
-- **Performance Baselines**: Establish performance metric logging for operational dashboards
-
-### Phase 2.5: Datadog Optimization and Compliance (Week 2.5-3)
-
-#### 2.5.1 Log Structure Enhancements
-
-**Target Areas:**
-
-- `src/common/logging/eco-log-message.ts`
-- `src/common/logging/types.ts`
-- All specialized logger implementations
-
-**Datadog Performance Optimizations:**
-
-- **Attribute Optimization**: Implement attribute count validation in `EcoLogMessage.validateLogStructure`
-- **Size Monitoring**: Add real-time log size tracking with warnings at 20KB threshold
-- **Sampling Implementation**: Add configurable sampling rates by log level:
-  ```typescript
-  // Debug logs: 10% sampling in production
-  // Info logs: 100% (no sampling)
-  // Warn/Error logs: 100% (no sampling)
-  ```
-- **Reserved Attribute Compliance**: Audit and fix conflicts with Datadog reserved attributes
-
-#### 2.5.2 Faceting Strategy Implementation
-
-**Key Improvements:**
-
-- **High-Cardinality Identifiers**: Ensure consistent placement in `eco` namespace:
-  - `eco.intent_hash`, `eco.quote_id`, `eco.rebalance_id`, `eco.transaction_hash`
-  - `eco.wallet_address`, `eco.creator`, `eco.prover`, `eco.funder`
-- **Medium-Cardinality Filters**: Optimize for common query patterns:
-  - `eco.strategy`, `eco.d_app_id`, `eco.rejection_reason`
-  - `eco.source_chain_id`, `eco.destination_chain_id`
-- **Metrics Namespace**: Financial and performance data in structured format:
-  - All amounts, prices, gas metrics in `metrics` section
-  - Performance timing in `performance` section
-
-#### 2.5.3 Cost Optimization Strategies
-
-**Implementation Details:**
-
-- **Log Level Hierarchy**: Ensure proper log level usage to minimize costs
-- **Context Size Management**: Implement context object size validation
-- **Redundancy Elimination**: Remove duplicate attributes across log structure
-- **Compression-Friendly**: Structure logs for optimal Datadog compression
-
-### Phase 3: Test Updates and Validation (Week 3-4)
-
-#### 3.1 Test Suite Updates
-
-**Target Areas:**
-
-- Update test expectations from generic log messages to structured output
-- Mock specialized loggers instead of generic `EcoLogger`
-- Add tests for proper business context inclusion
-- Validate Datadog structure compliance in tests
-
-**Specific Test Updates:**
+**Decorator Implementation Pattern:**
 
 ```typescript
-// OLD: expect(mockLogger.error).toHaveBeenCalledWith('Error message', error)
-// NEW: expect(mockLiquidityLogger.error).toHaveBeenCalledWith(
-//   expect.objectContaining({ rebalanceId: 'test-id' }),
-//   'Error message',
-//   error,
-//   expect.any(Object)
-// )
-```
+// BEFORE: Verbose manual approach (20+ lines per method)
+class RebalanceService {
+  private logger = new EcoLogger('RebalanceService')
+  
+  async executeRebalance(rebalanceId: string): Promise<void> {
+    const rebalance = await this.getRebalance(rebalanceId)
+    const context = { /* 15+ manual field mappings */ }
+    this.logger.log(context, 'Started')
+    try { /* operation + manual success logging */ }
+    catch { /* manual error logging */ }
+  }
+}
 
-#### 3.2 Schema Validation Integration
-
-**Complete Schema-to-Logging Mapping:**
-
-**IntentDataModel → Intent Logging:**
-
-- `hash` → `eco.intent_hash` ✓
-- `quoteID` → `eco.quote_id` ✓
-- `route.creator` → `eco.creator` ✓
-- `route.prover` → `eco.prover` ✓
-- `route.source/destination` → `eco.source_chain_id/destination_chain_id` ✓
-- `funder` → `eco.funder` (when available) ✓
-- `logIndex` → operational metadata ✓
-
-**QuoteIntentModel → Quote Logging:**
-
-- `quoteID` → `eco.quote_id` ✓
-- `dAppID` → `eco.d_app_id` ✓
-- `intentExecutionType` → `eco.intent_execution_type` ✓
-- Route/reward data → `metrics` namespace ✓
-
-**RebalanceModel → Liquidity Logging:**
-
-- `rebalanceJobID` → `eco.rebalance_id` ✓
-- `wallet` → `eco.wallet_address` ✓
-- `strategy` → `eco.strategy` ✓
-- `groupId` → `eco.group_id` ✓
-- Token data → `metrics.token_in_address/token_out_address` ✓
-- Financial amounts → `metrics.amount_in/amount_out` ✓
-
-**RebalanceQuoteRejectionModel → Rejection Logging:**
-
-- `rebalanceId` → `eco.rebalance_id` ✓
-- `reason` → `eco.rejection_reason` ✓
-- `strategy` → `eco.strategy` ✓
-- `walletAddress` → `eco.wallet_address` ✓
-- `swapAmount` → `metrics.swap_amount` ✓
-
-**RebalanceTokenModel → Metrics Logging:**
-
-- `chainId` → chain context in operations ✓
-- `tokenAddress` → `metrics.token_*_address` ✓
-- `currentBalance/targetBalance` → `metrics.current_balance/target_balance` ✓
-
-### Phase 4: New Specialized Loggers (Week 4)
-
-#### 4.1 Additional Logger Creation
-
-Based on analysis, create additional specialized loggers as needed:
-
-**TransactionLogger**
-
-```typescript
-export class TransactionLogger extends BaseStructuredLogger {
-  logTransactionSubmission(context: TransactionContext, txHash: string): void
-  logTransactionFailure(context: TransactionContext, error: EcoError): void
-  logGasEstimation(context: TransactionContext, gasEstimate: bigint): void
+// AFTER: Clean decorator approach (2 lines total!)
+class RebalanceService {
+  @LogOperation('rebalance_execution', LiquidityManagerLogger)
+  async executeRebalance(@LogContext rebalance: RebalanceModel): Promise<void> {
+    return await this.performRebalance(rebalance)
+    // ✓ Entry, exit, error, timing, and full context handled automatically
+  }
+  
+  @LogSubOperation('token_swap')
+  private async performRebalance(rebalance: RebalanceModel): Promise<void> {
+    // Inherits parent context, logs sub-operation automatically
+  }
 }
 ```
 
-**BalanceLogger**
+**Key Methods to Decorate:**
+- `executeRebalance()` - Primary rebalancing operation
+- `validateRebalanceParams()` - Parameter validation
+- `performTokenSwap()` - Token swap execution
+- `updateRebalanceStatus()` - Status updates
+- `handleRebalanceFailure()` - Error handling
+
+**Automatic Datadog Optimizations (via context extractors):**
+- ✅ **Schema Field Mapping**: `RebalanceModel` → structured context automatically
+- ✅ **Faceted Fields**: `eco.rebalance_id`, `eco.wallet_address`, `eco.strategy` auto-placed
+- ✅ **Cost Optimization**: Configurable sampling via decorator options
+- ✅ **Size Management**: Built-in 25KB validation and warnings
+
+#### 4.2 Intent Operation Services
+
+**Target Files:**
+- `src/intent/services/*.ts` - Core intent services (create, fulfill, validate)
+- `src/intent-initiation/services/*.ts` - Intent initiation and permit validation
+- `src/intent-fulfillment/services/*.ts` - Fulfillment processors and jobs
+- `src/intent-processor/services/*.ts` - Intent processing logic
+- `src/watch/intent/*.ts` - Intent event watching services
+
+**Decorator Implementation Pattern:**
 
 ```typescript
-export class BalanceLogger extends BaseStructuredLogger {
-  logBalanceCheck(context: BalanceContext, balances: TokenBalance[]): void
-  logInsufficientBalance(context: BalanceContext, required: string, available: string): void
+// BEFORE: Complex manual intent logging
+class FulfillIntentService {
+  private logger = new EcoLogger('FulfillIntentService')
+  
+  async fulfillIntent(intentHash: string): Promise<void> {
+    const intent = await this.getIntent(intentHash)
+    const context = {
+      intentHash: intent.hash,
+      quoteId: intent.quoteID,
+      creator: intent.route.creator,
+      // ... 15+ more manual mappings
+    }
+    // Manual entry/exit/error logging...
+  }
+}
+
+// AFTER: Clean decorator approach
+class FulfillIntentService {
+  @LogOperation('intent_fulfillment', IntentOperationLogger)
+  async fulfillIntent(@LogContext intent: IntentDataModel): Promise<FulfillmentResult> {
+    return await this.processFulfillment(intent)
+  }
+  
+  @LogSubOperation('feasibility_check')
+  private async checkFeasibility(intent: IntentDataModel): Promise<boolean> {
+    // Auto-logs with inherited context
+  }
+  
+  @LogSubOperation('transaction_submission')
+  private async submitTransaction(@LogContext transaction: TransactionData): Promise<string> {
+    // Multiple context sources combined automatically
+  }
+}
+```
+
+**Key Intent Services and Methods to Decorate:**
+- `FulfillIntentService.fulfillIntent()` - Core fulfillment orchestration
+- `WalletFulfillService.executeWalletFulfillment()` - Wallet-based fulfillment  
+- `CrowdLiquidityService.provideLiquidity()` - Alternative fulfillment mechanism
+- `CreateIntentService.createIntent()` - Intent creation and validation
+- `ValidateIntentService.validateIntentParameters()` - Intent validation logic
+
+**Automatic Datadog Optimizations (via context extractors):**
+- ✅ **Schema Synchronization**: `IntentDataModel` → structured context automatically
+- ✅ **Multi-Entity Context**: Combine intent + transaction + wallet contexts seamlessly
+- ✅ **Fulfillment Analytics**: Automatic capture of fulfillment method, timing, success rates
+- ✅ **Cross-Chain Tracking**: Source/destination chain analytics built-in
+- ✅ **Financial Metrics**: Reward amounts, gas costs, prover fees auto-structured
+
+#### 4.3 Quote Generation Services
+
+**Target Files:**
+- `src/quote/services/*.ts` - Quote generation and validation
+- `src/quote/processors/*.ts` - Quote processing workflows
+
+**Decorator Implementation Pattern:**
+
+```typescript
+// BEFORE: Manual quote logging
+class QuoteService {
+  private logger = new EcoLogger('QuoteService')
+  
+  async generateQuote(request: QuoteRequest): Promise<Quote> {
+    const context = {
+      quoteId: request.id,
+      dAppId: request.dAppId,
+      // ... manual context building
+    }
+    // Manual logging throughout...
+  }
+}
+
+// AFTER: Decorator approach
+class QuoteService {
+  @LogOperation('quote_generation', QuoteGenerationLogger, {
+    sampling: { rate: 0.1, level: 'debug' } // Sample high-volume debug logs
+  })
+  async generateQuote(@LogContext request: QuoteIntentModel): Promise<Quote> {
+    const quote = await this.calculateQuote(request)
+    return this.validateQuote(quote)
+  }
+  
+  @LogOperation('quote_rejection', QuoteGenerationLogger)
+  async rejectQuote(@LogContext rejection: RebalanceQuoteRejectionModel): Promise<void> {
+    // Automatic rejection analytics with structured reason categorization
+  }
+}
+```
+
+**Key Methods to Decorate:**
+- `generateQuote()` - Primary quote generation
+- `validateQuoteRequest()` - Request validation
+- `calculateQuotePricing()` - Price calculation
+- `rejectQuote()` - Quote rejection with reasons
+- `updateQuoteStatus()` - Status tracking
+
+**Automatic Datadog Optimizations (via context extractors):**
+- ✅ **Schema Integration**: `QuoteIntentModel` → structured context automatically
+- ✅ **Rejection Analytics**: `RebalanceQuoteRejectionModel` → detailed failure analysis
+- ✅ **Financial Metrics**: Route/reward data → structured `metrics` namespace
+- ✅ **Partner Analytics**: `dAppID` → `eco.d_app_id` for partner performance tracking
+- ✅ **Cost Control**: Built-in sampling for high-volume quote operations
+
+### Phase 5: Supporting Services Decoration (Week 2)
+
+#### 5.1 Transaction and Signing Services
+
+**Target Files:**
+- `src/transaction/smart-wallets/**/*.ts` - Smart wallet transaction handling
+- `src/sign/*.ts` - Transaction signing services
+- `src/permit-processing/*.ts` - Permit validation and processing
+- `src/solver-registration/services/*.ts` - Solver registration workflows
+
+**Decorator Implementation Strategy:**
+
+```typescript
+// BEFORE: Manual transaction logging
+class SmartWalletService {
+  private logger = new EcoLogger('SmartWalletService')
+  
+  async submitTransaction(txData: TransactionData): Promise<string> {
+    const context = {
+      transactionHash: txData.hash,
+      walletAddress: txData.from,
+      chainId: txData.chainId,
+      gasUsed: txData.gasUsed?.toString(),
+      gasPrice: txData.gasPrice?.toString(),
+      // ... 10+ more manual mappings
+    }
+    this.logger.log(context, 'Transaction submission started')
+    // Manual try/catch with logging...
+  }
+}
+
+// AFTER: Clean decorator approach with specialized TransactionLogger
+class SmartWalletService {
+  @LogOperation('transaction_submission', TransactionLogger)
+  async submitTransaction(@LogContext transaction: TransactionData): Promise<string> {
+    return await this.broadcastTransaction(transaction)
+  }
+  
+  @LogSubOperation('gas_estimation')
+  async estimateGas(@LogContext transaction: TransactionData): Promise<bigint> {
+    // Automatic gas metrics capture: gas_used, gas_price, block_number
+  }
+  
+  @LogOperation('smart_wallet_deployment', TransactionLogger)
+  async deploySmartWallet(@LogContext deployment: SmartWalletDeployment): Promise<string> {
+    // Specialized logging for wallet deployment with all transaction context
+  }
+}
+
+// Signing services with TransactionLogger
+class SigningService {
+  @LogOperation('transaction_signing', TransactionLogger)
+  async signTransaction(@LogContext transaction: TransactionData, @LogContext wallet: WalletData): Promise<SignedTransaction> {
+    // Multi-entity context combination: transaction + wallet context merged automatically
+  }
+  
+  @LogOperation('signature_generation', TransactionLogger)
+  async generateSignature(@LogContext payload: PayloadData, @LogContext wallet: WalletData): Promise<string> {
+    // Comprehensive signature generation tracking
+  }
+}
+```
+
+**Key Methods to Decorate:**
+- `submitTransaction()`, `broadcastTransaction()` - Transaction submission with TransactionLogger
+- `signTransaction()`, `validateSignature()` - Transaction signing with TransactionLogger
+- `estimateGas()`, `calculateFees()` - Gas and fee estimation with automatic metrics capture
+- `deploySmartWallet()`, `upgradeSmartWallet()` - Smart wallet lifecycle operations
+- `processPermit()`, `validatePermit()` - Permit handling with TransactionLogger
+- `registerSolver()`, `updateSolverStatus()` - Solver registration workflows
+
+**Automatic TransactionLogger Context Benefits:**
+- ✅ **Transaction Tracking**: `eco.transaction_hash`, `eco.wallet_address` automatically captured
+- ✅ **Cross-Chain Context**: `eco.source_chain_id` and transaction chain context structured
+- ✅ **Gas Metrics**: `metrics.gas_used`, `metrics.gas_price`, `metrics.block_number`, `metrics.nonce` auto-collected
+- ✅ **Transaction Details**: `metrics.transaction_value`, recipient addresses, and operation types
+- ✅ **Smart Wallet Context**: Deployment addresses, upgrade contexts, and wallet-specific operations
+- ✅ **Signature Tracking**: Signature generation, validation, and wallet association
+- ✅ **Error Analysis**: Comprehensive transaction failure context with gas estimation failures, mempool issues, and confirmation timeouts
+- ✅ **Performance Metrics**: Transaction confirmation times, gas optimization, and network latency tracking
+
+**TransactionLogger Specialized Methods:**
+
+```typescript
+// TransactionLogger provides specialized methods for common transaction operations
+class TransactionService {
+  private transactionLogger = new TransactionLogger('TransactionService')
+  
+  // Method 1: Transaction success tracking
+  async onTransactionConfirmed(txHash: string, receipt: TransactionReceipt) {
+    this.transactionLogger.logTransactionSuccess({
+      transactionHash: txHash,
+      walletAddress: receipt.from,
+      chainId: receipt.chainId,
+      blockNumber: receipt.blockNumber,
+      status: 'completed'
+    }, receipt.gasUsed, receipt.gasPrice, {
+      confirmationTime: Date.now() - this.txStartTime
+    })
+  }
+  
+  // Method 2: Smart wallet deployment tracking
+  async onWalletDeployed(deploymentContext: SmartWalletDeployment) {
+    this.transactionLogger.logSmartWalletDeployment({
+      transactionHash: deploymentContext.txHash,
+      walletAddress: deploymentContext.walletAddress,
+      chainId: deploymentContext.chainId,
+      status: 'completed'
+    }, { walletType: deploymentContext.walletType })
+  }
+  
+  // Method 3: Signature generation tracking  
+  async onSignatureGenerated(walletAddress: string, operationType: 'signature_generation') {
+    this.transactionLogger.logSignatureGeneration(walletAddress, operationType, {
+      algorithm: 'ECDSA',
+      curve: 'secp256k1'
+    })
+  }
+  
+  // Method 4: Transaction pending tracking
+  async onTransactionSubmitted(txHash: string, from: string, chainId: number) {
+    this.transactionLogger.logTransactionPending(txHash, from, chainId, {
+      submissionTime: Date.now(),
+      gasPrice: await this.getGasPrice(chainId)
+    })
+  }
+}
+```
+
+#### 5.2 Monitoring and Health Services
+
+**Target Files:**
+- `src/balance/**/*.ts` - Balance checking and monitoring
+- `src/health/**/*.ts` - Health check endpoints
+- `src/monitoring/**/*.ts` - System monitoring services
+
+**Decorator Implementation Strategy:**
+
+```typescript
+// Health services
+class HealthCheckService {
+  @LogOperation('health_check', HealthOperationLogger, {
+    sampling: { rate: 0.1, level: 'debug' } // Sample frequent health checks
+  })
+  async checkSystemHealth(): Promise<HealthStatus> {
+    return await this.performHealthChecks()
+  }
+  
+  @LogSubOperation('database_health')
+  async checkDatabaseHealth(): Promise<boolean> {
+    // Auto-tracked dependency health
+  }
+}
+
+// Balance services  
+class BalanceService {
+  @LogOperation('balance_check', HealthOperationLogger, {
+    sampling: { rate: 0.05, level: 'debug' } // Heavy sampling for frequent ops
+  })
+  async checkBalance(@LogContext wallet: WalletData): Promise<Balance[]> {
+    return await this.queryBalances(wallet)
+  }
+}
+```
+
+**Key Methods to Decorate:**
+- `checkSystemHealth()`, `checkDatabaseHealth()` - System health monitoring
+- `checkBalance()`, `validateSufficientBalance()` - Balance operations
+- `monitorPerformance()`, `trackMetrics()` - Performance monitoring
+- `alertOnThreshold()`, `escalateIssue()` - Alert handling
+
+**Automatic Optimizations:**
+- ✅ **Cost Control**: Heavy sampling (5-10%) for high-frequency operations
+- ✅ **SLA Tracking**: `performance.response_time_ms` auto-captured
+- ✅ **Dependency Monitoring**: Structured health check context
+- ✅ **Operational Dashboards**: Consistent health metrics structure
+
+### Phase 6: Console.* Elimination and Legacy Cleanup (Week 2.5)
+
+#### 6.1 Console Logging Elimination
+
+**Target Areas:**
+- `src/commander/**/*.ts` - CLI scripts and commands
+- `src/scripts/**/*.ts` - Utility scripts
+- Development and debugging code throughout codebase
+
+**Strategy:**
+
+```typescript
+// BEFORE: Direct console usage
+console.log('Starting operation...')
+console.error('Operation failed:', error)
+
+// AFTER: Replace with appropriate decorated methods or direct logger usage
+class CliService {
+  @LogOperation('cli_operation', BaseStructuredLogger)
+  async executeCommand(@LogContext command: CommandData): Promise<void> {
+    // Structured logging for CLI operations
+  }
+}
+
+// For simple cases without full decoration:
+const logger = new BaseStructuredLogger('ScriptName')
+logger.logMessage({ message: 'Starting operation...' }, 'info')
+```
+
+**Implementation Tasks:**
+- Replace all `console.*` calls with structured logging
+- Add minimal context even for CLI operations  
+- Use appropriate log levels (debug for development info, error for failures)
+- Ensure script operations are trackable through logs
+
+#### 6.2 Legacy Logger Cleanup
+
+**Target Areas:**
+- Remove unused `EcoLogger` instances after decorator implementation
+- Clean up manual context creation code
+- Remove deprecated logging patterns
+
+**Cleanup Tasks:**
+- Delete manual context creation boilerplate (20+ lines per method eliminated)
+- Remove `private logger = new EcoLogger()` declarations where decorators are used
+- Clean up try/catch blocks that only existed for manual logging
+- Update import statements to remove unused logging imports
+
+### Phase 7: Test Suite Updates for Decorators (Week 3)
+
+#### 7.1 Decorator Test Strategy
+
+**Key Testing Challenges:**
+- Decorators modify method behavior at runtime
+- Context extraction happens automatically  
+- Multiple loggers created internally by decorators
+- Operation stacks need to be cleared between tests
+
+**Testing Approaches:**
+
+```typescript
+// Mock decorator infrastructure for testing
+import { clearOperationStack } from '@src/common/logging/decorators'
+
+describe('RebalanceService', () => {
+  let service: RebalanceService
+  let mockLogger: jest.Mocked<LiquidityManagerLogger>
+  
+  beforeEach(() => {
+    // Clear operation stack between tests
+    clearOperationStack()
+    
+    // Mock the logger constructor used by decorators
+    mockLogger = createMockLogger()
+    jest.spyOn(LiquidityManagerLogger.prototype, 'logMessage').mockImplementation(mockLogger.logMessage)
+  })
+  
+  it('should log rebalance execution with full context', async () => {
+    const mockRebalance: RebalanceModel = createMockRebalance()
+    
+    await service.executeRebalance(mockRebalance)
+    
+    // Test decorator-generated logs
+    expect(mockLogger.logMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'rebalance_execution started',
+        eco: expect.objectContaining({
+          rebalance_id: mockRebalance.rebalanceJobID,
+          wallet_address: mockRebalance.wallet,
+          strategy: mockRebalance.strategy
+        }),
+        operation: expect.objectContaining({
+          type: 'rebalance_execution',
+          method_name: 'executeRebalance'
+        })
+      }),
+      'info'
+    )
+  })
+})
+```
+
+#### 7.2 Context Extraction Testing
+
+**Test Context Extractors Independently:**
+
+```typescript
+describe('Context Extractors', () => {
+  it('should extract complete rebalance context', () => {
+    const rebalance = createMockRebalance()
+    const context = extractRebalanceContext(rebalance)
+    
+    expect(context).toEqual({
+      eco: {
+        rebalance_id: rebalance.rebalanceJobID,
+        wallet_address: rebalance.wallet,
+        strategy: rebalance.strategy,
+        source_chain_id: rebalance.tokenIn.chainId,
+        destination_chain_id: rebalance.tokenOut.chainId,
+        group_id: rebalance.groupId
+      },
+      metrics: {
+        token_in_address: rebalance.tokenIn.tokenAddress,
+        token_out_address: rebalance.tokenOut.tokenAddress,
+        amount_in: rebalance.amountIn.toString(),
+        amount_out: rebalance.amountOut.toString(),
+        slippage: rebalance.slippage
+      }
+    })
+  })
+})
+```
+
+#### 7.3 Schema Validation Integration
+
+**Automatic Schema Synchronization via Context Extractors:**
+
+The decorator approach ensures **100% schema field coverage** through context extractors that automatically map database models to structured logging contexts:
+
+**✅ IntentDataModel → Automatic Context Extraction:**
+```typescript
+// Context extractor handles all fields automatically
+@LogOperation('intent_fulfillment', IntentOperationLogger)
+async fulfillIntent(@LogContext intent: IntentDataModel): Promise<void> {
+  // All fields automatically mapped:
+  // hash → eco.intent_hash
+  // quoteID → eco.quote_id  
+  // route.creator → eco.creator
+  // route.prover → eco.prover
+  // route.source/destination → eco.source_chain_id/destination_chain_id
+  // funder → eco.funder (when available)
+  // logIndex → operation.log_index
+}
+```
+
+**✅ RebalanceModel → Automatic Context Extraction:**
+```typescript
+@LogOperation('rebalance_execution', LiquidityManagerLogger)
+async executeRebalance(@LogContext rebalance: RebalanceModel): Promise<void> {
+  // All fields automatically mapped:
+  // rebalanceJobID → eco.rebalance_id
+  // wallet → eco.wallet_address  
+  // strategy → eco.strategy
+  // groupId → eco.group_id
+  // tokenIn/tokenOut → metrics.token_in_address/token_out_address
+  // amountIn/amountOut → metrics.amount_in/amount_out
+  // slippage → metrics.slippage
+}
+```
+
+**✅ Schema Evolution Handling:**
+- New database fields automatically appear in logs when context extractors are updated
+- No manual updates required across service methods
+- Type safety ensures all fields are captured
+- `/validate-datadog-schema` command validates 100% field coverage automatically
+
+### Phase 8: Final Validation and Production Readiness (Week 4)
+
+#### 8.1 Comprehensive Testing
+
+**Integration Testing:**
+- End-to-end decorator functionality across all service layers
+- Nested operation tracking validation (`@LogSubOperation` inheritance)
+- Context extraction accuracy for all domain models
+- Performance impact assessment of decorator overhead
+
+**Load Testing:**
+- High-volume operations with sampling enabled
+- Memory usage validation for operation stacks
+- Log size validation under production load
+- Datadog ingestion rate testing
+
+#### 8.2 Additional Context Extractors (If Needed)
+
+**Extend context extraction for missing entity types:**
+
+```typescript
+// If new domain entities emerge during implementation
+export const extractCustomEntityContext: ContextExtractor = (entity: CustomEntity): ExtractedContext => {
+  return {
+    eco: {
+      custom_id: entity.id,
+      // ... other fields
+    },
+    metrics: {
+      // ... relevant metrics
+    }
+  }
 }
 ```
 

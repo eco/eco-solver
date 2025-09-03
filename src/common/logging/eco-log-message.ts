@@ -11,6 +11,7 @@ import {
   QuoteGenerationLogParams,
   HealthOperationLogParams,
   GenericOperationLogParams,
+  TransactionOperationLogParams,
   PerformanceMetricLogParams,
   LogLevel,
   DATADOG_LIMITS,
@@ -147,6 +148,7 @@ export class EcoLogMessage {
     strategy?: string
     intentExecutionType?: string
     rejectionReason?: string
+    transactionHash?: string
     [key: string]: any
   }): EcoBusinessContext {
     return {
@@ -164,6 +166,7 @@ export class EcoLogMessage {
       ...(params.strategy && { strategy: params.strategy }),
       ...(params.intentExecutionType && { intent_execution_type: params.intentExecutionType }),
       ...(params.rejectionReason && { rejection_reason: params.rejectionReason }),
+      ...(params.transactionHash && { transaction_hash: params.transactionHash }),
     }
   }
 
@@ -176,6 +179,11 @@ export class EcoLogMessage {
     deadline?: number
     tokenInAddress?: string
     tokenOutAddress?: string
+    gasUsed?: number
+    gasPrice?: string
+    blockNumber?: number
+    nonce?: number
+    transactionValue?: string
     [key: string]: any
   }): MetricsContext {
     return {
@@ -186,6 +194,11 @@ export class EcoLogMessage {
       ...(params.deadline && { deadline: params.deadline }),
       ...(params.tokenInAddress && { token_in_address: params.tokenInAddress }),
       ...(params.tokenOutAddress && { token_out_address: params.tokenOutAddress }),
+      ...(params.gasUsed && { gas_used: params.gasUsed }),
+      ...(params.gasPrice && { gas_price: params.gasPrice }),
+      ...(params.blockNumber && { block_number: params.blockNumber }),
+      ...(params.nonce && { nonce: params.nonce }),
+      ...(params.transactionValue && { transaction_value: params.transactionValue }),
     }
   }
 
@@ -384,6 +397,45 @@ export class EcoLogMessage {
 
     return this.createDatadogStructure(params.message, 'info', {
       operation: operationContext,
+      ...params.properties,
+    })
+  }
+
+  /**
+   * Factory method for transaction operations (blockchain transactions, signatures, smart wallet operations)
+   */
+  static forTransactionOperation(params: TransactionOperationLogParams): DatadogLogStructure {
+    const ecoContext = this.createEcoContext({
+      transactionHash: params.transactionHash,
+      walletAddress: params.walletAddress,
+      sourceChainId: params.chainId,
+    })
+
+    const metricsContext = this.createMetricsContext({
+      gasUsed: params.gasUsed,
+      gasPrice: params.gasPrice,
+      blockNumber: params.blockNumber,
+      nonce: params.nonce,
+      transactionValue: params.value,
+    })
+
+    const operationContext: OperationContext = {
+      type: params.operationType,
+      status: params.status,
+    }
+
+    // Determine log level based on status
+    const level: LogLevel =
+      params.status === 'failed' ? 'error' : params.status === 'pending' ? 'info' : 'info'
+
+    return this.createDatadogStructure(params.message, level, {
+      eco: ecoContext,
+      metrics: Object.keys(metricsContext).length > 0 ? metricsContext : undefined,
+      operation: operationContext,
+      transaction: {
+        ...(params.to && { to_address: params.to }),
+        ...(params.chainId && { chain_id: params.chainId }),
+      },
       ...params.properties,
     })
   }

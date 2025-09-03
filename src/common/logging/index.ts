@@ -16,3 +16,6 @@ export { LogValidation } from './validation'
 
 // Type definitions and interfaces
 export * from './types'
+
+// Decorator utilities for automatic logging
+export * from './decorators'

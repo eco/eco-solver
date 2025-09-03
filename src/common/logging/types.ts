@@ -79,6 +79,27 @@ export interface GenericOperationLogParams {
   properties?: object
 }
 
+export interface TransactionOperationLogParams {
+  message: string
+  transactionHash?: string
+  walletAddress?: string
+  chainId?: number
+  gasUsed?: number
+  gasPrice?: string
+  operationType:
+    | 'transaction_send'
+    | 'transaction_confirm'
+    | 'signature_generation'
+    | 'wallet_operation'
+    | 'smart_wallet_deploy'
+  status: 'pending' | 'completed' | 'failed' | 'signed'
+  blockNumber?: number
+  nonce?: number
+  value?: string
+  to?: string
+  properties?: object
+}
+
 export interface PerformanceMetricLogParams {
   message: string
   operationType: string
@@ -145,6 +166,23 @@ export interface GenericOperationLogContext {
   operationType?: string
   status?: string
   duration?: number
+}
+
+export interface TransactionOperationLogContext {
+  transactionHash?: string
+  walletAddress?: string
+  chainId?: number
+  operationType?:
+    | 'transaction_send'
+    | 'transaction_confirm'
+    | 'signature_generation'
+    | 'wallet_operation'
+    | 'smart_wallet_deploy'
+  status?: 'pending' | 'completed' | 'failed' | 'signed'
+  blockNumber?: number
+  nonce?: number
+  value?: string
+  to?: string
 }
 
 // Datadog Structure Interfaces
@@ -214,6 +252,9 @@ export interface MetricsContext {
   gas_used?: number
   gas_price?: string
   execution_price?: string
+  block_number?: number
+  nonce?: number
+  transaction_value?: string
 }
 
 export interface ErrorContext {
