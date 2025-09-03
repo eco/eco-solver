@@ -1,3 +1,4 @@
+import { Address } from 'viem'
 import {
   API_ROOT,
   API_V2_ROOT,
@@ -13,17 +14,19 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
-import { ModuleRef } from '@nestjs/core'
 import {
+  IntentSource,
   QuotesConfig,
   ServerConfig,
   Solver,
   SolverRegistrationConfig,
 } from '@/eco-configs/eco-config.types'
+import { ModuleRef } from '@nestjs/core'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SigningService } from '../../request-signing/signing.service'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
+import * as _ from 'lodash'
 
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
@@ -32,6 +35,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   private solverRegistrationConfig: SolverRegistrationConfig
   private quotesConfig: QuotesConfig
   private solversConfig: Record<number, Solver>
+  private intentSourcesConfig: IntentSource[]
   private signingService: SigningService
   private apiRequestExecutor: APIRequestExecutor
 
@@ -46,6 +50,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
     this.solversConfig = this.ecoConfigService.getSolvers()
+    this.intentSourcesConfig = this.ecoConfigService.getIntentSources()
     this.signingService = this.moduleRef.get<SigningService>(SigningService, {
       strict: false,
     })
@@ -148,9 +153,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       }
     */
 
-    const crossChainRoutesConfig: CrossChainRoutesConfigDTO = {
-      '*': {},
-    }
+    const crossChainRoutesConfig: CrossChainRoutesConfigDTO = {}
 
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
@@ -166,16 +169,77 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     }
 
     for (const solver of Object.values(this.solversConfig)) {
-      const chainID = solver.chainID.toString()
+      const destinationChainID = solver.chainID.toString()
+      const destinationTokens = Object.keys(solver.targets)
 
-      const routeTokensDTO: RouteTokensDTO = {
-        send: '*',
-        receive: Object.keys(solver.targets),
+      for (const intentSource of this.intentSourcesConfig) {
+        const intentSourceChainID = intentSource.chainID
+
+        if (intentSourceChainID === solver.chainID) {
+          // Skip if from and to are the same
+
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `getSolverRegistrationDTO: Skipping routeTokensDTO for: ${intentSourceChainID} -> ${destinationChainID}`,
+            }),
+          )
+
+          continue
+        }
+
+        const routeTokensDTOs = this.getRouteTokensDTOs(intentSourceChainID, destinationTokens)
+
+        if (!crossChainRoutesConfig[intentSourceChainID]) {
+          crossChainRoutesConfig[intentSourceChainID] = {}
+        }
+
+        crossChainRoutesConfig[intentSourceChainID][destinationChainID] = routeTokensDTOs
       }
-
-      crossChainRoutesConfig['*'][chainID] = [routeTokensDTO]
     }
 
     return solverRegistrationDTO
+  }
+
+  private getRouteTokensDTOs(
+    intentSourceChainID: number,
+    destinationTokens: string[],
+  ): RouteTokensDTO[] {
+    const sourceTokens = this.getSourceTokensForChain(intentSourceChainID)
+
+    if (_.size(sourceTokens) === 0) {
+      return [
+        {
+          send: '*',
+          receive: destinationTokens,
+        },
+      ]
+    }
+
+    const routeTokenDTOs: RouteTokensDTO[] = []
+
+    for (const token of sourceTokens) {
+      routeTokenDTOs.push({
+        send: token,
+        receive: destinationTokens,
+      })
+    }
+
+    return routeTokenDTOs
+  }
+
+  private getSourceTokensForChain(chainID: number): Address[] {
+    const intentSource = this.intentSourcesConfig.find((source) => source.chainID === chainID)
+
+    if (!intentSource) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `No intent source found for chain ID ${chainID}`,
+        }),
+      )
+
+      return []
+    }
+
+    return intentSource.tokens
   }
 }
