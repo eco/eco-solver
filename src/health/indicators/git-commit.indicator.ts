@@ -1,14 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
 import { exec } from 'child_process'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
 
 const ECO_ROUTES_PACKAGE_NAME = '@eco-foundation/routes-ts'
 @Injectable()
 export class GitCommitHealthIndicator extends HealthIndicator {
-  private logger = new Logger(GitCommitHealthIndicator.name)
+  private logger = new HealthOperationLogger('GitCommitHealthIndicator')
   constructor() {
     super()
   }
@@ -54,12 +54,12 @@ export class GitCommitHealthIndicator extends HealthIndicator {
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Error reading package.json:',
-          properties: {
-            error,
-          },
-        }),
+        {
+          healthCheck: 'git-commit',
+          status: 'unhealthy',
+        },
+        'Error reading package.json',
+        error as Error,
       )
       return undefined // Return undefined if there is an error
     }

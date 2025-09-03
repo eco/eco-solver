@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -22,7 +22,7 @@ import {
 } from './create.kernel.account'
 import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
-import { EcoLogMessage } from '../../../common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoResponse } from '@/common/eco-response'
@@ -41,7 +41,7 @@ export class KernelAccountClientServiceBase<
   KernelAccountClient<entryPointVersion>,
   KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>
 > {
-  protected logger = new Logger(KernelAccountClientServiceBase.name)
+  protected logger = new GenericOperationLogger('KernelAccountClientService')
 
   constructor(
     readonly ecoConfigService: EcoConfigService,
@@ -55,14 +55,17 @@ export class KernelAccountClientServiceBase<
   ): Promise<KernelAccountClient<entryPointVersion>> {
     const { client, args } = await createKernelAccountClient(configs)
     if (args && args.deployReceipt) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Deploying Kernel Account`,
-          properties: {
-            ...args,
-            kernelAccount: client.kernelAccount.address,
-          },
-        }),
+      this.logger.logTransaction(
+        {
+          operationType: 'account_deployment',
+          status: 'started',
+          walletAddress: client.kernelAccount.address,
+        },
+        'Deploying Kernel Account',
+        {
+          ...args,
+          kernelAccount: client.kernelAccount.address,
+        },
       )
     }
     const owner = this.ecoConfigService.getSafe().owner
@@ -153,12 +156,15 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
       }
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `estimateGasForKernelExecution: error`,
-          properties: {
-            error: ex.message,
-          },
-        }),
+        {
+          operationType: 'gas_estimation',
+          status: 'failed',
+        },
+        'Error estimating gas for kernel execution',
+        ex,
+        {
+          operation: 'estimateGasForKernelExecution',
+        },
       )
 
       return { error: EcoError.GasEstimationError }

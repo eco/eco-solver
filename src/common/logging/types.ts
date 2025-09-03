@@ -110,6 +110,7 @@ export interface IntentOperationLogContext {
   sourceChainId?: number
   destinationChainId?: number
   operationType?: 'creation' | 'fulfillment' | 'validation' | 'funding'
+  status?: 'started' | 'completed' | 'failed'
 }
 
 export interface QuoteGenerationLogContext {
@@ -127,7 +128,23 @@ export interface QuoteGenerationLogContext {
 
 export interface HealthOperationLogContext {
   healthCheck: string
+  status?:
+    | 'healthy'
+    | 'unhealthy'
+    | 'degraded'
+    | 'started'
+    | 'warning'
+    | 'error'
+    | 'ok'
+    | 'shutting_down'
+  responseTime?: number
   dependencies?: string[]
+}
+
+export interface GenericOperationLogContext {
+  operationType?: string
+  status?: string
+  duration?: number
 }
 
 // Datadog Structure Interfaces
@@ -153,8 +170,11 @@ export interface DatadogLogStructure {
 
 export interface EcoBusinessContext {
   intent_hash?: string
+  intent_hash_full?: string // Full value for high-cardinality optimization
   quote_id?: string
+  quote_id_full?: string // Full value for high-cardinality optimization
   rebalance_id?: string
+  rebalance_id_full?: string // Full value for high-cardinality optimization
   transaction_hash?: string
   request_id?: string
   wallet_address?: string

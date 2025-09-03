@@ -1,5 +1,4 @@
 import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { formatUnits } from 'viem'
 import {
   LiquidityManagerJob,
@@ -10,6 +9,7 @@ import {
   LiquidityManagerQueueDataType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { CheckBalancesProcessor } from '@/liquidity-manager/processors/check-balances.processor'
 import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
 import { table } from 'table'
@@ -81,11 +81,15 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    * @param processor - The LiquidityManagerProcessor instance used for processing.
    */
   async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+    // Cast to CheckBalancesProcessor to access healthLogger
+    const checkBalancesProcessor = processor as any as CheckBalancesProcessor
     if (!this.is(job)) {
-      processor.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'CheckBalancesCronJobManager: It is not a CheckBalancesCron job',
-        }),
+      checkBalancesProcessor.healthLogger.warn(
+        {
+          healthCheck: 'balance-monitoring',
+          status: 'warning',
+        },
+        'CheckBalancesCronJobManager: It is not a CheckBalancesCron job',
       )
       return
     }
@@ -95,25 +99,35 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
     const { deficit, surplus, items } =
       await processor.liquidityManagerService.analyzeTokens(walletAddress)
 
-    processor.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `CheckBalancesCronJob: process`,
-        properties: {
-          walletAddress,
-          surplus: surplus.total,
-          deficit: deficit.total,
-        },
-      }),
+    checkBalancesProcessor.healthLogger.log(
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'healthy',
+      },
+      'CheckBalancesCronJob: process',
+      {
+        walletAddress,
+        surplus: surplus.total,
+        deficit: deficit.total,
+      },
     )
 
-    processor.logger.log(this.displayTokenTable(items))
+    checkBalancesProcessor.healthLogger.log(
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'healthy',
+      },
+      this.displayTokenTable(items),
+    )
 
     if (!deficit.total) {
-      processor.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `CheckBalancesCronJob: No deficits found`,
-          properties: { walletAddress },
-        }),
+      checkBalancesProcessor.healthLogger.log(
+        {
+          healthCheck: 'balance-monitoring',
+          status: 'healthy',
+        },
+        'CheckBalancesCronJob: No deficits found',
+        { walletAddress },
       )
       return
     }
@@ -128,13 +142,15 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
       )
 
       if (rebalancingQuotes.length === 0) {
-        processor.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'CheckBalancesCronJob: No rebalancing quotes found',
-            properties: {
-              deficitToken,
-            },
-          }),
+        checkBalancesProcessor.healthLogger.debug(
+          {
+            healthCheck: 'balance-monitoring',
+            status: 'degraded',
+          },
+          'CheckBalancesCronJob: No rebalancing quotes found',
+          {
+            deficitToken,
+          },
         )
         continue
       }
@@ -148,16 +164,24 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
     }
 
     if (!rebalances.length) {
-      processor.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'CheckBalancesCronJob: Rebalancing routes available',
-          properties: { walletAddress },
-        }),
+      checkBalancesProcessor.healthLogger.warn(
+        {
+          healthCheck: 'balance-monitoring',
+          status: 'unhealthy',
+        },
+        'CheckBalancesCronJob: No rebalancing routes available',
+        { walletAddress },
       )
       return
     }
 
-    processor.logger.log(this.displayRebalancingTable(rebalances))
+    checkBalancesProcessor.healthLogger.log(
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'healthy',
+      },
+      this.displayRebalancingTable(rebalances),
+    )
 
     await processor.liquidityManagerService.startRebalancing(walletAddress, rebalances)
   }
@@ -169,17 +193,20 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    * @param error - The error that occurred.
    */
   onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: unknown) {
+    const checkBalancesProcessor = processor as any as CheckBalancesProcessor
     const durationMs = this.getDurationMs(job)
-    processor.logger.error(
-      EcoLogMessage.withError({
-        message: `CheckBalancesCronJob: Failed`,
-        error: error as Error,
-        properties: {
-          durationMs,
-          walletAddress: job.data.wallet,
-          queue: job.queueName,
-        },
-      }),
+    checkBalancesProcessor.healthLogger.error(
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'unhealthy',
+      },
+      'CheckBalancesCronJob: Failed',
+      error as Error,
+      {
+        durationMs,
+        walletAddress: job.data.wallet,
+        queue: job.queueName,
+      },
     )
   }
 
@@ -187,16 +214,20 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    * Hook triggered when a job is completed successfully.
    */
   onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor) {
+    const checkBalancesProcessor = processor as any as CheckBalancesProcessor
     const durationMs = this.getDurationMs(job)
-    processor.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `CheckBalancesCronJob: completed`,
-        properties: {
-          durationMs,
-          walletAddress: job.data.wallet,
-          queue: job.queueName,
-        },
-      }),
+    checkBalancesProcessor.healthLogger.log(
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'healthy',
+        responseTime: durationMs,
+      },
+      'CheckBalancesCronJob: completed',
+      {
+        durationMs,
+        walletAddress: job.data.wallet,
+        queue: job.queueName,
+      },
     )
   }
 
@@ -238,7 +269,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    */
   private displayRebalancingTable(items: RebalanceRequest[]) {
     // Skip if no rebalancing quotes are found.
-    if (!items.length) return
+    if (!items.length) return 'No rebalancing quotes available'
 
     const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format
     const slippageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format

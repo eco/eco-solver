@@ -33,8 +33,7 @@ import {
   installModule,
   isModuleInstalled,
 } from '@rhinestone/module-sdk'
-import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { OwnableExecutorAbi } from '@/contracts'
 import { GetKernelVersion } from '@zerodev/sdk/types'
 
@@ -132,24 +131,28 @@ export async function addExecutorToKernelAccount<
   })
 
   logger.log(
-    EcoLogMessage.fromDefault({
-      message: `isModuleInstalled OwnableExecutor: ${executorInstalled}`,
-      properties: {
-        kernelAccount: client.kernelAccount.address,
-        owner,
-      },
-    }),
+    {
+      operationType: 'module_check',
+      status: executorInstalled ? 'installed' : 'not_installed',
+    },
+    `isModuleInstalled OwnableExecutor: ${executorInstalled}`,
+    {
+      kernelAccount: client.kernelAccount.address,
+      owner,
+    },
   )
 
   if (!executorInstalled) {
     logger.log(
-      EcoLogMessage.fromDefault({
-        message: `installing OwnableExecutor`,
-        properties: {
-          kernelAccount: client.kernelAccount.address,
-          owner,
-        },
-      }),
+      {
+        operationType: 'module_installation',
+        status: 'started',
+      },
+      'Installing OwnableExecutor',
+      {
+        kernelAccount: client.kernelAccount.address,
+        owner,
+      },
     )
     const installExecutes = await installModule({
       client: client as any,
@@ -163,29 +166,35 @@ export async function addExecutorToKernelAccount<
         hash: transactionHash,
         confirmations: 5,
       })
-      logger.log(
-        EcoLogMessage.fromDefault({
-          message: `installed OwnableExecutor`,
-          properties: {
-            kernelAccount: client.kernelAccount.address,
-            owner,
-            transactionHash,
-            receipt,
-          },
-        }),
+      logger.logTransaction(
+        {
+          operationType: 'module_installation',
+          status: 'completed',
+          walletAddress: client.kernelAccount.address,
+          transactionHash,
+        },
+        'Successfully installed OwnableExecutor',
+        {
+          kernelAccount: client.kernelAccount.address,
+          owner,
+          transactionHash,
+          receipt,
+        },
       )
     } catch (e) {
       // Clients do not cache, so an install can go through but the
       // client still tries to install it on a subsequent call
       logger.error(
-        EcoLogMessage.fromDefault({
-          message: `install OwnableExecutor failed`,
-          properties: {
-            kernelAccount: client.kernelAccount.address,
-            owner,
-            error: e,
-          },
-        }),
+        {
+          operationType: 'module_installation',
+          status: 'failed',
+        },
+        'Failed to install OwnableExecutor',
+        e as Error,
+        {
+          kernelAccount: client.kernelAccount.address,
+          owner,
+        },
       )
     }
   }
@@ -263,16 +272,18 @@ export async function executorTransferERC20Token<
   })
 
   logger.log(
-    EcoLogMessage.fromDefault({
-      message: `simulated OwnableExecutor executeOnOwnedAccount token transfer`,
-      properties: {
-        kernelAccount: client.kernelAccount.address,
-        request,
-      },
-    }),
+    {
+      operationType: 'transaction_simulation',
+      status: 'completed',
+    },
+    'Simulated OwnableExecutor executeOnOwnedAccount token transfer',
+    {
+      kernelAccount: client.kernelAccount.address,
+      request,
+    },
   )
 }
 
 function getLogger() {
-  return new Logger('OwnableExecutor')
+  return new GenericOperationLogger('OwnableExecutor')
 }

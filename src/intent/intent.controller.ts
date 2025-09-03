@@ -2,14 +2,13 @@ import { Controller, Get } from '@nestjs/common'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 import { Network } from '@/common/alchemy/network'
 import { ValidateIntentService } from './validate-intent.service'
-import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
 import { IntentSource } from '../eco-configs/eco-config.types'
 import { IntentCreatedLog } from '../contracts'
 
 @Controller('intent')
 export class IntentSourceController {
-  private logger = new Logger(IntentSourceController.name)
+  private logger = new IntentOperationLogger('IntentSourceController')
   constructor(
     private readonly watchIntentService: WatchCreateIntentService,
     private readonly validateService: ValidateIntentService,
@@ -27,12 +26,14 @@ export class IntentSourceController {
       provers: [],
     }
     this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `fakeIntent intent`,
-        properties: {
-          si: si,
-        },
-      }),
+      {
+        intentHash: '', // Will be generated when intent is processed
+        sourceChainId: si.chainID,
+        operationType: 'creation',
+        status: 'started',
+      },
+      'Processing fake intent request',
+      { sourceInfo: si },
     )
 
     return await this.watchIntentService.addJob(si)(intent)

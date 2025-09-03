@@ -4,7 +4,7 @@ import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 
 @Injectable()
@@ -17,13 +17,19 @@ import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-
   },
 })
 export class CheckBalancesProcessor extends BaseProcessor<LiquidityManagerJob> {
+  // Health-specific logger for structured monitoring logging
+  public readonly healthLogger: HealthOperationLogger
   constructor(public readonly liquidityManagerService: LiquidityManagerService) {
     super(CheckBalancesProcessor.name, [new CheckBalancesCronJobManager()])
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'CheckBalancesProcessor initialized',
-        properties: { queue: CheckBalancesQueue.queueName },
-      }),
+    // Create health-specific logger for monitoring
+    this.healthLogger = new HealthOperationLogger('CheckBalancesProcessor')
+    this.healthLogger.log(
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'started',
+      },
+      'CheckBalancesProcessor initialized',
+      { queue: CheckBalancesQueue.queueName },
     )
   }
 }
