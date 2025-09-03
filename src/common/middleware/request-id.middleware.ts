@@ -25,25 +25,6 @@ export class RequestIdMiddleware implements NestMiddleware {
     // Add to response headers
     res.setHeader('X-Request-Id', requestId);
 
-    // Log request completion
-    const start = Date.now();
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          message: 'HTTP Request',
-          requestId,
-          method: req.method,
-          url: req.url,
-          statusCode: res.statusCode,
-          duration,
-          userAgent: req.headers['user-agent'],
-          ip: req.ip,
-        }),
-      );
-    });
-
     next();
   }
 }
