@@ -1,20 +1,23 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
+import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { DummyProver } from '@/modules/prover/provers/dummy.prover';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
 
 @Injectable()
 export class ProverService implements OnModuleInit {
-  private readonly provers: Map<string, HyperProver | MetalayerProver> = new Map();
+  private readonly provers: Map<string, BaseProver> = new Map();
 
   constructor(
     private hyperProver: HyperProver,
     private metalayerProver: MetalayerProver,
+    private dummyProver: DummyProver,
     private readonly logger: SystemLoggerService,
     private readonly blockchainConfigService: BlockchainConfigService,
   ) {
@@ -127,14 +130,12 @@ export class ProverService implements OnModuleInit {
   private initializeProvers(): void {
     this.provers.set(ProverType.HYPER, this.hyperProver);
     this.provers.set(ProverType.METALAYER, this.metalayerProver);
+    this.provers.set(ProverType.DUMMY, this.dummyProver);
 
     this.logger.log(`Initialized ${this.provers.size} provers`);
   }
 
-  private findProverForRoute(
-    sourceChainId: number,
-    destinationChainId: number,
-  ): HyperProver | MetalayerProver | null {
+  private findProverForRoute(sourceChainId: number, destinationChainId: number): BaseProver | null {
     // Check each prover to see if it supports both chains and has matching contracts
     for (const [type, prover] of this.provers) {
       const sourceContract = prover.isSupported(sourceChainId);

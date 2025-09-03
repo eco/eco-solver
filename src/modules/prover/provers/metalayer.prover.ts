@@ -30,11 +30,16 @@ export class MetalayerProver extends BaseProver {
   async getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint> {
     const chainId = intent.sourceChainId;
 
+    const prover = this.getContractAddress(chainId);
+    if (!prover) {
+      throw new Error(`No prover contract address found for chain ${chainId}`);
+    }
+
     // Fetch fee from the source chain where the intent originates
     return this.blockchainReaderService.fetchProverFee(
       chainId,
       intent,
-      this.getContractAddress(chainId),
+      prover,
       await this.generateProof(intent),
       claimant,
     );

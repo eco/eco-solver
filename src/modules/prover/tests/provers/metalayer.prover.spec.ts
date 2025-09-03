@@ -45,18 +45,16 @@ describe('MetalayerProver', () => {
     mockBlockchainConfigService = {
       getProverAddress: jest
         .fn()
-        .mockImplementation(
-          (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-            const numericChainId = Number(chainId);
-            if (numericChainId === 137 && proverType === 'metalayer') {
-              return testAddress1;
-            }
-            if (numericChainId === 8453 && proverType === 'metalayer') {
-              return testAddress2;
-            }
-            return undefined;
-          },
-        ),
+        .mockImplementation((chainId: number | string | bigint, proverType: ProverType) => {
+          const numericChainId = Number(chainId);
+          if (numericChainId === 137 && proverType === 'metalayer') {
+            return testAddress1;
+          }
+          if (numericChainId === 8453 && proverType === 'metalayer') {
+            return testAddress2;
+          }
+          return undefined;
+        }),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -97,20 +95,16 @@ describe('MetalayerProver', () => {
       const mixedConfigService = {
         getProverAddress: jest
           .fn()
-          .mockImplementation(
-            (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-              const numericChainId = Number(chainId);
-              if (numericChainId === 1 && proverType === 'hyper') {
-                return toUniversalAddress(
-                  padTo32Bytes('0x1111111111111111111111111111111111111111'),
-                );
-              }
-              if (numericChainId === 137 && proverType === 'metalayer') {
-                return testAddress1;
-              }
-              return undefined;
-            },
-          ),
+          .mockImplementation((chainId: number | string | bigint, proverType: ProverType) => {
+            const numericChainId = Number(chainId);
+            if (numericChainId === 1 && proverType === 'hyper') {
+              return toUniversalAddress(padTo32Bytes('0x1111111111111111111111111111111111111111'));
+            }
+            if (numericChainId === 137 && proverType === 'metalayer') {
+              return testAddress1;
+            }
+            return undefined;
+          }),
       } as unknown as jest.Mocked<BlockchainConfigService>;
 
       const filteredProver = new MetalayerProver(mixedConfigService, mockModuleRef);

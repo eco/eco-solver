@@ -4,6 +4,7 @@ import { ModuleRef } from '@nestjs/core';
 import { Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
@@ -31,15 +32,8 @@ export abstract class BaseProver implements OnModuleInit {
 
   abstract getDeadlineBuffer(): bigint;
 
-  getContractAddress(chainId: string | number | bigint): UniversalAddress {
-    const proverAddr = this.blockchainConfigService.getProverAddress(
-      chainId,
-      this.type as 'hyper' | 'metalayer',
-    );
-    if (!proverAddr) {
-      throw new Error('proverAddr is missing');
-    }
-    return proverAddr;
+  getContractAddress(chainId: string | number | bigint): UniversalAddress | undefined {
+    return this.blockchainConfigService.getProverAddress(chainId, this.type as TProverType);
   }
 
   isSupported(chainId: number): boolean {

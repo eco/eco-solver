@@ -61,7 +61,7 @@ describe('BaseProver', () => {
 
     // Setup mock return values for getProverAddress
     mockBlockchainConfigService.getProverAddress.mockImplementation(
-      (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
+      (chainId: number | string | bigint, proverType: ProverType) => {
         const numericChainId = Number(chainId);
         if (numericChainId === 1 && proverType === 'hyper') {
           return testAddress1;

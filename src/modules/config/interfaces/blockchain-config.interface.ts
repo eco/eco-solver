@@ -1,3 +1,4 @@
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
@@ -65,10 +66,7 @@ export interface IBlockchainConfigService {
    * @param chainId Chain identifier
    * @param proverType Prover type ('hyper' or 'metalayer')
    */
-  getProverAddress(
-    chainId: ChainIdentifier,
-    proverType: 'hyper' | 'metalayer',
-  ): UniversalAddress | undefined;
+  getProverAddress(chainId: ChainIdentifier, proverType: TProverType): UniversalAddress | undefined;
 
   /**
    * Gets the claimant address for the chain

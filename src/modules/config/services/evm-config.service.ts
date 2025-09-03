@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { Address, isAddressEqual } from 'viem';
 
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/schemas';
@@ -128,17 +129,14 @@ export class EvmConfigService implements IBlockchainConfigService {
 
   getProverAddress(
     chainId: ChainIdentifier,
-    proverType: 'hyper' | 'metalayer',
+    proverType: TProverType,
   ): UniversalAddress | undefined {
     const address = this.getEvmProverAddress(chainId, proverType);
     return address ? AddressNormalizer.normalizeEvm(address) : undefined;
   }
 
   // Legacy method for backward compatibility
-  getEvmProverAddress(
-    chainId: ChainIdentifier,
-    proverType: 'hyper' | 'metalayer',
-  ): Address | undefined {
+  getEvmProverAddress(chainId: ChainIdentifier, proverType: TProverType): Address | undefined {
     const network = this.getChain(Number(chainId));
     return network.provers?.[proverType];
   }

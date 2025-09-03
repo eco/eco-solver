@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import {
@@ -145,7 +146,7 @@ export class TvmConfigService implements IBlockchainConfigService {
 
   getProverAddress(
     chainId: ChainIdentifier,
-    proverType: 'hyper' | 'metalayer',
+    proverType: TProverType,
   ): UniversalAddress | undefined {
     const network = this.getChain(chainId);
     const address = network.provers?.[proverType] as TronAddress | undefined;
@@ -155,7 +156,7 @@ export class TvmConfigService implements IBlockchainConfigService {
   // Legacy method for backward compatibility
   getTvmProverAddress(
     chainId: number | string | bigint,
-    proverType: 'hyper' | 'metalayer',
+    proverType: TProverType,
   ): TronAddress | undefined {
     const network = this.getChain(chainId);
     return network.provers?.[proverType] as TronAddress;

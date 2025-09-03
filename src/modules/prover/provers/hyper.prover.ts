@@ -35,6 +35,9 @@ export class HyperProver extends BaseProver {
 
   async getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint> {
     const localProver = this.getContractAddress(Number(intent.destination));
+    if (!localProver) {
+      throw new Error(`No prover contract address found for chain ${intent.destination}`);
+    }
 
     // Fetch fee from the source chain where the intent originates
     return this.blockchainReaderService.fetchProverFee(

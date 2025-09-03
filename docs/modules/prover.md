@@ -118,7 +118,7 @@ PROVERS_1_CHAIN_CONFIGS_1_CONTRACT_ADDRESS=0xef01...
 ```typescript
 interface ProverConfig {
   provers: Array<{
-    type: 'hyper' | 'metalayer';
+    type: ProverType;
     chainConfigs: Array<{
       chainId: bigint;
       contractAddress: string;

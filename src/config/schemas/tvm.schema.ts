@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 
@@ -67,7 +68,7 @@ const TvmNetworkSchema = z.object({
   rpc: TvmRpcSchema,
   tokens: z.array(TvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
-  provers: z.record(z.enum(['hyper', 'metalayer'] as const), TronAddressSchema),
+  provers: z.record(z.enum(ProverTypeValues), TronAddressSchema),
   contracts: z.object({
     portal: TronAddressSchema, // Portal contract address
     // Add TVM-specific contracts here if needed

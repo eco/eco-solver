@@ -44,18 +44,16 @@ describe('HyperProver', () => {
     mockBlockchainConfigService = {
       getProverAddress: jest
         .fn()
-        .mockImplementation(
-          (chainId: number | string | bigint, proverType: 'hyper' | 'metalayer') => {
-            const numericChainId = Number(chainId);
-            if (numericChainId === 1 && proverType === 'hyper') {
-              return testAddress1;
-            }
-            if (numericChainId === 10 && proverType === 'hyper') {
-              return testAddress2;
-            }
-            return undefined;
-          },
-        ),
+        .mockImplementation((chainId: number | string | bigint, proverType: ProverType) => {
+          const numericChainId = Number(chainId);
+          if (numericChainId === 1 && proverType === 'hyper') {
+            return testAddress1;
+          }
+          if (numericChainId === 10 && proverType === 'hyper') {
+            return testAddress2;
+          }
+          return undefined;
+        }),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({

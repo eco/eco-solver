@@ -85,9 +85,11 @@ export class TvmExecutorService extends BaseChainExecutor {
           const proverFee = await prover.getFee(intent, claimantUA);
           const proofData = await prover.generateProof(intent);
 
-          const proverAddr = AddressNormalizer.denormalizeToSvm(
-            prover.getContractAddress(destinationChainId),
-          );
+          const proverAddrUA = prover.getContractAddress(destinationChainId);
+          if (!proverAddrUA) {
+            throw new Error(`No prover contract address found for chain ${destinationChainId}`);
+          }
+          const proverAddr = AddressNormalizer.denormalizeToSvm(proverAddrUA);
 
           span.setAttributes({
             'tvm.prover_address': proverAddr,

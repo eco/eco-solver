@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
@@ -131,7 +132,7 @@ export class BlockchainConfigService {
    */
   getProverAddress(
     chainId: ChainIdentifier,
-    proverType: 'hyper' | 'metalayer',
+    proverType: TProverType,
   ): UniversalAddress | undefined {
     const chainType = ChainTypeDetector.detect(chainId);
     const configService = this.getConfigService(chainType);

@@ -1,6 +1,7 @@
 import { Address } from 'viem';
 import { z } from 'zod';
 
+import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 
 export const EvmAddressSchema = z
@@ -126,7 +127,7 @@ const EvmNetworkSchema = z.object({
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   tokens: z.array(EvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
-  provers: z.record(z.enum(['hyper', 'metalayer'] as const), EvmAddressSchema),
+  provers: z.record(z.enum(ProverTypeValues), EvmAddressSchema),
   contracts: z.object({
     portal: EvmAddressSchema,
     ecdsaExecutor: z

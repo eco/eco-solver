@@ -186,7 +186,7 @@ Prover configuration for route validation.
 ```typescript
 interface ProverConfig {
   provers: Array<{
-    type: 'hyper' | 'metalayer';
+    type: ProverTypeName;
     chainConfigs: Array<{
       chainId: bigint;
       contractAddress: string;

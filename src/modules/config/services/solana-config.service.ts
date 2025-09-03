@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { z } from 'zod';
 
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
@@ -119,7 +120,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
 
   getProverAddress(
     _chainId: ChainIdentifier,
-    _proverType: 'hyper' | 'metalayer',
+    _proverType: TProverType,
   ): UniversalAddress | undefined {
     // Solana doesn't have prover contracts in current configuration
     return undefined;
