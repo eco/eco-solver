@@ -140,8 +140,6 @@ export function encodeReward(reward: RewardType): Hex {
         })),
       }
 
-      console.log('ENCREWARD: reward for EVM', cleanReward)
-
       return encodeAbiParameters(
         [{ type: 'tuple', components: RewardStruct }],
         [cleanReward as any],
@@ -169,7 +167,6 @@ export function encodeReward(reward: RewardType): Hex {
 export function decodeRoute(vm: VmType, route: Hex): RouteType {
   switch (vm) {
     case VmType.EVM:
-      console.log('SAQUON decodeRoute EVM', route)
       return {
         vm: VmType.EVM,
         ...decodeAbiParameters([{ type: 'tuple', components: RouteStruct }], route)[0],

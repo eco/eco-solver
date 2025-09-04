@@ -162,7 +162,6 @@ export class IntentDataModel implements IntentType {
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
     const e = event.args as any // Cast to any since we handle both formats
-    console.log('MADDEN: e', e)
     return new IntentDataModel({
       hash: e.hash || e.intentHash,
       salt: e.salt || '0x',

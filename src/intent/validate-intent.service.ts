@@ -3,7 +3,7 @@ import { Address as EvmAddress, Hex } from 'viem'
 import { PublicKey, Connection } from '@solana/web3.js'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { RewardType } from '@/utils/encodeAndHash'
+import { encodeReward, encodeRoute, RewardType } from '@/utils/encodeAndHash'
 import { checkIntentFunding } from '@/intent/check-funded-solana'
 import { Solver, VmType } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -18,6 +18,8 @@ import { MultichainPublicClientService } from '@/transaction/multichain-public-c
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
+import { RouteDataModel } from './schemas/route-data.schema'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -218,18 +220,14 @@ export class ValidateIntentService implements OnModuleInit {
           isIntentFunded = false
         }
       } else {
-        // isIntentFunded = await client.readContract({
-        //   address: intentSource.sourceAddress as `0x${string}`,
-        //   abi: IntentSourceAbi,
-        //   functionName: 'isIntentFunded',
-        //   args: [IntentDataModel.toChainIntent(model.intent) as any], // TODO: fix this
-        // })
-        console.log(
-          'MADDEN: intentFunded called for EVM',
-          intentSource.sourceAddress,
-          model.intent.reward,
-        )
-        isIntentFunded = true
+        const encodedRoute = encodeRoute(model.intent.route)
+        console.log('MACAFFREY: intentFunded', model.intent.destination, encodedRoute)
+        isIntentFunded = await client.readContract({
+          address: intentSource.sourceAddress as `0x${string}`,
+          abi: portalAbi, 
+          functionName: 'isIntentFunded',
+          args: [model.intent.destination, encodedRoute, model.intent.reward],
+        })
       }
 
       retryCount++

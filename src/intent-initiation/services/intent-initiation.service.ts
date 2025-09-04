@@ -314,7 +314,7 @@ export class IntentInitiationService implements OnModuleInit {
       false,
       funder,
       gaslessIntentRequestDTO.getPermitContractAddress!(),
-    ] as const
+    ]
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

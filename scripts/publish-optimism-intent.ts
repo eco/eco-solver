@@ -7,6 +7,7 @@ import {
   parseEther,
   Address,
   encodeFunctionData,
+  erc20Abi,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { optimism } from 'viem/chains'
@@ -23,6 +24,7 @@ import {
   createTransferInstruction,
   getAssociatedTokenAddress,
 } from '@solana/spl-token'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -219,114 +221,6 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
     const intentHash = hashIntent(intent.destination, intent.route, intent.reward)
     console.log(`Intent hash: ${intentHash.intentHash}`)
 
-    // Get Intent Source contract from provided portal code
-    const intentSourceAbi = [
-      {
-        inputs: [
-          {
-            internalType: 'uint64',
-            name: 'destination',
-            type: 'uint64',
-          },
-          {
-            internalType: 'bytes',
-            name: 'route',
-            type: 'bytes',
-          },
-          {
-            components: [
-              {
-                internalType: 'uint64',
-                name: 'deadline',
-                type: 'uint64',
-              },
-              {
-                internalType: 'address',
-                name: 'creator',
-                type: 'address',
-              },
-              {
-                internalType: 'address',
-                name: 'prover',
-                type: 'address',
-              },
-              {
-                internalType: 'uint256',
-                name: 'nativeAmount',
-                type: 'uint256',
-              },
-              {
-                components: [
-                  {
-                    internalType: 'address',
-                    name: 'token',
-                    type: 'address',
-                  },
-                  {
-                    internalType: 'uint256',
-                    name: 'amount',
-                    type: 'uint256',
-                  },
-                ],
-                internalType: 'struct TokenAmount[]',
-                name: 'tokens',
-                type: 'tuple[]',
-              },
-            ],
-            internalType: 'struct Reward',
-            name: 'reward',
-            type: 'tuple',
-          },
-        ],
-        name: 'publish',
-        outputs: [
-          {
-            internalType: 'bytes32',
-            name: 'intentHash',
-            type: 'bytes32',
-          },
-          {
-            internalType: 'address',
-            name: 'vault',
-            type: 'address',
-          },
-        ],
-        stateMutability: 'nonpayable',
-        type: 'function',
-      },
-      {
-        name: 'publishAndFund',
-        type: 'function',
-        inputs: [
-          { name: 'destination', type: 'uint64' },
-          { name: 'route', type: 'bytes' },
-          {
-            name: 'reward',
-            type: 'tuple',
-            components: [
-              { name: 'deadline', type: 'uint256' },
-              { name: 'creator', type: 'address' },
-              { name: 'prover', type: 'address' },
-              { name: 'nativeAmount', type: 'uint256' },
-              {
-                name: 'tokens',
-                type: 'tuple[]',
-                components: [
-                  { name: 'token', type: 'address' },
-                  { name: 'amount', type: 'uint256' },
-                ],
-              },
-            ],
-          },
-          { name: 'allowPartial', type: 'bool' },
-        ],
-        outputs: [
-          { name: 'intentHash', type: 'bytes32' },
-          { name: 'vault', type: 'address' },
-        ],
-      },
-    ] as const
-
     const contractAddress = optimismPortalAddress as Address
 
     if (fundIntent) {
@@ -336,42 +230,80 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
       const tokenAddress = reward.tokens[0].token
       const tokenAmount = reward.tokens[0].amount
 
-      console.log(`Approving ${Number(tokenAmount) / 1e6} USDC for contract ${contractAddress}`)
-
-      // ERC20 approve function
-      const approveHash = await walletClient.writeContract({
+      // Check current allowance first
+      const currentAllowance = await publicClient.readContract({
         address: tokenAddress,
-        abi: [
-          {
-            name: 'approve',
-            type: 'function',
-            inputs: [
-              { name: 'spender', type: 'address' },
-              { name: 'amount', type: 'uint256' },
-            ],
-          },
-        ],
-        functionName: 'approve',
-        args: [contractAddress, tokenAmount],
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [account.address, contractAddress],
       })
+      
+      console.log(`Current allowance: ${Number(currentAllowance) / 1e6} USDC`)
+      console.log(`Required amount: ${Number(tokenAmount) / 1e6} USDC`)
 
-      console.log(`Token approval transaction: ${approveHash}`)
+      // Check token balance
+      const tokenBalance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [account.address],
+      })
+      
+      console.log(`Token balance: ${Number(tokenBalance) / 1e6} USDC`)
 
-      // Wait for approval confirmation
-      await publicClient.waitForTransactionReceipt({ hash: approveHash })
-      console.log('Token approval confirmed')
+      if (tokenBalance < tokenAmount) {
+        throw new Error(`Insufficient token balance. Have: ${Number(tokenBalance) / 1e6} USDC, Need: ${Number(tokenAmount) / 1e6} USDC`)
+      }
+
+      // Only approve if allowance is insufficient
+      if (currentAllowance < tokenAmount) {
+        console.log(`Approving ${Number(tokenAmount) / 1e6} USDC for contract ${contractAddress}`)
+
+        // ERC20 approve function using viem's built-in ABI
+        const approveHash = await walletClient.writeContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [contractAddress, tokenAmount],
+        })
+
+        console.log(`Token approval transaction: ${approveHash}`)
+
+        // Wait for approval confirmation
+        await publicClient.waitForTransactionReceipt({ hash: approveHash })
+        console.log('Token approval confirmed')
+
+        // Verify the approval worked
+        const newAllowance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [account.address, contractAddress],
+        })
+        console.log(`New allowance after approval: ${Number(newAllowance) / 1e6} USDC`)
+
+        if (newAllowance < tokenAmount) {
+          throw new Error(`Approval failed. Expected: ${Number(tokenAmount) / 1e6} USDC, Got: ${Number(newAllowance) / 1e6} USDC`)
+        }
+      } else {
+        console.log(`Sufficient allowance already exists: ${Number(currentAllowance) / 1e6} USDC`)
+      }
 
       // Now publish and fund the intent
       const { request } = await publicClient.simulateContract({
         account,
         address: contractAddress,
-        abi: intentSourceAbi,
+        abi: portalAbi,
         functionName: 'publishAndFund',
         args: [
           intent.destination,
           encodeRoute(intent.route),
           {
-            ...reward,
+            deadline: reward.deadline,
+            creator: reward.creator,
+            prover: reward.prover,
+            nativeAmount: reward.nativeAmount,
+            tokens: reward.tokens,
           },
           false, // allowPartial
         ],
@@ -393,26 +325,10 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
     } else {
       console.log('Publishing intent only (no funding)...')
 
-      const calldata = encodeFunctionData({
-        abi: intentSourceAbi,
-        functionName: 'publish',
-        args: [
-          intent.destination,
-          encodeRoute(intent.route),
-          {
-            deadline: reward.deadline,
-            creator: reward.creator,
-            prover: reward.prover,
-            nativeAmount: reward.nativeAmount,
-            tokens: reward.tokens,
-          },
-        ],
-      })
-
       const { request } = await publicClient.simulateContract({
         account,
         address: contractAddress,
-        abi: intentSourceAbi,
+        abi: portalAbi,
         functionName: 'publish',
         args: [
           intent.destination,

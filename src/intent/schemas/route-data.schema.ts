@@ -69,6 +69,24 @@ export class RouteDataModel implements RouteType {
       })),
     }
   }
+
+  static toEvmRoute(route: RouteType): RouteType<VmType.EVM> {
+    return {
+      vm: VmType.EVM,
+      salt: route.salt,
+      deadline: route.deadline,
+      portal: route.portal as `0x${string}`,
+      tokens: route.tokens.map((token) => ({
+        token: token.token as `0x${string}`,
+        amount: token.amount,
+      })),
+      calls: route.calls.map((call) => ({
+        target: call.target as `0x${string}`,
+        data: call.data,
+        value: call.value,
+      })),
+    }
+  }
 }
 
 export const RouteDataSchema = SchemaFactory.createForClass(RouteDataModel)

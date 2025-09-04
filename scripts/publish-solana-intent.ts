@@ -5,7 +5,7 @@ import * as borsh from 'borsh'
 
 // Use Anchor's bundled web3.js to avoid type conflicts
 const { Connection, Keypair, PublicKey, ComputeBudgetProgram } = web3
-import * as crypto from 'crypto'
+import { Buffer } from 'buffer'
 import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData, Hex } from 'viem'
 import {

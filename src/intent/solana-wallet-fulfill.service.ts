@@ -133,16 +133,6 @@ export class SolanaWalletFulfillService implements IFulfillService {
 
     // Check token balances before transfer
     for (const instruction of transferInstructions) {
-      console.log('MADDEN: Transfer instruction:', instruction)
-      console.log(
-        'MADDEN: Transfer instruction keys:',
-        instruction.keys.map((k) => ({
-          pubkey: k.pubkey.toString(),
-          isSigner: k.isSigner,
-          isWritable: k.isWritable,
-        })),
-      )
-
       // Check balance of source account (should be first writable account)
       const sourceAccount = instruction.keys.find((k) => k.isWritable)
       if (sourceAccount) {
@@ -168,11 +158,11 @@ export class SolanaWalletFulfillService implements IFulfillService {
                 console.log('MADDEN: Token account mint:', parsed.info?.mint)
               }
             } catch (e) {
-              console.log('MADDEN: Could not parse token account:', e.message)
+              this.logger.error('Could not parse token account:', e.message)
             }
           }
         } catch (e) {
-          console.log('MADDEN: Could not get account info:', e.message)
+          this.logger.error('Could not get account info:', e.message)
         }
       }
     }
@@ -242,8 +232,6 @@ export class SolanaWalletFulfillService implements IFulfillService {
     ) {
       const dataHex = call.data as string
       const dataBytes = Buffer.from(dataHex.slice(2), 'hex')
-
-      console.log('MADDEN: dataBytes', dataBytes)
 
       // Check if it's a transfer instruction (instruction type 3)
       return dataBytes.length >= 9
@@ -355,8 +343,6 @@ export class SolanaWalletFulfillService implements IFulfillService {
     const claimantBytes32 = new Uint8Array(32)
     claimantBytes32.set(claimantBytes)
 
-    console.log('MADDEN: encodeRoute', encodeRoute(model.intent.route))
-
     // Prepare fulfill arguments matching the Rust struct
     const encodedRoute = encodeRoute(model.intent.route)
     const routeBytes = Buffer.from(encodedRoute.slice(2), 'hex') // Convert hex to bytes
@@ -371,13 +357,13 @@ export class SolanaWalletFulfillService implements IFulfillService {
     const transformedRoute = addAccountsToRoute(RouteDataModel.toSvmRoute(model.intent.route), remainingAccounts.callAccounts)
     console.log('MADDEN: transformedRoute', transformedRoute)
 
-    const intentHashPremix = hashIntentSvm(
+    const intentHashRecomputed = hashIntentSvm(
       model.intent.destination,
       transformedRoute,
       model.intent.reward,
     )
-    console.log('MADDEN: intentHashPremix', intentHashPremix)
-    const intentHashBytes = Buffer.from(intentHashPremix.intentHash.slice(2), 'hex')
+    console.log('MADDEN: intentHashRecomputed', intentHashRecomputed)
+    const intentHashBytes = Buffer.from(intentHashRecomputed.intentHash.slice(2), 'hex')
     const rewardHashBytes = Buffer.from(rewardHash.slice(2), 'hex')
 
     const [fulfillMarkerPda] = web3.PublicKey.findProgramAddressSync(
