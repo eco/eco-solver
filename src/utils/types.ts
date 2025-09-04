@@ -16,3 +16,15 @@ export type Mutable<T> = {
 export type MutableField<T, K extends keyof T> = Omit<T, K> & {
   -readonly [P in K]: T[P]
 }
+
+export { TronEnergyRental } from './tron-energy-rental'
+export type { 
+  TronEnergyProvider,
+  RentEnergyParams,
+  RentEnergyResponse,
+  EstimateEnergyParams,
+  EstimateEnergyResponse,
+  EstimateBandwidthResponse,
+  EnergyRateResponse,
+  TronEnergyBalance
+} from './tron-energy-rental'
