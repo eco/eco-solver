@@ -8,7 +8,6 @@ export type WalletType = 'basic' | 'kernel';
  */
 export interface StrategyMetadata {
   name: string;
-  priority: number;
   enabled: boolean;
   description?: string;
 }

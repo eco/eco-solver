@@ -9,11 +9,13 @@ import {
   StrategyMetadata,
 } from '@/common/interfaces/strategy-registry.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
-import { CrowdLiquidityFulfillmentStrategy } from '@/modules/fulfillment/strategies';
-import { NativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
-import { NegativeIntentsFulfillmentStrategy } from '@/modules/fulfillment/strategies';
-import { RhinestoneFulfillmentStrategy } from '@/modules/fulfillment/strategies';
-import { StandardFulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import {
+  CrowdLiquidityFulfillmentStrategy,
+  NativeIntentsFulfillmentStrategy,
+  NegativeIntentsFulfillmentStrategy,
+  RhinestoneFulfillmentStrategy,
+  StandardFulfillmentStrategy,
+} from '@/modules/fulfillment/strategies';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -55,45 +57,11 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
     }
   }
 
-  private async initializeStrategies() {
-    // Get strategy configuration from fulfillment config
-    const fulfillmentConfig = this.configService.fulfillmentConfig;
-    const strategies = fulfillmentConfig?.strategies;
-
-    // Register each strategy with its metadata
-    const strategyMap = {
-      standard: this.standardStrategy,
-      'crowd-liquidity': this.crowdLiquidityStrategy,
-      'native-intents': this.nativeIntentsStrategy,
-      'negative-intents': this.negativeIntentsStrategy,
-      rhinestone: this.rhinestoneStrategy,
-    } as const;
-
-    for (const [name, strategy] of Object.entries(strategyMap)) {
-      const enabled = strategies?.[name as keyof typeof strategies]?.enabled ?? false;
-      const metadata: StrategyMetadata = {
-        name,
-        enabled,
-        description: this.getStrategyDescription(name),
-        priority: this.getStrategyPriority(name),
-      };
-
-      this.register(strategy, metadata);
-
-      if (enabled) {
-        this.logger.log(`Strategy '${name}' registered and enabled`);
-      } else {
-        this.logger.log(`Strategy '${name}' registered but disabled`);
-      }
-    }
-  }
-
   register(strategy: IFulfillmentStrategy, metadata: StrategyMetadata): void {
     const span = this.otelService.startSpan('strategy.register', {
       attributes: {
         'strategy.name': metadata.name,
         'strategy.enabled': metadata.enabled,
-        'strategy.priority': metadata.priority,
       },
     });
 
@@ -136,12 +104,7 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
       const enabledStrategies = Array.from(this.strategies.entries())
         .filter(([name]) => this.isStrategyEnabled(name))
         .map(([, strategy]) => strategy)
-        .filter((strategy) => strategy.canHandle(intent))
-        .sort((a, b) => {
-          const priorityA = this.strategyMetadata.get(a.name)?.priority ?? 0;
-          const priorityB = this.strategyMetadata.get(b.name)?.priority ?? 0;
-          return priorityB - priorityA;
-        });
+        .filter((strategy) => strategy.canHandle(intent));
 
       span.setAttribute('strategy.matching_count', enabledStrategies.length);
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -169,16 +132,36 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
     return this.strategyMetadata.get(name)?.enabled ?? false;
   }
 
-  private getStrategyPriority(name: string): number {
-    // Priority determines order when multiple strategies can handle an intent
-    const priorities: Record<string, number> = {
-      standard: 100,
-      'native-intents': 90,
-      'crowd-liquidity': 80,
-      rhinestone: 70,
-      'negative-intents': 60,
-    };
-    return priorities[name] ?? 0;
+  private async initializeStrategies() {
+    // Get strategy configuration from fulfillment config
+    const fulfillmentConfig = this.configService.fulfillmentConfig;
+    const strategies = fulfillmentConfig?.strategies;
+
+    // Register each strategy with its metadata
+    const strategyMap = {
+      standard: this.standardStrategy,
+      'crowd-liquidity': this.crowdLiquidityStrategy,
+      'native-intents': this.nativeIntentsStrategy,
+      'negative-intents': this.negativeIntentsStrategy,
+      rhinestone: this.rhinestoneStrategy,
+    } as const;
+
+    for (const [name, strategy] of Object.entries(strategyMap)) {
+      const enabled = strategies?.[name as keyof typeof strategies]?.enabled ?? false;
+      const metadata: StrategyMetadata = {
+        name,
+        enabled,
+        description: this.getStrategyDescription(name),
+      };
+
+      this.register(strategy, metadata);
+
+      if (enabled) {
+        this.logger.log(`Strategy '${name}' registered and enabled`);
+      } else {
+        this.logger.log(`Strategy '${name}' registered but disabled`);
+      }
+    }
   }
 
   private getStrategyDescription(name: string): string {
