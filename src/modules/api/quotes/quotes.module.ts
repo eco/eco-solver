@@ -1,15 +1,18 @@
+import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 
 import { ConfigModule } from '@/modules/config/config.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
+import { LoggingModule } from '@/modules/logging/logging.module';
 
-import { QuotesController } from './quotes.controller';
-import { QuotesService } from './quotes.service';
+import { QuotesController } from './controllers/quotes.controller';
+import { QuoteRegistrationService } from './services/quote-registration.service';
+import { QuotesService } from './services/quotes.service';
 
 @Module({
-  imports: [ConfigModule, FulfillmentModule],
+  imports: [ConfigModule, FulfillmentModule, HttpModule, LoggingModule],
   controllers: [QuotesController],
-  providers: [QuotesService],
-  exports: [QuotesService],
+  providers: [QuotesService, QuoteRegistrationService],
+  exports: [QuotesService, QuoteRegistrationService],
 })
 export class QuotesModule {}

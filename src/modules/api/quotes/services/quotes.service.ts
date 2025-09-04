@@ -13,8 +13,8 @@ import { hours, now } from '@/common/utils/time';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
-import { QuoteRequest } from './schemas/quote-request.schema';
-import { FailedQuoteResponse, QuoteResponse } from './schemas/quote-response.schema';
+import { QuoteRequest } from '../schemas/quote-request.schema';
+import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
 
 @Injectable()
 export class QuotesService {

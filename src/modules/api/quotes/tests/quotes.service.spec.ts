@@ -7,8 +7,8 @@ import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 
-import { QuotesService } from '../quotes.service';
 import { QuoteRequest } from '../schemas/quote-request.schema';
+import { QuotesService } from '../services/quotes.service';
 
 describe('QuotesService', () => {
   let service: QuotesService;

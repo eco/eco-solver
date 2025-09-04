@@ -8,6 +8,7 @@ export * from './fulfillment.schema';
 export * from './mongodb.schema';
 export * from './opentelemetry.schema';
 export * from './queue.schema';
+export * from './quotes.schema';
 export * from './redis.schema';
 export * from './solana.schema';
 export * from './tvm.schema';

@@ -10,6 +10,7 @@ import {
   MongoDBSchema,
   OpenTelemetrySchema,
   QueueSchema,
+  QuotesSchema,
   RedisSchema,
   SolanaSchema,
   TvmSchema,
@@ -27,6 +28,7 @@ export {
   MongoDBSchema,
   OpenTelemetrySchema,
   QueueSchema,
+  QuotesSchema,
   RedisSchema,
   SolanaSchema,
   TvmSchema,
@@ -51,6 +53,7 @@ export const ConfigSchema = z
     opentelemetry: OpenTelemetrySchema,
     withdrawal: WithdrawalSchema,
     bullBoard: BullBoardSchema.optional(),
+    quotes: QuotesSchema.optional(),
   })
   .extend(BaseSchema.shape);
 
