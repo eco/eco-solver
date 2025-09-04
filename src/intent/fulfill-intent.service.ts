@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Hex } from 'viem'
 import { UtilsIntentService } from './utils-intent.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext, LogSubOperation } from '@/common/logging/decorators'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
@@ -16,7 +17,7 @@ import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
  */
 @Injectable()
 export class FulfillIntentService {
-  private logger = new Logger(FulfillIntentService.name)
+  private logger = new IntentOperationLogger('FulfillIntentService')
 
   constructor(
     private readonly utilsIntentService: UtilsIntentService,
@@ -32,7 +33,8 @@ export class FulfillIntentService {
    * @param {Hex} intentHash - The unique hash identifier of the intent to be fulfilled.
    * @return {Promise<void>} Returns the result of the fulfillment process based on the intent type.
    */
-  async fulfill(intentHash: Hex): Promise<unknown> {
+  @LogOperation('intent_fulfillment', IntentOperationLogger)
+  async fulfill(@LogContext intentHash: Hex): Promise<unknown> {
     // Track fulfillment attempt start
     this.ecoAnalytics.trackIntentFulfillmentStarted(intentHash)
 
@@ -83,6 +85,13 @@ export class FulfillIntentService {
       ? { type: 'smart-wallet-account' }
       : this.ecoConfigService.getFulfill()
 
+    // Log business event for fulfillment method selection
+    this.logger.logCrowdLiquidityMethodSelected(
+      intentHash,
+      type === 'crowd-liquidity',
+      isNative ? 'native_intent' : undefined,
+    )
+
     // Track fulfillment method selection
     this.ecoAnalytics.trackIntentFulfillmentMethodSelected(
       intentHash,
@@ -107,7 +116,11 @@ export class FulfillIntentService {
    * @param {Solver} solver - The solver responsible for executing the fulfillment of the intent.
    * @return {Promise<void>} A promise that resolves when the intent fulfillment is successfully executed.
    */
-  async executeFulfillIntentWithCL(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  @LogSubOperation('crowd_liquidity_fulfillment')
+  async executeFulfillIntentWithCL(
+    @LogContext model: IntentSourceModel,
+    @LogContext solver: Solver,
+  ): Promise<Hex> {
     const isRouteSupported = this.crowdLiquidityService.isRouteSupported(model)
 
     // Track crowd liquidity route support check
@@ -145,14 +158,6 @@ export class FulfillIntentService {
 
         return result
       } catch (error) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: 'Failed to fulfill using Crowd Liquidity, proceeding to use solver',
-            properties: { intentHash: model.intent.hash },
-            error,
-          }),
-        )
-
         // Track crowd liquidity fulfillment failure and fallback
         this.ecoAnalytics.trackError(
           ANALYTICS_EVENTS.INTENT.CROWD_LIQUIDITY_FULFILLMENT_FAILED,

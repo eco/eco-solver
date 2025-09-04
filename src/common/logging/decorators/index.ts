@@ -16,6 +16,8 @@ export {
 export {
   extractContextFromEntity,
   extractRebalanceContext,
+  extractRebalanceJobDataContext,
+  extractRebalanceRequestContext,
   extractIntentContext,
   extractQuoteContext,
   extractWalletContext,

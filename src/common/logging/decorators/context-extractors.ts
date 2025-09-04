@@ -54,6 +54,70 @@ export const entityTypeGuards: EntityTypeGuards = {
       ('gasUsed' in entity || 'gasPrice' in entity || 'blockNumber' in entity)
     )
   },
+
+  isRebalanceJobData: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      'rebalanceJobID' in entity &&
+      'walletAddress' in entity &&
+      'rebalance' in entity &&
+      'network' in entity
+    )
+  },
+
+  isRebalanceRequest: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      'quotes' in entity &&
+      'token' in entity &&
+      Array.isArray(entity.quotes)
+    )
+  },
+
+  isIntentSourceModel: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      'intent' in entity &&
+      'status' in entity &&
+      entity.intent &&
+      'hash' in entity.intent &&
+      'route' in entity.intent &&
+      'reward' in entity.intent
+    )
+  },
+
+  isTokenData: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      'config' in entity &&
+      entity.config &&
+      'address' in entity.config &&
+      'chainId' in entity.config
+    )
+  },
+
+  isValidationChecks: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      'supportedProver' in entity &&
+      'supportedNative' in entity &&
+      'supportedTargets' in entity
+    )
+  },
+
+  isGaslessIntentRequest: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      'dAppID' in entity &&
+      ('route' in entity || 'reward' in entity)
+    )
+  },
 }
 
 /**
@@ -94,6 +158,115 @@ export const extractRebalanceContext: ContextExtractor = (entity: any): Extracte
 }
 
 /**
+ * Helper function to detect if an object is a transaction receipt
+ */
+function isTransactionReceipt(obj: any): boolean {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    ('transactionHash' in obj || 'hash' in obj) &&
+    'blockNumber' in obj &&
+    'status' in obj
+  )
+}
+
+/**
+ * Helper function to detect if an object is a validation checks object
+ */
+function isValidationChecks(obj: any): boolean {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    'supportedProver' in obj &&
+    'supportedNative' in obj &&
+    'supportedTargets' in obj
+  )
+}
+
+/**
+ * Helper function to detect if an object is an error
+ */
+function isErrorObject(obj: any): boolean {
+  return (
+    obj &&
+    (obj instanceof Error || (typeof obj === 'object' && ('message' in obj || 'name' in obj)))
+  )
+}
+
+/**
+ * Helper function to extract receipt data from various receipt types
+ */
+function extractReceiptData(receipt: any): any {
+  if (!receipt) return {}
+
+  // Handle nested receipt structure {previous: ..., current: ...}
+  if (receipt.previous || receipt.current) {
+    const result: any = {}
+
+    // Extract from current error
+    if (receipt.current && isErrorObject(receipt.current)) {
+      result.current_error = {
+        type: receipt.current.name || receipt.current.constructor?.name || 'Error',
+        message: receipt.current.message,
+      }
+    }
+
+    // Extract from previous receipt (if it's a transaction receipt)
+    if (receipt.previous && isTransactionReceipt(receipt.previous)) {
+      result.previous_transaction = {
+        hash: receipt.previous.transactionHash || receipt.previous.hash,
+        block_number: receipt.previous.blockNumber?.toString(),
+        gas_used: receipt.previous.gasUsed?.toString(),
+        status: receipt.previous.status,
+      }
+    }
+
+    return result
+  }
+
+  // Handle transaction receipt
+  if (isTransactionReceipt(receipt)) {
+    return {
+      transaction_hash: receipt.transactionHash || receipt.hash,
+      block_number: receipt.blockNumber?.toString(),
+      block_hash: receipt.blockHash,
+      gas_used: receipt.gasUsed?.toString(),
+      gas_price: receipt.gasPrice?.toString() || receipt.effectiveGasPrice?.toString(),
+      cumulative_gas_used: receipt.cumulativeGasUsed?.toString(),
+      transaction_index: receipt.transactionIndex?.toString(),
+      transaction_status: receipt.status,
+      logs_count: receipt.logs?.length || 0,
+    }
+  }
+
+  // Handle validation checks object
+  if (isValidationChecks(receipt)) {
+    return {
+      validation_failure: true,
+      failed_checks: Object.entries(receipt)
+        .filter(([, value]) => value === false)
+        .map(([key]) => key),
+      validation_summary: receipt,
+    }
+  }
+
+  // Handle error object
+  if (isErrorObject(receipt)) {
+    return {
+      error_type: receipt.name || receipt.constructor?.name || 'Error',
+      error_message: receipt.message,
+      error_code: receipt.code,
+    }
+  }
+
+  // Fallback for unknown receipt types
+  return {
+    receipt_type: typeof receipt,
+    receipt_keys: Object.keys(receipt || {}),
+  }
+}
+
+/**
  * Context extractor for Intent entities
  * Maps IntentDataModel fields to Datadog-optimized structure
  */
@@ -102,7 +275,7 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
     return {}
   }
 
-  return {
+  const baseContext: ExtractedContext = {
     eco: {
       intent_hash: entity.hash,
       quote_id: entity.quoteID,
@@ -127,6 +300,73 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
       updated_at: entity.updatedAt?.toISOString(),
     },
   }
+
+  // Add receipt data if available
+  if (entity.receipt) {
+    const receiptData = extractReceiptData(entity.receipt)
+    if (Object.keys(receiptData).length > 0) {
+      baseContext.metrics = {
+        ...baseContext.metrics,
+        ...receiptData,
+      }
+    }
+  }
+
+  return baseContext
+}
+
+/**
+ * Context extractor for IntentSourceModel entities
+ * Maps IntentSourceModel fields to Datadog-optimized structure with receipt data
+ */
+export const extractIntentSourceModelContext: ContextExtractor = (
+  entity: any,
+): ExtractedContext => {
+  if (!entityTypeGuards.isIntentSourceModel(entity)) {
+    return {}
+  }
+
+  const intent = entity.intent
+
+  const baseContext: ExtractedContext = {
+    eco: {
+      intent_hash: intent.hash,
+      quote_id: intent.quoteID,
+      creator: intent.route?.creator,
+      prover: intent.route?.prover,
+      source_chain_id: intent.route?.source,
+      destination_chain_id: intent.route?.destination,
+      funder: intent.funder,
+      inbox_address: intent.route?.inbox,
+    },
+    metrics: {
+      native_value: intent.reward?.nativeValue?.toString(),
+      deadline: intent.route?.deadline?.toString(),
+      token_amounts: intent.reward?.rewardTokens?.map((token: any) => ({
+        address: token.tokenAddress,
+        amount: token.amount?.toString(),
+      })),
+    },
+    operation: {
+      status: entity.status,
+      log_index: intent.logIndex,
+      created_at: entity.createdAt?.toISOString(),
+      updated_at: entity.updatedAt?.toISOString(),
+    },
+  }
+
+  // Add receipt data if available - this is the key enhancement!
+  if (entity.receipt) {
+    const receiptData = extractReceiptData(entity.receipt)
+    if (Object.keys(receiptData).length > 0) {
+      baseContext.metrics = {
+        ...baseContext.metrics,
+        ...receiptData,
+      }
+    }
+  }
+
+  return baseContext
 }
 
 /**
@@ -244,6 +484,139 @@ export const extractQuoteRejectionContext: ContextExtractor = (entity: any): Ext
 }
 
 /**
+ * Context extractor for RebalanceJobData entities
+ */
+export const extractRebalanceJobDataContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entityTypeGuards.isRebalanceJobData(entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      rebalance_id: entity.rebalanceJobID,
+      wallet_address: entity.walletAddress,
+      group_id: entity.groupID,
+      source_chain_id: entity.network,
+    },
+    operation: {
+      job_type: 'rebalance_execution',
+      network: entity.network,
+    },
+  }
+}
+
+/**
+ * Context extractor for RebalanceRequest entities
+ */
+export const extractRebalanceRequestContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entityTypeGuards.isRebalanceRequest(entity)) {
+    return {}
+  }
+
+  const firstQuote = entity.quotes?.[0]
+  const token = entity.token
+
+  return {
+    eco: {
+      strategy: firstQuote?.strategy || 'multi-strategy',
+      source_chain_id: token?.config?.chainId,
+      group_id: firstQuote?.groupID,
+    },
+    metrics: {
+      quotes_count: entity.quotes?.length || 0,
+      token_address: token?.config?.address,
+      total_amount_in: entity.quotes
+        ?.reduce((sum: bigint, quote: any) => sum + (quote.amountIn || 0n), 0n)
+        ?.toString(),
+      total_amount_out: entity.quotes
+        ?.reduce((sum: bigint, quote: any) => sum + (quote.amountOut || 0n), 0n)
+        ?.toString(),
+    },
+    operation: {
+      request_type: 'rebalance_request',
+    },
+  }
+}
+
+/**
+ * Context extractor for TokenData entities
+ */
+export const extractTokenDataContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entityTypeGuards.isTokenData(entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      source_chain_id: entity.config?.chainId,
+    },
+    metrics: {
+      token_address: entity.config?.address,
+      token_symbol: entity.config?.symbol,
+      token_decimals: entity.config?.decimals,
+      current_balance: entity.balance?.balance?.toString(),
+      target_balance: entity.balance?.targetBalance?.toString(),
+    },
+    operation: {
+      token_type: entity.config?.type || 'unknown',
+    },
+  }
+}
+
+/**
+ * Context extractor for ValidationChecks entities
+ */
+export const extractValidationChecksContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entityTypeGuards.isValidationChecks(entity)) {
+    return {}
+  }
+
+  const failedChecks = Object.entries(entity)
+    .filter(([, value]) => value === false)
+    .map(([key]) => key)
+
+  return {
+    validation: {
+      total_checks: Object.keys(entity).length,
+      passed_checks: Object.keys(entity).length - failedChecks.length,
+      failed_checks: failedChecks,
+      validation_result: failedChecks.length === 0 ? 'passed' : 'failed',
+    },
+    operation: {
+      validation_type: 'intent_validation_checks',
+    },
+  }
+}
+
+/**
+ * Context extractor for GaslessIntentRequest entities
+ */
+export const extractGaslessIntentRequestContext: ContextExtractor = (
+  entity: any,
+): ExtractedContext => {
+  if (!entityTypeGuards.isGaslessIntentRequest(entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      d_app_id: entity.dAppID,
+      source_chain_id: entity.route?.source || entity.getSourceChainID?.(),
+      destination_chain_id: entity.route?.destination,
+      funder: entity.getFunder?.(),
+    },
+    gasless_intent: {
+      request_type: 'gasless_intent_initiation',
+      has_permits: !!(entity.permits || entity.permit2),
+      permit_count: (entity.permits?.length || 0) + (entity.permit2?.length || 0),
+    },
+    operation: {
+      intent_execution_type: entity.intentExecutionType || 'gasless',
+    },
+  }
+}
+
+/**
  * Main context extraction function that tries all extractors
  */
 export async function extractContextFromEntity(entity: any): Promise<ExtractedContext> {
@@ -254,9 +627,15 @@ export async function extractContextFromEntity(entity: any): Promise<ExtractedCo
   // Try extractors in order of specificity
   const extractors = [
     extractRebalanceContext,
+    extractRebalanceJobDataContext,
+    extractRebalanceRequestContext,
+    extractIntentSourceModelContext, // Added before extractIntentContext for proper priority
     extractIntentContext,
     extractQuoteContext,
     extractQuoteRejectionContext,
+    extractTokenDataContext,
+    extractValidationChecksContext,
+    extractGaslessIntentRequestContext,
     extractWalletContext,
     extractTransactionContext,
   ]
@@ -269,7 +648,7 @@ export async function extractContextFromEntity(entity: any): Promise<ExtractedCo
       }
     } catch (error) {
       // Log extraction error but continue with other extractors
-      console.warn(`Context extraction failed for entity:`, error)
+      // Log extraction error but continue with other extractors
     }
   }
 

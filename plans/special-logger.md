@@ -23,18 +23,21 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 ### Existing Infrastructure (COMPLETED)
 
 **✅ Decorator Infrastructure:**
+
 - `@LogOperation` - Primary decorator for automatic operation logging
-- `@LogContext` - Parameter decorator for automatic context extraction  
+- `@LogContext` - Parameter decorator for automatic context extraction
 - `@LogSubOperation` - Sub-operation decorator for nested tracking
 - `@EnhanceContext` - Custom context enhancement decorator
 
 **✅ Context Extractors:**
+
 - `extractRebalanceContext` - Maps RebalanceModel to structured context
 - `extractIntentContext` - Maps IntentDataModel to structured context
 - `extractQuoteContext` - Maps QuoteIntentModel to structured context
 - `extractWalletContext`, `extractTransactionContext` - Supporting extractors
 
 **✅ Specialized Loggers (for decorator integration):**
+
 - `BaseStructuredLogger` - Base class for all specialized loggers
 - `LiquidityManagerLogger` - For liquidity management operations
 - `IntentOperationLogger` - For intent-related operations
@@ -67,8 +70,9 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 #### 4.1 Liquidity Manager Services
 
 **Target Files:**
+
 - `src/liquidity-manager/services/*.ts` - Core rebalancing services
-- `src/liquidity-manager/jobs/*.ts` - Background rebalancing jobs  
+- `src/liquidity-manager/jobs/*.ts` - Background rebalancing jobs
 - `src/bullmq/processors/rebalance-*.ts` - Queue processors
 
 **Decorator Implementation Pattern:**
@@ -77,13 +81,18 @@ This plan outlines the comprehensive refactoring of logging across the eco-solve
 // BEFORE: Verbose manual approach (20+ lines per method)
 class RebalanceService {
   private logger = new EcoLogger('RebalanceService')
-  
+
   async executeRebalance(rebalanceId: string): Promise<void> {
     const rebalance = await this.getRebalance(rebalanceId)
-    const context = { /* 15+ manual field mappings */ }
+    const context = {
+      /* 15+ manual field mappings */
+    }
     this.logger.log(context, 'Started')
-    try { /* operation + manual success logging */ }
-    catch { /* manual error logging */ }
+    try {
+      /* operation + manual success logging */
+    } catch {
+      /* manual error logging */
+    }
   }
 }
 
@@ -94,7 +103,7 @@ class RebalanceService {
     return await this.performRebalance(rebalance)
     // ✓ Entry, exit, error, timing, and full context handled automatically
   }
-  
+
   @LogSubOperation('token_swap')
   private async performRebalance(rebalance: RebalanceModel): Promise<void> {
     // Inherits parent context, logs sub-operation automatically
@@ -103,6 +112,7 @@ class RebalanceService {
 ```
 
 **Key Methods to Decorate:**
+
 - `executeRebalance()` - Primary rebalancing operation
 - `validateRebalanceParams()` - Parameter validation
 - `performTokenSwap()` - Token swap execution
@@ -110,6 +120,7 @@ class RebalanceService {
 - `handleRebalanceFailure()` - Error handling
 
 **Automatic Datadog Optimizations (via context extractors):**
+
 - ✅ **Schema Field Mapping**: `RebalanceModel` → structured context automatically
 - ✅ **Faceted Fields**: `eco.rebalance_id`, `eco.wallet_address`, `eco.strategy` auto-placed
 - ✅ **Cost Optimization**: Configurable sampling via decorator options
@@ -118,6 +129,7 @@ class RebalanceService {
 #### 4.2 Intent Operation Services
 
 **Target Files:**
+
 - `src/intent/services/*.ts` - Core intent services (create, fulfill, validate)
 - `src/intent-initiation/services/*.ts` - Intent initiation and permit validation
 - `src/intent-fulfillment/services/*.ts` - Fulfillment processors and jobs
@@ -130,7 +142,7 @@ class RebalanceService {
 // BEFORE: Complex manual intent logging
 class FulfillIntentService {
   private logger = new EcoLogger('FulfillIntentService')
-  
+
   async fulfillIntent(intentHash: string): Promise<void> {
     const intent = await this.getIntent(intentHash)
     const context = {
@@ -149,12 +161,12 @@ class FulfillIntentService {
   async fulfillIntent(@LogContext intent: IntentDataModel): Promise<FulfillmentResult> {
     return await this.processFulfillment(intent)
   }
-  
+
   @LogSubOperation('feasibility_check')
   private async checkFeasibility(intent: IntentDataModel): Promise<boolean> {
     // Auto-logs with inherited context
   }
-  
+
   @LogSubOperation('transaction_submission')
   private async submitTransaction(@LogContext transaction: TransactionData): Promise<string> {
     // Multiple context sources combined automatically
@@ -163,13 +175,15 @@ class FulfillIntentService {
 ```
 
 **Key Intent Services and Methods to Decorate:**
+
 - `FulfillIntentService.fulfillIntent()` - Core fulfillment orchestration
-- `WalletFulfillService.executeWalletFulfillment()` - Wallet-based fulfillment  
+- `WalletFulfillService.executeWalletFulfillment()` - Wallet-based fulfillment
 - `CrowdLiquidityService.provideLiquidity()` - Alternative fulfillment mechanism
 - `CreateIntentService.createIntent()` - Intent creation and validation
 - `ValidateIntentService.validateIntentParameters()` - Intent validation logic
 
 **Automatic Datadog Optimizations (via context extractors):**
+
 - ✅ **Schema Synchronization**: `IntentDataModel` → structured context automatically
 - ✅ **Multi-Entity Context**: Combine intent + transaction + wallet contexts seamlessly
 - ✅ **Fulfillment Analytics**: Automatic capture of fulfillment method, timing, success rates
@@ -179,6 +193,7 @@ class FulfillIntentService {
 #### 4.3 Quote Generation Services
 
 **Target Files:**
+
 - `src/quote/services/*.ts` - Quote generation and validation
 - `src/quote/processors/*.ts` - Quote processing workflows
 
@@ -188,7 +203,7 @@ class FulfillIntentService {
 // BEFORE: Manual quote logging
 class QuoteService {
   private logger = new EcoLogger('QuoteService')
-  
+
   async generateQuote(request: QuoteRequest): Promise<Quote> {
     const context = {
       quoteId: request.id,
@@ -202,13 +217,13 @@ class QuoteService {
 // AFTER: Decorator approach
 class QuoteService {
   @LogOperation('quote_generation', QuoteGenerationLogger, {
-    sampling: { rate: 0.1, level: 'debug' } // Sample high-volume debug logs
+    sampling: { rate: 0.1, level: 'debug' }, // Sample high-volume debug logs
   })
   async generateQuote(@LogContext request: QuoteIntentModel): Promise<Quote> {
     const quote = await this.calculateQuote(request)
     return this.validateQuote(quote)
   }
-  
+
   @LogOperation('quote_rejection', QuoteGenerationLogger)
   async rejectQuote(@LogContext rejection: RebalanceQuoteRejectionModel): Promise<void> {
     // Automatic rejection analytics with structured reason categorization
@@ -217,6 +232,7 @@ class QuoteService {
 ```
 
 **Key Methods to Decorate:**
+
 - `generateQuote()` - Primary quote generation
 - `validateQuoteRequest()` - Request validation
 - `calculateQuotePricing()` - Price calculation
@@ -224,6 +240,7 @@ class QuoteService {
 - `updateQuoteStatus()` - Status tracking
 
 **Automatic Datadog Optimizations (via context extractors):**
+
 - ✅ **Schema Integration**: `QuoteIntentModel` → structured context automatically
 - ✅ **Rejection Analytics**: `RebalanceQuoteRejectionModel` → detailed failure analysis
 - ✅ **Financial Metrics**: Route/reward data → structured `metrics` namespace
@@ -235,6 +252,7 @@ class QuoteService {
 #### 5.1 Transaction and Signing Services
 
 **Target Files:**
+
 - `src/transaction/smart-wallets/**/*.ts` - Smart wallet transaction handling
 - `src/sign/*.ts` - Transaction signing services
 - `src/permit-processing/*.ts` - Permit validation and processing
@@ -246,7 +264,7 @@ class QuoteService {
 // BEFORE: Manual transaction logging
 class SmartWalletService {
   private logger = new EcoLogger('SmartWalletService')
-  
+
   async submitTransaction(txData: TransactionData): Promise<string> {
     const context = {
       transactionHash: txData.hash,
@@ -267,12 +285,12 @@ class SmartWalletService {
   async submitTransaction(@LogContext transaction: TransactionData): Promise<string> {
     return await this.broadcastTransaction(transaction)
   }
-  
+
   @LogSubOperation('gas_estimation')
   async estimateGas(@LogContext transaction: TransactionData): Promise<bigint> {
     // Automatic gas metrics capture: gas_used, gas_price, block_number
   }
-  
+
   @LogOperation('smart_wallet_deployment', TransactionLogger)
   async deploySmartWallet(@LogContext deployment: SmartWalletDeployment): Promise<string> {
     // Specialized logging for wallet deployment with all transaction context
@@ -282,18 +300,25 @@ class SmartWalletService {
 // Signing services with TransactionLogger
 class SigningService {
   @LogOperation('transaction_signing', TransactionLogger)
-  async signTransaction(@LogContext transaction: TransactionData, @LogContext wallet: WalletData): Promise<SignedTransaction> {
+  async signTransaction(
+    @LogContext transaction: TransactionData,
+    @LogContext wallet: WalletData,
+  ): Promise<SignedTransaction> {
     // Multi-entity context combination: transaction + wallet context merged automatically
   }
-  
+
   @LogOperation('signature_generation', TransactionLogger)
-  async generateSignature(@LogContext payload: PayloadData, @LogContext wallet: WalletData): Promise<string> {
+  async generateSignature(
+    @LogContext payload: PayloadData,
+    @LogContext wallet: WalletData,
+  ): Promise<string> {
     // Comprehensive signature generation tracking
   }
 }
 ```
 
 **Key Methods to Decorate:**
+
 - `submitTransaction()`, `broadcastTransaction()` - Transaction submission with TransactionLogger
 - `signTransaction()`, `validateSignature()` - Transaction signing with TransactionLogger
 - `estimateGas()`, `calculateFees()` - Gas and fee estimation with automatic metrics capture
@@ -302,6 +327,7 @@ class SigningService {
 - `registerSolver()`, `updateSolverStatus()` - Solver registration workflows
 
 **Automatic TransactionLogger Context Benefits:**
+
 - ✅ **Transaction Tracking**: `eco.transaction_hash`, `eco.wallet_address` automatically captured
 - ✅ **Cross-Chain Context**: `eco.source_chain_id` and transaction chain context structured
 - ✅ **Gas Metrics**: `metrics.gas_used`, `metrics.gas_price`, `metrics.block_number`, `metrics.nonce` auto-collected
@@ -317,43 +343,51 @@ class SigningService {
 // TransactionLogger provides specialized methods for common transaction operations
 class TransactionService {
   private transactionLogger = new TransactionLogger('TransactionService')
-  
+
   // Method 1: Transaction success tracking
   async onTransactionConfirmed(txHash: string, receipt: TransactionReceipt) {
-    this.transactionLogger.logTransactionSuccess({
-      transactionHash: txHash,
-      walletAddress: receipt.from,
-      chainId: receipt.chainId,
-      blockNumber: receipt.blockNumber,
-      status: 'completed'
-    }, receipt.gasUsed, receipt.gasPrice, {
-      confirmationTime: Date.now() - this.txStartTime
-    })
+    this.transactionLogger.logTransactionSuccess(
+      {
+        transactionHash: txHash,
+        walletAddress: receipt.from,
+        chainId: receipt.chainId,
+        blockNumber: receipt.blockNumber,
+        status: 'completed',
+      },
+      receipt.gasUsed,
+      receipt.gasPrice,
+      {
+        confirmationTime: Date.now() - this.txStartTime,
+      },
+    )
   }
-  
+
   // Method 2: Smart wallet deployment tracking
   async onWalletDeployed(deploymentContext: SmartWalletDeployment) {
-    this.transactionLogger.logSmartWalletDeployment({
-      transactionHash: deploymentContext.txHash,
-      walletAddress: deploymentContext.walletAddress,
-      chainId: deploymentContext.chainId,
-      status: 'completed'
-    }, { walletType: deploymentContext.walletType })
+    this.transactionLogger.logSmartWalletDeployment(
+      {
+        transactionHash: deploymentContext.txHash,
+        walletAddress: deploymentContext.walletAddress,
+        chainId: deploymentContext.chainId,
+        status: 'completed',
+      },
+      { walletType: deploymentContext.walletType },
+    )
   }
-  
-  // Method 3: Signature generation tracking  
+
+  // Method 3: Signature generation tracking
   async onSignatureGenerated(walletAddress: string, operationType: 'signature_generation') {
     this.transactionLogger.logSignatureGeneration(walletAddress, operationType, {
       algorithm: 'ECDSA',
-      curve: 'secp256k1'
+      curve: 'secp256k1',
     })
   }
-  
+
   // Method 4: Transaction pending tracking
   async onTransactionSubmitted(txHash: string, from: string, chainId: number) {
     this.transactionLogger.logTransactionPending(txHash, from, chainId, {
       submissionTime: Date.now(),
-      gasPrice: await this.getGasPrice(chainId)
+      gasPrice: await this.getGasPrice(chainId),
     })
   }
 }
@@ -362,6 +396,7 @@ class TransactionService {
 #### 5.2 Monitoring and Health Services
 
 **Target Files:**
+
 - `src/balance/**/*.ts` - Balance checking and monitoring
 - `src/health/**/*.ts` - Health check endpoints
 - `src/monitoring/**/*.ts` - System monitoring services
@@ -372,22 +407,22 @@ class TransactionService {
 // Health services
 class HealthCheckService {
   @LogOperation('health_check', HealthOperationLogger, {
-    sampling: { rate: 0.1, level: 'debug' } // Sample frequent health checks
+    sampling: { rate: 0.1, level: 'debug' }, // Sample frequent health checks
   })
   async checkSystemHealth(): Promise<HealthStatus> {
     return await this.performHealthChecks()
   }
-  
+
   @LogSubOperation('database_health')
   async checkDatabaseHealth(): Promise<boolean> {
     // Auto-tracked dependency health
   }
 }
 
-// Balance services  
+// Balance services
 class BalanceService {
   @LogOperation('balance_check', HealthOperationLogger, {
-    sampling: { rate: 0.05, level: 'debug' } // Heavy sampling for frequent ops
+    sampling: { rate: 0.05, level: 'debug' }, // Heavy sampling for frequent ops
   })
   async checkBalance(@LogContext wallet: WalletData): Promise<Balance[]> {
     return await this.queryBalances(wallet)
@@ -396,22 +431,25 @@ class BalanceService {
 ```
 
 **Key Methods to Decorate:**
+
 - `checkSystemHealth()`, `checkDatabaseHealth()` - System health monitoring
 - `checkBalance()`, `validateSufficientBalance()` - Balance operations
 - `monitorPerformance()`, `trackMetrics()` - Performance monitoring
 - `alertOnThreshold()`, `escalateIssue()` - Alert handling
 
 **Automatic Optimizations:**
+
 - ✅ **Cost Control**: Heavy sampling (5-10%) for high-frequency operations
 - ✅ **SLA Tracking**: `performance.response_time_ms` auto-captured
 - ✅ **Dependency Monitoring**: Structured health check context
 - ✅ **Operational Dashboards**: Consistent health metrics structure
 
-### Phase 6: Console.* Elimination and Legacy Cleanup (Week 2.5)
+### Phase 6: Console.\* Elimination and Legacy Cleanup (Week 2.5)
 
 #### 6.1 Console Logging Elimination
 
 **Target Areas:**
+
 - `src/commander/**/*.ts` - CLI scripts and commands
 - `src/scripts/**/*.ts` - Utility scripts
 - Development and debugging code throughout codebase
@@ -437,19 +475,22 @@ logger.logMessage({ message: 'Starting operation...' }, 'info')
 ```
 
 **Implementation Tasks:**
+
 - Replace all `console.*` calls with structured logging
-- Add minimal context even for CLI operations  
+- Add minimal context even for CLI operations
 - Use appropriate log levels (debug for development info, error for failures)
 - Ensure script operations are trackable through logs
 
 #### 6.2 Legacy Logger Cleanup
 
 **Target Areas:**
+
 - Remove unused `EcoLogger` instances after decorator implementation
 - Clean up manual context creation code
 - Remove deprecated logging patterns
 
 **Cleanup Tasks:**
+
 - Delete manual context creation boilerplate (20+ lines per method eliminated)
 - Remove `private logger = new EcoLogger()` declarations where decorators are used
 - Clean up try/catch blocks that only existed for manual logging
@@ -460,8 +501,9 @@ logger.logMessage({ message: 'Starting operation...' }, 'info')
 #### 7.1 Decorator Test Strategy
 
 **Key Testing Challenges:**
+
 - Decorators modify method behavior at runtime
-- Context extraction happens automatically  
+- Context extraction happens automatically
 - Multiple loggers created internally by decorators
 - Operation stacks need to be cleared between tests
 
@@ -474,21 +516,23 @@ import { clearOperationStack } from '@src/common/logging/decorators'
 describe('RebalanceService', () => {
   let service: RebalanceService
   let mockLogger: jest.Mocked<LiquidityManagerLogger>
-  
+
   beforeEach(() => {
     // Clear operation stack between tests
     clearOperationStack()
-    
+
     // Mock the logger constructor used by decorators
     mockLogger = createMockLogger()
-    jest.spyOn(LiquidityManagerLogger.prototype, 'logMessage').mockImplementation(mockLogger.logMessage)
+    jest
+      .spyOn(LiquidityManagerLogger.prototype, 'logMessage')
+      .mockImplementation(mockLogger.logMessage)
   })
-  
+
   it('should log rebalance execution with full context', async () => {
     const mockRebalance: RebalanceModel = createMockRebalance()
-    
+
     await service.executeRebalance(mockRebalance)
-    
+
     // Test decorator-generated logs
     expect(mockLogger.logMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -496,14 +540,14 @@ describe('RebalanceService', () => {
         eco: expect.objectContaining({
           rebalance_id: mockRebalance.rebalanceJobID,
           wallet_address: mockRebalance.wallet,
-          strategy: mockRebalance.strategy
+          strategy: mockRebalance.strategy,
         }),
         operation: expect.objectContaining({
           type: 'rebalance_execution',
-          method_name: 'executeRebalance'
-        })
+          method_name: 'executeRebalance',
+        }),
       }),
-      'info'
+      'info',
     )
   })
 })
@@ -518,7 +562,7 @@ describe('Context Extractors', () => {
   it('should extract complete rebalance context', () => {
     const rebalance = createMockRebalance()
     const context = extractRebalanceContext(rebalance)
-    
+
     expect(context).toEqual({
       eco: {
         rebalance_id: rebalance.rebalanceJobID,
@@ -526,15 +570,15 @@ describe('Context Extractors', () => {
         strategy: rebalance.strategy,
         source_chain_id: rebalance.tokenIn.chainId,
         destination_chain_id: rebalance.tokenOut.chainId,
-        group_id: rebalance.groupId
+        group_id: rebalance.groupId,
       },
       metrics: {
         token_in_address: rebalance.tokenIn.tokenAddress,
         token_out_address: rebalance.tokenOut.tokenAddress,
         amount_in: rebalance.amountIn.toString(),
         amount_out: rebalance.amountOut.toString(),
-        slippage: rebalance.slippage
-      }
+        slippage: rebalance.slippage,
+      },
     })
   })
 })
@@ -547,13 +591,14 @@ describe('Context Extractors', () => {
 The decorator approach ensures **100% schema field coverage** through context extractors that automatically map database models to structured logging contexts:
 
 **✅ IntentDataModel → Automatic Context Extraction:**
+
 ```typescript
 // Context extractor handles all fields automatically
 @LogOperation('intent_fulfillment', IntentOperationLogger)
 async fulfillIntent(@LogContext intent: IntentDataModel): Promise<void> {
   // All fields automatically mapped:
   // hash → eco.intent_hash
-  // quoteID → eco.quote_id  
+  // quoteID → eco.quote_id
   // route.creator → eco.creator
   // route.prover → eco.prover
   // route.source/destination → eco.source_chain_id/destination_chain_id
@@ -563,12 +608,13 @@ async fulfillIntent(@LogContext intent: IntentDataModel): Promise<void> {
 ```
 
 **✅ RebalanceModel → Automatic Context Extraction:**
+
 ```typescript
 @LogOperation('rebalance_execution', LiquidityManagerLogger)
 async executeRebalance(@LogContext rebalance: RebalanceModel): Promise<void> {
   // All fields automatically mapped:
   // rebalanceJobID → eco.rebalance_id
-  // wallet → eco.wallet_address  
+  // wallet → eco.wallet_address
   // strategy → eco.strategy
   // groupId → eco.group_id
   // tokenIn/tokenOut → metrics.token_in_address/token_out_address
@@ -578,6 +624,7 @@ async executeRebalance(@LogContext rebalance: RebalanceModel): Promise<void> {
 ```
 
 **✅ Schema Evolution Handling:**
+
 - New database fields automatically appear in logs when context extractors are updated
 - No manual updates required across service methods
 - Type safety ensures all fields are captured
@@ -588,12 +635,14 @@ async executeRebalance(@LogContext rebalance: RebalanceModel): Promise<void> {
 #### 8.1 Comprehensive Testing
 
 **Integration Testing:**
+
 - End-to-end decorator functionality across all service layers
 - Nested operation tracking validation (`@LogSubOperation` inheritance)
 - Context extraction accuracy for all domain models
 - Performance impact assessment of decorator overhead
 
 **Load Testing:**
+
 - High-volume operations with sampling enabled
 - Memory usage validation for operation stacks
 - Log size validation under production load
@@ -605,7 +654,9 @@ async executeRebalance(@LogContext rebalance: RebalanceModel): Promise<void> {
 
 ```typescript
 // If new domain entities emerge during implementation
-export const extractCustomEntityContext: ContextExtractor = (entity: CustomEntity): ExtractedContext => {
+export const extractCustomEntityContext: ContextExtractor = (
+  entity: CustomEntity,
+): ExtractedContext => {
   return {
     eco: {
       custom_id: entity.id,
@@ -613,7 +664,7 @@ export const extractCustomEntityContext: ContextExtractor = (entity: CustomEntit
     },
     metrics: {
       // ... relevant metrics
-    }
+    },
   }
 }
 ```

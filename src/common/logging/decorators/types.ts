@@ -55,6 +55,12 @@ export interface EntityTypeGuards {
   isQuote: (entity: any) => boolean
   isWallet: (entity: any) => boolean
   isTransaction: (entity: any) => boolean
+  isRebalanceJobData: (entity: any) => boolean
+  isRebalanceRequest: (entity: any) => boolean
+  isIntentSourceModel: (entity: any) => boolean
+  isTokenData: (entity: any) => boolean
+  isValidationChecks: (entity: any) => boolean
+  isGaslessIntentRequest: (entity: any) => boolean
 }
 
 /**

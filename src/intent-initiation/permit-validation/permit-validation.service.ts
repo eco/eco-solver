@@ -1,5 +1,6 @@
 import { EcoError } from '@/common/errors/eco-error'
 import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable } from '@nestjs/common'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
@@ -29,7 +30,10 @@ export class PermitValidationService {
     return publicClient.extend(publicActions)
   }
 
-  async validatePermits(validationArgs: PermitValidationArgs): Promise<EcoResponse<void>> {
+  @LogOperation('permit_validation', IntentOperationLogger)
+  async validatePermits(
+    @LogContext validationArgs: PermitValidationArgs,
+  ): Promise<EcoResponse<void>> {
     const { chainId, permits, permit2, reward, spender, owner, expectedVault } = validationArgs
 
     // 1. Validate vault
@@ -88,10 +92,11 @@ export class PermitValidationService {
     // })
   }
 
+  @LogOperation('permit_batch_simulation', IntentOperationLogger)
   async batchSimulatePermits(
-    client: PublicClient,
-    permits: PermitParams[],
-    permit2s: Permit2Params[],
+    @LogContext client: PublicClient,
+    @LogContext permits: PermitParams[],
+    @LogContext permit2s: Permit2Params[],
   ): Promise<EcoResponse<void>> {
     const permitCalls = PermitValidator.getPermitCalls(permits)
     const permit2Calls = Permit2Validator.getPermitCalls(permit2s)
@@ -101,20 +106,14 @@ export class PermitValidationService {
       await Promise.all(calls.map((call) => client.simulateContract(call)))
       return {}
     } catch (ex) {
-      this.logger.error(
-        {
-          intentHash: 'permit-simulation',
-          operationType: 'validation',
-        },
-        `batchSimulatePermits: error simulating permits: ${ex.message}`,
-        ex,
-      )
-
       return { error: EcoError.PermitSimulationsFailed }
     }
   }
 
-  async validateVaultFunding(args: ValidateVaultFundingArgs): Promise<EcoResponse<void>> {
+  @LogOperation('vault_funding_validation', IntentOperationLogger)
+  async validateVaultFunding(
+    @LogContext args: ValidateVaultFundingArgs,
+  ): Promise<EcoResponse<void>> {
     const { client, intentSourceAddress, intentHash } = args
 
     const { error: vaultFundingError } = await VaultFundingValidator.validateVaultFunding({
@@ -127,14 +126,6 @@ export class PermitValidationService {
     if (vaultFundingError) {
       return { error: vaultFundingError }
     }
-
-    this.logger.log(
-      {
-        intentHash,
-        operationType: 'validation',
-      },
-      `✅ Vault funded and valid for intent ${intentHash}`,
-    )
 
     return {}
   }

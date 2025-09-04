@@ -67,6 +67,20 @@ export abstract class BaseStructuredLogger extends EcoLogger {
   }
 
   /**
+   * Helper method for logging business events with structured context
+   */
+  protected logMessage(context: any, level: LogLevel, message: string): void {
+    const structure = {
+      message,
+      timestamp: new Date().toISOString(),
+      level,
+      service: this.context,
+      ...context,
+    }
+    this.logStructured(structure, level)
+  }
+
+  /**
    * Applies Datadog-specific optimizations for better facet performance
    */
   private optimizeForDatadog(structure: DatadogLogStructure): DatadogLogStructure {

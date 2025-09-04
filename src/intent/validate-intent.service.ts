@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { Hex } from 'viem'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
@@ -10,7 +10,8 @@ import { delay } from '@/common/utils/time'
 import { QUEUES } from '@/common/redis/constants'
 import { EcoError } from '@/common/errors/eco-error'
 import { getIntentJobId } from '@/common/utils/strings'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
@@ -45,7 +46,7 @@ export type IntentValidations = ValidationChecks & {
  */
 @Injectable()
 export class ValidateIntentService implements OnModuleInit {
-  private logger = new Logger(ValidateIntentService.name)
+  private logger = new IntentOperationLogger('ValidateIntentService')
   private intentJobConfig: JobsOptions
   private MAX_RETRIES: number
   private RETRY_DELAY_MS: number
@@ -69,15 +70,11 @@ export class ValidateIntentService implements OnModuleInit {
   /**
    * @param intentHash the hash of the intent to fulfill
    */
-  async validateIntent(intentHash: Hex) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `validateIntent ${intentHash}`,
-        properties: {
-          intentHash: intentHash,
-        },
-      }),
-    )
+  @LogOperation('intent_validation', IntentOperationLogger)
+  async validateIntent(@LogContext intentHash: Hex) {
+    this.logger.debug({ intentHash }, `validateIntent ${intentHash}`, {
+      intentHash: intentHash,
+    })
 
     // Track validation start
     this.ecoAnalytics.trackIntentValidationStarted(intentHash)
@@ -98,15 +95,10 @@ export class ValidateIntentService implements OnModuleInit {
     }
 
     const jobId = getIntentJobId('validate', intentHash, model.intent.logIndex)
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `validateIntent ${intentHash}`,
-        properties: {
-          intentHash,
-          jobId,
-        },
-      }),
-    )
+    this.logger.debug({ intentHash }, `validateIntent ${intentHash}`, {
+      intentHash,
+      jobId,
+    })
     //add to processing queue
     await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
       jobId,
@@ -135,15 +127,13 @@ export class ValidateIntentService implements OnModuleInit {
 
     if (validationsFailed(validations)) {
       await this.utilsIntentService.updateInvalidIntentModel(model, validations)
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: EcoError.IntentValidationFailed(model.intent.hash).message,
-          properties: {
-            model,
-            validations,
-          },
-        }),
-      )
+
+      // Log business event for validation failure
+      const failedChecks = Object.entries(validations)
+        .filter(([, passed]) => !passed)
+        .map(([check]) => check)
+
+      this.logger.logValidationFailure(model.intent, validations, failedChecks)
 
       // Track validation failure with detailed reasons
       this.ecoAnalytics.trackIntentValidationFailed(
@@ -154,9 +144,7 @@ export class ValidateIntentService implements OnModuleInit {
           model,
           solver,
           validationResults: validations,
-          failedChecks: Object.entries(validations)
-            .filter(([, passed]) => !passed)
-            .map(([check]) => check),
+          failedChecks,
         },
       )
       return false
@@ -186,12 +174,12 @@ export class ValidateIntentService implements OnModuleInit {
     const intentSource = this.ecoConfigService.getIntentSource(sourceChainID)
     if (!intentSource) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: EcoError.IntentSourceNotFound(sourceChainID).message,
-          properties: {
-            model,
-          },
-        }),
+        { intentHash: model.intent.hash, sourceChainId: sourceChainID },
+        EcoError.IntentSourceNotFound(sourceChainID).message,
+        new Error(`Intent source not found for chain ${sourceChainID}`),
+        {
+          model,
+        },
       )
 
       // Track intent source not found error
@@ -224,12 +212,19 @@ export class ValidateIntentService implements OnModuleInit {
         await delay(this.RETRY_DELAY_MS, retryCount - 1)
 
         this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
-            properties: {
-              intentHash: model.intent.hash,
-            },
-          }),
+          { intentHash: model.intent.hash },
+          `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
+          {
+            intentHash: model.intent.hash,
+          },
+        )
+
+        // Log business event for funding check retry
+        this.logger.logFundingCheckRetry(
+          model.intent.hash,
+          retryCount,
+          this.MAX_RETRIES,
+          sourceChainID,
         )
 
         // Track retry attempt

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import {
   Call,
   encodeAbiParameters,
@@ -9,10 +9,11 @@ import {
   zeroAddress,
 } from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext, LogSubOperation } from '@/common/logging/decorators'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
@@ -38,7 +39,7 @@ import { EcoAnalyticsService } from '@/analytics'
  */
 @Injectable()
 export class WalletFulfillService implements IFulfillService {
-  private logger = new Logger(WalletFulfillService.name)
+  private logger = new IntentOperationLogger('WalletFulfillService')
 
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
@@ -57,7 +58,8 @@ export class WalletFulfillService implements IFulfillService {
    * @param {Solver} solver - The solver object used to determine the transaction executor and chain-specific configurations.
    * @return {Promise<void>} Resolves with no value. Throws an error if the intent fulfillment fails.
    */
-  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  @LogOperation('wallet_fulfillment', IntentOperationLogger)
+  async fulfill(@LogContext model: IntentSourceModel, @LogContext solver: Solver): Promise<Hex> {
     const startTime = Date.now()
 
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
@@ -75,13 +77,6 @@ export class WalletFulfillService implements IFulfillService {
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Fulfilling transaction`,
-        properties: { transactions },
-      }),
-    )
 
     try {
       await this.finalFeasibilityCheck(model.intent)
@@ -101,17 +96,6 @@ export class WalletFulfillService implements IFulfillService {
       }
       model.status = 'SOLVED'
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Fulfilled transactionHash ${receipt.transactionHash}`,
-          properties: {
-            userOPHash: receipt,
-            destinationChainID: model.intent.route.destination,
-            sourceChainID: IntentSourceModel.getSource(model),
-          },
-        }),
-      )
-
       const processingTime = Date.now() - startTime
       this.ecoAnalytics.trackIntentFulfillmentSuccess(model, solver, receipt, processingTime)
 
@@ -119,18 +103,6 @@ export class WalletFulfillService implements IFulfillService {
     } catch (e) {
       model.status = 'FAILED'
       model.receipt = model.receipt ? { previous: model.receipt, current: e } : e
-
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: `fulfillIntent: Invalid transaction`,
-          error: EcoError.FulfillIntentBatchError,
-          properties: {
-            model: model,
-            flatExecuteData: transactions,
-            errorPassed: e,
-          },
-        }),
-      )
 
       const processingTime = Date.now() - startTime
       this.ecoAnalytics.trackIntentFulfillmentFailed(model, solver, e, processingTime)
@@ -150,7 +122,8 @@ export class WalletFulfillService implements IFulfillService {
    * Throws an error if the intent is not feasible.
    * @param intent the intent to check
    */
-  async finalFeasibilityCheck(intent: IntentDataModel) {
+  @LogSubOperation('feasibility_check')
+  async finalFeasibilityCheck(@LogContext intent: IntentDataModel) {
     const { error } = await this.feeService.isRouteFeasible(intent)
     if (error) {
       this.ecoAnalytics.trackIntentFeasibilityCheckFailed(intent, error)
@@ -204,15 +177,6 @@ export class WalletFulfillService implements IFulfillService {
       const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.ecoAnalytics.trackTransactionTargetGenerationError(model, solver, call)
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: `fulfillIntent: Invalid transaction data`,
-            error: EcoError.FulfillIntentNoTransactionError,
-            properties: {
-              model: model,
-            },
-          }),
-        )
         return []
       }
 

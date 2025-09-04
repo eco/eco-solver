@@ -22,7 +22,8 @@ import {
 } from './create.kernel.account'
 import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
-import { GenericOperationLogger } from '@/common/logging/loggers'
+import { TransactionLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoResponse } from '@/common/eco-response'
@@ -41,7 +42,7 @@ export class KernelAccountClientServiceBase<
   KernelAccountClient<entryPointVersion>,
   KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>
 > {
-  protected logger = new GenericOperationLogger('KernelAccountClientService')
+  protected logger = new TransactionLogger('KernelAccountClientService')
 
   constructor(
     readonly ecoConfigService: EcoConfigService,
@@ -55,15 +56,15 @@ export class KernelAccountClientServiceBase<
   ): Promise<KernelAccountClient<entryPointVersion>> {
     const { client, args } = await createKernelAccountClient(configs)
     if (args && args.deployReceipt) {
-      this.logger.logTransaction(
+      this.logger.log(
         {
-          operationType: 'account_deployment',
-          status: 'started',
+          transactionHash: args.deployReceipt,
+          operationType: 'smart_wallet_deploy',
+          status: 'completed',
           walletAddress: client.kernelAccount.address,
         },
         'Deploying Kernel Account',
         {
-          ...args,
           kernelAccount: client.kernelAccount.address,
         },
       )
@@ -118,9 +119,10 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
     super(ecoConfigService, signerService)
   }
 
+  @LogOperation('gas_estimation', TransactionLogger)
   async estimateGasForKernelExecution(
-    chainID: number,
-    transactions: ExecuteSmartWalletArg[],
+    @LogContext chainID: number,
+    @LogContext transactions: ExecuteSmartWalletArg[],
   ): Promise<EcoResponse<EstimatedGasData>> {
     try {
       const clientKernel = await this.getClient(chainID)
@@ -155,18 +157,6 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
         },
       }
     } catch (ex) {
-      this.logger.error(
-        {
-          operationType: 'gas_estimation',
-          status: 'failed',
-        },
-        'Error estimating gas for kernel execution',
-        ex,
-        {
-          operation: 'estimateGasForKernelExecution',
-        },
-      )
-
       return { error: EcoError.GasEstimationError }
     }
   }

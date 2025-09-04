@@ -1,4 +1,5 @@
 import { QuoteGenerationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext, LogSubOperation } from '@/common/logging/decorators'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
@@ -85,19 +86,12 @@ export class QuoteService implements OnModuleInit {
    * @param quoteIntentDataDTO the quote intent data
    * @returns
    */
-  async getQuote(quoteIntentDataDTO: QuoteIntentDataDTO): Promise<EcoResponse<QuoteDataDTO>> {
-    this.logger.log(
-      {
-        quoteId: 'quote-request',
-        dAppId: quoteIntentDataDTO.dAppID,
-        sourceChainId: Number(quoteIntentDataDTO.route?.source),
-        destinationChainId: Number(quoteIntentDataDTO.route?.destination),
-        intentExecutionType: quoteIntentDataDTO.intentExecutionTypes?.[0],
-      },
-      `Getting quote for intent`,
-      { quoteIntentDataDTO },
-    )
-
+  @LogOperation('quote_generation', QuoteGenerationLogger, {
+    sampling: { rate: 0.1, level: 'debug' }, // Sample high-volume quote operations
+  })
+  async getQuote(
+    @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<EcoResponse<QuoteDataDTO>> {
     const txValidationFn: TxValidationFn = () => true
     const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRouteFeasible.bind(
       this.feeService,
@@ -106,21 +100,12 @@ export class QuoteService implements OnModuleInit {
     return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, false)
   }
 
+  @LogOperation('reverse_quote_generation', QuoteGenerationLogger, {
+    sampling: { rate: 0.1, level: 'debug' },
+  })
   async getReverseQuote(
-    quoteIntentDataDTO: QuoteIntentDataDTO,
+    @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
   ): Promise<EcoResponse<QuoteDataDTO>> {
-    this.logger.log(
-      {
-        quoteId: 'reverse-quote-request',
-        dAppId: quoteIntentDataDTO.dAppID,
-        sourceChainId: Number(quoteIntentDataDTO.route?.source),
-        destinationChainId: Number(quoteIntentDataDTO.route?.destination),
-        intentExecutionType: quoteIntentDataDTO.intentExecutionTypes?.[0],
-      },
-      `Getting reverse quote for intent`,
-      { quoteIntentDataDTO },
-    )
-
     const txValidationFn: TxValidationFn = (tx: TransactionTargetData) =>
       tx && tx.decodedFunctionData.functionName === 'transfer'
     const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRewardFeasible.bind(
@@ -130,6 +115,7 @@ export class QuoteService implements OnModuleInit {
     return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, true)
   }
 
+  @LogSubOperation('quote_processing')
   private async _getQuote(
     quoteIntentDataDTO: QuoteIntentDataDTO,
     txValidationFn: TxValidationFn,

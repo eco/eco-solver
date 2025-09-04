@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import * as _ from 'lodash'
 import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { RebalanceQuote, Strategy, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -48,25 +49,18 @@ export class LiquidityProviderService {
     this.config = this.ecoConfigService.getLiquidityManager()
   }
 
+  @LogOperation('quote_generation', LiquidityManagerLogger, {
+    sampling: { rate: 0.1, level: 'debug' }, // Sample high-volume quote operations
+  })
   async getQuote(
-    walletAddress: string,
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
+    @LogContext walletAddress: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
   ): Promise<RebalanceQuote[]> {
     const strategies = this.getWalletSupportedStrategies(walletAddress)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
     const quoteId = uuidv4()
-
-    this.logger.log(
-      {
-        rebalanceId: quoteId,
-        walletAddress,
-        strategy: 'multi-strategy',
-      },
-      'Getting quote',
-      { tokenIn, tokenOut, swapAmount },
-    )
 
     // Track whether we had any quotes that were rejected due to slippage
     let hadQuotesButRejected = false
@@ -77,15 +71,6 @@ export class LiquidityProviderService {
     const quoteBatchRequests = strategies.map(async (strategy) => {
       try {
         const service = this.getStrategyService(strategy)
-        this.logger.log(
-          {
-            rebalanceId: quoteId,
-            walletAddress,
-            strategy,
-          },
-          'Getting quote for strategy',
-          { tokenIn, tokenOut, swapAmount },
-        )
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, quoteId)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
         hadAnyQuotes = true // Mark that at least one strategy succeeded in getting quotes
@@ -170,21 +155,6 @@ export class LiquidityProviderService {
             service: this.constructor.name,
           },
         )
-
-        this.logger.error(
-          {
-            rebalanceId: quoteId,
-            walletAddress,
-            strategy,
-            sourceChainId: tokenIn.config.chainId,
-            destinationChainId: tokenOut.config.chainId,
-            tokenInAddress: tokenIn.config.address,
-            tokenOutAddress: tokenOut.config.address,
-          },
-          'Unable to get quote from strategy',
-          error,
-          { tokenIn, tokenOut, swapAmount },
-        )
       }
     })
 
@@ -216,66 +186,11 @@ export class LiquidityProviderService {
       }
     }
 
-    this.logger.log(
-      {
-        rebalanceId: quoteId,
-        walletAddress,
-        strategy: 'best-quote-selection',
-        sourceChainId: tokenIn.config.chainId,
-        destinationChainId: tokenOut.config.chainId,
-        tokenInAddress: tokenIn.config.address,
-        tokenOutAddress: tokenOut.config.address,
-      },
-      'Quotes for route',
-      {
-        tokenIn: this.formatToken(tokenIn),
-        tokenOut: this.formatToken(tokenOut),
-        bestQuote: this.formatQuoteBatch(bestQuotes),
-        quoteBatches: quoteBatchResults.map((quoteBatch, index) => {
-          const strategy = strategies[index]
-          if (!quoteBatch) {
-            return `Failed to get quote for strategy ${strategy}`
-          }
-          return {
-            strategy,
-            quotes: this.formatQuoteBatch(quoteBatch),
-          }
-        }),
-      },
-    )
-
-    this.logger.log(
-      {
-        rebalanceId: quoteId,
-        walletAddress,
-        strategy: 'best-quote',
-        sourceChainId: tokenIn.config.chainId,
-        destinationChainId: tokenOut.config.chainId,
-        tokenInAddress: tokenIn.config.address,
-        tokenOutAddress: tokenOut.config.address,
-      },
-      'Best quote',
-      { bestQuote: this.formatQuoteBatch(bestQuotes) },
-    )
-
     return bestQuotes
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote) {
-    this.logger.log(
-      {
-        rebalanceId: quote.rebalanceJobID || quote.id || 'unknown',
-        walletAddress,
-        strategy: quote.strategy,
-        sourceChainId: quote.tokenIn.config.chainId,
-        destinationChainId: quote.tokenOut.config.chainId,
-        tokenInAddress: quote.tokenIn.config.address,
-        tokenOutAddress: quote.tokenOut.config.address,
-        groupId: quote.groupID,
-      },
-      'Executing quote',
-      { quote },
-    )
+  @LogOperation('quote_execution', LiquidityManagerLogger)
+  async execute(@LogContext walletAddress: string, @LogContext quote: RebalanceQuote) {
     const service = this.getStrategyService(quote.strategy)
     return service.execute(walletAddress, quote)
   }
@@ -289,12 +204,13 @@ export class LiquidityProviderService {
    * @param walletAddress Optional wallet address for analytics
    * @returns A quote using the fallback mechanism
    */
+  @LogOperation('fallback_quote_generation', LiquidityManagerLogger)
   async fallback(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    quoteId?: string,
-    walletAddress?: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
+    @LogContext quoteId?: string,
+    @LogContext walletAddress?: string,
   ): Promise<RebalanceQuote[]> {
     const fallbackQuoteId = quoteId || uuidv4()
     const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)

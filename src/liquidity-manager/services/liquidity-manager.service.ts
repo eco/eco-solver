@@ -34,6 +34,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext, LogSubOperation } from '@/common/logging/decorators'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
@@ -170,22 +171,13 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
   }
 
-  async analyzeTokens(walletAddress: string) {
+  @LogOperation('token_analysis', LiquidityManagerLogger, {
+    sampling: { rate: 0.2, level: 'debug' }, // Sample token analysis for cost efficiency
+  })
+  async analyzeTokens(@LogContext walletAddress: string) {
     // 1) Build reservation maps of amounts already committed to pending rebalances
     const reservedByToken = await this.getReservedByTokenMap(walletAddress)
     const incomingByToken = await this.getIncomingByTokenMap(walletAddress)
-
-    this.logger.debug(
-      { rebalanceId: 'analysis', walletAddress, strategy: 'reservation-aware' },
-      'Reservation-aware analysis: reservedByToken snapshot',
-      {
-        tokensAffected: reservedByToken.size,
-        reservedByToken: Array.from(reservedByToken.entries()).map(([key, value]) => [
-          key,
-          value.toString(),
-        ]),
-      },
-    )
 
     // 2) Fetch on-chain balances and subtract reserved amounts per token before analysis
     const tokens: TokenData[] = await this.balanceService.getAllTokenDataForAddress(
@@ -200,16 +192,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         if (reserved > 0n || incoming > 0n) {
           item.balance.balance = item.balance.balance - reserved + incoming
         }
-      } catch (error) {
-        this.logger.warn(
-          { rebalanceId: 'analysis', walletAddress, strategy: 'reservation-aware' },
-          'Reservation-aware analysis: token skipped due to invalid config/input',
-          {
-            token: item?.config,
-            error,
-          },
-        )
-      }
+      } catch (error) {}
       return item
     })
 
@@ -217,16 +200,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     for (const item of adjusted) {
       try {
         analysis.push({ ...item, analysis: this.analyzeToken(item) })
-      } catch (error) {
-        this.logger.warn(
-          { rebalanceId: 'analysis', walletAddress, strategy: 'reservation-aware' },
-          'Reservation-aware analysis: token skipped due to invalid config/input',
-          {
-            token: item?.config,
-            error,
-          },
-        )
-      }
+      } catch (error) {}
     }
 
     const groups = groupBy(analysis, (item) => item.analysis.state)
@@ -242,23 +216,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * Returns a map of reserved amounts (sum of amountIn) for tokens that are part of
    * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
    */
+  @LogSubOperation('reserved_token_mapping')
   private async getReservedByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
     try {
       const map = await this.rebalanceRepository.getPendingReservedByTokenForWallet(walletAddress)
-      if (map.size) {
-        this.logger.debug(
-          { rebalanceId: 'reservation-analysis', walletAddress, strategy: 'reserved-amounts' },
-          'Reservation-aware analysis: applied reserved amounts',
-          { tokensAffected: map.size },
-        )
-      }
       return map
     } catch (error) {
-      this.logger.debug(
-        { rebalanceId: 'reservation-analysis', walletAddress, strategy: 'reserved-amounts' },
-        'Reservation-aware analysis: no reservations applied',
-        { error },
-      )
       return new Map<string, bigint>()
     }
   }
@@ -267,23 +230,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * Returns a map of incoming in-flight amounts (sum of amountOut) for tokens that are part of
    * pending rebalances for the provided wallet. Key format: `${chainId}:${tokenAddressLowercase}`
    */
+  @LogSubOperation('incoming_token_mapping')
   private async getIncomingByTokenMap(walletAddress: string): Promise<Map<string, bigint>> {
     try {
       const map = await this.rebalanceRepository.getPendingIncomingByTokenForWallet(walletAddress)
-      if (map.size) {
-        this.logger.debug(
-          { rebalanceId: 'reservation-analysis', walletAddress, strategy: 'incoming-amounts' },
-          'Reservation-aware analysis: applied incoming amounts',
-          { tokensAffected: map.size },
-        )
-      }
       return map
     } catch (error) {
-      this.logger.debug(
-        { rebalanceId: 'reservation-analysis', walletAddress, strategy: 'incoming-amounts' },
-        'Reservation-aware analysis: no incoming applied',
-        { error },
-      )
       return new Map<string, bigint>()
     }
   }
@@ -304,10 +256,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * @param deficitToken
    * @param surplusTokens
    */
+  @LogOperation('optimized_rebalancing', LiquidityManagerLogger)
   async getOptimizedRebalancing(
-    walletAddress: string,
-    deficitToken: TokenDataAnalyzed,
-    surplusTokens: TokenDataAnalyzed[],
+    @LogContext walletAddress: string,
+    @LogContext deficitToken: TokenDataAnalyzed,
+    @LogContext surplusTokens: TokenDataAnalyzed[],
   ) {
     const swapQuotes = await this.getSwapQuotes(walletAddress, deficitToken, surplusTokens)
 
@@ -335,14 +288,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     })
   }
 
-  async executeRebalancing(rebalanceData: RebalanceJobData) {
+  @LogOperation('rebalance_execution', LiquidityManagerLogger)
+  async executeRebalancing(@LogContext rebalanceData: RebalanceJobData) {
     const { walletAddress, rebalance } = rebalanceData
     for (const quote of rebalance.quotes) {
       await this.liquidityProviderManager.execute(walletAddress, deserialize(quote))
     }
   }
 
-  async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
+  @LogOperation('rebalance_storage', LiquidityManagerLogger)
+  async storeRebalancing(@LogContext walletAddress: string, @LogContext request: RebalanceRequest) {
     const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
 
     for (const quote of request.quotes) {
@@ -362,17 +317,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         tokenOut: RebalanceTokenModel.fromTokenData(quote.tokenOut),
         status: RebalanceStatus.PENDING.toString(),
       })
-
-      this.logger.debug(
-        {
-          rebalanceId: quote.rebalanceJobID,
-          walletAddress,
-          strategy: quote.strategy,
-          groupId: quote.groupID,
-        },
-        'Rebalance stored',
-        { quote },
-      )
     }
   }
 
@@ -384,6 +328,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * @param surplusTokens
    * @private
    */
+  @LogSubOperation('swap_quotes')
   private async getSwapQuotes(
     walletAddress: string,
     deficitToken: TokenDataAnalyzed,
@@ -403,6 +348,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
    * @param surplusTokens
    * @private
    */
+  @LogSubOperation('rebalancing_quotes')
   private async getRebalancingQuotes(
     walletAddress: string,
     deficitToken: TokenDataAnalyzed,
@@ -438,20 +384,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           swapAmount,
         )
 
-        this.logger.log(
-          {
-            rebalanceId: 'quote-generation',
-            walletAddress,
-            strategy: 'multi-strategy',
-          },
-          'Quotes from strategies',
-          {
-            strategyQuotes,
-            surplusToken,
-            deficitToken,
-            swapAmount,
-          },
-        )
+        // Quote generation logged by decorator - context includes strategy details
 
         for (const quote of strategyQuotes) {
           quotes.push(quote)
@@ -460,6 +393,15 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
         if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
       } catch (error) {
+        // Log business event for quote strategy failure
+        this.logger.logQuoteStrategyFailure(
+          'direct_route',
+          surplusToken,
+          deficitToken,
+          swapAmount,
+          error as Error,
+        )
+
         // Track failed surplus tokens
         failedSurplusTokens.push(surplusToken)
 
@@ -471,20 +413,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           operation: 'direct_route_quote',
           service: this.constructor.name,
         })
-
-        this.logger.debug(
-          {
-            rebalanceId: 'fallback-routing',
-            walletAddress,
-            strategy: 'direct-route',
-          },
-          'Direct route not found, will try with fallback',
-          {
-            surplusToken: surplusToken.config,
-            deficitToken: deficitToken.config,
-            error,
-          },
-        )
       }
     }
 
@@ -492,21 +420,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     if (currentBalance >= deficitToken.analysis.targetSlippage.min || !failedSurplusTokens.length) {
       return quotes
     }
-
-    // Try the failed surplus tokens with the fallback (core token) strategies
-    this.logger.debug(
-      {
-        rebalanceId: 'fallback-routing',
-        walletAddress,
-        strategy: 'core-token-fallback',
-      },
-      'Still below target balance, trying fallback routes with core tokens',
-      {
-        currentBalance: currentBalance.toString(),
-        targetMin: deficitToken.analysis.targetSlippage.min.toString(),
-        failedTokensCount: failedSurplusTokens.length,
-      },
-    )
 
     // Try each failed token with the fallback method
     for (const surplusToken of failedSurplusTokens) {
@@ -540,20 +453,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
             targetBalance: deficitToken.analysis.targetSlippage.min,
             operation: 'fallback_route_quote',
             service: this.constructor.name,
-          },
-        )
-
-        this.logger.error(
-          {
-            rebalanceId: 'fallback-routing',
-            walletAddress,
-            strategy: 'core-token-fallback',
-          },
-          'Unable to find fallback route',
-          fallbackError,
-          {
-            surplusToken: surplusToken.config,
-            deficitToken: deficitToken.config,
           },
         )
       }
