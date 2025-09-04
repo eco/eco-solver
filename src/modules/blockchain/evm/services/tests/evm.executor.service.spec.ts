@@ -5,7 +5,8 @@ import { Address, encodeFunctionData, Hex } from 'viem';
 import { ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import { EvmConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
+import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
@@ -35,36 +36,15 @@ jest.mock('@/common/utils/chain-type-detector', () => ({
 describe('EvmExecutorService', () => {
   let service: EvmExecutorService;
   let evmConfigService: jest.Mocked<EvmConfigService>;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
   let walletManager: jest.Mocked<EvmWalletManager>;
   let proverService: jest.Mocked<ProverService>;
 
-  const mockIntent: Intent = {
-    intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-    destination: 10n,
+  const mockIntent: Intent = createMockIntent({
     sourceChainId: 1n,
-    reward: {
-      prover: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
-      creator: '0x0000000000000000000000000987654321098765432109876543210987654321' as any,
-      deadline: 1234567890n,
-      nativeAmount: 1000000000000000000n,
-      tokens: [],
-    },
-    route: {
-      salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-      deadline: 1234567890n,
-      portal: '0x00000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as any,
-      nativeAmount: 0n,
-      calls: [],
-      tokens: [
-        {
-          token: '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as any,
-          amount: 1000000n,
-        },
-      ],
-    },
-    status: IntentStatus.PENDING,
-  };
+    destination: 10n,
+  });
 
   const mockWallet = {
     getAddress: jest.fn().mockResolvedValue('0x1234567890123456789012345678901234567890'),
@@ -97,6 +77,10 @@ describe('EvmExecutorService', () => {
         .mockReturnValue(
           '0x0000000000000000000000001111111111111111111111111111111111111111' as any,
         ),
+    } as any;
+
+    blockchainConfigService = {
+      getClaimant: jest.fn().mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890'),
     } as any;
 
     transportService = {
@@ -135,6 +119,7 @@ describe('EvmExecutorService', () => {
       providers: [
         EvmExecutorService,
         { provide: EvmConfigService, useValue: evmConfigService },
+        { provide: BlockchainConfigService, useValue: blockchainConfigService },
         { provide: EvmTransportService, useValue: transportService },
         { provide: EvmWalletManager, useValue: walletManager },
         { provide: ProverService, useValue: proverService },

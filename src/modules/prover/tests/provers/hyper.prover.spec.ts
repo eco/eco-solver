@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
-import { ProverType } from '@/common/interfaces/prover.interface';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import {
   padTo32Bytes,
   toUniversalAddress,
@@ -44,7 +44,7 @@ describe('HyperProver', () => {
     mockBlockchainConfigService = {
       getProverAddress: jest
         .fn()
-        .mockImplementation((chainId: number | string | bigint, proverType: ProverType) => {
+        .mockImplementation((chainId: number | string | bigint, proverType: TProverType) => {
           const numericChainId = Number(chainId);
           if (numericChainId === 1 && proverType === 'hyper') {
             return testAddress1;
@@ -183,7 +183,7 @@ describe('HyperProver', () => {
     });
 
     it('should throw error when blockchain reader is not initialized', async () => {
-      prover['blockchainReaderService'] = undefined;
+      (prover as any)['blockchainReaderService'] = undefined;
 
       const intent = createMockIntent();
 

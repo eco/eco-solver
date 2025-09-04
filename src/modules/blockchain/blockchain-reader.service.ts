@@ -53,14 +53,10 @@ export class BlockchainReaderService {
    * @param chainId The chain ID
    * @returns The reader for the chain, or undefined if not supported
    */
-  getReaderForChain(chainId: string | number | bigint): BaseChainReader {
+  getReaderForChain(chainId: string | number | bigint): BaseChainReader | undefined {
     // Convert bigint to number for EVM chains
     const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    const reader = this.readers.get(normalizedChainId);
-    if (!reader) {
-      throw new Error(`Reader not found for chain ${chainId}`);
-    }
-    return reader;
+    return this.readers.get(normalizedChainId);
   }
 
   /**

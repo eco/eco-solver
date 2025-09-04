@@ -11,6 +11,7 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { ProverService } from '../prover.service';
+import { DummyProver } from '../provers/dummy.prover';
 import { HyperProver } from '../provers/hyper.prover';
 import { MetalayerProver } from '../provers/metalayer.prover';
 
@@ -18,6 +19,7 @@ describe('ProverService', () => {
   let service: ProverService;
   let mockHyperProver: jest.Mocked<HyperProver>;
   let mockMetalayerProver: jest.Mocked<MetalayerProver>;
+  let mockDummyProver: jest.Mocked<DummyProver>;
   let mockLogger: jest.Mocked<SystemLoggerService>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
@@ -63,6 +65,14 @@ describe('ProverService', () => {
       getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
     } as unknown as jest.Mocked<MetalayerProver>;
 
+    mockDummyProver = {
+      type: ProverType.DUMMY,
+      onModuleInit: jest.fn(),
+      getContractAddress: jest.fn().mockReturnValue(undefined),
+      isSupported: jest.fn().mockReturnValue(false),
+      getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
+    } as unknown as jest.Mocked<DummyProver>;
+
     mockLogger = {
       setContext: jest.fn(),
       log: jest.fn(),
@@ -94,6 +104,10 @@ describe('ProverService', () => {
         {
           provide: MetalayerProver,
           useValue: mockMetalayerProver,
+        },
+        {
+          provide: DummyProver,
+          useValue: mockDummyProver,
         },
         {
           provide: SystemLoggerService,
@@ -200,7 +214,7 @@ describe('ProverService', () => {
       });
 
       // Mock the blockchain config service to return null for unsupported chain
-      mockBlockchainConfigService.getPortalAddress.mockReturnValueOnce(undefined);
+      mockBlockchainConfigService.getPortalAddress.mockReturnValueOnce(undefined as any);
 
       const result = await service.validateIntentRoute(intent);
 

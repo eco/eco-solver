@@ -4,7 +4,7 @@ import { Hex } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ProverType } from '@/common/interfaces/prover.interface';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import {
   padTo32Bytes,
   toUniversalAddress,
@@ -61,7 +61,7 @@ describe('BaseProver', () => {
 
     // Setup mock return values for getProverAddress
     mockBlockchainConfigService.getProverAddress.mockImplementation(
-      (chainId: number | string | bigint, proverType: ProverType) => {
+      (chainId: number | string | bigint, proverType: TProverType) => {
         const numericChainId = Number(chainId);
         if (numericChainId === 1 && proverType === 'hyper') {
           return testAddress1;

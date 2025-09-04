@@ -30,6 +30,7 @@ describe('QuotesService', () => {
   const mockBlockchainConfigService = {
     getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
     getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getDefaultProver: jest.fn().mockReturnValue('hyper'),
   };
 
   beforeEach(async () => {
@@ -53,13 +54,14 @@ describe('QuotesService', () => {
 
     service = module.get<QuotesService>(QuotesService);
 
-    // Reset mocks to ensure getProverAddress and getPortalAddress return expected values
+    // Reset mocks to ensure getProverAddress, getPortalAddress and getDefaultProver return expected values
     mockBlockchainConfigService.getPortalAddress.mockReturnValue(
       '0x1234567890123456789012345678901234567890',
     );
     mockBlockchainConfigService.getProverAddress.mockReturnValue(
       '0x1234567890123456789012345678901234567890',
     );
+    mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper');
   });
 
   afterEach(() => {
@@ -70,11 +72,11 @@ describe('QuotesService', () => {
     const mockQuoteRequest: QuoteRequest = {
       dAppID: 'test-dapp',
       quoteRequest: {
-        sourceChainID: 1,
-        destinationChainID: 10,
+        sourceChainID: BigInt(1),
+        destinationChainID: BigInt(10),
         sourceToken: '0x1234567890123456789012345678901234567890',
         destinationToken: '0x1234567890123456789012345678901234567890',
-        sourceAmount: '5000000000000000000',
+        sourceAmount: BigInt('5000000000000000000'),
         funder: '0x1234567890123456789012345678901234567890',
         recipient: '0x1234567890123456789012345678901234567890',
       },
@@ -109,19 +111,19 @@ describe('QuotesService', () => {
         quoteResponse: {
           sourceChainID: 1,
           destinationChainID: 10,
-          sourceToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
-          destinationToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
           sourceAmount: '5000000000000000000',
-          destinationAmount: '5000000000000000000',
-          funder: '0x0000000000000000000000001234567890123456789012345678901234567890',
-          refundRecipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
-          recipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          destinationAmount: '9999999999999998950',
+          funder: '0x1234567890123456789012345678901234567890',
+          refundRecipient: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
           fees: [
             {
               name: 'Eco Protocol Fee',
               description: 'Protocol fee for fulfilling intent on chain 10',
               token: {
-                address: '0x0000000000000000000000001234567890123456789012345678901234567890',
+                address: '0x1234567890123456789012345678901234567890',
                 decimals: 18,
                 symbol: 'TOKEN',
               },
@@ -132,8 +134,9 @@ describe('QuotesService', () => {
           estimatedFulfillTimeSec: 30,
         },
         contracts: {
+          sourcePortal: '0x1234567890123456789012345678901234567890',
+          destinationPortal: '0x1234567890123456789012345678901234567890',
           prover: '0x1234567890123456789012345678901234567890',
-          portal: '0x1234567890123456789012345678901234567890',
         },
       });
 
@@ -195,7 +198,7 @@ describe('QuotesService', () => {
       mockBlockchainConfigService.getProverAddress.mockReturnValue(undefined);
 
       await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
-        new BadRequestException('No prover configured for chain 1'),
+        new BadRequestException('Default prover hyper not configured for chain 1'),
       );
     });
 
@@ -261,20 +264,21 @@ describe('QuotesService', () => {
         quoteResponse: {
           sourceChainID: 1,
           destinationChainID: 10,
-          sourceToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
-          destinationToken: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          sourceToken: '0x1234567890123456789012345678901234567890',
+          destinationToken: '0x1234567890123456789012345678901234567890',
           sourceAmount: '5000000000000000000',
-          destinationAmount: '5000000000000000000',
-          funder: '0x0000000000000000000000001234567890123456789012345678901234567890',
-          refundRecipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
-          recipient: '0x0000000000000000000000001234567890123456789012345678901234567890',
+          destinationAmount: '10000000000000000000',
+          funder: '0x1234567890123456789012345678901234567890',
+          refundRecipient: '0x1234567890123456789012345678901234567890',
+          recipient: '0x1234567890123456789012345678901234567890',
           fees: [],
           deadline: expect.any(Number),
           estimatedFulfillTimeSec: 30,
         },
         contracts: {
+          sourcePortal: '0x1234567890123456789012345678901234567890',
+          destinationPortal: '0x1234567890123456789012345678901234567890',
           prover: '0x1234567890123456789012345678901234567890',
-          portal: '0x1234567890123456789012345678901234567890',
         },
       });
     });
@@ -329,14 +333,14 @@ describe('QuotesService', () => {
           destination: BigInt('10'),
           sourceChainId: BigInt('1'),
           reward: expect.objectContaining({
-            prover: '0x0000000000000000000000001234567890123456789012345678901234567890',
+            prover: '0x1234567890123456789012345678901234567890',
             creator: '0x0000000000000000000000001234567890123456789012345678901234567890',
             deadline: expect.any(BigInt),
             nativeAmount: BigInt('0'),
           }),
           route: expect.objectContaining({
             salt: expect.stringMatching(/^0x[a-fA-F0-9]{64}$/),
-            portal: '0x0000000000000000000000001234567890123456789012345678901234567890',
+            portal: '0x1234567890123456789012345678901234567890',
           }),
         }),
       );

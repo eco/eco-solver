@@ -48,7 +48,12 @@ describe('KernelWalletFactory', () => {
 
   beforeEach(async () => {
     evmConfigService = {
-      getKernelWalletConfig: jest.fn(),
+      getKernelWalletConfig: jest.fn().mockReturnValue({
+        signer: {
+          type: 'eoa' as const,
+          privateKey: mockEoaPrivateKey,
+        },
+      }),
       getChain: jest.fn(),
     } as any;
 
@@ -138,11 +143,21 @@ describe('KernelWalletFactory', () => {
       const chainId = 1;
       const mockNetworkConfig = {
         chainId,
-        rpc: { urls: ['http://localhost:8545'] },
+        rpc: {
+          urls: ['http://localhost:8545'],
+          options: {
+            batch: true,
+            timeout: 10000,
+            retryCount: 3,
+            retryDelay: 1000,
+          },
+        },
         contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-        provers: {},
+        provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+        defaultProver: 'hyper' as const,
+        claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
       };
       evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
 
@@ -177,11 +192,21 @@ describe('KernelWalletFactory', () => {
     it('should reuse signer for multiple wallets', async () => {
       const mockNetworkConfig1 = {
         chainId: 1,
-        rpc: { urls: ['http://localhost:8545'] },
+        rpc: {
+          urls: ['http://localhost:8545'],
+          options: {
+            batch: true,
+            timeout: 10000,
+            retryCount: 3,
+            retryDelay: 1000,
+          },
+        },
         contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-        provers: {},
+        provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+        defaultProver: 'hyper' as const,
+        claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
       };
       const mockNetworkConfig10 = { ...mockNetworkConfig1, chainId: 10 };
 
@@ -195,41 +220,68 @@ describe('KernelWalletFactory', () => {
       // Signer should only be created once
       expect(privateKeyToAccount).toHaveBeenCalledTimes(1);
 
-      // Config is called once for signer creation and once per wallet instance
-      expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalledTimes(3); // 1 for signer + 2 for wallets
+      // Config is only called once in constructor for kernel wallet config
+      expect(evmConfigService.getKernelWalletConfig).toHaveBeenCalledTimes(1);
 
       // But wallet instances should be different
       expect(KernelWallet).toHaveBeenCalledTimes(2);
     });
 
     it('should handle concurrent wallet creation', async () => {
-      const mockNetworkConfigs = {
+      const mockNetworkConfigs: Record<number, any> = {
         1: {
           chainId: 1,
-          rpc: { urls: ['http://localhost:8545'] },
-          intentSourceAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
-          inboxAddress: '0x0000000000000000000000000000000000000002' as `0x${string}`,
+          rpc: {
+            urls: ['http://localhost:8545'],
+            options: {
+              batch: true,
+              timeout: 10000,
+              retryCount: 3,
+              retryDelay: 1000,
+            },
+          },
+          contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
           tokens: [],
           fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-          provers: {},
+          provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+          defaultProver: 'hyper' as const,
+          claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
         },
         10: {
           chainId: 10,
-          rpc: { urls: ['http://localhost:8545'] },
-          intentSourceAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
-          inboxAddress: '0x0000000000000000000000000000000000000002' as `0x${string}`,
+          rpc: {
+            urls: ['http://localhost:8545'],
+            options: {
+              batch: true,
+              timeout: 10000,
+              retryCount: 3,
+              retryDelay: 1000,
+            },
+          },
+          contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
           tokens: [],
           fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-          provers: {},
+          provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+          defaultProver: 'hyper' as const,
+          claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
         },
         137: {
           chainId: 137,
-          rpc: { urls: ['http://localhost:8545'] },
-          intentSourceAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
-          inboxAddress: '0x0000000000000000000000000000000000000002' as `0x${string}`,
+          rpc: {
+            urls: ['http://localhost:8545'],
+            options: {
+              batch: true,
+              timeout: 10000,
+              retryCount: 3,
+              retryDelay: 1000,
+            },
+          },
+          contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
           tokens: [],
           fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-          provers: {},
+          provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+          defaultProver: 'hyper' as const,
+          claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
         },
       };
 
@@ -261,28 +313,56 @@ describe('KernelWalletFactory', () => {
       keyID: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
     };
 
-    beforeEach(() => {
-      evmConfigService.getKernelWalletConfig.mockReturnValue({
-        signer: {
-          type: 'kms' as const,
-          ...mockKmsConfig,
-        },
-      });
+    let kmsFactory: KernelWalletFactory;
+
+    beforeEach(async () => {
+      const module = await Test.createTestingModule({
+        providers: [
+          KernelWalletFactory,
+          { 
+            provide: EvmConfigService, 
+            useValue: {
+              ...evmConfigService,
+              getKernelWalletConfig: jest.fn().mockReturnValue({
+                signer: {
+                  type: 'kms' as const,
+                  ...mockKmsConfig,
+                },
+              })
+            }
+          },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: OpenTelemetryService, useValue: mockOtelService },
+        ],
+      }).compile();
+      
+      kmsFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
     });
 
     it('should create wallet with KMS signer', async () => {
       const chainId = 1;
       const mockNetworkConfig = {
         chainId,
-        rpc: { urls: ['http://localhost:8545'] },
+        rpc: {
+          urls: ['http://localhost:8545'],
+          options: {
+            batch: true,
+            timeout: 10000,
+            retryCount: 3,
+            retryDelay: 1000,
+          },
+        },
         contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-        provers: {},
+        provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+        defaultProver: 'hyper' as const,
+        claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
       };
       evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
 
-      const wallet = await factory.createWallet(chainId);
+      const wallet = await kmsFactory.createWallet(chainId);
 
       // Verify KMS account was created
       expect(kmsToAccount).toHaveBeenCalledWith({
@@ -291,11 +371,17 @@ describe('KernelWalletFactory', () => {
         region: mockKmsConfig.region,
       });
 
-      // Verify KernelWallet was created with KMS account
+      // Verify KernelWallet was created with KMS account  
       expect(KernelWallet).toHaveBeenCalledWith(
         chainId,
         mockKmsAccount,
-        evmConfigService.getKernelWalletConfig(),
+        expect.objectContaining({
+          signer: expect.objectContaining({
+            type: 'kms',
+            keyID: mockKmsConfig.keyID,
+            region: mockKmsConfig.region,
+          }),
+        }),
         mockNetworkConfig,
         transportService,
         mockLogger,
@@ -314,53 +400,122 @@ describe('KernelWalletFactory', () => {
     it('should pass additional KMS options', async () => {
       const kmsConfigWithOptions = {
         ...mockKmsConfig,
-        accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
-        secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        credentials: {
+          accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+          secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        },
       };
 
-      evmConfigService.getKernelWalletConfig.mockReturnValue({
-        signer: {
-          type: 'kms' as const,
-          ...kmsConfigWithOptions,
-        },
-      });
+      // Create a separate factory for this test with different config
+      const module = await Test.createTestingModule({
+        providers: [
+          KernelWalletFactory,
+          { 
+            provide: EvmConfigService, 
+            useValue: {
+              ...evmConfigService,
+              getKernelWalletConfig: jest.fn().mockReturnValue({
+                signer: {
+                  type: 'kms' as const,
+                  ...kmsConfigWithOptions,
+                },
+              })
+            }
+          },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: OpenTelemetryService, useValue: mockOtelService },
+        ],
+      }).compile();
+      
+      const testFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
 
       const mockNetworkConfig = {
         chainId: 1,
-        rpc: { urls: ['http://localhost:8545'] },
+        rpc: {
+          urls: ['http://localhost:8545'],
+          options: {
+            batch: true,
+            timeout: 10000,
+            retryCount: 3,
+            retryDelay: 1000,
+          },
+        },
         contracts: { portal: '0x0000000000000000000000000000000000000001' as `0x${string}` },
         tokens: [],
         fee: { tokens: { flatFee: 0, scalarBps: 0 } },
-        provers: {},
+        provers: { hyper: '0x0000000000000000000000000000000000000002' as `0x${string}` },
+        defaultProver: 'hyper' as const,
+        claimant: '0x0000000000000000000000000000000000000003' as `0x${string}`,
       };
       evmConfigService.getChain.mockReturnValue(mockNetworkConfig);
 
-      await factory.createWallet(1);
+      await testFactory.createWallet(1);
 
       expect(kmsToAccount).toHaveBeenCalledWith({
         type: 'kms',
-        ...kmsConfigWithOptions,
+        keyID: kmsConfigWithOptions.keyID,
+        region: kmsConfigWithOptions.region,
+        credentials: kmsConfigWithOptions.credentials,
       });
     });
   });
 
   describe('error handling', () => {
     it('should handle unsupported signer type', async () => {
-      evmConfigService.getKernelWalletConfig.mockReturnValue({
-        signer: {
-          type: 'unsupported' as any,
-        },
-      });
-
-      await expect(factory.createWallet(1)).rejects.toThrow('Unsupported signer type: unsupported');
+      // Mock the mocked viem function to return an account
+      (privateKeyToAccount as jest.Mock).mockReturnValue(mockAccount);
+      
+      // Create a new factory instance with unsupported config
+      const module = await Test.createTestingModule({
+        providers: [
+          KernelWalletFactory,
+          { 
+            provide: EvmConfigService, 
+            useValue: {
+              ...evmConfigService,
+              getKernelWalletConfig: jest.fn().mockReturnValue({
+                signer: {
+                  type: 'unsupported' as any,
+                  privateKey: mockEoaPrivateKey,
+                } as any,
+              })
+            }
+          },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: OpenTelemetryService, useValue: mockOtelService },
+        ],
+      }).compile();
+      
+      const testFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
+      
+      await expect(testFactory.createWallet(1)).rejects.toThrow('Unsupported signer type: unsupported');
     });
 
     it('should handle missing signer configuration', async () => {
-      evmConfigService.getKernelWalletConfig.mockReturnValue({
-        signer: undefined as any,
-      });
-
-      await expect(factory.createWallet(1)).rejects.toThrow();
+      // Create a new factory instance with missing config
+      const createModule = async () => {
+        const module = await Test.createTestingModule({
+          providers: [
+            KernelWalletFactory,
+            { 
+              provide: EvmConfigService, 
+              useValue: {
+                ...evmConfigService,
+                getKernelWalletConfig: jest.fn().mockReturnValue(null)
+              }
+            },
+            { provide: EvmTransportService, useValue: transportService },
+            { provide: SystemLoggerService, useValue: mockLogger },
+            { provide: OpenTelemetryService, useValue: mockOtelService },
+          ],
+        }).compile();
+        
+        return module.get<KernelWalletFactory>(KernelWalletFactory);
+      };
+      
+      await expect(createModule()).rejects.toThrow('Kernel config required');
     });
 
     it('should handle transport service errors', async () => {
@@ -414,17 +569,35 @@ describe('KernelWalletFactory', () => {
     });
 
     it('should handle KMS account creation errors', async () => {
-      evmConfigService.getKernelWalletConfig.mockReturnValue({
-        signer: {
-          type: 'kms' as const,
-          region: 'us-east-1',
-        },
-      });
-
+      // Create a new factory instance with KMS config
+      const module = await Test.createTestingModule({
+        providers: [
+          KernelWalletFactory,
+          { 
+            provide: EvmConfigService, 
+            useValue: {
+              ...evmConfigService,
+              getKernelWalletConfig: jest.fn().mockReturnValue({
+                signer: {
+                  type: 'kms' as const,
+                  keyID: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
+                  region: 'us-east-1',
+                },
+              })
+            }
+          },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: OpenTelemetryService, useValue: mockOtelService },
+        ],
+      }).compile();
+      
+      const testFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
+      
       const error = new Error('KMS key not found');
       (kmsToAccount as jest.Mock).mockRejectedValue(error);
 
-      await expect(factory.createWallet(1)).rejects.toThrow(error);
+      await expect(testFactory.createWallet(1)).rejects.toThrow(error);
     });
   });
 });

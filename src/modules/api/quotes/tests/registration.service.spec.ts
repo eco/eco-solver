@@ -18,16 +18,20 @@ describe('RegistrationService', () => {
   let configService: QuotesConfigService;
   let evmWalletManager: EvmWalletManager;
   let logger: SystemLoggerService;
+  let blockchainConfigService: BlockchainConfigService;
   let mockWallet: IEvmWallet;
+  let module: TestingModule;
 
   let mockConfig: {
     registrationEnabled: boolean;
     registrationBaseUrl?: string;
-    solverEndpoint?: string;
+    apiUrl?: string;
+    registrationPrivateKey?: string;
   } = {
     registrationEnabled: true,
     registrationBaseUrl: 'https://api.example.com',
-    solverEndpoint: 'https://solver.example.com',
+    apiUrl: 'https://api.example.com/api/v1/quotes',
+    registrationPrivateKey: '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   };
 
   const mockSupportedChains = [1, 10, 137];
@@ -40,7 +44,7 @@ describe('RegistrationService', () => {
       writeContracts: jest.fn(),
     } as any;
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         QuoteRegistrationService,
         {
@@ -58,17 +62,22 @@ describe('RegistrationService', () => {
             get registrationBaseUrl() {
               return mockConfig.registrationBaseUrl;
             },
-            get solverEndpoint() {
-              return mockConfig.solverEndpoint;
+            get apiUrl() {
+              return mockConfig.apiUrl;
             },
-            registration: mockConfig,
-            config: { registration: mockConfig },
+            get registrationPrivateKey() {
+              return mockConfig.registrationPrivateKey;
+            },
           },
         },
         {
           provide: BlockchainConfigService,
           useValue: {
             getAllConfiguredChains: jest.fn().mockReturnValue(mockSupportedChains),
+            getSupportedTokens: jest.fn().mockReturnValue([
+              { address: '0x1234567890123456789012345678901234567890', decimals: 18 },
+              { address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', decimals: 6 },
+            ]),
           },
         },
         {
@@ -94,6 +103,7 @@ describe('RegistrationService', () => {
     configService = module.get<QuotesConfigService>(QuotesConfigService);
     evmWalletManager = module.get<EvmWalletManager>(EvmWalletManager);
     logger = module.get<SystemLoggerService>(SystemLoggerService);
+    blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
   });
 
   beforeEach(() => {
@@ -101,7 +111,8 @@ describe('RegistrationService', () => {
     mockConfig = {
       registrationEnabled: true,
       registrationBaseUrl: 'https://api.example.com',
-      solverEndpoint: 'https://solver.example.com',
+      apiUrl: 'https://api.example.com/api/v1/quotes',
+      registrationPrivateKey: '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     };
   });
 
@@ -128,15 +139,18 @@ describe('RegistrationService', () => {
       expect(httpService.post).toHaveBeenCalledWith(
         'https://api.example.com/api/v1/quotes',
         expect.objectContaining({
-          solverEndpoint: 'https://solver.example.com',
-          supportedChains: [1, 10, 137],
+          intentExecutionTypes: ['SELF_PUBLISH'],
+          quotesUrl: 'https://api.example.com/api/v1/quotes',
+          receiveSignedIntentUrl: 'https://api.example.com/api/v1/quotes',
+          supportsNativeTransfers: false,
+          crossChainRoutes: expect.any(Object),
         }),
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'x-signature': '0xsignature123',
-            'x-timestamp': expect.any(String),
-            'x-signer': '0x1234567890123456789012345678901234567890',
+            'x-beam-sig': expect.any(String),
+            'x-beam-sig-expire': expect.any(Number),
+            'x-beam-sig-address': expect.any(String),
           }),
         }),
       );
@@ -159,18 +173,26 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith('Registration base URL is not configured');
+      expect(logger.error).toHaveBeenCalledWith('Registration failed: Registration base URL is not configured');
     });
 
-    it('should throw error when solver endpoint is not configured', async () => {
-      mockConfig.solverEndpoint = undefined;
+    it('should not throw error when apiUrl is configured', async () => {
+      const mockResponse: AxiosResponse = {
+        data: { success: true },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {
+          headers: new AxiosHeaders(),
+        },
+      };
+
+      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
 
       await service.register();
 
-      expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Solver endpoint URL is not configured'),
-      );
+      expect(httpService.post).toHaveBeenCalled();
+      expect(logger.log).toHaveBeenCalledWith('Successfully registered with ID: N/A');
     });
 
     it('should handle registration failure response', async () => {
@@ -225,10 +247,8 @@ describe('RegistrationService', () => {
       );
     });
 
-    it('should handle cases when no EVM chains are configured', async () => {
-      (evmWalletManager.getWallet as jest.Mock).mockImplementation(() => {
-        throw new Error('No wallet available');
-      });
+    it('should handle cases when no chains are configured', async () => {
+      (blockchainConfigService.getAllConfiguredChains as jest.Mock).mockReturnValue([]);
 
       const mockResponse: AxiosResponse = {
         data: { success: true },
@@ -246,13 +266,14 @@ describe('RegistrationService', () => {
 
       expect(httpService.post).toHaveBeenCalledWith(
         expect.any(String),
-        expect.any(Object),
         expect.objectContaining({
-          headers: expect.not.objectContaining({
-            'x-signature': expect.any(String),
-            'x-signer': expect.any(String),
-          }),
+          crossChainRoutes: {
+            crossChainRoutesConfig: {
+              '*': {},
+            },
+          },
         }),
+        expect.any(Object),
       );
     });
   });

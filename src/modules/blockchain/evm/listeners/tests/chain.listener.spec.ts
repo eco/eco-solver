@@ -3,7 +3,7 @@ import { Address, Hex } from 'viem';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
-import { BlockchainConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { createMockEventsService } from '@/modules/events/tests/events.service.mock';
 import { SystemLoggerService } from '@/modules/logging';
@@ -54,7 +54,7 @@ jest.mock('@/common/utils/portal-encoder', () => ({
   },
 }));
 
-// Mock parseIntentPublish function
+// Mock parseIntentPublish and parseIntentFulfilled functions
 jest.mock('@/modules/blockchain/evm/utils/events', () => ({
   parseIntentPublish: jest.fn((sourceChainId, log) => ({
     intentHash: log.args.intentHash,
@@ -90,6 +90,10 @@ jest.mock('@/modules/blockchain/evm/utils/events', () => ({
       })),
     },
   })),
+  parseIntentFulfilled: jest.fn((sourceChainId, log) => ({
+    intentHash: log.args.intentHash,
+    claimant: log.args.claimant,
+  })),
 }));
 
 // Mock QueueSerializer
@@ -106,6 +110,7 @@ describe('ChainListener', () => {
   let logger: jest.Mocked<SystemLoggerService>;
   let otelService: jest.Mocked<OpenTelemetryService>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
+  let evmConfigService: jest.Mocked<EvmConfigService>;
   let mockPublicClient: any;
   let mockUnsubscribe: jest.Mock;
 
@@ -171,6 +176,13 @@ describe('ChainListener', () => {
         ),
     } as any;
 
+    evmConfigService = {
+      getChain: jest.fn().mockReturnValue({
+        chainId: 1,
+        provers: {},
+      }),
+    } as any;
+
     listener = new ChainListener(
       mockConfig,
       transportService,
@@ -178,6 +190,7 @@ describe('ChainListener', () => {
       logger,
       otelService,
       blockchainConfigService,
+      evmConfigService,
     );
   });
 
@@ -352,7 +365,7 @@ describe('ChainListener', () => {
       await listener.start();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(2); // Called for both IntentPublished and IntentFulfilled
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(3); // Called for IntentPublished, IntentFulfilled, and IntentWithdrawn
     });
 
     it('should handle stop without start', async () => {
@@ -366,7 +379,7 @@ describe('ChainListener', () => {
       await listener.stop();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(2); // Called twice for both events
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(3); // Called for IntentPublished, IntentFulfilled, and IntentWithdrawn
     });
   });
 
@@ -428,6 +441,7 @@ describe('ChainListener', () => {
         logger,
         otelService,
         blockchainConfigService,
+        evmConfigService,
       );
       await customListener.start();
 
@@ -501,7 +515,7 @@ describe('ChainListener', () => {
           intentHash: mockLog.args.intentHash,
           claimant: mockLog.args.claimant,
           chainId: BigInt(mockConfig.chainId),
-          transactionHash: mockLog.transactionHash,
+          txHash: mockLog.transactionHash,
           blockNumber: mockLog.blockNumber,
         }),
       );
@@ -520,8 +534,9 @@ describe('ChainListener', () => {
       // Ensure callback was set
       expect(intentFulfilledCallback).toBeDefined();
 
-      // Mock parseIntentFulfilled to throw an error
-      jest.spyOn(eventsModule, 'parseIntentFulfilled').mockImplementation(() => {
+      // Mock parseIntentFulfilled to throw an error  
+      const mockEventsModule = require('@/modules/blockchain/evm/utils/events');
+      mockEventsModule.parseIntentFulfilled.mockImplementationOnce(() => {
         throw new Error('Parse error');
       });
 

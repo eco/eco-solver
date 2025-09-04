@@ -3,12 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
-import { ProverType } from '@/common/interfaces/prover.interface';
-import {
-  padTo32Bytes,
-  toUniversalAddress,
-  UniversalAddress,
-} from '@/common/types/universal-address.type';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
+import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
@@ -45,7 +41,7 @@ describe('MetalayerProver', () => {
     mockBlockchainConfigService = {
       getProverAddress: jest
         .fn()
-        .mockImplementation((chainId: number | string | bigint, proverType: ProverType) => {
+        .mockImplementation((chainId: number | string | bigint, proverType: TProverType) => {
           const numericChainId = Number(chainId);
           if (numericChainId === 137 && proverType === 'metalayer') {
             return testAddress1;
@@ -95,7 +91,7 @@ describe('MetalayerProver', () => {
       const mixedConfigService = {
         getProverAddress: jest
           .fn()
-          .mockImplementation((chainId: number | string | bigint, proverType: ProverType) => {
+          .mockImplementation((chainId: number | string | bigint, proverType: TProverType) => {
             const numericChainId = Number(chainId);
             if (numericChainId === 1 && proverType === 'hyper') {
               return toUniversalAddress(padTo32Bytes('0x1111111111111111111111111111111111111111'));
@@ -217,7 +213,7 @@ describe('MetalayerProver', () => {
     });
 
     it('should throw error when blockchain reader is not initialized', async () => {
-      prover['blockchainReaderService'] = undefined;
+      prover['blockchainReaderService'] = undefined as any;
 
       const intent = createMockIntent();
 

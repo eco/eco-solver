@@ -1,3 +1,4 @@
+import { Signer } from '@eco-foundation/eco-kms-core';
 import { KMSProviderAWS } from '@eco-foundation/eco-kms-provider-aws';
 import { KMSWallets } from '@eco-foundation/eco-kms-wallets';
 import { Address } from 'viem';
@@ -6,11 +7,13 @@ import { toAccount } from 'viem/accounts';
 import { kmsToAccount } from '../kms-account';
 
 jest.mock('viem/accounts');
+jest.mock('@eco-foundation/eco-kms-core');
 jest.mock('@eco-foundation/eco-kms-provider-aws');
 jest.mock('@eco-foundation/eco-kms-wallets');
 
 describe('kmsToAccount', () => {
   const mockConfig = {
+    type: 'kms' as const,
     keyID: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
     region: 'us-east-1',
   };
@@ -18,6 +21,7 @@ describe('kmsToAccount', () => {
   const mockAddress = '0x1234567890123456789012345678901234567890' as Address;
   const mockPublicKey = '0x04abcdef';
   const mockProvider = { id: 'provider' };
+  const mockSigner = { sign: jest.fn() };
   const mockKmsWallet = {
     getAddress: jest.fn().mockResolvedValue(mockAddress),
     publicKey: jest.fn().mockResolvedValue(mockPublicKey),
@@ -39,6 +43,9 @@ describe('kmsToAccount', () => {
 
     // Mock KMS wallet
     (KMSWallets as jest.Mock).mockImplementation(() => mockKmsWallet);
+
+    // Mock Signer
+    (Signer as jest.Mock).mockImplementation(() => mockSigner);
 
     // Mock toAccount
     (toAccount as jest.Mock).mockReturnValue(mockAccount);
@@ -73,7 +80,6 @@ describe('kmsToAccount', () => {
         credentials: {
           accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
           secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-          sessionToken: 'AQoEXAMPLEH4aoAH0gNCAPy...',
         },
       };
 

@@ -19,9 +19,9 @@ describe('StandardFeeValidation', () => {
     };
 
     const mockFulfillmentConfigService = {
-      normalize: jest.fn((chainId, tokens) => {
+      normalize: jest.fn((chainId: any, tokens: any) => {
         // Simulate normalization from 6 to 18 decimals (multiply by 10^12)
-        return tokens.map((token) => ({ ...token, amount: token.amount * 10n ** 12n }));
+        return tokens.map((token: any) => ({ ...token, amount: token.amount * 10n ** 12n }));
       }),
     };
 

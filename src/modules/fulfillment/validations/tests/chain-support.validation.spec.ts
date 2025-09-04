@@ -193,7 +193,7 @@ describe('ChainSupportValidation', () => {
       it('should check source chain before destination chain', async () => {
         const callOrder: string[] = [];
 
-        blockchainExecutorService.isChainSupported.mockImplementation((chainId) => {
+        blockchainExecutorService.isChainSupported.mockImplementation((chainId: bigint) => {
           callOrder.push(`chain-${chainId}`);
           return true;
         });

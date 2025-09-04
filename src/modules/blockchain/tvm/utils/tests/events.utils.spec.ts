@@ -80,7 +80,7 @@ describe('TVM Event Utils', () => {
         prover: '0xprover_hex',
         rewardDeadline: 1234567890n,
         rewardNativeAmount: 1000000000000000000n,
-        rewardTokens: mockEvent.result.rewardTokens,
+        rewardTokens: [{ token: '0xtoken_hex', amount: 5000n }],
         route: 'route_data_hex',
       });
     });

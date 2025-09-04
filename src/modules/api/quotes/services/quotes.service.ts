@@ -88,7 +88,7 @@ export class QuotesService {
 
     // TODO: Get quote should return the destination amount from the source
     const destinationAmount =
-      sourceAmount * 2n - (denormalize(quoteResult.fees!.minimumRequiredReward, 6) || 0n);
+      sourceAmount * 2n - (quoteResult.fees?.minimumRequiredReward ? denormalize(quoteResult.fees.minimumRequiredReward, 6) : 0n);
 
     // Build the response
     return {

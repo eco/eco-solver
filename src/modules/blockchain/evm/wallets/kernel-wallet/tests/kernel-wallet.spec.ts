@@ -90,12 +90,14 @@ describe('KernelWallet', () => {
       mockNetworkConfig = {
         chainId: mockChainId,
         rpc: { urls: ['http://localhost:8545'] },
-        contracts: { portal: '0x0000000000000000000000000000000000000001' },
+        contracts: { portal: '0x0000000000000000000000000000000000000001' as Address },
         tokens: [],
         fee: {
           tokens: { flatFee: '0', scalarBps: 0 },
         },
         provers: {},
+        defaultProver: 'hyper' as const,
+        claimant: '0x0000000000000000000000000000000000000002' as Address,
       } as any;
 
       // Mock logger
@@ -146,6 +148,7 @@ describe('KernelWallet', () => {
       const invalidNetworkConfig = {
         ...mockNetworkConfig,
         contracts: {
+          portal: '0x0000000000000000000000000000000000000001' as Address,
           ecdsaExecutor: 'invalid-address',
         },
       };
@@ -167,6 +170,7 @@ describe('KernelWallet', () => {
       const validNetworkConfig = {
         ...mockNetworkConfig,
         contracts: {
+          portal: '0x0000000000000000000000000000000000000001' as Address,
           ecdsaExecutor: '0x1234567890123456789012345678901234567890',
         },
       };
@@ -224,13 +228,14 @@ describe('KernelWallet', () => {
     mockNetworkConfig = {
       chainId: mockChainId,
       rpc: { urls: ['http://localhost:8545'] },
-      intentSourceAddress: '0x0000000000000000000000000000000000000001',
-      inboxAddress: '0x0000000000000000000000000000000000000002',
+      contracts: { portal: '0x0000000000000000000000000000000000000001' as Address },
       tokens: [],
       fee: {
         tokens: { flatFee: '0', scalarBps: 0 },
       },
       provers: {},
+      defaultProver: 'hyper' as const,
+      claimant: '0x0000000000000000000000000000000000000002' as Address,
     } as any;
 
     // Mock kernel account
@@ -409,6 +414,7 @@ describe('KernelWallet', () => {
         const networkConfigWithExecutor = {
           ...mockNetworkConfig,
           contracts: {
+            portal: '0x0000000000000000000000000000000000000001' as Address,
             ecdsaExecutor: mockEcdsaExecutorAddress,
           },
         };
@@ -475,6 +481,7 @@ describe('KernelWallet', () => {
         const networkConfigWithExecutor = {
           ...mockNetworkConfig,
           contracts: {
+            portal: '0x0000000000000000000000000000000000000001' as Address,
             ecdsaExecutor: mockEcdsaExecutorAddress,
           },
         };
@@ -512,8 +519,8 @@ describe('KernelWallet', () => {
       });
 
       it('should skip installation when ECDSA executor is not configured', async () => {
-        // Network config without contracts field
-        expect(mockNetworkConfig.contracts).toBeUndefined();
+        // Network config without ecdsaExecutor field (only has portal)
+        expect(mockNetworkConfig.contracts?.ecdsaExecutor).toBeUndefined();
 
         await wallet.init();
 
@@ -530,6 +537,7 @@ describe('KernelWallet', () => {
         const networkConfigWithExecutor = {
           ...mockNetworkConfig,
           contracts: {
+            portal: '0x0000000000000000000000000000000000000001' as Address,
             ecdsaExecutor: mockEcdsaExecutorAddress,
           },
         };
@@ -573,6 +581,7 @@ describe('KernelWallet', () => {
         const networkConfigWithInvalidExecutor = {
           ...mockNetworkConfig,
           contracts: {
+            portal: '0x0000000000000000000000000000000000000001' as Address,
             ecdsaExecutor: '0x1234567890123456789012345678901234567890', // Valid initially
           },
         };
@@ -598,6 +607,7 @@ describe('KernelWallet', () => {
         const networkConfigWithExecutor = {
           ...mockNetworkConfig,
           contracts: {
+            portal: '0x0000000000000000000000000000000000000001' as Address,
             ecdsaExecutor: mockEcdsaExecutorAddress,
           },
         };
@@ -638,6 +648,7 @@ describe('KernelWallet', () => {
       const networkConfigWithExecutor = {
         ...mockNetworkConfig,
         contracts: {
+          portal: '0x0000000000000000000000000000000000000001' as Address,
           ecdsaExecutor: mockEcdsaExecutorAddress,
         },
       };
@@ -856,6 +867,7 @@ describe('KernelWallet', () => {
       const networkConfigWithExecutor = {
         ...mockNetworkConfig,
         contracts: {
+          portal: '0x0000000000000000000000000000000000000001' as Address,
           ecdsaExecutor: mockEcdsaExecutorAddress,
         },
       };

@@ -600,6 +600,10 @@ describe('NativeFeeValidation', () => {
           flatFee: 10000000000000000, // 0.01 ETH base fee (in wei as number)
           scalarBps: 50, // 50 bps = 0.5%
         },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
+        },
       });
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
@@ -653,6 +657,10 @@ describe('NativeFeeValidation', () => {
           flatFee: 20000000000000000, // 0.02 ETH
           scalarBps: 200, // 200 bps = 2%
         },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
+        },
       });
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
@@ -685,6 +693,10 @@ describe('NativeFeeValidation', () => {
         native: {
           flatFee: 5000000000000000,
           scalarBps: 100,
+        },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
         },
       });
 
@@ -722,8 +734,12 @@ describe('NativeFeeValidation', () => {
 
       fulfillmentConfigService.getNetworkFee.mockReturnValue({
         native: {
-          flatFee: undefined,
-          scalarBps: undefined,
+          flatFee: 0,
+          scalarBps: 0,
+        },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
         },
       });
 
@@ -764,6 +780,10 @@ describe('NativeFeeValidation', () => {
           flatFee: 0,
           scalarBps: 25, // 25 bps = 0.25%
         },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
+        },
       });
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
@@ -803,6 +823,10 @@ describe('NativeFeeValidation', () => {
           flatFee: 30000000000000000, // 0.03 ETH
           scalarBps: 20, // 20 bps = 0.2%
         },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
+        },
       });
 
       // Calculate fee details
@@ -814,6 +838,10 @@ describe('NativeFeeValidation', () => {
         native: {
           flatFee: 30000000000000000,
           scalarBps: 20,
+        },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
         },
       });
 
@@ -851,6 +879,10 @@ describe('NativeFeeValidation', () => {
           flatFee: 1000000000000000, // 0.001 ETH
           scalarBps: 100, // 100 bps = 1%
         },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
+        },
       });
 
       const result = await validation.validate(intent, mockContext);
@@ -884,6 +916,10 @@ describe('NativeFeeValidation', () => {
         native: {
           flatFee: 10000000000000000, // 0.01 ETH base fee
           scalarBps: 100, // 100 bps = 1%
+        },
+        tokens: {
+          flatFee: 10000000000000000,
+          scalarBps: 1,
         },
       });
 

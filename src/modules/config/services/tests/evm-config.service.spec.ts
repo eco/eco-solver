@@ -12,6 +12,7 @@ describe('EvmConfigService', () => {
       chainId: 1,
       rpc: {
         urls: ['https://mainnet.infura.io'],
+        options: {},
       },
       tokens: [],
       fee: {
@@ -24,14 +25,17 @@ describe('EvmConfigService', () => {
         hyper: '0x3333333333333333333333333333333333333333',
         metalayer: '0x4444444444444444444444444444444444444444',
       },
+      defaultProver: 'hyper',
       contracts: {
         portal: '0x1111111111111111111111111111111111111111',
       },
+      claimant: '0x2222222222222222222222222222222222222222',
     },
     {
       chainId: 10,
       rpc: {
         urls: ['https://optimism.infura.io'],
+        options: {},
       },
       tokens: [],
       fee: {
@@ -43,9 +47,11 @@ describe('EvmConfigService', () => {
       provers: {
         hyper: '0x7777777777777777777777777777777777777777',
       },
+      defaultProver: 'hyper',
       contracts: {
         portal: '0x5555555555555555555555555555555555555555',
       },
+      claimant: '0x6666666666666666666666666666666666666666',
     },
   ];
 

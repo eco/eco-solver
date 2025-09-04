@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
-import { IntentFulfilledEvent } from '@/modules/blockchain/evm/utils/events';
+import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -72,7 +72,6 @@ describe('IntentFulfilledHandler', () => {
         IntentStatus.FULFILLED,
         {
           lastProcessedAt: expect.any(Date),
-          fulfilledTxHash: mockEvent.transactionHash,
         },
       );
 

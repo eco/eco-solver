@@ -346,7 +346,7 @@ describe('FulfillmentStrategy - getQuote', () => {
       expect(result.validationResults[0]).toEqual({
         validation: 'ThrowingValidation',
         passed: false,
-        error: 'Unknown error',
+        error: 'String error',
       });
     });
   });

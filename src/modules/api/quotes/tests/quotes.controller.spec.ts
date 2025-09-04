@@ -55,11 +55,11 @@ describe('QuotesController', () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'test-dapp',
         quoteRequest: {
-          sourceChainID: 1,
-          destinationChainID: 10,
+          sourceChainID: 1n,
+          destinationChainID: 10n,
           sourceToken: '0x1234567890123456789012345678901234567890',
           destinationToken: '0x1234567890123456789012345678901234567890',
-          sourceAmount: '5000000000000000000',
+          sourceAmount: 5000000000000000000n,
           funder: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
         },
@@ -93,7 +93,8 @@ describe('QuotesController', () => {
         },
         contracts: {
           prover: '0x1234567890123456789012345678901234567890',
-          portal: '0x1234567890123456789012345678901234567890',
+          sourcePortal: '0x1234567890123456789012345678901234567890',
+          destinationPortal: '0x1234567890123456789012345678901234567890',
         },
       };
 
@@ -109,11 +110,11 @@ describe('QuotesController', () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'minimal-dapp',
         quoteRequest: {
-          sourceChainID: 1,
-          destinationChainID: 10,
+          sourceChainID: 1n,
+          destinationChainID: 10n,
           sourceToken: '0x0000000000000000000000000000000000000000',
           destinationToken: '0x0000000000000000000000000000000000000000',
-          sourceAmount: '1000000000000000000',
+          sourceAmount: 1000000000000000000n,
           funder: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
         },
@@ -136,7 +137,8 @@ describe('QuotesController', () => {
         },
         contracts: {
           prover: '0x1234567890123456789012345678901234567890',
-          portal: '0x1234567890123456789012345678901234567890',
+          sourcePortal: '0x1234567890123456789012345678901234567890',
+          destinationPortal: '0x1234567890123456789012345678901234567890',
         },
       };
 
@@ -152,11 +154,11 @@ describe('QuotesController', () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'error-dapp',
         quoteRequest: {
-          sourceChainID: 999,
-          destinationChainID: 999,
+          sourceChainID: 999n,
+          destinationChainID: 999n,
           sourceToken: '0x1234567890123456789012345678901234567890',
           destinationToken: '0x1234567890123456789012345678901234567890',
-          sourceAmount: '1000000000000000000',
+          sourceAmount: 1000000000000000000n,
           funder: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
         },
