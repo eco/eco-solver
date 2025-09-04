@@ -29,7 +29,7 @@ const ValidationsSchema = z.object({});
  * Fulfillment configuration schema
  */
 export const FulfillmentSchema = z.object({
-  deadlineDuration: z.number().int().positive().default(7_200),
+  deadlineDuration: z.coerce.number().int().positive().default(7_200),
   defaultStrategy: z
     .enum([
       FULFILLMENT_STRATEGY_NAMES.STANDARD,

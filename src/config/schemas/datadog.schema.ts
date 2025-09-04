@@ -7,7 +7,7 @@ export const DataDogSchema = z
   .object({
     enabled: z.boolean().default(false).describe('Whether DataDog metrics are enabled'),
     host: z.string().default('localhost').describe('DataDog StatsD agent host'),
-    port: z.number().int().positive().default(8125).describe('DataDog StatsD agent port'),
+    port: z.coerce.number().int().positive().default(8125).describe('DataDog StatsD agent port'),
     prefix: z.string().default('blockchain_intent_solver.').describe('Metric name prefix'),
     globalTags: z
       .object({

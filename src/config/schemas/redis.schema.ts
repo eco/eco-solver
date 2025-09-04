@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 export const RedisSchema = z.object({
   host: z.string().default('localhost'),
-  port: z.number().int().positive().default(6379),
+  port: z.coerce.number().int().positive().default(6379),
   password: z.string().optional(),
 });
 

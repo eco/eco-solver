@@ -21,14 +21,14 @@ export const EvmRpcSchema = z.object({
           z.boolean(),
           z.object({
             multicall: z.boolean().optional(),
-            batchSize: z.number().int().positive().optional(),
-            wait: z.number().int().positive().optional(),
+            batchSize: z.coerce.number().int().positive().optional(),
+            wait: z.coerce.number().int().positive().optional(),
           }),
         ])
         .default(true),
-      timeout: z.number().int().positive().optional(),
-      retryCount: z.number().int().min(0).optional(),
-      retryDelay: z.number().int().positive().optional(),
+      timeout: z.coerce.number().int().positive().optional(),
+      retryCount: z.coerce.number().int().min(0).optional(),
+      retryDelay: z.coerce.number().int().positive().optional(),
     })
     .default({}),
 });
@@ -40,15 +40,15 @@ export const EvmWsSchema = z.object({
   urls: z.array(z.string().regex(/^wss?:/)),
   options: z
     .object({
-      timeout: z.number().int().positive().optional(),
+      timeout: z.coerce.number().int().positive().optional(),
       keepAlive: z.boolean().optional(),
       reconnect: z
         .union([
           z.boolean(),
           z.object({
             auto: z.boolean().optional(),
-            delay: z.number().int().positive().optional(),
-            maxAttempts: z.number().int().positive().optional(),
+            delay: z.coerce.number().int().positive().optional(),
+            maxAttempts: z.coerce.number().int().positive().optional(),
           }),
         ])
         .optional(),
@@ -61,14 +61,14 @@ export const EvmWsSchema = z.object({
  */
 const EvmTokenSchema = z.object({
   address: EvmAddressSchema,
-  decimals: z.number().int().min(0).max(18),
+  decimals: z.coerce.number().int().min(0).max(18),
   limit: z
     .union([
-      z.number().int().positive(), // Backward compatible: acts as max
+      z.coerce.number().int().positive(), // Backward compatible: acts as max
       z
         .object({
-          min: z.number().int().positive(),
-          max: z.number().int().positive(),
+          min: z.coerce.number().int().positive(),
+          max: z.coerce.number().int().positive(),
         })
         .refine((data) => data.min <= data.max, {
           message: 'min must be less than or equal to max',
@@ -123,7 +123,7 @@ const WalletsSchema = z.object({
  * EVM network configuration schema
  */
 const EvmNetworkSchema = z.object({
-  chainId: z.number().int().positive(),
+  chainId: z.coerce.number().int().positive(),
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   tokens: z.array(EvmTokenSchema).default([]),
   fee: AssetsFeeSchema,

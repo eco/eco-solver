@@ -57,7 +57,7 @@ export const OpenTelemetrySchema = z.object({
   sampling: z
     .object({
       // Sampling rate (0.0 to 1.0)
-      ratio: z.number().min(0).max(1).default(1.0),
+      ratio: z.coerce.number().min(0).max(1).default(1.0),
     })
     .default({}),
 });

@@ -4,8 +4,8 @@ import { z } from 'zod';
  * fee logic configuration schema
  */
 const FeeSchema = z.object({
-  flatFee: z.number().min(0), // Using string for bigint compatibility (in wei)
-  scalarBps: z.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
+  flatFee: z.coerce.number().min(0), // Using string for bigint compatibility (in wei)
+  scalarBps: z.coerce.number().min(0).max(10000), // Basis points (0-10000 = 0-100%)
 });
 
 export const AssetsFeeSchema = z.object({

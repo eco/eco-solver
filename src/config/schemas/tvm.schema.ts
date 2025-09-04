@@ -18,9 +18,9 @@ export const TvmRpcSchema = z.object({
   eventServer: z.string().url().optional(),
   options: z
     .object({
-      timeout: z.number().int().positive().optional(),
-      retryCount: z.number().int().min(0).optional(),
-      retryDelay: z.number().int().positive().optional(),
+      timeout: z.coerce.number().int().positive().optional(),
+      retryCount: z.coerce.number().int().min(0).optional(),
+      retryDelay: z.coerce.number().int().positive().optional(),
     })
     .default({}),
 });
@@ -30,14 +30,14 @@ export const TvmRpcSchema = z.object({
  */
 const TvmTokenSchema = z.object({
   address: TronAddressSchema, // Tron address format
-  decimals: z.number().int().min(0).max(18),
+  decimals: z.coerce.number().int().min(0).max(18),
   limit: z
     .union([
-      z.number().int().positive(), // Backward compatible: acts as max
+      z.coerce.number().int().positive(), // Backward compatible: acts as max
       z
         .object({
-          min: z.number().int().positive(),
-          max: z.number().int().positive(),
+          min: z.coerce.number().int().positive(),
+          max: z.coerce.number().int().positive(),
         })
         .refine((data) => data.min <= data.max, {
           message: 'min must be less than or equal to max',
@@ -64,7 +64,7 @@ const WalletsSchema = z.object({
  * TVM network configuration schema
  */
 const TvmNetworkSchema = z.object({
-  chainId: z.number().int().positive(),
+  chainId: z.coerce.number().int().positive(),
   rpc: TvmRpcSchema,
   tokens: z.array(TvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
@@ -81,10 +81,10 @@ const TvmNetworkSchema = z.object({
  * TVM transaction settings schema
  */
 const TvmTransactionSettingsSchema = z.object({
-  defaultFeeLimit: z.number().int().positive().default(150000000), // 150 TRX in SUN
-  maxTransactionAttempts: z.number().int().positive().default(30),
-  transactionCheckInterval: z.number().int().positive().default(2000), // milliseconds
-  listenerPollInterval: z.number().int().positive().default(3000), // milliseconds
+  defaultFeeLimit: z.coerce.number().int().positive().default(150000000), // 150 TRX in SUN
+  maxTransactionAttempts: z.coerce.number().int().positive().default(30),
+  transactionCheckInterval: z.coerce.number().int().positive().default(2000), // milliseconds
+  listenerPollInterval: z.coerce.number().int().positive().default(3000), // milliseconds
 });
 
 /**

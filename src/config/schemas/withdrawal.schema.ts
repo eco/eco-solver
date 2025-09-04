@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 export const WithdrawalSchema = z
   .object({
-    checkIntervalMinutes: z.number().int().positive().default(5),
+    checkIntervalMinutes: z.coerce.number().int().positive().default(5),
   })
   .default({});
 
