@@ -13,6 +13,7 @@ export class RedisService implements OnModuleDestroy {
       host: this.redisConfig.host,
       port: this.redisConfig.port,
       password: this.redisConfig.password,
+      ...this.redisConfig.opts,
     });
   }
 
