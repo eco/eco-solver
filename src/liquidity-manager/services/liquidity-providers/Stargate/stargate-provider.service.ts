@@ -1,12 +1,14 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Hex, parseUnits } from 'viem'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { Hex, parseUnits } from 'viem'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/Stargate/types/stargate-quote.interface'
 
 @Injectable()
@@ -19,6 +21,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientV2Service,
     private readonly multiChainPublicClientService: MultichainPublicClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
   async onModuleInit() {
@@ -124,23 +127,39 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Stargate'>) {
-    // Verify wallet matches
-    const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
+    try {
+      // Verify wallet matches
+      const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
 
-    if (kernelWalletAddress !== walletAddress) {
-      const error = new Error('Stargate is not configured with the provided wallet')
-      this.logger.error(
-        EcoLogMessage.withError({
-          error,
-          message: error.message,
-          properties: { walletAddress, kernelWalletAddress },
-        }),
-      )
+      if (kernelWalletAddress !== walletAddress) {
+        const error = new Error('Stargate is not configured with the provided wallet')
+        this.logger.error(
+          EcoLogMessage.withError({
+            error,
+            message: error.message,
+            properties: { walletAddress, kernelWalletAddress },
+          }),
+        )
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+        throw error
+      }
+
+      // Execute the quote
+      const res = await this._execute(quote)
+      if (quote.rebalanceJobID) {
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+      }
+      return res
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
-
-    // Execute the quote
-    return this._execute(quote)
   }
 
   private selectRoute(routes: StargateQuote[]): StargateQuote {

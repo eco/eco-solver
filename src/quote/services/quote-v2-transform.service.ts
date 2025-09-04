@@ -99,6 +99,7 @@ export class QuoteV2TransformService {
     const deadline = parseInt(quoteEntry.expiryTime)
 
     return {
+      intentExecutionType: quoteEntry.intentExecutionType,
       sourceChainID,
       destinationChainID,
       sourceToken,
@@ -219,9 +220,9 @@ export class QuoteV2TransformService {
     const inbox = quoteIntent.route.inbox
 
     return {
-      intentSource,
+      sourcePortal: intentSource,
       prover,
-      inbox,
+      destinationPortal: inbox,
     }
   }
 }
