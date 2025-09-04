@@ -47,6 +47,7 @@ docs/
 # Config examples
 config.example.yaml
 config.example.yml
+config-sepolia.yaml
 
 # Development files
 .eslintrc*

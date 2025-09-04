@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@9.11.0 --activate
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@9.11.0 --activate
 
 WORKDIR /app
 
@@ -43,9 +43,8 @@ RUN pnpm install --frozen-lockfile --prod
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Copy configuration files (if they exist)
-COPY --from=builder /app/config.yaml ./config.yaml 2>/dev/null || true
-COPY --from=builder /app/config.yml ./config.yml 2>/dev/null || true
+# Copy configuration file
+COPY config.yaml ./config.yaml
 
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
