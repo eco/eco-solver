@@ -1,6 +1,6 @@
 export default {
   server: {
-    url: 'https://solver-blue.staging.eco.com',
+    url: process.env.SERVICE_URL || 'https://solver-blue.staging.eco.com',
   },
 
   indexer: {
@@ -10,26 +10,26 @@ export default {
   aws: [
     {
       region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_MISC || 'eco-solver-secrets-pre-prod',
+      secretID: process.env.AWS_SECRET_ID_MISC || 'solver-blue-staging',
     },
     {
       region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CONFIGS || 'eco-solver-configs-pre-prod',
+      secretID: process.env.AWS_SECRET_ID_CONFIGS || 'solver-configs-blue-staging',
     },
     {
       region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CHAINS || 'eco-solver-configs-chains-preprod',
+      secretID: process.env.AWS_SECRET_ID_CHAINS || 'solver-configs-chains-blue-staging',
     },
     {
       region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_WHITELIST || 'eco-solver-whitelist-pre-prod',
+      secretID: process.env.AWS_SECRET_ID_WHITELIST || 'solver-whitelist-blue-staging',
     },
   ],
   //don't add anything else here
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: 'https://quotes-blue.staging.eco.com',
+      baseUrl: process.env.REGISTRATION_URL || 'https://quotes-blue.staging.eco.com',
     },
   },
 }
