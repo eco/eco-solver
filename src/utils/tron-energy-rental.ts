@@ -47,6 +47,21 @@ export interface EnergyRateResponse {
   error?: string
 }
 
+export interface EstimateCostParams {
+  transaction: any
+  to?: string
+  data?: string
+  from?: string
+  value?: string
+}
+
+export interface TrxPriceResponse {
+  usdtPrice: number
+  success: boolean
+  error?: string
+  source?: string
+}
+
 export interface TronEnergyBalance {
   address: string
   energy: number
@@ -316,6 +331,138 @@ export class TronEnergyRental {
       trxPerEnergy: 0,
       success: false,
       error: 'All energy rate providers failed',
+    }
+  }
+
+  async estimateCost(params: EstimateCostParams): Promise<number> {
+    if (!this.tronWeb) {
+      throw new Error('TronWeb instance required for cost estimation')
+    }
+
+    try {
+      const energyEstimate = await this.estimateTransactionEnergy({
+        to: params.to || '',
+        data: params.data,
+        from: params.from,
+        value: params.value,
+      })
+
+      const bandwidthEstimate = this.estimateBandwidth(params.transaction)
+
+      const energyRate = await this.getEnergyRate()
+
+      const bandwidthPrices = await this.tronWeb.trx.getBandwidthPrices()
+
+      if (!energyEstimate.success || !bandwidthEstimate.success || !energyRate.success) {
+        throw new Error('Failed to get required estimates for cost calculation')
+      }
+
+      const energyCostTrx = energyEstimate.energyRequired * energyRate.trxPerEnergy
+      const bandwidthCostTrx = bandwidthEstimate.bandwidthRequired * (bandwidthPrices.bandwidth_price || bandwidthPrices.price || 0.001)
+
+      return energyCostTrx + bandwidthCostTrx
+    } catch (error) {
+      console.error('Cost estimation failed:', error)
+      return 0
+    }
+  }
+
+  async getTrxPriceInUsdt(): Promise<TrxPriceResponse> {
+    const prices = await Promise.allSettled([
+      this.fetchPriceFromCoinGecko(),
+      this.fetchPriceFromBinance(),
+    ])
+
+    const validPrices: { price: number; source: string }[] = []
+
+    prices.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.success) {
+        validPrices.push({
+          price: result.value.usdtPrice,
+          source: index === 0 ? 'CoinGecko' : 'Binance',
+        })
+      }
+    })
+
+    if (validPrices.length === 0) {
+      return {
+        usdtPrice: 0,
+        success: false,
+        error: 'All price sources failed',
+      }
+    }
+
+    const bestPrice = validPrices.reduce((max, current) => 
+      current.price > max.price ? current : max
+    )
+
+    return {
+      usdtPrice: bestPrice.price,
+      success: true,
+      source: bestPrice.source,
+    }
+  }
+
+  private async fetchPriceFromCoinGecko(): Promise<TrxPriceResponse> {
+    try {
+      const response = await axios.get(
+        'https://api.coingecko.com/api/v3/simple/price?ids=tron&vs_currencies=usdt',
+        { timeout: 5000 }
+      )
+
+      return {
+        usdtPrice: response.data.tron.usdt,
+        success: true,
+        source: 'CoinGecko',
+      }
+    } catch (error: any) {
+      return {
+        usdtPrice: 0,
+        success: false,
+        error: error.message,
+        source: 'CoinGecko',
+      }
+    }
+  }
+
+  private async fetchPriceFromBinance(): Promise<TrxPriceResponse> {
+    try {
+      const response = await axios.get(
+        'https://api.binance.com/api/v3/ticker/price?symbol=TRXUSDT',
+        { timeout: 5000 }
+      )
+
+      return {
+        usdtPrice: parseFloat(response.data.price),
+        success: true,
+        source: 'Binance',
+      }
+    } catch (error: any) {
+      return {
+        usdtPrice: 0,
+        success: false,
+        error: error.message,
+        source: 'Binance',
+      }
+    }
+  }
+
+  async estimateCostInUsdt(params: EstimateCostParams): Promise<number> {
+    try {
+      const [trxCost, trxPrice] = await Promise.all([
+        this.estimateCost(params),
+        this.getTrxPriceInUsdt(),
+      ])
+
+      if (!trxPrice.success || trxCost === 0) {
+        console.error('Failed to get TRX cost or price:', { trxCost, trxPrice })
+        return 0
+      }
+
+      return trxCost * trxPrice.usdtPrice
+    } catch (error) {
+      console.error('USDT cost estimation failed:', error)
+      return 0
     }
   }
 }
