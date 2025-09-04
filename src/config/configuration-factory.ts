@@ -25,7 +25,7 @@ export const configurationFactory = async () => {
   // Load YAML configuration if files are specified
   const { configFiles } = BaseSchema.parse(mergedConfig);
   const yamlConfiguration = loadYamlConfig(configFiles);
-
+  
   // Merge in order: base defaults, YAML config, then environment vars (env vars take precedence)
   mergedConfig = merge({}, yamlConfiguration, envConfiguration);
 

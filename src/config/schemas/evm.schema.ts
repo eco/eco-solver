@@ -112,11 +112,11 @@ const KernelWalletConfigSchema = z.object({
 });
 
 /**
- * Wallets configuration schema - object with wallet type as keys
+ * Wallets configuration schema - object with a wallet type as keys
  */
 const WalletsSchema = z.object({
-  basic: BasicWalletConfigSchema.optional(),
-  kernel: KernelWalletConfigSchema.optional(),
+  basic: BasicWalletConfigSchema,
+  kernel: KernelWalletConfigSchema,
 });
 
 /**
@@ -144,9 +144,7 @@ const EvmNetworkSchema = z.object({
  */
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
-  wallets: WalletsSchema.default({
-    basic: {},
-  }),
+  wallets: WalletsSchema,
 });
 
 export type EvmConfig = z.infer<typeof EvmSchema>;

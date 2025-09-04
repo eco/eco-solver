@@ -43,9 +43,6 @@ RUN pnpm install --frozen-lockfile --prod
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Copy configuration file
-COPY config.yaml ./config.yaml
-
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
 

@@ -64,6 +64,15 @@ export function envVarToPath(envVar: string): string[] {
     { parts: ['backoff', 'type'], combined: 'backoffType' },
     { parts: ['backoff', 'delay'], combined: 'backoffDelay' },
     { parts: ['pool', 'size'], combined: 'poolSize' },
+    { parts: ['flat', 'fee'], combined: 'flatFee' },
+    { parts: ['scalar', 'bps'], combined: 'scalarBps' },
+    { parts: ['default', 'prover'], combined: 'defaultProver' },
+    { parts: ['full', 'node'], combined: 'fullNode' },
+    { parts: ['solidity', 'node'], combined: 'solidityNode' },
+    { parts: ['event', 'server'], combined: 'eventServer' },
+    { parts: ['crowd', 'liquidity'], combined: 'crowdLiquidity' },
+    { parts: ['native', 'intents'], combined: 'nativeIntents' },
+    { parts: ['negative', 'intents'], combined: 'negativeIntents' },
   ];
 
   // Sort patterns by length (descending) to match longer patterns first
@@ -323,6 +332,17 @@ function transformValue(value: string, schema: z.ZodTypeAny): any {
     return transformValue(value, schema._def.innerType as z.ZodTypeAny);
   }
 
+  // Handle transform schemas (like EvmAddressSchema)
+  if (schema instanceof z.ZodEffects) {
+    // For transform schemas, process the inner type
+    return transformValue(value, schema._def.schema as z.ZodTypeAny);
+  }
+  
+  // Handle string schemas (including those that will be transformed to addresses)
+  if (schema instanceof z.ZodString) {
+    return value; // Return string as-is
+  }
+
   // Handle unions - for unions, just return the value as-is
   // The actual validation will happen when the schema is parsed
   if (schema instanceof z.ZodUnion) {
@@ -340,6 +360,12 @@ function transformValue(value: string, schema: z.ZodTypeAny): any {
   }
 
   if (schema instanceof z.ZodArray) {
+    // Only split if it's actually meant to be an array
+    // Check if the value looks like an Ethereum address (0x...) or Tron address (T...)
+    if (/^0x[a-fA-F0-9]{40}$/.test(value) || /^T[a-zA-Z0-9]{33}$/.test(value)) {
+      return value; // Return as-is for addresses
+    }
+    
     // Try parsing as JSON array first
     try {
       const parsed = JSON.parse(value);
