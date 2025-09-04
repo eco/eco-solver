@@ -1,3 +1,4 @@
+import { AllowanceOrTransferDTO } from '@/quote/dto/permit3/allowance-or-transfer.dto.ts'
 import {
   concat,
   encodeAbiParameters,
@@ -8,7 +9,7 @@ import {
   pad,
 } from 'viem'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { AllowanceOrTransferDTO, Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
+import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
 import { permit3Abi } from '@/contracts/Permit3.abi'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
