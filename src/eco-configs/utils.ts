@@ -45,8 +45,7 @@ export function getChainAddress(chainID: number | bigint, address: Address): Add
   const vm = getVmType(Number(chainID))
   if (vm === VmType.EVM) {
     return getAddress(address as EvmAddress)
-  } else 
-  return address
+  } else return address
 }
 
 /**
@@ -67,8 +66,8 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
     }
   } else if (id === '10-pre') {
     return {
-      IntentSource: "0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7",
-      Inbox: "0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7",
+      IntentSource: '0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7',
+      Inbox: '0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7',
       MetaProver: '0x0000000000000000000000000000000000000000',
       HyperProver: '0x9523b6c0cAaC8122DbD5Dd1c1d336CEBA637038D',
     }

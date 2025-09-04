@@ -96,16 +96,15 @@ export class IntentDataModel implements IntentType {
       destination,
       getChainAddress(destination, inbox),
       routeTokens.map((token) => {
-        token.token = getChainAddress(destination, token.token).toString() as `0x${string}`;
+        token.token = getChainAddress(destination, token.token).toString() as `0x${string}`
         return token
       }),
       calls.map((call) => {
-        call.target = getChainAddress(destination, call.target).toString() as `0x${string}`;
+        call.target = getChainAddress(destination, call.target).toString() as `0x${string}`
         return call
       }) as any,
     )
 
-    
     this.reward = new RewardDataModel(
       sourceVmType,
       getChainAddress(source, creator).toString() as `0x${string}`,
@@ -113,7 +112,7 @@ export class IntentDataModel implements IntentType {
       deadline,
       nativeValue,
       rewardTokens.map((token) => {
-        token.token = getChainAddress(source, token.token).toString() as `0x${string}`;
+        token.token = getChainAddress(source, token.token).toString() as `0x${string}`
         return token
       }),
     )
@@ -134,22 +133,36 @@ export class IntentDataModel implements IntentType {
   }
 
   static getHash(intentDataModel: IntentDataModel) {
-    if (intentDataModel.route.source === 1399811149n || intentDataModel.route.destination === 1399811149n) {
-      console.log("JUSTLOGGING: intent.getHash()", intentDataModel)
+    if (
+      intentDataModel.route.source === 1399811149n ||
+      intentDataModel.route.destination === 1399811149n
+    ) {
+      console.log('JUSTLOGGING: intent.getHash()', intentDataModel)
     }
-    return hashIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
+    return hashIntent(
+      intentDataModel.route.destination,
+      intentDataModel.route,
+      intentDataModel.reward,
+    )
   }
 
   static encode(intentDataModel: IntentDataModel) {
-    if (intentDataModel.route.source === 1399811149n || intentDataModel.route.destination === 1399811149n) {
-      console.log("JUSTLOGGING: intent.encode()", intentDataModel)
+    if (
+      intentDataModel.route.source === 1399811149n ||
+      intentDataModel.route.destination === 1399811149n
+    ) {
+      console.log('JUSTLOGGING: intent.encode()', intentDataModel)
     }
-    return encodeIntent(intentDataModel.route.destination, intentDataModel.route, intentDataModel.reward) 
+    return encodeIntent(
+      intentDataModel.route.destination,
+      intentDataModel.route,
+      intentDataModel.reward,
+    )
   }
 
   static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
     const e = event.args as any // Cast to any since we handle both formats
-    console.log("MADDEN: e", e)
+    console.log('MADDEN: e', e)
     return new IntentDataModel({
       hash: e.hash || e.intentHash,
       salt: e.salt || '0x',

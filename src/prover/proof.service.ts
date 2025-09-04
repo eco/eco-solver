@@ -81,10 +81,11 @@ export class ProofService implements OnModuleInit {
    */
   getProverType(chainID: number, proverAddr: Address): ProofType | undefined {
     return this.provers.find(
-      (prover) => prover.chainID === chainID && 
-        (getVmType(chainID) === VmType.SVM 
-          ? (prover.address as PublicKey).equals(new PublicKey(proverAddr)) 
-          : prover.address === proverAddr)
+      (prover) =>
+        prover.chainID === chainID &&
+        (getVmType(chainID) === VmType.SVM
+          ? (prover.address as PublicKey).equals(new PublicKey(proverAddr))
+          : prover.address === proverAddr),
     )?.type
   }
 
@@ -102,7 +103,13 @@ export class ProofService implements OnModuleInit {
     expirationDate: Date,
   ): boolean {
     const proofType = this.getProverType(chainID, prover)
-    console.log("SAQUON isIntentExpirationWithinProofMinimumDate", chainID, prover, expirationDate, proofType);
+    console.log(
+      'SAQUON isIntentExpirationWithinProofMinimumDate',
+      chainID,
+      prover,
+      expirationDate,
+      proofType,
+    )
     if (!proofType) {
       return false
     }
@@ -161,7 +168,7 @@ export class ProofService implements OnModuleInit {
         chainID: chainID,
       }))
     }
-    
+
     const client = await this.publicClient.getClient(Number(chainID))
     const proofCalls: ProofCall[] = provers.map((proverAddress) => ({
       address: proverAddress,

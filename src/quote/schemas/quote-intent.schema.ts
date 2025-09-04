@@ -24,7 +24,6 @@ export class QuoteIntentModel implements QuoteIntentDataInterface {
   @Prop({ required: true, type: BigInt })
   destination: bigint
 
-
   @Prop({ required: true, type: QuoteRouteDataSchema })
   route: QuoteRouteDataModel
 

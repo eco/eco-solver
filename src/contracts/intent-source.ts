@@ -1,4 +1,12 @@
-import { decodeEventLog, DecodeEventLogReturnType, GetEventArgs, Hex, Log, Prettify, decodeAbiParameters } from 'viem'
+import {
+  decodeEventLog,
+  DecodeEventLogReturnType,
+  GetEventArgs,
+  Hex,
+  Log,
+  Prettify,
+  decodeAbiParameters,
+} from 'viem'
 import { ExtractAbiEvent } from 'abitype'
 import { Network } from '@/common/alchemy/network'
 import { IIntentSourceAbi } from '@/utils/IIntentSource'
@@ -55,23 +63,23 @@ export function decodeCreateIntentLog(data: Hex, topics: [signature: Hex, ...arg
     topics,
     data,
   })
-  
+
   // Convert new IntentPublished format to old IntentCreated format
-  const converted = convertIntentPublishedToCreated(decoded.args);
-  
+  const converted = convertIntentPublishedToCreated(decoded.args)
+
   return {
     ...decoded,
     args: converted,
-    eventName: 'IntentCreated' as const
-  };
+    eventName: 'IntentCreated' as const,
+  }
 }
 
 // Helper function to create intent log structure for Solana
 // Helper function to convert new IntentPublished event to old IntentCreated format
 export function convertIntentPublishedToCreated(event: any) {
-  const decodedRoute = decodeRoute(VmType.SVM, event.route as Hex);
-  console.log("MADDEN: decodedRoute", decodedRoute)
-  
+  const decodedRoute = decodeRoute(VmType.SVM, event.route as Hex)
+  console.log('MADDEN: decodedRoute', decodedRoute)
+
   return {
     hash: event.intentHash,
     salt: decodedRoute.salt,
@@ -84,18 +92,17 @@ export function convertIntentPublishedToCreated(event: any) {
     prover: event.prover,
     deadline: event.rewardDeadline,
     nativeValue: event.rewardNativeAmount,
-    rewardTokens: event.rewardTokens
-  };
+    rewardTokens: event.rewardTokens,
+  }
 }
 
 export function decodeSolanaIntentLogForCreateIntent(log: any) {
-  
-  const routeBuffer = Buffer.from(log.data.route.data);
+  const routeBuffer = Buffer.from(log.data.route.data)
   const decodedRoute = decodeAbiParameters(
     [{ type: 'tuple', components: RouteStruct }],
-    `0x${routeBuffer.toString('hex')}` as `0x${string}`, 
+    `0x${routeBuffer.toString('hex')}` as `0x${string}`,
   )[0]
-  
+
   return {
     args: {
       hash: `0x${Buffer.from(log.data.intent_hash[0]).toString('hex')}` as `0x${string}`,
@@ -104,18 +111,22 @@ export function decodeSolanaIntentLogForCreateIntent(log: any) {
       destination: BigInt(`0x${log.data.destination}`),
       inbox: decodedRoute.portal as `0x${string}`,
       routeTokens: decodedRoute.tokens as readonly { token: `0x${string}`; amount: bigint }[],
-      calls: decodedRoute.calls as readonly { target: `0x${string}`; data: `0x${string}`; value: bigint }[],
+      calls: decodedRoute.calls as readonly {
+        target: `0x${string}`
+        data: `0x${string}`
+        value: bigint
+      }[],
       creator: log.data.reward.creator as `0x${string}`, // base58 encoded TODO fix later
       prover: log.data.reward.prover as `0x${string}`, // base58 encoded TODO fix later
       deadline: BigInt(`0x${log.data.reward.deadline}`),
       nativeValue: BigInt(`0x${log.data.reward.native_amount}`),
       rewardTokens: log.data.reward.tokens.map((token: any) => ({
         token: token.token as `0x${string}`,
-        amount: BigInt(`0x${token.amount}`)
+        amount: BigInt(`0x${token.amount}`),
       })),
     },
     eventName: 'IntentCreated' as const,
-  };
+  }
 }
 
 // Define the type for the IntentSource struct in the contract, and add the hash and logIndex fields

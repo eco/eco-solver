@@ -8,7 +8,10 @@ export interface BalanceProvider {
    * @param tokenAddresses - Array of token addresses to fetch balances for
    * @returns Record mapping token address to balance information
    */
-  fetchTokenBalances(chainID: number, tokenAddresses: Address[]): Promise<Record<SerializableAddress, TokenBalance>>
+  fetchTokenBalances(
+    chainID: number,
+    tokenAddresses: Address[],
+  ): Promise<Record<SerializableAddress, TokenBalance>>
 
   /**
    * Fetches the token balances for a specific wallet on the given chain
@@ -20,7 +23,7 @@ export interface BalanceProvider {
   fetchWalletTokenBalances(
     chainID: number,
     walletAddress: Address,
-    tokenAddresses: Address[]
+    tokenAddresses: Address[],
   ): Promise<Record<SerializableAddress, TokenBalance>>
 
   /**

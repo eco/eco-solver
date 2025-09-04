@@ -57,7 +57,7 @@ export class CreateIntentService implements OnModuleInit {
    * @returns
    */
   async createIntent(serializedIntentWs: Serialize<IntentCreatedLog>) {
-    const intentWs = deserialize(serializedIntentWs);
+    const intentWs = deserialize(serializedIntentWs)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -69,7 +69,7 @@ export class CreateIntentService implements OnModuleInit {
       }),
     )
 
-    let ei: any;
+    let ei: any
     if (getVmType(Number(intentWs.sourceChainID)) === VmType.SVM) {
       ei = decodeSolanaIntentLogForCreateIntent(intentWs)
     } else {
@@ -79,7 +79,7 @@ export class CreateIntentService implements OnModuleInit {
 
     try {
       //check db if the intent is already filled
-      let model;
+      let model
       try {
         model = await this.intentModel.findOne({
           'intent.hash': intent.hash,
@@ -90,12 +90,15 @@ export class CreateIntentService implements OnModuleInit {
             message: `Database query failed for intent hash ${intent.hash}`,
             properties: {
               intentHash: intent.hash,
-              queryError: dbError instanceof Error ? { message: dbError.message, stack: dbError.stack } : dbError,
+              queryError:
+                dbError instanceof Error
+                  ? { message: dbError.message, stack: dbError.stack }
+                  : dbError,
               query: { 'intent.hash': intent.hash },
             },
           }),
         )
-        throw dbError;
+        throw dbError
       }
 
       if (model) {
@@ -114,12 +117,13 @@ export class CreateIntentService implements OnModuleInit {
 
       // Skip smart wallet validation for Solana (SVM) chains
       const isSolanaChain = getVmType(Number(intentWs.sourceChainID)) === VmType.SVM
-      let validWallet = this.flagService.getFlagValue('bendWalletOnly') && !isSolanaChain
-        ? await this.validSmartWalletService.validateSmartWallet(
-            intent.reward.creator as Hex,
-            intentWs.sourceChainID,
-          )
-        : true
+      let validWallet =
+        this.flagService.getFlagValue('bendWalletOnly') && !isSolanaChain
+          ? await this.validSmartWalletService.validateSmartWallet(
+              intent.reward.creator as Hex,
+              intentWs.sourceChainID,
+            )
+          : true
       // TODO: fix this
       validWallet = true
 
@@ -132,7 +136,7 @@ export class CreateIntentService implements OnModuleInit {
         receipt: null,
         status: validWallet ? 'PENDING' : 'NON-BEND-WALLET',
       })
-      console.log("SAQUON record", record);
+      console.log('SAQUON record', record)
 
       const jobId = getIntentJobId('create', intent.hash as Hex, intent.logIndex)
       if (validWallet) {
@@ -251,4 +255,3 @@ export class CreateIntentService implements OnModuleInit {
     return { response: intent }
   }
 }
-

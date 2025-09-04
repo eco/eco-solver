@@ -4,7 +4,7 @@ import { Params as PinoParams } from 'nestjs-pino'
 import * as Redis from 'ioredis'
 import { Settings } from 'redlock'
 import { JobsOptions, RepeatOptions } from 'bullmq'
-import { PublicKey as SvmAddress } from '@solana/web3.js';
+import { PublicKey as SvmAddress } from '@solana/web3.js'
 import { Address as EvmAddress, Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
 import { LDOptions } from '@launchdarkly/node-server-sdk'
 import { CacheModuleOptions } from '@nestjs/cache-manager'
@@ -13,11 +13,10 @@ import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enu
 import { ConfigRegex } from '@eco-foundation/chains'
 import { Strategy } from '@/liquidity-manager/types/types'
 
-
 // VM Types for different blockchain architectures
 export enum VmType {
   EVM = 'EVM',
-  SVM = 'SVM'
+  SVM = 'SVM',
 }
 
 // Mapping of chainId to VM type
@@ -36,7 +35,6 @@ export function getVmType(chainId: number): VmType {
 export type Address<TVM extends VmType = VmType> = TVM extends VmType.EVM ? EvmAddress : SvmAddress
 
 export type SerializableAddress = Hex
-
 
 // Chain configuration for both EVM and SVM chains
 export type EcoChainConfig = {

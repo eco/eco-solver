@@ -34,16 +34,16 @@ export class EthWebsocketProcessor extends WorkerHost {
             },
           }),
         )
-        
+
         return this.balanceService.updateBalance(job.data as ViemEventLog)
-        // Check if this is a Solana event or EVM event
-        // if (job.data.accountInfo) {
-        //   // Solana event - has accountInfo
-        //   return this.balanceService.updateSolanaBalance(job.data)
-        // } else {
-        //   // EVM event - has standard ViemEventLog structure
-        //   return this.balanceService.updateBalance(job.data as ViemEventLog)
-        // }
+      // Check if this is a Solana event or EVM event
+      // if (job.data.accountInfo) {
+      //   // Solana event - has accountInfo
+      //   return this.balanceService.updateSolanaBalance(job.data)
+      // } else {
+      //   // EVM event - has standard ViemEventLog structure
+      //   return this.balanceService.updateBalance(job.data as ViemEventLog)
+      // }
       default:
         this.logger.error(
           EcoLogMessage.fromDefault({

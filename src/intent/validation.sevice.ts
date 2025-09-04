@@ -203,7 +203,8 @@ export class ValidationService implements OnModuleInit {
     const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
-    const targetsSupported = difference(intentFunctionTargets, solverTargets as `0x${string}`[]).length == 0
+    const targetsSupported =
+      difference(intentFunctionTargets, solverTargets as `0x${string}`[]).length == 0
 
     if (!targetsSupported) {
       this.logger.debug(

@@ -38,12 +38,12 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   async subscribe(): Promise<void> {
     const subscribeTasks = entries(this.ecoConfigService.getSolvers()).map(async ([, solver]) => {
       const vmType = getVmType(solver.chainID)
-      
+
       if (vmType === VmType.SVM) {
         // Do nothing for Solana chains
         return
       }
-      
+
       const client = await this.publicClientService.getClient(solver.chainID)
       await this.subscribeTo(client, solver)
     })

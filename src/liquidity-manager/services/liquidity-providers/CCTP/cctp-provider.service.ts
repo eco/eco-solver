@@ -217,7 +217,12 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const depositData = encodeFunctionData({
       abi: CCTPTokenMessengerABI,
       functionName: 'depositForBurn',
-      args: [amount, destinationChain.domain, pad(walletAddress), tokenIn.config.address as `0x${string}`],
+      args: [
+        amount,
+        destinationChain.domain,
+        pad(walletAddress),
+        tokenIn.config.address as `0x${string}`,
+      ],
     })
 
     const depositTx: TransactionRequest = {

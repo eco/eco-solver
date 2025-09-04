@@ -15,7 +15,7 @@ import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { getVmType, VmType } from '@/eco-configs/eco-config.types'
 import { Connection, PublicKey, Commitment } from '@solana/web3.js'
-import * as anchor from "@coral-xyz/anchor";
+import * as anchor from '@coral-xyz/anchor'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -43,8 +43,8 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
       const vmType = getVmType(source.chainID)
-      console.log("MADDEN: vmType", vmType)
-      
+      console.log('MADDEN: vmType', vmType)
+
       if (vmType === VmType.EVM) {
         const client = await this.publicClientService.getClient(source.chainID)
         await this.subscribeTo(client, source)
@@ -96,11 +96,10 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       }),
     )
 
-
-    const connection: Connection = await this.svmClientService.getConnection(source.chainID);
+    const connection: Connection = await this.svmClientService.getConnection(source.chainID)
 
     const abortController = new AbortController()
-    
+
     // Use web3.js account subscription
     this.trackAccountChanges(connection, source, abortController.signal)
 
@@ -110,32 +109,36 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
     }
   }
 
-  private async trackAccountChanges(connection: Connection, source: IntentSource, abortSignal: AbortSignal) {
+  private async trackAccountChanges(
+    connection: Connection,
+    source: IntentSource,
+    abortSignal: AbortSignal,
+  ) {
     const portalIdl = require('@/solana/program/portal.json')
-    const coder       = new anchor.BorshCoder(portalIdl);              // understands the IDL
-    const parser      = new anchor.EventParser(new PublicKey(source.sourceAddress), coder); 
+    const coder = new anchor.BorshCoder(portalIdl) // understands the IDL
+    const parser = new anchor.EventParser(new PublicKey(source.sourceAddress), coder)
     try {
       const publicKey = new PublicKey(source.sourceAddress)
-      
+
       const subscriptionId = connection.onLogs(
         publicKey,
-        ({logs, signature}, context) => {
-          try { 
-            for (const ev of parser.parseLogs(logs)) { 
-              if (ev.name !== "IntentPublished") continue;
+        ({ logs, signature }, context) => {
+          try {
+            for (const ev of parser.parseLogs(logs)) {
+              if (ev.name !== 'IntentPublished') continue
 
               const {
-                intent_hash,           // Uint8Array(32)
-                destination,          // anchor.BN
-                route,                // Uint8Array
-                reward,               // whatever `Reward` expands to in your IDL
-              } = ev.data;
+                intent_hash, // Uint8Array(32)
+                destination, // anchor.BN
+                route, // Uint8Array
+                reward, // whatever `Reward` expands to in your IDL
+              } = ev.data
 
               this.logger.debug(
                 EcoLogMessage.fromDefault({
                   message: `SVM Publish instruction detected`,
                   properties: {
-                    slot: context.slot, 
+                    slot: context.slot,
                     chainID: source.chainID,
                     address: source.sourceAddress,
                   },
@@ -157,9 +160,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
                 data: ev.data,
                 topics: [],
                 address: source.sourceAddress,
-              };
+              }
 
-              this.addJob(source)([solanaLog as any]).catch(error => {
+              this.addJob(source)([solanaLog as any]).catch((error) => {
                 this.logger.error(
                   EcoLogMessage.fromDefault({
                     message: `SVM job processing error`,
@@ -179,14 +182,13 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             )
           }
         },
-        'confirmed'
+        'confirmed',
       )
 
       // Handle abortion
       abortSignal.addEventListener('abort', () => {
         connection.removeOnLogsListener(subscriptionId)
       })
-
     } catch (error) {
       if (!abortSignal.aborted) {
         this.logger.error(

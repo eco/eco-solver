@@ -20,7 +20,8 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
   private logger = new Logger(BalanceWebsocketService.name)
   private intentJobConfig: JobsOptions
   private unwatch: Record<string, WatchContractEventReturnType> = {}
-  private solanaSubscriptions: Array<{ subscriptionId: number; connection: any; chainID: number }> = []
+  private solanaSubscriptions: Array<{ subscriptionId: number; connection: any; chainID: number }> =
+    []
 
   constructor(
     @InjectQueue(QUEUES.ETH_SOCKET.queue) private readonly ethQueue: Queue,
@@ -82,12 +83,12 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
     const websocketTasks = Object.entries(this.ecoConfigService.getSolvers()).map(
       async ([, solver]) => {
         const vmType = getVmType(solver.chainID)
-        
+
         if (vmType === VmType.SVM) {
           await this.subscribeSolanaTransfers(solver)
         } else {
           const client = await this.kernelAccountClientService.getClient(solver.chainID)
-          
+
           Object.entries(solver.targets).forEach(([address, source]) => {
             if (source.contractType === 'erc20') {
               this.unwatch[`${solver.chainID}-${address}`] = client.watchContractEvent({
@@ -110,10 +111,10 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
     try {
       // Get the Solana connection from web3.js
       const connection = await this.svmMultichainClientService.getConnection(solver.chainID)
-      
+
       // Get the solver's wallet address and convert to PublicKey
       const solverPubkey = this.svmMultichainClientService.getAddress()
-      
+
       // Subscribe to account notifications for the solver address to detect incoming transfers
       // Store subscription ID for cleanup
       const subscriptionId = connection.onAccountChange(
@@ -130,7 +131,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
               },
             }),
           )
-          
+
           // Process the notification as a transfer event
           const notification = {
             accountInfo: {
@@ -144,16 +145,16 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
           }
           this.processSolanaTransfer(notification, solver)
         },
-        'confirmed'
+        'confirmed',
       )
-      
+
       // Store the subscription info for cleanup
       this.solanaSubscriptions.push({
         subscriptionId,
         connection,
         chainID: solver.chainID,
       })
-      
+
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `Solana websocket subscribed`,
@@ -198,11 +199,7 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
       )
 
       await this.ethQueue.add(QUEUES.ETH_SOCKET.jobs.erc20_balance_socket, transferEvent, {
-        jobId: getIntentJobId(
-          'solana-websocket',
-          accountInfo.signature || 'unknown',
-          0,
-        ),
+        jobId: getIntentJobId('solana-websocket', accountInfo.signature || 'unknown', 0),
         ...this.intentJobConfig,
       })
     } catch (error) {

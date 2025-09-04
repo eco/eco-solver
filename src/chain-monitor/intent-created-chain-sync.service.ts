@@ -57,7 +57,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    */
   async getMissingTxs(source: IntentSource): Promise<IntentCreatedLog[]> {
     const vmType = getVmType(source.chainID)
-    
+
     if (vmType === VmType.SVM) {
       // Do nothing for Solana chains
       return []

@@ -37,10 +37,10 @@ export class FulfillIntentService {
     if (!data || !model || !solver) return
     if (model.status === 'SOLVED') return
 
-    const { type } = isNativeIntent(model.intent)// disable crowd liquidity for native intents
+    const { type } = isNativeIntent(model.intent) // disable crowd liquidity for native intents
       ? { type: 'smart-wallet-account' }
       : this.ecoConfigService.getFulfill()
-    console.log("SAQUON type", type);
+    console.log('SAQUON type', type)
 
     switch (type) {
       case 'crowd-liquidity':

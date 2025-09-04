@@ -81,8 +81,14 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     )
 
     // Get all possible warp routes for both tokens
-    const warpRoutesIn = this.getAllWarpRoutes(tokenIn.config.chainId, tokenIn.config.address as `0x${string}`)
-    const warpRoutesOut = this.getAllWarpRoutes(tokenOut.config.chainId, tokenOut.config.address as `0x${string}`)
+    const warpRoutesIn = this.getAllWarpRoutes(
+      tokenIn.config.chainId,
+      tokenIn.config.address as `0x${string}`,
+    )
+    const warpRoutesOut = this.getAllWarpRoutes(
+      tokenOut.config.chainId,
+      tokenOut.config.address as `0x${string}`,
+    )
 
     // Determine the correct warp route based on the tokens
     const { warpRouteIn, warpRouteOut, actionPath } = this.determineWarpRoutes(

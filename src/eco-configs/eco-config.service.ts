@@ -88,17 +88,17 @@ export class EcoConfigService {
       message: `Configuration loaded`,
       nodeEnv: process.env.NODE_ENV,
       supportedChains: this.getSupportedChains(),
-      intentSources: this.getIntentSources().map(source => ({
+      intentSources: this.getIntentSources().map((source) => ({
         network: source.network,
         chainID: source.chainID,
-        tokenCount: source.tokens.length
+        tokenCount: source.tokens.length,
       })),
-      solvers: Object.keys(this.getSolvers()).map(chainId => ({
+      solvers: Object.keys(this.getSolvers()).map((chainId) => ({
         chainId,
         network: this.getSolvers()[chainId].network,
-        targetCount: Object.keys(this.getSolvers()[chainId].targets).length
-      }))
-    });
+        targetCount: Object.keys(this.getSolvers()[chainId].targets).length,
+      })),
+    })
   }
 
   // Generic getter for key/val of config object
@@ -133,7 +133,7 @@ export class EcoConfigService {
 
   // Returns the source intents config
   getIntentSources(): EcoConfigType['intentSources'] {
-    console.log('intentSources', this.get<IntentSource[]>('intentSources'));
+    console.log('intentSources', this.get<IntentSource[]>('intentSources'))
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
       intent.sourceAddress = config.IntentSource
@@ -186,11 +186,14 @@ export class EcoConfigService {
       solver.inboxAddress = config.Inbox
       // Use chain-aware address normalization instead of generic addressKeys
       if (solver.targets) {
-        solver.targets = Object.entries(solver.targets).reduce((carry, [address, value]) => {
-          const normalizedAddress = getChainAddress(solver.chainID, address as Address)
-          carry[normalizedAddress.toString()] = value
-          return carry
-        }, {} as Record<string, any>)
+        solver.targets = Object.entries(solver.targets).reduce(
+          (carry, [address, value]) => {
+            const normalizedAddress = getChainAddress(solver.chainID, address as Address)
+            carry[normalizedAddress.toString()] = value
+            return carry
+          },
+          {} as Record<string, any>,
+        )
       }
     })
     return solvers
@@ -384,7 +387,7 @@ export class EcoConfigService {
   }
 
   getCCTPLiFiConfig(): EcoConfigType['cctpLiFi'] {
-  const liquidityManager = this.getLiquidityManager()
+    const liquidityManager = this.getLiquidityManager()
     const cctp = this.getCCTP()
     return {
       maxSlippage: liquidityManager.maxQuoteSlippage,

@@ -11,9 +11,7 @@ import { Address, SerializableAddress, VmType } from '@/eco-configs/eco-config.t
 export class EvmBalanceService implements BalanceProvider {
   private logger = new Logger(EvmBalanceService.name)
 
-  constructor(
-    private readonly kernelAccountClientService: KernelAccountClientService,
-  ) {}
+  constructor(private readonly kernelAccountClientService: KernelAccountClientService) {}
 
   /**
    * Fetches the balances of the kernel account client of the solver for the given tokens

@@ -65,7 +65,9 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   async getNextBatchWithdrawals() {
     const intentSourceAddr = this.getIntentSource()
 
-    const batchWithdrawals = await this.indexerService.getNextBatchWithdrawals(intentSourceAddr as `0x${string}`)
+    const batchWithdrawals = await this.indexerService.getNextBatchWithdrawals(
+      intentSourceAddr as `0x${string}`,
+    )
     const batchWithdrawalsPerSource = _.groupBy(
       batchWithdrawals,
       (withdrawal) => withdrawal.intent.source,
@@ -92,7 +94,11 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
       // Set a maximum number of withdrawals per transaction
       chunkWithdrawals.forEach((chunk) => {
-        jobsData.push({ chainId: parseInt(sourceChainId), intentSourceAddr: intentSourceAddr as `0x${string}`, intents: chunk })
+        jobsData.push({
+          chainId: parseInt(sourceChainId),
+          intentSourceAddr: intentSourceAddr as `0x${string}`,
+          intents: chunk,
+        })
       })
     }
 
@@ -195,7 +201,13 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       Object.values(batches).map((batch) => {
         const { prover, source } = batch[0]
         const hashes = _.map(batch, 'hash')
-        return this.getSendBatchTransaction(publicClient, inboxAddr as `0x${string}`, prover, source, hashes)
+        return this.getSendBatchTransaction(
+          publicClient,
+          inboxAddr as `0x${string}`,
+          prover,
+          source,
+          hashes,
+        )
       }),
     )
 

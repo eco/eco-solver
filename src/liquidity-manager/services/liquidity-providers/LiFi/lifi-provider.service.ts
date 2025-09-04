@@ -53,7 +53,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const vmType = getVmType(intentSource.chainID)
     if (vmType === VmType.SVM) {
       this.walletAddress = await this.svmMultichainClientService.getAddress().toString()
-      return;
+      return
     }
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address

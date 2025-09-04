@@ -153,33 +153,33 @@ export class FeeService implements OnModuleInit {
    * @returns the error is undefined, error is defined if its not feasible
    */
   async isRouteFeasible(quote: QuoteIntentDataInterface): Promise<{ error?: Error }> {
-    console.log("SAQUON isRouteFeasible", quote);
+    console.log('SAQUON isRouteFeasible', quote)
     if (quote.route.calls.length != 1) {
       //todo support multiple calls after testing
       return { error: QuoteError.MultiFulfillRoute() }
     }
 
     const rewardTokens = _.map(quote.reward.tokens, 'token')
-    if (hasDuplicateStrings(rewardTokens.map(token => token.toString()))) {
+    if (hasDuplicateStrings(rewardTokens.map((token) => token.toString()))) {
       return { error: QuoteError.DuplicatedRewardToken() }
     }
 
     const { totalFillNormalized, error: totalFillError } = await this.getTotalFill(quote)
-    console.log("SAQUON totalFillNormalized", totalFillNormalized);
+    console.log('SAQUON totalFillNormalized', totalFillNormalized)
 
     if (Boolean(totalFillError)) {
       return { error: totalFillError }
     }
 
     const { totalRewardsNormalized, error: totalRewardsError } = await this.getTotalRewards(quote)
-    console.log("SAQUON totalRewardsNormalized", totalRewardsNormalized);
+    console.log('SAQUON totalRewardsNormalized', totalRewardsNormalized)
 
     if (Boolean(totalRewardsError)) {
       return { error: totalRewardsError }
     }
 
     const ask = this.getAsk(totalFillNormalized, quote)
-    console.log("SAQUON ask", ask);
+    console.log('SAQUON ask', ask)
 
     return {
       error: isInsufficient(ask, totalRewardsNormalized)
@@ -383,7 +383,9 @@ export class FeeService implements OnModuleInit {
 
     return {
       rewards: Object.values(erc20Rewards).map((tb) => {
-        const token = quote.reward.tokens.find((reward) => getChainAddress(srcChainID, reward.token) === tb.address)
+        const token = quote.reward.tokens.find(
+          (reward) => getChainAddress(srcChainID, reward.token) === tb.address,
+        )
         if (!token) {
           throw QuoteError.RewardTokenNotFound(tb.address as Hex)
         }
@@ -427,7 +429,9 @@ export class FeeService implements OnModuleInit {
 
     return {
       tokens: Object.values(erc20Rewards).map((tb) => {
-        const token = quote.route.tokens.find((route) => getChainAddress(quote.destination, route.token) === tb.address)
+        const token = quote.route.tokens.find(
+          (route) => getChainAddress(quote.destination, route.token) === tb.address,
+        )
         if (!token) {
           throw QuoteError.RouteTokenNotFound(tb.address as Hex)
         }
@@ -471,7 +475,7 @@ export class FeeService implements OnModuleInit {
       solver.chainID,
       functionTargets,
     )
-    console.log("SAQUON callERC20Balances", callERC20Balances);
+    console.log('SAQUON callERC20Balances', callERC20Balances)
 
     if (Object.keys(callERC20Balances).length === 0) {
       return { calls: [], error: QuoteError.FetchingCallTokensFailed(BigInt(solver.chainID)) }
@@ -503,7 +507,7 @@ export class FeeService implements OnModuleInit {
 
       calls = functionalCalls.map((call) => {
         const ttd = getTransactionTargetData(solver, call)
-        
+
         // Bypass ERC20 check for Solana chains
         const vmType = getVmType(Number(solver.chainID))
         if (vmType !== VmType.SVM && !isERC20Target(ttd, getERC20Selector('transfer'))) {
@@ -523,7 +527,10 @@ export class FeeService implements OnModuleInit {
 
         const callTarget = erc20Balances[call.target.toString()]
         if (!callTarget) {
-          throw QuoteError.FailedToFetchTarget(BigInt(solver.chainID), call.target.toString() as EvmAddress)
+          throw QuoteError.FailedToFetchTarget(
+            BigInt(solver.chainID),
+            call.target.toString() as EvmAddress,
+          )
         }
 
         if (!ttd?.decodedFunctionData?.args || ttd.decodedFunctionData.args.length < 2) {

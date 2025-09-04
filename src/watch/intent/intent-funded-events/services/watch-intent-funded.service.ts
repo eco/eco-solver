@@ -47,7 +47,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
       const vmType = getVmType(source.chainID)
-      
+
       if (vmType === VmType.EVM) {
         const client = await this.publicClientService.getClient(source.chainID)
         await this.subscribeTo(client, source)
@@ -105,8 +105,8 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
       }),
     )
 
-    const connection = await this.svmClientService.getConnection(source.chainID);
-    
+    const connection = await this.svmClientService.getConnection(source.chainID)
+
     // Track account changes using connection
     const subscriptionId = this.trackAccountChanges(connection, source)
 
@@ -121,13 +121,13 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   private trackAccountChanges(connection: Connection, source: IntentSource): number | null {
     try {
       const publicKey = new PublicKey(source.sourceAddress)
-      
+
       const subscriptionId = connection.onAccountChange(
         publicKey,
         (accountInfo, context) => {
           try {
             const { slot } = context
-            
+
             this.logger.debug(
               EcoLogMessage.fromDefault({
                 message: `SVM account change detected`,
@@ -139,19 +139,24 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
               }),
             )
 
-            console.log("SVM accountInfo", accountInfo);
-            console.log("SVM context", context);
+            console.log('SVM accountInfo', accountInfo)
+            console.log('SVM context', context)
 
             // Create synthetic log for SVM events
             const svmLog: Log = {
               address: source.sourceAddress as `0x${string}`,
-              blockHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
+              blockHash: ('0x' + slot.toString(16).padStart(64, '0')) as `0x${string}`,
               blockNumber: BigInt(slot),
-              data: accountInfo ? '0x' + Buffer.from(accountInfo.data).toString('hex') as `0x${string}` : '0x',
+              data: accountInfo
+                ? (('0x' + Buffer.from(accountInfo.data).toString('hex')) as `0x${string}`)
+                : '0x',
               logIndex: 0,
               removed: false,
-              topics: ['0x' + Buffer.from('IntentFunded').toString('hex').padStart(64, '0') as `0x${string}`],
-              transactionHash: '0x' + slot.toString(16).padStart(64, '0') as `0x${string}`,
+              topics: [
+                ('0x' +
+                  Buffer.from('IntentFunded').toString('hex').padStart(64, '0')) as `0x${string}`,
+              ],
+              transactionHash: ('0x' + slot.toString(16).padStart(64, '0')) as `0x${string}`,
               transactionIndex: 0,
             }
 
@@ -168,9 +173,9 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
             )
           }
         },
-        'confirmed'
+        'confirmed',
       )
-      
+
       return subscriptionId
     } catch (error) {
       this.logger.error(
@@ -225,11 +230,12 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           sourceChainID: BigInt(source.chainID),
           sourceNetwork: source.network,
           args: log.args || {
-            intentHash: log.topics[1] || '0x0000000000000000000000000000000000000000000000000000000000000000',
+            intentHash:
+              log.topics[1] || '0x0000000000000000000000000000000000000000000000000000000000000000',
             // Add other args as needed based on the event structure
           },
         } as IntentFundedLog
-        
+
         const intentHash = intentFunded.args.intentHash
         const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 

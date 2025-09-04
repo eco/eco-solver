@@ -86,18 +86,18 @@ export class BalanceService implements OnApplicationBootstrap {
     // The account info contains the current lamports balance
     if (solanaEvent.accountInfo?.value?.lamports) {
       const lamports = BigInt(solanaEvent.accountInfo.value.lamports)
-      
+
       // Use a special key for SOL balance tracking
       const key = getDestinationNetworkAddressKey(
-        parseInt(solanaEvent.sourceChainID), 
-        'SOL' // Special identifier for native SOL
+        parseInt(solanaEvent.sourceChainID),
+        'SOL', // Special identifier for native SOL
       )
-      
+
       const balanceObj = this.tokenBalances.get(key)
       if (balanceObj) {
         // Update to the current balance (not additive like ERC20 transfers)
         balanceObj.balance = lamports
-        
+
         this.logger.debug(
           EcoLogMessage.fromDefault({
             message: `Solana balance updated`,
@@ -141,7 +141,7 @@ export class BalanceService implements OnApplicationBootstrap {
     tokenAddresses: Address[],
   ): Promise<Record<SerializableAddress, TokenBalance>> {
     const vmType = getVmType(chainID)
-    
+
     switch (vmType) {
       case VmType.EVM: {
         const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
@@ -169,17 +169,25 @@ export class BalanceService implements OnApplicationBootstrap {
     tokenAddresses: Address[],
   ): Promise<Record<SerializableAddress, TokenBalance>> {
     const vmType = getVmType(chainID)
-    
+
     switch (vmType) {
       case VmType.EVM: {
         const evmWallet = walletAddress as Address<VmType.EVM>
         const evmAddresses = tokenAddresses as Address<VmType.EVM>[]
-        return await this.evmBalanceService.fetchWalletTokenBalances(chainID, evmWallet, evmAddresses)
+        return await this.evmBalanceService.fetchWalletTokenBalances(
+          chainID,
+          evmWallet,
+          evmAddresses,
+        )
       }
       case VmType.SVM: {
         const svmWallet = walletAddress as Address<VmType.SVM>
         const svmAddresses = tokenAddresses as Address<VmType.SVM>[]
-        return await this.svmBalanceService.fetchWalletTokenBalances(chainID, svmWallet, svmAddresses)
+        return await this.svmBalanceService.fetchWalletTokenBalances(
+          chainID,
+          svmWallet,
+          svmAddresses,
+        )
       }
       default:
         throw EcoError.UnsupportedChainError({ id: chainID, name: 'Unknown' } as Chain)
@@ -246,7 +254,7 @@ export class BalanceService implements OnApplicationBootstrap {
   @Cacheable()
   async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
     const vmType = getVmType(chainID)
-    
+
     switch (vmType) {
       case VmType.EVM:
         return this.evmBalanceService.getNativeBalance(chainID, account)

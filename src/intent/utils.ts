@@ -4,7 +4,12 @@ import { CallDataInterface, getERCAbi } from '@/contracts'
 import { Solver, TargetContract, VmType, getVmType } from '@/eco-configs/eco-config.types'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { includes } from 'lodash'
-import { decodeFunctionData, DecodeFunctionDataReturnType, extractChain, toFunctionSelector } from 'viem'
+import {
+  decodeFunctionData,
+  DecodeFunctionDataReturnType,
+  extractChain,
+  toFunctionSelector,
+} from 'viem'
 import { mainnet } from 'viem/chains'
 import { ValidationIntentInterface } from './validation.sevice'
 import { Logger } from '@nestjs/common'
@@ -29,7 +34,7 @@ export function getTransactionTargetData(
   call: CallDataInterface,
 ): TransactionTargetData | null {
   const targetConfig = solver.targets[call.target as string] as TargetContract
-  console.log("MADDEN: targetConfig", call.target, solver.targets)
+  console.log('MADDEN: targetConfig', call.target, solver.targets)
   if (!targetConfig) {
     //shouldn't happen since we do this.targetsSupported(model, solver) before this call
     throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)
@@ -38,45 +43,45 @@ export function getTransactionTargetData(
   // Check if this is a Solana chain
   const vmType = getVmType(Number(solver.chainID))
   let tx: DecodeFunctionDataReturnType
-  
+
   // Handle Solana SPL token transfers
   if (vmType === VmType.SVM) {
     const targetAddress = call.target as string
     const dataHex = call.data as string
     const dataBytes = Buffer.from(dataHex.slice(2), 'hex')
 
-    console.log("MADDEN: Parsing SVM call data:", dataBytes.toString('hex'))
-    console.log("MADDEN: Call data length:", dataBytes.length)
-    
+    console.log('MADDEN: Parsing SVM call data:', dataBytes.toString('hex'))
+    console.log('MADDEN: Call data length:', dataBytes.length)
+
     // Parse Borsh-serialized Calldata struct:
     // Based on Rust struct: { data: Vec<u8>, account_count: u8 }
     // Borsh format: data_length (4 bytes) + data + account_count (1 byte)
-    
+
     let amount = 0n
-    
+
     if (dataBytes.length >= 5) {
       // New Borsh format: data first, then account_count
       const dataLength = dataBytes.readUInt32LE(0)
       const instructionData = dataBytes.slice(4, 4 + dataLength)
       const accountCount = dataBytes[4 + dataLength]
-      
-      console.log("MADDEN: Parsed Calldata - data_length:", dataLength)
-      console.log("MADDEN: Parsed Calldata - instruction_data:", instructionData.toString('hex'))
-      console.log("MADDEN: Parsed Calldata - account_count:", accountCount)
-      
+
+      console.log('MADDEN: Parsed Calldata - data_length:', dataLength)
+      console.log('MADDEN: Parsed Calldata - instruction_data:', instructionData.toString('hex'))
+      console.log('MADDEN: Parsed Calldata - account_count:', accountCount)
+
       // Parse SPL token instruction to extract amount
       if (instructionData.length >= 9) {
         const instructionIndex = instructionData[0]
-        
+
         // For SPL transfer instructions, amount is at bytes 1-8
         amount = instructionData.readBigUInt64LE(1)
-        
-        console.log("MADDEN: SPL Instruction index:", instructionIndex)
-        console.log("MADDEN: Extracted transfer amount:", amount.toString())
+
+        console.log('MADDEN: SPL Instruction index:', instructionIndex)
+        console.log('MADDEN: Extracted transfer amount:', amount.toString())
       }
     } else {
       // Fall back to old simple format
-      console.log("MADDEN: Using simple format fallback")
+      console.log('MADDEN: Using simple format fallback')
       amount = dataBytes.readBigUInt64LE(1)
     }
 
@@ -84,8 +89,8 @@ export function getTransactionTargetData(
       functionName: 'transfer',
       args: [
         '', // recipient will be determined from accounts
-        amount
-      ]
+        amount,
+      ],
     }
   } else {
     // Original EVM logic
@@ -93,7 +98,7 @@ export function getTransactionTargetData(
       abi: getERCAbi(targetConfig.contractType),
       data: call.data,
     })
-    
+
     const supportedSelectors = targetConfig.selectors.map((s) => toFunctionSelector(s))
     const supported = tx && includes(supportedSelectors, selector)
     if (!supported) {

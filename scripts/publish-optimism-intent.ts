@@ -1,6 +1,13 @@
 #!/usr/bin/env ts-node
 
-import { createPublicClient, createWalletClient, http, parseEther, Address, encodeFunctionData } from 'viem'
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseEther,
+  Address,
+  encodeFunctionData,
+} from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { optimism } from 'viem/chains'
 import * as dotenv from 'dotenv'
@@ -11,7 +18,11 @@ import config from '../config/solana'
 import { encodeRoute, hashIntent } from '@/utils/encodeAndHash'
 import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import { TOKEN_PROGRAM_ID, createTransferInstruction, getAssociatedTokenAddress } from '@solana/spl-token'
+import {
+  TOKEN_PROGRAM_ID,
+  createTransferInstruction,
+  getAssociatedTokenAddress,
+} from '@solana/spl-token'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -32,10 +43,10 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
   // Set up Optimism client
   const optimismRpcUrl = process.env.OPTIMISM_RPC_URL
-  
+
   const publicClient = createPublicClient({
     chain: optimism,
-    transport: http(optimismRpcUrl)
+    transport: http(optimismRpcUrl),
   })
 
   // Load private key from environment
@@ -48,35 +59,35 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   const walletClient = createWalletClient({
     account,
     chain: optimism,
-    transport: http(optimismRpcUrl)
+    transport: http(optimismRpcUrl),
   })
 
   console.log(`Using account: ${account.address}`)
 
   // Create sample route and intent data
   const now = Math.floor(Date.now() / 1000)
-  
+
   // Generate salt as 32-byte hex string directly from timestamp
   const salt = `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`
-  
+
   // Get portal addresses
   const optimismPortalAddress = getChainConfig(10).Inbox
   const solanaPortalAddress: PublicKey = getChainConfig(1399811149).Inbox as PublicKey
-  
+
   // Sample token amounts for the route (what user wants to swap on Solana)
   const routeTokens: TokenAmount[] = [
     {
       token: config.intentSources[0].tokens[0], // USDC on Solana
-      amount: 1_000 // 0.001 USDC (6 decimals)
-    }
+      amount: 1_000, // 0.001 USDC (6 decimals)
+    },
   ]
 
   // Create reward tokens (what user pays on Optimism)
   const rewardTokens: TokenAmount[] = [
     {
       token: config.intentSources[1].tokens[0], // USDC on Optimism
-      amount: 36_000 // 0.0355 USDC reward (6 decimals) - includes solver fee
-    }
+      amount: 36_000, // 0.0355 USDC reward (6 decimals) - includes solver fee
+    },
   ]
 
   // Create the reward (EVM format for Optimism)
@@ -85,11 +96,11 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     creator: account.address,
     prover: '0x9523b6c0cAaC8122DbD5Dd1c1d336CEBA637038D', // Placeholder - needs actual EVM prover
-    nativeAmount: 0n, 
-    tokens: rewardTokens.map(token => ({
+    nativeAmount: 0n,
+    tokens: rewardTokens.map((token) => ({
       token: token.token as Address,
-      amount: BigInt(token.amount)
-    }))
+      amount: BigInt(token.amount),
+    })),
   }
 
   // Create Solana SPL token transfer instruction
@@ -99,69 +110,69 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
   // Create SPL token transfer call exactly as in the integration test
   // The integration test uses: spl_token_2022::instruction::transfer_checked()
-  
+
   // Get the executor and recipient ATAs for the call
   const executorAta = await getAssociatedTokenAddress(tokenMintAddress, solanaPortalAddress, true)
   const recipientAta = await getAssociatedTokenAddress(tokenMintAddress, recipientAddress)
-  
+
   // Create the actual SPL token transfer_checked instruction
   // This matches exactly what the integration test does
   // Note: We need to use a function that creates TransferChecked (not Transfer)
   // to match the 4-account requirement
-  
+
   // Create proper TransferChecked instruction data
   // TransferChecked format: [instruction(1), amount(8), decimals(1)]
   const transferCheckedInstructionData = Buffer.alloc(10) // 1 + 8 + 1 = 10 bytes
   transferCheckedInstructionData[0] = 12 // TransferChecked instruction
-  
+
   // Write the amount as 8 bytes little-endian  []
   const amountBytes = Buffer.alloc(8)
   const view = new DataView(amountBytes.buffer)
   view.setBigUint64(0, transferAmount, true) // true for little-endian
   amountBytes.copy(transferCheckedInstructionData, 1)
-  
+
   // Write decimals (6 for USDC)
   transferCheckedInstructionData[9] = 6
-  
+
   const transferCheckedInstruction = {
-    data: transferCheckedInstructionData
+    data: transferCheckedInstructionData,
   }
-  
-  console.log("MADDEN: Real SPL instruction data:", transferCheckedInstruction.data.toString('hex'))
-  console.log("MADDEN: Real SPL instruction length:", transferCheckedInstruction.data.length)
-  
+
+  console.log('MADDEN: Real SPL instruction data:', transferCheckedInstruction.data.toString('hex'))
+  console.log('MADDEN: Real SPL instruction length:', transferCheckedInstruction.data.length)
+
   // Create Calldata struct exactly as in integration test
   const calldata = {
     data: Array.from(transferCheckedInstruction.data), // Use the actual instruction data
-    account_count: 4 // 4 accounts as per integration test
+    account_count: 4, // 4 accounts as per integration test
   }
-  
-  console.log("MADDEN: Calldata struct:", calldata)
-  
+
+  console.log('MADDEN: Calldata struct:', calldata)
+
   // Serialize the Calldata struct using Borsh format
   // Based on Rust struct: { data: Vec<u8>, account_count: u8 }
   // Borsh serialization order: data first (with length), then account_count
   const dataLength = calldata.data.length
   const calldataBytes = Buffer.alloc(4 + dataLength + 1)
   let offset = 0
-  
+
   // Write data length (u32 little-endian for Vec<u8>)
   calldataBytes.writeUInt32LE(dataLength, offset)
   offset += 4
-  
+
   // Write data bytes
   Buffer.from(calldata.data).copy(calldataBytes, offset)
   offset += dataLength
-  
+
   // Write account_count (u8) - comes after data in Rust struct
   calldataBytes[offset] = calldata.account_count
-  
-  console.log("MADDEN: Serialized calldata bytes:", calldataBytes.toString('hex'))
+
+  console.log('MADDEN: Serialized calldata bytes:', calldataBytes.toString('hex'))
 
   const solanaTransferCall = {
     target: TOKEN_PROGRAM_ID, // SPL Token program
     data: `0x${calldataBytes.toString('hex')}` as `0x${string}`,
-    value: 0n // No SOL value for SPL token transfers
+    value: 0n, // No SOL value for SPL token transfers
   }
 
   const route: RouteType<VmType.SVM> = {
@@ -169,11 +180,11 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
     salt: salt,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     portal: solanaPortalAddress,
-    tokens: routeTokens.map(token => ({
+    tokens: routeTokens.map((token) => ({
       token: new PublicKey(token.token),
-      amount: BigInt(token.amount)
+      amount: BigInt(token.amount),
     })),
-    calls: [solanaTransferCall]
+    calls: [solanaTransferCall],
   }
 
   // Create the intent
@@ -181,10 +192,10 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
     destination: BigInt(config.intentSources[0].chainID), // Solana chain ID
     source: BigInt(config.intentSources[1].chainID), // Optimism chain ID
     route: route,
-    reward: reward
+    reward: reward,
   }
 
-//   const hashed = hashIntent(intent.destination, intent.route, intent.reward)
+  //   const hashed = hashIntent(intent.destination, intent.route, intent.reward)
 
   console.log('Intent Details:')
   console.log(`Source Chain (Optimism): ${intent.source}`)
@@ -210,132 +221,142 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
     // Get Intent Source contract from provided portal code
     const intentSourceAbi = [
-        {
-            "inputs": [
+      {
+        inputs: [
+          {
+            internalType: 'uint64',
+            name: 'destination',
+            type: 'uint64',
+          },
+          {
+            internalType: 'bytes',
+            name: 'route',
+            type: 'bytes',
+          },
+          {
+            components: [
               {
-                "internalType": "uint64",
-                "name": "destination",
-                "type": "uint64"
+                internalType: 'uint64',
+                name: 'deadline',
+                type: 'uint64',
               },
               {
-                "internalType": "bytes",
-                "name": "route",
-                "type": "bytes"
+                internalType: 'address',
+                name: 'creator',
+                type: 'address',
               },
               {
-                "components": [
+                internalType: 'address',
+                name: 'prover',
+                type: 'address',
+              },
+              {
+                internalType: 'uint256',
+                name: 'nativeAmount',
+                type: 'uint256',
+              },
+              {
+                components: [
                   {
-                    "internalType": "uint64",
-                    "name": "deadline",
-                    "type": "uint64"
+                    internalType: 'address',
+                    name: 'token',
+                    type: 'address',
                   },
                   {
-                    "internalType": "address",
-                    "name": "creator",
-                    "type": "address"
+                    internalType: 'uint256',
+                    name: 'amount',
+                    type: 'uint256',
                   },
-                  {
-                    "internalType": "address",
-                    "name": "prover",
-                    "type": "address"
-                  },
-                  {
-                    "internalType": "uint256",
-                    "name": "nativeAmount",
-                    "type": "uint256"
-                  },
-                  {
-                    "components": [
-                      {
-                        "internalType": "address",
-                        "name": "token",
-                        "type": "address"
-                      },
-                      {
-                        "internalType": "uint256",
-                        "name": "amount",
-                        "type": "uint256"
-                      }
-                    ],
-                    "internalType": "struct TokenAmount[]",
-                    "name": "tokens",
-                    "type": "tuple[]"
-                  }
                 ],
-                "internalType": "struct Reward",
-                "name": "reward",
-                "type": "tuple"
-              }
-            ],
-            "name": "publish",
-            "outputs": [
-              {
-                "internalType": "bytes32",
-                "name": "intentHash",
-                "type": "bytes32"
+                internalType: 'struct TokenAmount[]',
+                name: 'tokens',
+                type: 'tuple[]',
               },
-              {
-                "internalType": "address",
-                "name": "vault",
-                "type": "address"
-              }
             ],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-       {
+            internalType: 'struct Reward',
+            name: 'reward',
+            type: 'tuple',
+          },
+        ],
+        name: 'publish',
+        outputs: [
+          {
+            internalType: 'bytes32',
+            name: 'intentHash',
+            type: 'bytes32',
+          },
+          {
+            internalType: 'address',
+            name: 'vault',
+            type: 'address',
+          },
+        ],
+        stateMutability: 'nonpayable',
+        type: 'function',
+      },
+      {
         name: 'publishAndFund',
         type: 'function',
         inputs: [
           { name: 'destination', type: 'uint64' },
           { name: 'route', type: 'bytes' },
-          { name: 'reward', type: 'tuple', components: [
-            { name: 'deadline', type: 'uint256' },
-            { name: 'creator', type: 'address' },
-            { name: 'prover', type: 'address' },
-            { name: 'nativeAmount', type: 'uint256' },
-            { name: 'tokens', type: 'tuple[]', components: [
-              { name: 'token', type: 'address' },
-              { name: 'amount', type: 'uint256' }
-            ]}
-          ]},
-          { name: 'allowPartial', type: 'bool' }
+          {
+            name: 'reward',
+            type: 'tuple',
+            components: [
+              { name: 'deadline', type: 'uint256' },
+              { name: 'creator', type: 'address' },
+              { name: 'prover', type: 'address' },
+              { name: 'nativeAmount', type: 'uint256' },
+              {
+                name: 'tokens',
+                type: 'tuple[]',
+                components: [
+                  { name: 'token', type: 'address' },
+                  { name: 'amount', type: 'uint256' },
+                ],
+              },
+            ],
+          },
+          { name: 'allowPartial', type: 'bool' },
         ],
         outputs: [
           { name: 'intentHash', type: 'bytes32' },
-          { name: 'vault', type: 'address' }
-        ]
-      }
+          { name: 'vault', type: 'address' },
+        ],
+      },
     ] as const
 
     const contractAddress = optimismPortalAddress as Address
 
     if (fundIntent) {
       console.log('Publishing and funding intent...')
-      
+
       // First, we need to approve the contract to spend our tokens
       const tokenAddress = reward.tokens[0].token
       const tokenAmount = reward.tokens[0].amount
-      
+
       console.log(`Approving ${Number(tokenAmount) / 1e6} USDC for contract ${contractAddress}`)
-      
+
       // ERC20 approve function
       const approveHash = await walletClient.writeContract({
         address: tokenAddress,
-        abi: [{
-          name: 'approve',
-          type: 'function',
-          inputs: [
-            { name: 'spender', type: 'address' },
-            { name: 'amount', type: 'uint256' }
-          ]
-        }],
+        abi: [
+          {
+            name: 'approve',
+            type: 'function',
+            inputs: [
+              { name: 'spender', type: 'address' },
+              { name: 'amount', type: 'uint256' },
+            ],
+          },
+        ],
         functionName: 'approve',
-        args: [contractAddress, tokenAmount]
+        args: [contractAddress, tokenAmount],
       })
-      
+
       console.log(`Token approval transaction: ${approveHash}`)
-      
+
       // Wait for approval confirmation
       await publicClient.waitForTransactionReceipt({ hash: approveHash })
       console.log('Token approval confirmed')
@@ -352,9 +373,9 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
           {
             ...reward,
           },
-          false // allowPartial
+          false, // allowPartial
         ],
-        value: reward.nativeAmount
+        value: reward.nativeAmount,
       })
 
       const hash = await walletClient.writeContract(request)
@@ -367,7 +388,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
       return {
         publishAndFundHash: hash,
         intentHash: intentHash.intentHash,
-        blockNumber: receipt.blockNumber
+        blockNumber: receipt.blockNumber,
       }
     } else {
       console.log('Publishing intent only (no funding)...')
@@ -383,11 +404,11 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
             creator: reward.creator,
             prover: reward.prover,
             nativeAmount: reward.nativeAmount,
-            tokens: reward.tokens
-          }
-        ]
+            tokens: reward.tokens,
+          },
+        ],
       })
-      
+
       const { request } = await publicClient.simulateContract({
         account,
         address: contractAddress,
@@ -401,9 +422,9 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
             creator: reward.creator,
             prover: reward.prover,
             nativeAmount: reward.nativeAmount,
-            tokens: reward.tokens
-          }
-        ]
+            tokens: reward.tokens,
+          },
+        ],
       })
 
       const hash = await walletClient.writeContract(request)
@@ -416,10 +437,9 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
       return {
         publishHash: hash,
         intentHash: intentHash.intentHash,
-        blockNumber: receipt.blockNumber
+        blockNumber: receipt.blockNumber,
       }
     }
-
   } catch (error) {
     console.error('Transaction failed:', error)
     throw error

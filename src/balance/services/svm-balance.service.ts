@@ -6,12 +6,12 @@ import { Cacheable } from '@/decorators/cacheable.decorator'
 import { BalanceProvider } from '../interfaces/balance-provider.interface'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { PublicKey } from '@solana/web3.js'
-import { 
-  getAssociatedTokenAddress, 
-  getAccount, 
+import {
+  getAssociatedTokenAddress,
+  getAccount,
   getMint,
   TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID 
+  ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token'
 import { Address, SerializableAddress, VmType } from '@/eco-configs/eco-config.types'
 
@@ -19,12 +19,10 @@ import { Address, SerializableAddress, VmType } from '@/eco-configs/eco-config.t
 export class SvmBalanceService implements BalanceProvider {
   private logger = new Logger(SvmBalanceService.name)
 
-  constructor(
-    private readonly svmMultichainClientService: SvmMultichainClientService,
-  ) {}
+  constructor(private readonly svmMultichainClientService: SvmMultichainClientService) {}
 
   /**
- * Fetches the balances of the solver's wallet for the given tokens on Solana
+   * Fetches the balances of the solver's wallet for the given tokens on Solana
    * @param chainID the chain id
    * @param tokenAddresses the tokens to fetch balances for (SPL token mint addresses)
    * @returns
@@ -69,19 +67,19 @@ export class SvmBalanceService implements BalanceProvider {
       try {
         const mint = tokenAddress.toString()
         const mintPubkey = new PublicKey(mint)
-        
+
         // find the associated token account address
         const associatedTokenAddress = await getAssociatedTokenAddress(
           mintPubkey,
           walletAddress,
           false, // allowOwnerOffCurve
           TOKEN_PROGRAM_ID,
-          ASSOCIATED_TOKEN_PROGRAM_ID
+          ASSOCIATED_TOKEN_PROGRAM_ID,
         )
 
         // get mint information for decimals
         const mintInfo = await getMint(connection, mintPubkey)
-        
+
         // get token account information
         const tokenAccount = await getAccount(connection, associatedTokenAddress)
 
@@ -93,7 +91,7 @@ export class SvmBalanceService implements BalanceProvider {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         const errorType = error?.constructor?.name || 'Unknown'
-        
+
         if (errorType === 'TokenAccountNotFoundError') {
           // This is normal - token account doesn't exist until first tokens are received
           this.logger.debug(
@@ -122,7 +120,7 @@ export class SvmBalanceService implements BalanceProvider {
             }),
           )
         }
-        
+
         // If account doesn't exist, set balance to 0
         tokenBalances[tokenAddress.toString()] = {
           address: tokenAddress,
@@ -137,7 +135,7 @@ export class SvmBalanceService implements BalanceProvider {
 
   /**
    * Gets the native SOL balance for the solver's wallet on Solana.
-   * 
+   *
    * @param chainID - The chain ID to check the native balance on
    * @param account - The account type to check (for Solana, both map to the same wallet)
    * @returns The native SOL balance in lamports
@@ -145,7 +143,7 @@ export class SvmBalanceService implements BalanceProvider {
   async getNativeBalance(chainID: number, account: 'kernel' | 'eoc'): Promise<bigint> {
     const connection = await this.svmMultichainClientService.getConnection(chainID)
     const walletAddress = this.getSolverWalletAddress(chainID)
-    
+
     try {
       const pubkey = new PublicKey(walletAddress.toString())
       const balance = await connection.getBalance(pubkey)

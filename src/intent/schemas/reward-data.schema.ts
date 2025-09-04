@@ -10,19 +10,19 @@ import { Hex } from 'viem'
 export class RewardDataModel {
   @Prop({ required: true, type: String })
   vm: VmType
-  
+
   @Prop({ required: true, type: String })
-  creator: Address  // Can be EVM hex or Solana base58
-  
+  creator: Address // Can be EVM hex or Solana base58
+
   @Prop({ required: true, type: String })
   prover: Address
-  
+
   @Prop({ required: true, type: BigInt })
   deadline: bigint
-  
+
   @Prop({ required: true, type: BigInt })
   nativeAmount: bigint
-  
+
   @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
 

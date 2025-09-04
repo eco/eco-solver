@@ -121,10 +121,10 @@ export default {
     intentFundedRetryDelayMs: 500,
   },
   whitelist: {},
-  
+
   fulfillment: {
     run: 'single',
-    type: 'smart-wallet-account'
+    type: 'smart-wallet-account',
   },
 
   fulfillmentEstimate: {

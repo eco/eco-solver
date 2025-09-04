@@ -121,7 +121,7 @@ export class ValidateIntentService implements OnModuleInit {
       solver,
     )) as IntentValidations
     validations.intentFunded = await this.intentFunded(model)
-    console.log("SAQUON: validations", validations);
+    console.log('SAQUON: validations', validations)
 
     if (validationsFailed(validations)) {
       await this.utilsIntentService.updateInvalidIntentModel(model, validations)
@@ -150,7 +150,7 @@ export class ValidateIntentService implements OnModuleInit {
   async intentFunded(model: IntentSourceModel): Promise<boolean> {
     const sourceChainID = Number(model.intent.route.source)
 
-    let client;
+    let client
     if (sourceChainID === 1399811149) {
       client = await this.svmMultichainClientService.getConnection(sourceChainID)
     } else {
@@ -192,7 +192,7 @@ export class ValidateIntentService implements OnModuleInit {
         // Solana intent funding check
         try {
           const connection = await this.svmMultichainClientService.getConnection(sourceChainID)
-          
+
           // Convert intent model to SolanaReward format
           const solanaReward: RewardType<VmType.SVM> = {
             vm: VmType.SVM,
@@ -200,22 +200,22 @@ export class ValidateIntentService implements OnModuleInit {
             creator: new PublicKey(model.intent.reward.creator),
             prover: new PublicKey(model.intent.reward.prover),
             nativeAmount: BigInt(model.intent.reward.nativeAmount),
-            tokens: model.intent.reward.tokens.map(token => ({
+            tokens: model.intent.reward.tokens.map((token) => ({
               token: new PublicKey(token.token),
-              amount: BigInt(token.amount)
-            }))
-          };
+              amount: BigInt(token.amount),
+            })),
+          }
 
           // Get route hash from intent
-          const routeHash = '0x1111111111111111111111111111111111111111111111111111111111111111';
-          
+          const routeHash = '0x1111111111111111111111111111111111111111111111111111111111111111'
+
           isIntentFunded = await checkIntentFunding(
             connection,
-            IntentDataModel.toChainIntent(model.intent)
-          );
+            IntentDataModel.toChainIntent(model.intent),
+          )
         } catch (error) {
-          this.logger.error(`Error checking Solana intent funding: ${error}`);
-          isIntentFunded = false;
+          this.logger.error(`Error checking Solana intent funding: ${error}`)
+          isIntentFunded = false
         }
       } else {
         // isIntentFunded = await client.readContract({
@@ -224,11 +224,13 @@ export class ValidateIntentService implements OnModuleInit {
         //   functionName: 'isIntentFunded',
         //   args: [IntentDataModel.toChainIntent(model.intent) as any], // TODO: fix this
         // })
-        console.log("MADDEN: intentFunded called for EVM", intentSource.sourceAddress, model.intent.reward)
-        isIntentFunded = true;
+        console.log(
+          'MADDEN: intentFunded called for EVM',
+          intentSource.sourceAddress,
+          model.intent.reward,
+        )
+        isIntentFunded = true
       }
-
-      
 
       retryCount++
     } while (!isIntentFunded && retryCount <= this.MAX_RETRIES)
