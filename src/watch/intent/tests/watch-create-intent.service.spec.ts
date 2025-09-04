@@ -153,7 +153,10 @@ describe('WatchIntentService', () => {
 
   describe('on intent', () => {
     const s = sources[0]
-    const log: any = { logIndex: 2, args: { intentHash: '0x1' } as Partial<IntentCreatedLog['args']> }
+    const log: any = {
+      logIndex: 2,
+      args: { intentHash: '0x1' } as Partial<IntentCreatedLog['args']>,
+    }
     let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
 
     beforeEach(async () => {

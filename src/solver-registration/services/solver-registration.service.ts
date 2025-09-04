@@ -75,24 +75,17 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       }),
     )
 
-    await this.registerSolver()
+    setImmediate(() => this.tryRegisterWithBackoff())
   }
 
   private async getRequestSignatureHeaders(payload: object): Promise<SignatureHeaders> {
-    const expiryTime = Date.now() + 1000 * 60 * 2 // 2 minutes
+    const expiryTime = Date.now() + 1000 * 60 * 5 // 5 minutes
     return this.signingService.getHeaders(payload, expiryTime)
   }
 
   async registerSolver(): Promise<EcoResponse<void>> {
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
-
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `${SolverRegistrationService.name}.registerSolver()`,
-          properties: { solverRegistrationDTO },
-        }),
-      )
 
       const { response, error } = await this.apiRequestExecutor.executeRequest<void>({
         method: 'post',
@@ -157,10 +150,20 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
-      quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
-      quotesV2Url: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
-      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/initiateGaslessIntent`,
-      gaslessIntentTransactionDataUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/getGaslessIntentTransactionData`,
+      quotesUrl: this.getServerEndpoint(API_ROOT, QUOTE_ROUTE),
+      quotesV2Url: this.getServerEndpoint(API_V2_ROOT, QUOTE_ROUTE),
+
+      receiveSignedIntentUrl: this.getServerEndpoint(
+        API_ROOT,
+        INTENT_INITIATION_ROUTE,
+        'initiateGaslessIntent',
+      ),
+
+      gaslessIntentTransactionDataUrl: this.getServerEndpoint(
+        API_ROOT,
+        INTENT_INITIATION_ROUTE,
+        'getGaslessIntentTransactionData',
+      ),
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
       crossChainRoutes: {
@@ -170,29 +173,33 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     for (const solver of Object.values(this.solversConfig)) {
       const destinationChainID = solver.chainID.toString()
-      const destinationTokens = Object.keys(solver.targets)
+      const destinationTokens = [...new Set(Object.keys(solver.targets))].sort()
+
+      if (destinationTokens.length === 0) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `No targets configured for solver chain ${destinationChainID}, skipping`,
+          }),
+        )
+        continue
+      }
 
       for (const intentSource of this.intentSourcesConfig) {
-        const intentSourceChainID = intentSource.chainID
+        const intentSourceChainID = intentSource.chainID.toString()
 
-        if (intentSourceChainID === solver.chainID) {
+        if (intentSourceChainID === destinationChainID) {
           // Skip if from and to are the same
-
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `getSolverRegistrationDTO: Skipping routeTokensDTO for: ${intentSourceChainID} -> ${destinationChainID}`,
-            }),
-          )
-
           continue
         }
 
-        const routeTokensDTOs = this.getRouteTokensDTOs(intentSourceChainID, destinationTokens)
+        const routeTokensDTOs = this.getRouteTokensDTOs(intentSource.chainID, destinationTokens)
 
-        if (!crossChainRoutesConfig[intentSourceChainID]) {
-          crossChainRoutesConfig[intentSourceChainID] = {}
+        if (routeTokensDTOs.length === 0) {
+          continue
         }
 
+        // If crossChainRoutesConfig[intentSourceChainID] is null or undefined, assign {}
+        crossChainRoutesConfig[intentSourceChainID] ??= {}
         crossChainRoutesConfig[intentSourceChainID][destinationChainID] = routeTokensDTOs
       }
     }
@@ -206,25 +213,19 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   ): RouteTokensDTO[] {
     const sourceTokens = this.getSourceTokensForChain(intentSourceChainID)
 
-    if (_.size(sourceTokens) === 0) {
-      return [
-        {
-          send: '*',
-          receive: destinationTokens,
-        },
-      ]
+    if (_.isEmpty(sourceTokens)) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `No tokens configured for intent source chain ${intentSourceChainID}, skipping`,
+        }),
+      )
+      return []
     }
 
-    const routeTokenDTOs: RouteTokensDTO[] = []
-
-    for (const token of sourceTokens) {
-      routeTokenDTOs.push({
-        send: token,
-        receive: destinationTokens,
-      })
-    }
-
-    return routeTokenDTOs
+    return sourceTokens.map((token) => ({
+      send: token,
+      receive: destinationTokens,
+    }))
   }
 
   private getSourceTokensForChain(chainID: number): Address[] {
@@ -241,5 +242,37 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     }
 
     return intentSource.tokens
+  }
+
+  private async tryRegisterWithBackoff(max = 5) {
+    let delay = 1000
+
+    for (let i = 0; i < max; i++) {
+      const { error } = await this.registerSolver()
+
+      if (!error) {
+        return
+      }
+
+      await new Promise((r) => setTimeout(r, delay))
+      delay = Math.min(delay * 2, 30_000)
+    }
+
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `Solver registration failed after retries`,
+      }),
+    )
+  }
+
+  private getServerEndpoint(...parts: string[]): string {
+    return this.joinUrl(this.serverConfig.url, ...parts)
+  }
+
+  private joinUrl(...parts: string[]) {
+    return parts
+      .filter(Boolean)
+      .map((p, i) => (i === 0 ? p.replace(/\/+$/, '') : p.replace(/^\/+/, '').replace(/\/+$/, '')))
+      .join('/')
   }
 }
