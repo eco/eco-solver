@@ -23,9 +23,10 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
 import { SvmMultichainClientService } from '@/transaction/svm-multichain-client.service'
 import { CallDataInterface } from '@/contracts'
-import { hashIntent, encodeRoute, hashIntentSvm, hashIntentSvm2 } from '@/utils/encodeAndHash'
+import { hashIntent, encodeRoute, hashIntentSvm, addAccountsToRoute } from '@/utils/encodeAndHash'
 
 import * as portalIdl from '../solana/program/portal.json'
+import { RouteDataModel } from './schemas/route-data.schema'
 
 /**
  * This class fulfills Solana intents by creating and executing transactions on Solana.
@@ -318,6 +319,10 @@ export class SolanaWalletFulfillService implements IFulfillService {
     model: IntentSourceModel,
     solver: Solver,
   ): Promise<web3.TransactionInstruction> {
+    if (model.intent.route.vm !== VmType.SVM) {
+      throw new Error('Route VM type is not SVM')
+    }
+
     const portalAddress = new web3.PublicKey(
       getChainConfig(Number(model.intent.route.destination)).Inbox,
     )
@@ -363,11 +368,13 @@ export class SolanaWalletFulfillService implements IFulfillService {
       model.intent.route,
     )
 
-    const intentHashPremix = hashIntentSvm2(
+    const transformedRoute = addAccountsToRoute(RouteDataModel.toSvmRoute(model.intent.route), remainingAccounts.callAccounts)
+    console.log('MADDEN: transformedRoute', transformedRoute)
+
+    const intentHashPremix = hashIntentSvm(
       model.intent.destination,
-      model.intent.route,
+      transformedRoute,
       model.intent.reward,
-      remainingAccounts.callAccounts,
     )
     console.log('MADDEN: intentHashPremix', intentHashPremix)
     const intentHashBytes = Buffer.from(intentHashPremix.intentHash.slice(2), 'hex')

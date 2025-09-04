@@ -8,9 +8,10 @@ import { VmType } from '@/eco-configs/eco-config.types'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Hex } from 'viem'
 import { Address } from '@/eco-configs/eco-config.types'
+import { web3 } from '@coral-xyz/anchor'
 
 @Schema({ timestamps: true })
-export class RouteDataModel {
+export class RouteDataModel implements RouteType {
   @Prop({ required: true, type: String })
   vm: VmType
 
@@ -49,6 +50,24 @@ export class RouteDataModel {
     this.tokens = routeTokens
     this.portal = portal
     this.calls = calls
+  }
+
+  static toSvmRoute(route: RouteType): RouteType<VmType.SVM> {
+    return {
+      vm: VmType.SVM,
+      salt: route.salt,
+      deadline: route.deadline,
+      portal: new web3.PublicKey(route.portal),
+      tokens: route.tokens.map((token) => ({
+        token: new web3.PublicKey(token.token),
+        amount: token.amount,
+      })),
+      calls: route.calls.map((call) => ({
+        target: new web3.PublicKey(call.target),
+        data: call.data,
+        value: call.value,
+      })),
+    }
   }
 }
 
