@@ -51,6 +51,7 @@ export function envVarToPath(envVar: string): string[] {
     // Two-part patterns
     { parts: ['chain', 'config'], combined: 'chainConfig' },
     { parts: ['rpc', 'url'], combined: 'rpcUrl' },
+    { parts: ['api', 'key'], combined: 'apiKey' },
     { parts: ['ws', 'url'], combined: 'wsUrl' },
     { parts: ['chain', 'id'], combined: 'chainId' },
     { parts: ['private', 'key'], combined: 'privateKey' },
@@ -337,7 +338,7 @@ function transformValue(value: string, schema: z.ZodTypeAny): any {
     // For transform schemas, process the inner type
     return transformValue(value, schema._def.schema as z.ZodTypeAny);
   }
-  
+
   // Handle string schemas (including those that will be transformed to addresses)
   if (schema instanceof z.ZodString) {
     return value; // Return string as-is
@@ -365,7 +366,7 @@ function transformValue(value: string, schema: z.ZodTypeAny): any {
     if (/^0x[a-fA-F0-9]{40}$/.test(value) || /^T[a-zA-Z0-9]{33}$/.test(value)) {
       return value; // Return as-is for addresses
     }
-    
+
     // Try parsing as JSON array first
     try {
       const parsed = JSON.parse(value);

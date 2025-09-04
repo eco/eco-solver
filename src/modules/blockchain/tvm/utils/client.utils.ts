@@ -15,13 +15,12 @@ export class TvmClientUtils {
   static createClient(chainConfig: TvmNetworkConfig, privateKey?: string): TronWeb {
     const { rpc } = chainConfig;
 
-    const config = {
+    return new TronWeb({
       fullNode: rpc.fullNode,
       solidityNode: rpc.solidityNode || rpc.fullNode,
       eventServer: rpc.eventServer || rpc.fullNode,
+      headers: rpc.apiKey ? { 'TRON-PRO-API-KEY': rpc.apiKey } : undefined,
       ...(privateKey && { privateKey }),
-    };
-
-    return new TronWeb(config);
+    });
   }
 }

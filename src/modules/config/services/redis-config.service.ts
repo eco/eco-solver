@@ -11,6 +11,10 @@ type RedisConfig = z.infer<typeof RedisSchema>;
 export class RedisConfigService {
   constructor(private configService: ConfigService) {}
 
+  get url(): RedisConfig['url'] {
+    return this.configService.get<string>('redis.url')!;
+  }
+
   get host(): RedisConfig['host'] {
     return this.configService.get<string>('redis.host')!;
   }
@@ -21,9 +25,5 @@ export class RedisConfigService {
 
   get password(): RedisConfig['password'] {
     return this.configService.get<string>('redis.password');
-  }
-
-  get opts() {
-    return this.configService.get<RedisConfig['options']>('redis.options', {});
   }
 }

@@ -16,6 +16,7 @@ export const TvmRpcSchema = z.object({
   fullNode: z.string().url(),
   solidityNode: z.string().url().optional(),
   eventServer: z.string().url().optional(),
+  apiKey: z.string().optional(),
   options: z
     .object({
       timeout: z.coerce.number().int().positive().optional(),
