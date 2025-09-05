@@ -20,7 +20,6 @@ import { hyperlaneCollateralERC20 } from '@/contracts/HyperlaneCollateralERC20'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import {
@@ -42,6 +41,7 @@ import {
 import { withRetry, withTimeout } from './warp-route.utils'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
 export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
@@ -51,7 +51,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly liFiProviderService: LiFiProviderService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
     private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
@@ -172,7 +172,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         { operation: 'waitForReceipt', txHash },
       )
 
-      const { messageId } = this.getMessageFromReceipt(receipt)
+      const { messageId } = this.getMessageFromReceipt(receipt as TransactionReceipt)
 
       this.logger.log(
         EcoLogMessage.withId({
@@ -304,7 +304,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const transferRemoteTx: TransactionRequest = {
       to: warpToken.warpContract,
-      value: transferRemoteFee,
+      value: transferRemoteFee as bigint,
       data: transferRemoteData,
     }
 

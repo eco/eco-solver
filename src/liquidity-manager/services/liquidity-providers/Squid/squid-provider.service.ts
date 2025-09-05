@@ -5,12 +5,12 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getSlippage } from '@/liquidity-manager/utils/math'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { parseUnits } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { Squid } from '@0xsquid/sdk'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
@@ -19,7 +19,7 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
     private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 

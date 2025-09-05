@@ -8,11 +8,11 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { SmartAccount } from 'viem/account-abstraction'
+import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -20,7 +20,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientV2Service,
     private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 

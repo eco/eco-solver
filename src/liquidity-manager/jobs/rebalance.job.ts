@@ -12,9 +12,7 @@ import {
   LiquidityManagerQueueDataType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
-import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 export interface RebalanceJobData extends LiquidityManagerQueueDataType {
   network: string
@@ -25,9 +23,6 @@ export interface RebalanceJobData extends LiquidityManagerQueueDataType {
 export type RebalanceJob = LiquidityManagerJob<LiquidityManagerJobName.REBALANCE, RebalanceJobData>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
-  @AutoInject(RebalanceRepository)
-  private rebalanceRepository: RebalanceRepository
-
   static createJob(
     walletAddress: string,
     rebalance: RebalanceRequest,
@@ -57,7 +52,7 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     return job.name === LiquidityManagerJobName.REBALANCE
   }
 
-  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<unknown> {
     if (this.is(job)) {
       return processor.liquidityManagerService.executeRebalancing(job.data)
     }
@@ -71,15 +66,17 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    */
   async onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
     const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
-    const { network, walletAddress, rebalance: serializedRebalance } = rebalanceData
+    const { network, walletAddress } = rebalanceData
 
     processor.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
         message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
+        id: job.data.id,
         properties: {
           network,
           walletAddress,
           jobName: job.name,
+          data: job.data,
         },
       }),
     )
@@ -93,9 +90,11 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    */
   onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withErrorAndId({
+        id: job.data.id,
         message: `RebalanceJob: Failed`,
-        properties: { error: error.message, stack: error.stack },
+        error,
+        properties: { data: job.data },
       }),
     )
   }

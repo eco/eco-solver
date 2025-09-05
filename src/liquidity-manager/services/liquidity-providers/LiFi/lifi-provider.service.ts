@@ -18,7 +18,6 @@ import {
   LiFiAssetCacheManager,
   CacheStatus,
 } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
@@ -27,6 +26,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -37,7 +37,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
-    private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientV2Service,
     private readonly rebalanceRepository: RebalanceRepository,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {

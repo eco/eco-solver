@@ -19,16 +19,16 @@ import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { CCTPTokenMessengerABI } from '@/contracts/CCTPTokenMessenger'
 import { CCTPConfig } from '@/eco-configs/eco-config.types'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CCTPMessageTransmitterABI } from '@/contracts/CCTPMessageTransmitter'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -39,8 +39,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly walletClientService: LmTxGatedWalletClientService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly rebalanceRepository: RebalanceRepository,
 
