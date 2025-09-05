@@ -8,6 +8,7 @@ import { getQueueToken } from '@nestjs/bullmq'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { Hex, parseUnits } from 'viem'
 import { EverclearApiError } from './everclear.errors'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
@@ -70,6 +71,7 @@ describe('EverclearProviderService', () => {
         EverclearProviderService,
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<any>() },
         {
           provide: CACHE_MANAGER,
@@ -154,6 +156,21 @@ describe('EverclearProviderService', () => {
       await expect(service.getQuote(mockTokenIn, mockTokenOut, 100)).rejects.toThrow(
         EverclearApiError,
       )
+    })
+
+    it('should return an empty array if origin and destination chains are the same', async () => {
+      const sameChainTokenOut: TokenData = {
+        ...mockTokenOut,
+        chainId: mockTokenIn.chainId,
+        config: {
+          ...mockTokenOut.config,
+          chainId: mockTokenIn.chainId,
+        },
+      }
+
+      const quotes = await service.getQuote(mockTokenIn, sameChainTokenOut, 100)
+      expect(quotes).toEqual([])
+      expect(fetch).not.toHaveBeenCalled()
     })
   })
 
@@ -259,6 +276,22 @@ describe('EverclearProviderService', () => {
       await expect(service.execute(mockWalletAddress, mockQuote)).rejects.toThrow(
         'Kernel client account or chain is not available.',
       )
+    })
+
+    it('should throw for same-chain swaps', async () => {
+      const sameChainQuote = {
+        ...mockQuote,
+        tokenOut: {
+          ...mockTokenOut,
+          chainId: mockTokenIn.chainId,
+          config: { ...mockTokenOut.config, chainId: mockTokenIn.chainId },
+        },
+      } as any
+
+      await expect(service.execute(mockWalletAddress, sameChainQuote)).rejects.toThrow(
+        'same-chain swaps are not supported',
+      )
+      expect(fetch).not.toHaveBeenCalled()
     })
   })
 

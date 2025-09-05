@@ -19,6 +19,8 @@ import { getSlippage } from '@/liquidity-manager/utils/math'
 import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 import { erc20Abi } from 'viem'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {
@@ -30,6 +32,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -67,6 +70,28 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
         properties: { tokenIn, tokenOut, swapAmount },
       }),
     )
+
+    // Everclear only supports cross-chain transfers of the same token representation.
+    // If origin and destination chains are the same, skip quoting entirely.
+    if (tokenIn.chainId === tokenOut.chainId) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
+          id,
+          properties: {
+            tokenIn: {
+              address: tokenIn.config.address,
+              chainId: tokenIn.chainId,
+            },
+            tokenOut: {
+              address: tokenOut.config.address,
+              chainId: tokenOut.chainId,
+            },
+          },
+        }),
+      )
+      return []
+    }
 
     const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
       this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
@@ -165,138 +190,158 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       }),
     )
 
-    const { tokenIn, tokenOut, amountIn, id } = quote
-    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
-      this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
-      this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
-    ])
-
-    if (tokenInSymbol !== tokenOutSymbol) {
-      throw new Error(
-        `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
-      )
-    }
-
-    const requestBody = {
-      origin: tokenIn.chainId.toString(),
-      destinations: [tokenOut.chainId.toString()],
-      inputAsset: tokenIn.config.address,
-      amount: amountIn.toString(),
-      to: walletAddress,
-      maxFee: '0',
-      callData: '0x',
-    }
-
-    const response = await fetch(`${this.config.baseUrl}/intents`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    })
-
-    if (!response.ok) {
-      const errorBody = await response.text()
-      const errorMessage = `Everclear API error on /intents: ${response.status} ${response.statusText}`
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          message: errorMessage,
-          error: new Error(errorBody),
-          id,
-          properties: { requestBody },
-        }),
-      )
-      throw new EverclearApiError(errorMessage, response.status, errorBody, {
-        requestBody,
-      })
-    }
-
-    const txRequest = await response.json()
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: intent created',
-        id,
-        properties: { txRequest },
-      }),
-    )
-    const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
-
-    if (!client.account || !client.chain) {
-      throw new Error('Kernel client account or chain is not available.')
-    }
-
-    const spenderAddress = txRequest.to as Hex
-    const approveTx = createApproveTransaction(tokenIn.config.address, spenderAddress, amountIn)
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: approving tokens',
-        id,
-        properties: { approveTx },
-      }),
-    )
-
-    const intentTx = {
-      to: txRequest.to,
-      data: txRequest.data,
-      value: BigInt(txRequest.value ?? 0),
-    }
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: intent transaction',
-        id,
-        properties: { intentTx },
-      }),
-    )
-
-    let txHash: Hex
     try {
-      txHash = await client.execute([approveTx, intentTx])
-      const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
-      if (!txReceipt) {
-        throw new Error('Transaction receipt was null.')
+      const { tokenIn, tokenOut, amountIn, id } = quote
+
+      // Everclear only supports cross-chain transfers of the same token representation.
+      // If origin and destination chains are the same, do not execute.
+      if (tokenIn.chainId === tokenOut.chainId) {
+        throw new Error(
+          `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
+        )
       }
 
-      this.logger.log(
+      const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
+        this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
+        this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
+      ])
+
+      if (tokenInSymbol !== tokenOutSymbol) {
+        throw new Error(
+          `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
+        )
+      }
+
+      const requestBody = {
+        origin: tokenIn.chainId.toString(),
+        destinations: [tokenOut.chainId.toString()],
+        inputAsset: tokenIn.config.address,
+        amount: amountIn.toString(),
+        to: walletAddress,
+        maxFee: '0',
+        callData: '0x',
+      }
+
+      const response = await fetch(`${this.config.baseUrl}/intents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        const errorMessage = `Everclear API error on /intents: ${response.status} ${response.statusText}`
+        this.logger.error(
+          EcoLogMessage.withErrorAndId({
+            message: errorMessage,
+            error: new Error(errorBody),
+            id,
+            properties: { requestBody },
+          }),
+        )
+        throw new EverclearApiError(errorMessage, response.status, errorBody, {
+          requestBody,
+        })
+      }
+
+      const txRequest = await response.json()
+      this.logger.debug(
         EcoLogMessage.withId({
-          message: 'Everclear: transaction sent',
-          id,
-          properties: { txHash, txReceipt },
-        }),
-      )
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          message: 'Everclear: transaction failed',
-          error,
+          message: 'Everclear: intent created',
           id,
           properties: { txRequest },
         }),
       )
+      const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
+
+      if (!client.account || !client.chain) {
+        throw new Error('Kernel client account or chain is not available.')
+      }
+
+      const spenderAddress = txRequest.to as Hex
+      const approveTx = createApproveTransaction(tokenIn.config.address, spenderAddress, amountIn)
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Everclear: approving tokens',
+          id,
+          properties: { approveTx },
+        }),
+      )
+
+      const intentTx = {
+        to: txRequest.to,
+        data: txRequest.data,
+        value: BigInt(txRequest.value ?? 0),
+      }
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Everclear: intent transaction',
+          id,
+          properties: { intentTx },
+        }),
+      )
+
+      let txHash: Hex
+      try {
+        txHash = await client.execute([approveTx, intentTx])
+        const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
+        if (!txReceipt) {
+          throw new Error('Transaction receipt was null.')
+        }
+
+        this.logger.log(
+          EcoLogMessage.withId({
+            message: 'Everclear: transaction sent',
+            id,
+            properties: { txHash, txReceipt },
+          }),
+        )
+      } catch (error) {
+        this.logger.error(
+          EcoLogMessage.withErrorAndId({
+            message: 'Everclear: transaction failed',
+            error,
+            id,
+            properties: { txRequest },
+          }),
+        )
+        throw error
+      }
+
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'Everclear: transaction sent',
+          id,
+          properties: { txHash },
+        }),
+      )
+
+      await this.liquidityManagerQueue.startCheckEverclearIntent({
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+        txHash,
+        id: quote.id,
+      })
+
+      this.logger.log(
+        EcoLogMessage.withId({
+          message: 'Everclear: intent monitoring job queued',
+          id,
+          properties: { txHash },
+        }),
+      )
+
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
-
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: transaction sent',
-        id,
-        properties: { txHash },
-      }),
-    )
-
-    await this.liquidityManagerQueue.startCheckEverclearIntent({
-      txHash,
-      id: quote.id,
-    })
-
-    this.logger.log(
-      EcoLogMessage.withId({
-        message: 'Everclear: intent monitoring job queued',
-        id,
-        properties: { txHash },
-      }),
-    )
-
-    return txHash
   }
 
   async checkIntentStatus(
