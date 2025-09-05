@@ -51,6 +51,8 @@ export function envVarToPath(envVar: string): string[] {
     // Two-part patterns
     { parts: ['chain', 'config'], combined: 'chainConfig' },
     { parts: ['rpc', 'url'], combined: 'rpcUrl' },
+    { parts: ['api', 'url'], combined: 'apiUrl' },
+    { parts: ['base', 'url'], combined: 'baseUrl' },
     { parts: ['api', 'key'], combined: 'apiKey' },
     { parts: ['ws', 'url'], combined: 'wsUrl' },
     { parts: ['chain', 'id'], combined: 'chainId' },

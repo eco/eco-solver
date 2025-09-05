@@ -26,7 +26,7 @@ export class QuotesConfigService {
   }
 
   get registrationPrivateKey(): string | undefined {
-    return this.configService.get<string>('quotes.registration.baseUrl');
+    return this.configService.get<string>('quotes.registration.privateKey');
   }
 
   get apiUrl(): string {
