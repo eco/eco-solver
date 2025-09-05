@@ -24,6 +24,12 @@ const CHAIN_TYPE_MAPPINGS = {
 
   // SVM network identifiers (string-based)
   SVM_NETWORKS: ['solana-mainnet', 'solana-devnet', 'solana-testnet'],
+
+  // Mapping from numeric chain IDs to SVM network identifiers
+  SVM_CHAIN_ID_MAPPING: {
+    1399811149: 'solana-mainnet', // Solana mainnet numeric chain ID
+    // Add more SVM numeric chain ID mappings as needed
+  } as Record<number, string>,
 };
 
 export class ChainTypeDetector {
@@ -51,12 +57,31 @@ export class ChainTypeDetector {
       return ChainType.TVM;
     }
 
+    // Check SVM numeric chain ID mapping
+    if (CHAIN_TYPE_MAPPINGS.SVM_CHAIN_ID_MAPPING[chainId]) {
+      return ChainType.SVM;
+    }
+
     // Default heuristics for unknown chains
     if (this.isLikelyEvmChainId(chainId)) {
       return ChainType.EVM;
     }
 
     throw new Error(`Cannot determine chain type for chain ID: ${chainId}`);
+  }
+
+  /**
+   * Gets the string network identifier for a numeric SVM chain ID
+   *
+   * @param chainId - Numeric chain ID
+   * @returns String network identifier (e.g., 'solana-mainnet') or undefined if not found
+   */
+  static getNetworkIdentifier(chainId: number | bigint): string | number | bigint {
+    const numericChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    if (CHAIN_TYPE_MAPPINGS.SVM_CHAIN_ID_MAPPING[numericChainId]) {
+      return CHAIN_TYPE_MAPPINGS.SVM_CHAIN_ID_MAPPING[numericChainId];
+    }
+    return chainId;
   }
 
   /**
@@ -112,11 +137,13 @@ export class ChainTypeDetector {
     // - Positive integers
     // - Less than 2^32 (4,294,967,296)
     // - Not in the TVM reserved range
+    // - Not in the SVM reserved range
     return (
       Number.isInteger(chainId) &&
       chainId > 0 &&
       chainId < 4_294_967_296 &&
-      !CHAIN_TYPE_MAPPINGS.TVM_CHAIN_IDS.includes(chainId)
+      !CHAIN_TYPE_MAPPINGS.TVM_CHAIN_IDS.includes(chainId) &&
+      !CHAIN_TYPE_MAPPINGS.SVM_CHAIN_ID_MAPPING[chainId] // Use the new mapping here
     );
   }
 }

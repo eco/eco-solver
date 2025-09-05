@@ -12,6 +12,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { Validation } from './validation.interface';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 
 @Injectable()
 export class IntentFundedValidation implements Validation {
@@ -56,8 +57,10 @@ export class IntentFundedValidation implements Validation {
 
       span.setAttribute('funding.checking_chain', sourceChainId.toString());
 
+      let sourceChain = ChainTypeDetector.getNetworkIdentifier(sourceChainId);
+
       // Always perform on-chain verification for intent funding status
-      const isFunded = await this.blockchainReader.isIntentFunded(sourceChainId, intent);
+      const isFunded = await this.blockchainReader.isIntentFunded(sourceChain, intent);
 
       // If we have vault address, add it to span for debugging
       if (intent.vaultAddress) {
