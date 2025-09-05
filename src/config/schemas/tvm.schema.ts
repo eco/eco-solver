@@ -85,7 +85,7 @@ const TvmTransactionSettingsSchema = z.object({
   defaultFeeLimit: z.coerce.number().int().positive().default(150000000), // 150 TRX in SUN
   maxTransactionAttempts: z.coerce.number().int().positive().default(30),
   transactionCheckInterval: z.coerce.number().int().positive().default(2000), // milliseconds
-  listenerPollInterval: z.coerce.number().int().positive().default(3000), // milliseconds
+  listenerPollInterval: z.coerce.number().int().positive().default(30000), // milliseconds
 });
 
 /**

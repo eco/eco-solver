@@ -6,7 +6,6 @@ import { encodeAbiParameters, Hex, pad, zeroAddress } from 'viem';
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainConfigService } from '@/modules/config/services';
 
@@ -30,22 +29,6 @@ export class HyperProver extends BaseProver {
         },
       ],
       [[pad(AddressNormalizer.denormalizeToEvm(intent.reward.prover)), '0x', zeroAddress]],
-    );
-  }
-
-  async getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint> {
-    const localProver = this.getContractAddress(Number(intent.destination));
-    if (!localProver) {
-      throw new Error(`No prover contract address found for chain ${intent.destination}`);
-    }
-
-    // Fetch fee from the source chain where the intent originates
-    return this.blockchainReaderService.fetchProverFee(
-      intent.destination,
-      intent,
-      localProver,
-      await this.generateProof(intent),
-      claimant,
     );
   }
 

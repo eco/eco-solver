@@ -167,12 +167,7 @@ export class TvmConfigService implements IBlockchainConfigService {
    * @returns Transaction settings
    */
   getTransactionSettings(): TvmTransactionSettings {
-    return this.configService.get<TvmTransactionSettings>('tvm.transactionSettings', {
-      defaultFeeLimit: 150_000_000,
-      maxTransactionAttempts: 30,
-      transactionCheckInterval: 2000,
-      listenerPollInterval: 3000,
-    });
+    return this.configService.get<TvmTransactionSettings>('tvm.transactionSettings')!;
   }
 
   getClaimant(chainId: ChainIdentifier): UniversalAddress {

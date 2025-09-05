@@ -28,8 +28,6 @@ export abstract class BaseProver implements OnModuleInit {
 
   abstract generateProof(intent: Intent): Promise<Hex>;
 
-  abstract getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint>;
-
   abstract getDeadlineBuffer(): bigint;
 
   getContractAddress(chainId: string | number | bigint): UniversalAddress | undefined {
@@ -38,5 +36,21 @@ export abstract class BaseProver implements OnModuleInit {
 
   isSupported(chainId: number): boolean {
     return Boolean(this.getContractAddress(chainId));
+  }
+
+  async getFee(intent: Intent, claimant?: UniversalAddress): Promise<bigint> {
+    const localProver = this.getContractAddress(Number(intent.destination));
+    if (!localProver) {
+      throw new Error(`No prover contract address found for chain ${intent.destination}`);
+    }
+
+    // Fetch fee from the source chain where the intent originates
+    return this.blockchainReaderService.fetchProverFee(
+      intent.destination,
+      intent,
+      localProver,
+      await this.generateProof(intent),
+      claimant,
+    );
   }
 }

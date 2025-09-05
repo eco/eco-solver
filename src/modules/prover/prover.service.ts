@@ -9,6 +9,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { DummyProver } from '@/modules/prover/provers/dummy.prover';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
+import { PolymerProver } from '@/modules/prover/provers/polymer.prover';
 
 @Injectable()
 export class ProverService implements OnModuleInit {
@@ -16,6 +17,7 @@ export class ProverService implements OnModuleInit {
 
   constructor(
     private hyperProver: HyperProver,
+    private polymerProver: PolymerProver,
     private metalayerProver: MetalayerProver,
     private dummyProver: DummyProver,
     private readonly logger: SystemLoggerService,
@@ -129,6 +131,7 @@ export class ProverService implements OnModuleInit {
 
   private initializeProvers(): void {
     this.provers.set(ProverType.HYPER, this.hyperProver);
+    this.provers.set(ProverType.POLYMER, this.polymerProver);
     this.provers.set(ProverType.METALAYER, this.metalayerProver);
     this.provers.set(ProverType.DUMMY, this.dummyProver);
 

@@ -264,7 +264,9 @@ export class TvmReaderService extends BaseChainReader {
       );
 
       const contract = client.contract(messageBridgeProverAbi, tvmProver);
-      const feeRaw = await contract.fetchFee(intent.sourceChainId, encodeProof, messageData).call();
+      const feeRaw = await contract
+        .fetchFee(intent.sourceChainId, encodeProof, messageData)
+        .call({ from: tvmProver });
 
       // Extract fee from the result
       const fee = BigInt(feeRaw);
