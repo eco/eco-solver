@@ -1,12 +1,9 @@
 export default {
-  git: [
-    {
-      repo: 'eco-incorp/config-eco-solver',
-      hash: '7e596cf30b5163b18e393828dd6287df812b7674',
-      env: 'dev',
-      token: process.env.GITHUB_TOKEN,
-    },
-  ],
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    hash: '7e596cf30b5163b18e393828dd6287df812b7674',
+    env: 'dev',
+  },
   server: {
     url: 'http://localhost:3000',
   },

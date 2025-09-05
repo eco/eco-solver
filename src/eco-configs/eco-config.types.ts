@@ -18,6 +18,8 @@ export type EcoConfigType = {
   analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
+  gitConfig?: GitConfig
+  gitApp?: GitApp
   safe: SafeType
   externalAPIs: unknown
   redis: RedisConfig
@@ -211,7 +213,15 @@ export interface GitConfig {
   branch?: string
   tag?: string
   env: string
-  token?: string
+}
+
+/**
+ * The config type for GitHub App authentication
+ */
+export interface GitApp {
+  appId: string
+  privateKey: string
+  installationId: string
 }
 
 /**

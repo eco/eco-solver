@@ -68,6 +68,8 @@
     "@nestjs/platform-express": "^11.0.11",
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/terminus": "^10.2.3",
+    "@octokit/auth-app": "^8.1.0",
+    "@octokit/core": "^7.0.3",
     "@reservoir0x/relay-sdk": "^2.0.1",
     "@rhinestone/module-sdk": "^0.2.7",
     "@shelf/jest-mongodb": "^4.1.7",

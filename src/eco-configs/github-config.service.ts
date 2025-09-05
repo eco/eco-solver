@@ -2,9 +2,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as config from 'config'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { mergeWith, isArray } from 'lodash'
 import { downloadGitHubConfigs } from './utils/github-downloader.util'
-import { GitConfig } from './eco-config.types'
+import { GitConfig, GitApp } from './eco-config.types'
 
 @Injectable()
 export class GitHubConfigService implements OnModuleInit, ConfigSource {
@@ -21,52 +20,49 @@ export class GitHubConfigService implements OnModuleInit, ConfigSource {
     return this.githubConfigs
   }
 
-  async initConfigs() {
+  async initConfigs(gitApp?: GitApp) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `Initializing GitHub configs`,
       }),
     )
 
-    const gitConfigs = config.get('git') as GitConfig[]
-    if (!Array.isArray(gitConfigs) || gitConfigs.length === 0) {
-      this.logger.warn(
+    try {
+      const gitConfigs = config.get('gitConfig') as GitConfig
+      if (!gitApp) {
+        gitApp = config.get('gitApp') as GitApp
+      }
+      if (!gitConfigs || !gitApp) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: 'No git configs provided, skipping GitHub config initialization',
+          }),
+        )
+        return
+      }
+
+      await this.loadConfigs(gitConfigs, gitApp)
+    } catch (err) {
+      this.logger.error(
         EcoLogMessage.fromDefault({
-          message: 'No git configs provided, skipping GitHub config initialization',
+          message: `Failed to initialize GitHub configs: ${err.message}`,
         }),
       )
-      return
     }
-
-    await this.loadConfigs(gitConfigs)
   }
 
-  async initConfigsFromGitConfig(gitConfig: any) {
+  async initConfigsFromGitConfig(gitApp: GitApp) {
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `Initializing GitHub configs from provided git config`,
       }),
     )
 
-    const gitConfigs = Array.isArray(gitConfig) ? gitConfig : [gitConfig]
-    await this.loadConfigs(gitConfigs)
+    await this.initConfigs(gitApp)
   }
 
-  private async loadConfigs(gitConfigs: GitConfig[]) {
-    const configs = await Promise.all(
-      gitConfigs.map(async (gitConfig: GitConfig) => {
-        return await downloadGitHubConfigs(gitConfig, this.logger)
-      }),
-    )
-
-    // Deep merge all configs with custom array handling
-    this._githubConfigs = configs.reduce((acc, config) => {
-      return mergeWith(acc, config, (objValue, srcValue) => {
-        if (isArray(objValue)) {
-          return objValue.concat(srcValue)
-        }
-      })
-    }, {})
+  private async loadConfigs(gitConfig: GitConfig, gitApp: GitApp) {
+    this._githubConfigs = await downloadGitHubConfigs(gitConfig, gitApp, this.logger)
   }
 
   get githubConfigs(): Record<string, any> {

@@ -14,7 +14,7 @@ import { GitHubConfigService } from './github-config.service'
 @Injectable()
 export class AwsConfigService implements OnModuleInit, ConfigSource {
   private logger = new Logger(AwsConfigService.name)
-  private _awsConfigs: Record<string, string> = {}
+  private _awsConfigs: Record<string, any> = {}
   constructor(@Optional() private readonly githubConfigService?: GitHubConfigService) {}
 
   async onModuleInit() {
@@ -49,14 +49,14 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
     merge(this._awsConfigs, ...creds)
 
     // Check for git config in AWS secrets and merge if available
-    if (this._awsConfigs.git && this.githubConfigService) {
+    if (this._awsConfigs.gitApp && this.githubConfigService) {
       this.logger.debug(
         EcoLogMessage.fromDefault({
           message: `Git config found in AWS secrets, using GitHubConfigService to fetch configs`,
         }),
       )
 
-      await this.githubConfigService.initConfigsFromGitConfig(this._awsConfigs.git)
+      await this.githubConfigService.initConfigsFromGitConfig(this._awsConfigs.gitApp)
       const gitConfigs = this.githubConfigService.getConfig()
 
       // Deep merge with git config taking priority (git as senior in conflicts)
@@ -65,7 +65,7 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
           return objValue.concat(srcValue)
         }
       })
-    } else if (this._awsConfigs.git && !this.githubConfigService) {
+    } else if (this._awsConfigs.githubApp && !this.githubConfigService) {
       this.logger.warn(
         EcoLogMessage.fromDefault({
           message: `Git config found in AWS secrets but no GitHubConfigService available, skipping git config merge`,

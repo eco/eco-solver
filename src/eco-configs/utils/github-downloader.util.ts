@@ -1,19 +1,22 @@
 import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '../../common/logging/eco-log-message'
-import { GitConfig } from '../eco-config.types'
+import { GitConfig, GitApp } from '../eco-config.types'
+import { createAuthenticatedOctokit } from './github-auth.util'
 
 /**
  * Utility function to download configuration files from a GitHub repository
  * @param gitConfig the git configuration object
+ * @param gitApp the GitHub App authentication configuration
  * @param logger optional logger instance
  * @returns the downloaded configuration
  */
 export async function downloadGitHubConfigs(
   gitConfig: GitConfig,
+  gitApp: GitApp,
   logger?: Logger,
 ): Promise<Record<string, any>> {
   try {
-    const { repo, hash, branch, tag, env, token } = gitConfig
+    const { repo, hash, branch, tag, env } = gitConfig
     const assetsPath = `assets/${env}`
 
     // Determine the ref to use - prioritize hash, then tag, then branch
@@ -22,31 +25,61 @@ export async function downloadGitHubConfigs(
 
     logger?.debug(
       EcoLogMessage.fromDefault({
-        message: `Downloading configs from ${repo}@${ref} (${refType})/${assetsPath}`,
+        message: `Downloading configs from ${repo}@${ref} (${refType})/${assetsPath} using GitHub App authentication`,
       }),
     )
 
-    // Get the directory contents first
-    const contentsUrl = `https://api.github.com/repos/${repo}/contents/${assetsPath}?ref=${ref}`
-    const headers: HeadersInit = {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'eco-solver-config-service',
+    // Create authenticated Octokit instance using GitHub App
+    const octokit = await createAuthenticatedOctokit(gitApp, logger)
+    if (!octokit) {
+      throw new Error('Failed to authenticate with GitHub App')
     }
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
+    // Parse repo owner and name
+    const [owner, repoName] = repo.split('/')
+    if (!owner || !repoName) {
+      throw new Error(`Invalid repo format: ${repo}. Expected format: owner/repo`)
     }
 
-    const contentsResponse = await fetch(contentsUrl, { headers })
-    if (!contentsResponse.ok) {
-      throw new Error(`Failed to get directory contents: HTTP ${contentsResponse.status}`)
+    // Get the directory contents using authenticated Octokit
+    logger?.debug(
+      EcoLogMessage.fromDefault({
+        message: `Requesting contents for: owner=${owner}, repo=${repoName}, path=${assetsPath}, ref=${ref}`,
+      }),
+    )
+
+    // First, let's check what repositories this GitHub App can access
+    try {
+      const { data: repos } = await octokit.request('GET /installation/repositories')
+      const repoNames = repos.repositories.map((r) => r.full_name)
+      logger?.debug(
+        EcoLogMessage.fromDefault({
+          message: `GitHub App has access to repositories: ${repoNames.join(', ')}`,
+        }),
+      )
+
+      const hasAccess = repos.repositories.some((r) => r.full_name === `${owner}/${repoName}`)
+      if (!hasAccess) {
+        throw new Error(
+          `GitHub App does not have access to repository ${owner}/${repoName}. Available repos: ${repoNames.join(', ')}`,
+        )
+      }
+    } catch (repoCheckError) {
+      logger?.error(
+        EcoLogMessage.fromDefault({
+          message: `Failed to check repository access: ${repoCheckError.message}`,
+        }),
+      )
     }
 
-    const contents = await contentsResponse.json()
+    const contentsUrl = `/repos/${owner}/${repoName}/contents/${assetsPath}`
+    const { data: contents } = await octokit.request(`GET ${contentsUrl}`, {
+      ref: ref,
+    })
 
-    // Handle case where GitHub API returns an error object instead of array
+    // Handle case where GitHub API returns a single file instead of array
     if (!Array.isArray(contents)) {
-      throw new Error(`Directory contents response is not an array: ${JSON.stringify(contents)}`)
+      throw new Error(`Path ${assetsPath} is not a directory or does not contain multiple files`)
     }
 
     // Filter for JSON files only
@@ -61,14 +94,22 @@ export async function downloadGitHubConfigs(
       return {}
     }
 
-    // Download all JSON files in parallel
+    // Download all JSON files in parallel using authenticated requests
     const configPromises = jsonFiles.map(async (file) => {
       try {
-        const fileResponse = await fetch(file.download_url)
-        if (!fileResponse.ok) {
-          throw new Error(`Failed to download ${file.name}: HTTP ${fileResponse.status}`)
+        // Get file contents using authenticated Octokit
+        const fileUrl = `/repos/${owner}/${repoName}/contents/${file.path}`
+        const { data: fileData } = await octokit.request(`GET ${fileUrl}`, {
+          ref: ref,
+        })
+
+        // Decode base64 content if it's a file
+        if ('content' in fileData && fileData.type === 'file') {
+          const decodedContent = Buffer.from(fileData.content, 'base64').toString('utf8')
+          return JSON.parse(decodedContent)
+        } else {
+          throw new Error(`Unexpected file data structure for ${file.name}`)
         }
-        return await fileResponse.json()
       } catch (error) {
         logger?.error(
           EcoLogMessage.fromDefault({

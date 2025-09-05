@@ -14,14 +14,11 @@ export default {
     },
   ],
 
-  git: [
-    {
-      repo: 'eco-incorp/config-eco-solver',
-      branch: 'preprod-stoyan',
-      env: 'preprod',
-      token: process.env.GITHUB_TOKEN,
-    },
-  ],
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'preprod-stoyan',
+    env: 'preprod',
+  },
   //don't add anything else here
 
   solverRegistrationConfig: {
