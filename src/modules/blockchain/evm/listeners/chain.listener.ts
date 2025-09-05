@@ -83,7 +83,7 @@ export class ChainListener extends BaseChainListener {
 
             // Emit the event within the span context to propagate trace context
             api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventsService.emit('intent.discovered', { intent, strategy: 'standard' });
+              this.eventsService.emit('intent.discovered', { intent });
             });
 
             span.addEvent('intent.emitted');

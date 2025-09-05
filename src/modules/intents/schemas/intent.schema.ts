@@ -3,6 +3,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 
 export type IntentDocument = Intent & Document;
 
@@ -27,13 +28,13 @@ export class Intent {
     required: true,
   })
   reward: {
-    prover: string;
-    creator: string;
+    prover: UniversalAddress;
+    creator: UniversalAddress;
     deadline: string;
     nativeAmount: string;
     tokens: {
       amount: string;
-      token: string;
+      token: UniversalAddress;
     }[];
   };
 
@@ -65,17 +66,17 @@ export class Intent {
     source: string;
     destination: string;
     salt: string;
-    inbox: string;
+    inbox: UniversalAddress;
     deadline: bigint;
     nativeAmount: bigint;
     calls: {
       data: string;
-      target: string;
+      target: UniversalAddress;
       value: string;
     }[];
     tokens: {
       amount: string;
-      token: string;
+      token: UniversalAddress;
     }[];
   };
 

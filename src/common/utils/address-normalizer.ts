@@ -12,7 +12,6 @@ import { getAddress, isAddress as isViemAddress } from 'viem';
 import {
   BlockchainAddress,
   padTo32Bytes,
-  toUniversalAddress,
   UniversalAddress,
   unpadFrom32Bytes,
 } from '@/common/types/universal-address.type';
@@ -138,8 +137,7 @@ export class AddressNormalizer {
     const checksummed = getAddress(address);
 
     // Pad to 32 bytes (EVM addresses are 20 bytes, so we pad with 12 bytes of zeros)
-    const normalized = padTo32Bytes(checksummed);
-    return toUniversalAddress(normalized);
+    return padTo32Bytes(checksummed) as UniversalAddress;
   }
 
   static normalizeTvm(address: TronAddress): UniversalAddress {
@@ -148,12 +146,14 @@ export class AddressNormalizer {
 
       // Check if it's already hex format
       if (address.startsWith('0x')) {
+        const hexTronAddr = address.startsWith('0x41') ? address : '0x41' + address.substring(2);
+
         // Validate it's a proper Tron hex address
-        const base58 = TronWeb.address.fromHex(address.substring(2));
+        const base58 = TronWeb.address.fromHex(hexTronAddr.substring(2));
         if (!TronWeb.isAddress(base58)) {
           throw new Error(`Invalid Tron hex address: ${address}`);
         }
-        hexAddress = address;
+        hexAddress = hexTronAddr.toLowerCase();
       } else {
         // Assume it's base58 format
         if (!TronWeb.isAddress(address)) {
@@ -161,12 +161,11 @@ export class AddressNormalizer {
         }
         // Convert to hex (Tron addresses are 21 bytes, first byte is 0x41)
         const tronHex = TronWeb.address.toHex(address);
-        hexAddress = '0x' + tronHex;
+        hexAddress = '0x' + tronHex.toLowerCase();
       }
 
       // Pad to 32 bytes
-      const normalized = padTo32Bytes(hexAddress);
-      return toUniversalAddress(normalized);
+      return padTo32Bytes(hexAddress) as UniversalAddress;
     } catch (error) {
       throw new Error(`Failed to normalize TVM address ${address}: ${getErrorMessage(error)}`);
     }
@@ -182,7 +181,7 @@ export class AddressNormalizer {
       const hex = '0x' + Buffer.from(bytes).toString('hex');
 
       // Solana addresses are already 32 bytes, so no padding needed
-      return toUniversalAddress(hex);
+      return hex as UniversalAddress;
     } catch (error) {
       throw new Error(`Failed to normalize SVM address ${address}: ${getErrorMessage(error)}`);
     }

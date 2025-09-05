@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
 import { SolanaConfigService } from '@/modules/config/services/solana-config.service';
 import { TvmConfigService } from '@/modules/config/services/tvm-config.service';
@@ -54,9 +54,8 @@ describe('TokenConfigService', () => {
     it('should check EVM token support for EVM chain', () => {
       evmConfigService.isTokenSupported.mockReturnValue(true);
 
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000000000000000000123',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress;
       const result = service.isTokenSupported(1, address);
 
       expect(evmConfigService.isTokenSupported).toHaveBeenCalledWith(1, address);
@@ -66,9 +65,8 @@ describe('TokenConfigService', () => {
     it('should check TVM token support for TVM chain', () => {
       tvmConfigService.isTokenSupported.mockReturnValue(true);
 
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000005441646472657373',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000005441646472657373' as UniversalAddress;
       const result = service.isTokenSupported(728126428, address);
 
       expect(tvmConfigService.isTokenSupported).toHaveBeenCalledWith(728126428, address);
@@ -77,9 +75,8 @@ describe('TokenConfigService', () => {
 
     it('should return true for SVM chains (no restrictions)', () => {
       // Use a proper 32-byte Solana-like address
-      const address = toUniversalAddress(
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-      );
+      const address =
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as UniversalAddress;
       const result = service.isTokenSupported('solana-mainnet', address);
 
       expect(result).toBe(true);
@@ -89,9 +86,8 @@ describe('TokenConfigService', () => {
       // 999999999 passes the EVM heuristic check, so mock EVM service to return false
       evmConfigService.isTokenSupported.mockReturnValue(false);
 
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000000000000000000123',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress;
       const result = service.isTokenSupported(999999999, address);
 
       expect(result).toBe(false);
@@ -102,9 +98,8 @@ describe('TokenConfigService', () => {
         throw new Error('Config error');
       });
 
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000000000000000000123',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress;
       const result = service.isTokenSupported(1, address);
 
       expect(result).toBe(false);
@@ -113,9 +108,8 @@ describe('TokenConfigService', () => {
 
   describe('getTokenConfig', () => {
     it('should get EVM token config', () => {
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000000000000000000123',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress;
       const mockToken = {
         address: address,
         decimals: 18,
@@ -134,9 +128,8 @@ describe('TokenConfigService', () => {
     });
 
     it('should handle backward compatible EVM token limit (single number)', () => {
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000000000000000000123',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress;
       const mockToken = {
         address: address,
         decimals: 18,
@@ -154,9 +147,8 @@ describe('TokenConfigService', () => {
     });
 
     it('should get TVM token config', () => {
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000005441646472657373',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000005441646472657373' as UniversalAddress;
       const mockToken = {
         address: address,
         decimals: 6,
@@ -175,9 +167,8 @@ describe('TokenConfigService', () => {
     });
 
     it('should return default config for SVM tokens', () => {
-      const address = toUniversalAddress(
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-      );
+      const address =
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as UniversalAddress;
 
       solanaConfigService.getTokenConfig.mockReturnValue({
         address: address,
@@ -198,9 +189,8 @@ describe('TokenConfigService', () => {
         throw new Error('Network configuration not found for chainId: 999999999');
       });
 
-      const address = toUniversalAddress(
-        '0x0000000000000000000000000000000000000000000000000000000000000123',
-      );
+      const address =
+        '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress;
       expect(() => service.getTokenConfig(999999999, address)).toThrow(
         'Network configuration not found for chainId: 999999999',
       );
@@ -211,15 +201,13 @@ describe('TokenConfigService', () => {
     it('should get EVM supported tokens', () => {
       const mockTokens = [
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000000000000000000123',
-          ),
+          address:
+            '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress,
           decimals: 18,
         },
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000000000000000000456',
-          ),
+          address:
+            '0x0000000000000000000000000000000000000000000000000000000000000456' as UniversalAddress,
           decimals: 6,
         },
       ];
@@ -230,15 +218,11 @@ describe('TokenConfigService', () => {
       expect(evmConfigService.getSupportedTokens).toHaveBeenCalledWith(1);
       expect(result).toEqual([
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000000000000000000123',
-          ),
+          address: '0x0000000000000000000000000000000000000000000000000000000000000123',
           decimals: 18,
         },
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000000000000000000456',
-          ),
+          address: '0x0000000000000000000000000000000000000000000000000000000000000456',
           decimals: 6,
         },
       ]);
@@ -247,15 +231,13 @@ describe('TokenConfigService', () => {
     it('should get TVM supported tokens', () => {
       const mockTokens = [
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000005441646472657373',
-          ),
+          address:
+            '0x0000000000000000000000000000000000000000000000005441646472657373' as UniversalAddress,
           decimals: 6,
         },
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000005441646472657374',
-          ),
+          address:
+            '0x0000000000000000000000000000000000000000000000005441646472657374' as UniversalAddress,
           decimals: 8,
         },
       ];
@@ -266,15 +248,11 @@ describe('TokenConfigService', () => {
       expect(tvmConfigService.getSupportedTokens).toHaveBeenCalledWith(728126428);
       expect(result).toEqual([
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000005441646472657373',
-          ),
+          address: '0x0000000000000000000000000000000000000000000000005441646472657373',
           decimals: 6,
         },
         {
-          address: toUniversalAddress(
-            '0x0000000000000000000000000000000000000000000000005441646472657374',
-          ),
+          address: '0x0000000000000000000000000000000000000000000000005441646472657374',
           decimals: 8,
         },
       ]);

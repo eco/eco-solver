@@ -174,7 +174,8 @@ export class TvmReaderService extends BaseChainReader {
     try {
       const client = this.createTronWebClient(chainId);
 
-      const portalAddr = this.tvmConfigService.getPortalAddress(chainId);
+      const portalAddrUA = this.tvmConfigService.getPortalAddress(chainId);
+      const portalAddr = AddressNormalizer.denormalizeToTvm(portalAddrUA);
       span.setAttribute('tvm.chain_id', chainId);
       span.setAttribute('tvm.portal_address', portalAddr);
 
@@ -197,8 +198,8 @@ export class TvmReaderService extends BaseChainReader {
       // Structure route data for TronWeb contract call
       const rewardData: Parameters<typeof contract.isIntentFunded>[0][2] = [
         intent.reward.deadline,
-        intent.reward.creator,
-        intent.reward.prover,
+        AddressNormalizer.denormalizeToTvm(intent.reward.creator),
+        AddressNormalizer.denormalizeToTvm(intent.reward.prover),
         intent.reward.nativeAmount,
         intent.reward.tokens.map((t) => [AddressNormalizer.denormalizeToTvm(t.token), t.amount]),
       ];
@@ -209,8 +210,9 @@ export class TvmReaderService extends BaseChainReader {
         rewardData,
       ];
 
-      // Call TRC20 balanceOf function
-      const isFunded = await contract.isIntentFunded(intentParam).call();
+      const isFunded = await contract
+        .isIntentFunded(intentParam)
+        .call({ from: AddressNormalizer.denormalizeToTvm(intent.reward.creator) });
 
       span.setAttributes({
         'portal.intent_funded': isFunded,

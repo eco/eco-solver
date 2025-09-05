@@ -1,11 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { ProverType } from '@/common/interfaces/prover.interface';
-import {
-  padTo32Bytes,
-  toUniversalAddress,
-  UniversalAddress,
-} from '@/common/types/universal-address.type';
+import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -358,63 +354,6 @@ describe('ProverService', () => {
 
       // Default buffer is 300n (5 minutes)
       expect(buffer).toBe(300n);
-    });
-  });
-
-  describe('validateProofSubmission', () => {
-    beforeEach(() => {
-      service.onModuleInit();
-    });
-
-    it('should validate proof submission with valid intent hashes', async () => {
-      const intentHashes = [
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        '0x1111111111111111222222222222222233333333333333334444444444444444',
-      ];
-
-      const result = await service.validateProofSubmission(intentHashes, 1, 10);
-
-      expect(result).toEqual({
-        isValid: true,
-      });
-    });
-
-    it('should return invalid when no prover supports the route', async () => {
-      const intentHashes = ['0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'];
-
-      const result = await service.validateProofSubmission(intentHashes, 999, 888);
-
-      expect(result).toEqual({
-        isValid: false,
-        reason: 'No prover available for route 999 -> 888',
-      });
-    });
-
-    it('should return invalid for malformed intent hashes', async () => {
-      const intentHashes = [
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        'invalid-hash', // Invalid format
-      ];
-
-      const result = await service.validateProofSubmission(intentHashes, 1, 10);
-
-      expect(result).toEqual({
-        isValid: false,
-        reason: 'Invalid intent hash format: invalid-hash',
-      });
-    });
-
-    it('should return invalid for short intent hashes', async () => {
-      const intentHashes = [
-        '0x1234567890abcdef', // Too short
-      ];
-
-      const result = await service.validateProofSubmission(intentHashes, 1, 10);
-
-      expect(result).toEqual({
-        isValid: false,
-        reason: 'Invalid intent hash format: 0x1234567890abcdef',
-      });
     });
   });
 });

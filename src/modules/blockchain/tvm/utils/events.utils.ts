@@ -1,10 +1,6 @@
 import { Hex } from 'viem';
 
-import {
-  IntentFulfilledEvent,
-  PortalEventArgs,
-  RawEventLogs,
-} from '@/common/interfaces/events.interface';
+import { IntentFulfilledEvent, TvmEvent } from '@/common/interfaces/events.interface';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 
 /**
@@ -13,10 +9,7 @@ import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.ser
  * @param event The raw TVM event object
  * @returns Parsed IntentFulfilledEvent
  */
-export function parseTvmIntentFulfilled(
-  chainId: bigint,
-  event: RawEventLogs.TvmEvent,
-): IntentFulfilledEvent {
+export function parseTvmIntentFulfilled(chainId: bigint, event: TvmEvent): IntentFulfilledEvent {
   const result = event.result;
 
   return {
@@ -33,9 +26,7 @@ export function parseTvmIntentFulfilled(
  * @param event The raw TVM event object
  * @returns Parsed event data matching Portal event structure
  */
-export function parseTvmIntentPublished(
-  event: RawEventLogs.TvmEvent,
-): Partial<PortalEventArgs.IntentPublished> & { intentHash: Hex } {
+export function parseTvmIntentPublished(event: TvmEvent) {
   const result = event.result;
 
   // Parse reward tokens with proper type

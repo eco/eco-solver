@@ -33,9 +33,10 @@ export class ProverService implements OnModuleInit {
   async validateIntentRoute(intent: Intent): Promise<ProverResult> {
     // Validate Portal address in route
     const portalAddress = intent.route.portal;
+    const sourceChainId = Number(intent.sourceChainId);
     const destinationChainId = Number(intent.destination);
-    const expectedPortal = this.blockchainConfigService.getPortalAddress(destinationChainId);
 
+    const expectedPortal = this.blockchainConfigService.getPortalAddress(destinationChainId);
     if (!expectedPortal) {
       return {
         isValid: false,
@@ -51,13 +52,11 @@ export class ProverService implements OnModuleInit {
     }
 
     // Find the appropriate prover based on the contract addresses
-    const sourceChainId = intent.sourceChainId ? Number(intent.sourceChainId) : destinationChainId;
-    const prover = this.findProverForRoute(sourceChainId, destinationChainId);
-
-    if (!prover) {
+    const prover = this.getProver(sourceChainId, intent.reward.prover);
+    if (!prover || !prover.isSupported(destinationChainId)) {
       return {
         isValid: false,
-        reason: 'No prover found for this route',
+        reason: 'Intent prover is not allowed',
       };
     }
 
@@ -95,50 +94,7 @@ export class ProverService implements OnModuleInit {
     return maxBuffer > 0n ? maxBuffer : 300n;
   }
 
-  /**
-   * Validates Portal proof submission capability
-   * @param intentHashes Array of intent hashes to validate
-   * @param sourceChainId Source chain ID
-   * @param destinationChainId Destination chain ID
-   * @returns ProverResult indicating if proof can be submitted
-   */
-  async validateProofSubmission(
-    intentHashes: string[],
-    sourceChainId: number,
-    destinationChainId: number,
-  ): Promise<ProverResult> {
-    const prover = this.findProverForRoute(sourceChainId, destinationChainId);
-
-    if (!prover) {
-      return {
-        isValid: false,
-        reason: `No prover available for route ${sourceChainId} -> ${destinationChainId}`,
-      };
-    }
-
-    // Validate that all intent hashes are properly formatted
-    for (const intentHash of intentHashes) {
-      if (!/^0x[a-fA-F0-9]{64}$/.test(intentHash)) {
-        return {
-          isValid: false,
-          reason: `Invalid intent hash format: ${intentHash}`,
-        };
-      }
-    }
-
-    return { isValid: true };
-  }
-
-  private initializeProvers(): void {
-    this.provers.set(ProverType.HYPER, this.hyperProver);
-    this.provers.set(ProverType.POLYMER, this.polymerProver);
-    this.provers.set(ProverType.METALAYER, this.metalayerProver);
-    this.provers.set(ProverType.DUMMY, this.dummyProver);
-
-    this.logger.log(`Initialized ${this.provers.size} provers`);
-  }
-
-  private findProverForRoute(sourceChainId: number, destinationChainId: number): BaseProver | null {
+  findProverForRoute(sourceChainId: number, destinationChainId: number): BaseProver | null {
     // Check each prover to see if it supports both chains and has matching contracts
     for (const [type, prover] of this.provers) {
       const sourceContract = prover.isSupported(sourceChainId);
@@ -153,5 +109,14 @@ export class ProverService implements OnModuleInit {
     }
 
     return null;
+  }
+
+  private initializeProvers(): void {
+    this.provers.set(ProverType.HYPER, this.hyperProver);
+    this.provers.set(ProverType.POLYMER, this.polymerProver);
+    this.provers.set(ProverType.METALAYER, this.metalayerProver);
+    this.provers.set(ProverType.DUMMY, this.dummyProver);
+
+    this.logger.log(`Initialized ${this.provers.size} provers`);
   }
 }

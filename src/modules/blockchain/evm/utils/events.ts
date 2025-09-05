@@ -1,11 +1,7 @@
-import { decodeEventLog, Hex, WatchContractEventOnLogsParameter } from 'viem';
+import { decodeEventLog, Hex, Log } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
-import {
-  IntentFulfilledEvent,
-  PortalEventArgs,
-  RawEventLogs,
-} from '@/common/interfaces/events.interface';
+import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
@@ -17,14 +13,17 @@ import { PortalEncoder } from '@/common/utils/portal-encoder';
  * @param rawLog The raw EVM log
  * @returns Parsed Intent object
  */
-export function parseIntentPublish(sourceChainId: bigint, rawLog: RawEventLogs.EvmLog): Intent {
+export function parseIntentPublish(
+  sourceChainId: bigint,
+  rawLog: Pick<Log, 'topics' | 'data'>,
+): Intent {
   const log = decodeEventLog({
     abi: portalAbi,
     eventName: 'IntentPublished',
-    topics: rawLog.topics as any,
+    topics: rawLog.topics,
     data: rawLog.data,
     strict: true,
-  }) as unknown as { args: PortalEventArgs.IntentPublished };
+  });
 
   // Decode route based on destination chain type - already returns an Intent format
   const destChainType = ChainTypeDetector.detect(log.args.destination);
@@ -38,12 +37,12 @@ export function parseIntentPublish(sourceChainId: bigint, rawLog: RawEventLogs.E
     route, // Already in Intent format with UniversalAddress from PortalEncoder
     reward: {
       deadline: log.args.rewardDeadline,
-      creator: AddressNormalizer.normalize(log.args.creator, ChainType.EVM),
-      prover: AddressNormalizer.normalize(log.args.prover, ChainType.EVM),
+      creator: AddressNormalizer.normalize(log.args.creator, ChainType.TVM),
+      prover: AddressNormalizer.normalize(log.args.prover, ChainType.TVM),
       nativeAmount: log.args.rewardNativeAmount,
       tokens: log.args.rewardTokens.map((token) => ({
         amount: token.amount,
-        token: AddressNormalizer.normalize(token.token, ChainType.EVM),
+        token: AddressNormalizer.normalize(token.token, ChainType.TVM),
       })),
     },
   };
@@ -55,24 +54,21 @@ export function parseIntentPublish(sourceChainId: bigint, rawLog: RawEventLogs.E
  * @param rawLog The raw EVM log
  * @returns Parsed IntentFulfilledEvent object
  */
-export function parseIntentFulfilled(
-  chainId: bigint,
-  rawLog: RawEventLogs.EvmLog,
-): IntentFulfilledEvent {
+export function parseIntentFulfilled(chainId: bigint, rawLog: Log): IntentFulfilledEvent {
   const log = decodeEventLog({
     abi: portalAbi,
     eventName: 'IntentFulfilled',
-    topics: rawLog.topics as any,
+    topics: rawLog.topics,
     data: rawLog.data,
     strict: true,
-  }) as unknown as { args: PortalEventArgs.IntentFulfilled };
+  });
 
   return {
     intentHash: log.args.intentHash,
     claimant: log.args.claimant,
     chainId,
-    transactionHash: rawLog.transactionHash,
-    blockNumber: rawLog.blockNumber,
+    transactionHash: rawLog.transactionHash!,
+    blockNumber: rawLog.blockNumber!,
   };
 }
 

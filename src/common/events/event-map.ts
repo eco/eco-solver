@@ -13,7 +13,7 @@ export interface EventMap {
    */
   'intent.discovered': {
     intent: Intent;
-    strategy: FulfillmentStrategyName;
+    strategy?: FulfillmentStrategyName;
   };
 
   /**

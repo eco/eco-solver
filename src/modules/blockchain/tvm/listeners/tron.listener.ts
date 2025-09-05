@@ -1,14 +1,17 @@
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
-import { Hex } from 'viem';
+import { getAbiItem, Hex, toEventHash } from 'viem';
 
+import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { TvmEvent, TvmEventResponse } from '@/common/interfaces/events.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
-import { PortalEncoder } from '@/common/utils/portal-encoder';
+import { minutes } from '@/common/utils/time';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
+import { parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
 import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { parseTvmIntentFulfilled } from '@/modules/blockchain/tvm/utils/events.utils';
@@ -19,16 +22,13 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 
 export class TronListener extends BaseChainListener {
   private intervalId: NodeJS.Timeout | null = null;
-  private lastBlockNumber: number = 0;
   private lastBlockTimestamp: number = 0;
   private isRunning: boolean = false;
   private proverAddresses: Map<string, string> = new Map(); // Map of prover type to address
 
   // Metrics instruments
   private pollCounter: api.Counter;
-  private blocksProcessedHistogram: api.Histogram;
   private eventsFoundCounter: api.Counter;
-  private lastBlockGauge: api.UpDownCounter;
   private pollDurationHistogram: api.Histogram;
 
   constructor(
@@ -49,17 +49,8 @@ export class TronListener extends BaseChainListener {
       description: 'Total number of TVM blockchain polls',
     });
 
-    this.blocksProcessedHistogram = meter.createHistogram('tvm.poll.blocks_processed', {
-      description: 'Number of blocks processed per poll',
-      unit: 'blocks',
-    });
-
     this.eventsFoundCounter = meter.createCounter('tvm.poll.events_found', {
       description: 'Total number of events found in TVM polls',
-    });
-
-    this.lastBlockGauge = meter.createUpDownCounter('tvm.poll.last_block', {
-      description: 'Last processed block number',
     });
 
     this.pollDurationHistogram = meter.createHistogram('tvm.poll.duration', {
@@ -72,8 +63,8 @@ export class TronListener extends BaseChainListener {
    * Starts the blockchain listener for monitoring new intents
    */
   async start(): Promise<void> {
-    const portalAddress = this.tvmConfigService.getPortalAddress(this.config.chainId);
-    if (!portalAddress) {
+    const portalAddressUA = this.tvmConfigService.getPortalAddress(this.config.chainId);
+    if (!portalAddressUA) {
       throw new Error(`No Portal address configured for chain ${this.config.chainId}`);
     }
 
@@ -89,6 +80,7 @@ export class TronListener extends BaseChainListener {
       );
     }
 
+    const portalAddress = AddressNormalizer.denormalizeToTvm(portalAddressUA);
     this.logger.log(
       `Starting TronListener for chain ${this.config.chainId}, portal address: ${portalAddress}. Listening for IntentPublished, IntentFulfilled, and IntentWithdrawn events from Portal, and IntentProven events from ${this.proverAddresses.size} prover(s).`,
     );
@@ -97,8 +89,7 @@ export class TronListener extends BaseChainListener {
 
     // Get the current block number and timestamp to start from
     const client = this.createTronWebClient();
-    const currentBlock = await client.trx.getCurrentBlock();
-    this.lastBlockNumber = currentBlock.block_header.raw_data.number;
+    const currentBlock = await client.trx.getConfirmedCurrentBlock();
     this.lastBlockTimestamp = currentBlock.block_header.raw_data.timestamp;
 
     // Start polling for events
@@ -142,112 +133,51 @@ export class TronListener extends BaseChainListener {
     try {
       const client = this.createTronWebClient();
 
-      // Get current block
-      const currentBlock = await client.trx.getCurrentBlock();
-      const currentBlockNumber = currentBlock.block_header.raw_data.number;
-
       // Record metrics instead of logging
       this.pollCounter.add(1, attributes);
-      this.lastBlockGauge.add(currentBlockNumber - this.lastBlockNumber, attributes);
-
-      // If no new blocks, skip
-      if (currentBlockNumber <= this.lastBlockNumber) {
-        // Record zero blocks processed
-        this.blocksProcessedHistogram.record(0, attributes);
-        return;
-      }
-
-      // Record blocks processed
-      const blocksProcessed = currentBlockNumber - this.lastBlockNumber;
-      this.blocksProcessedHistogram.record(blocksProcessed, attributes);
 
       const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
 
-      // {
-      //   "data": [
-      //   {
-      //     "block_number": 57652937,
-      //     "block_timestamp": 1756892487000,
-      //     "caller_contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
-      //     "contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
-      //     "event_index": 0,
-      //     "event_name": "IntentFulfilled",
-      //     "result": {
-      //       "0": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
-      //       "1": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3",
-      //       "intentHash": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
-      //       "claimant": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3"
-      //     },
-      //     "result_type": {
-      //       "intentHash": "bytes32",
-      //       "claimant": "bytes32"
-      //     },
-      //     "event": "IntentFulfilled(bytes32 indexed intentHash, bytes32 indexed claimant)",
-      //     "transaction_id": "10d1b80be3be07959b0be011c846abddf6cbc08f55719ed2e1acd43d80533083"
-      //   },
-      //   {
-      //     "block_number": 57652937,
-      //     "block_timestamp": 1756892487000,
-      //     "caller_contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
-      //     "contract_address": "TKWwVSTacc9iToWgfef6cbkXPiBAKeSX2t",
-      //     "event_index": 4,
-      //     "event_name": "IntentProven",
-      //     "result": {
-      //       "0": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
-      //       "1": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3",
-      //       "intentHash": "c26a03b111c0327b19816e94a1d4818f417c73bcc130576a6105ccb2a5a06cfa",
-      //       "claimant": "000000000000000000000000479b996f6323cf269b45dc642b2fa1722baa84c3"
-      //     },
-      //     "result_type": {
-      //       "intentHash": "bytes32",
-      //       "claimant": "bytes32"
-      //     },
-      //     "event": "IntentProven(bytes32 indexed intentHash, bytes32 indexed claimant)",
-      //     "transaction_id": "10d1b80be3be07959b0be011c846abddf6cbc08f55719ed2e1acd43d80533083"
-      //   }
-      // ],
-      //     "success": true,
-      //     "meta": {
-      //   "at": 1756892865144,
-      //       "page_size": 2
-      // }
-      // }
+      // Add a second to not get the last blocks events
+      const minBlockTimestamp = this.lastBlockTimestamp + minutes(1);
 
-      // Get Portal events (IntentPublished, IntentFulfilled, IntentWithdrawn)
+      // Get Portal events (IntentFunded, IntentFulfilled, IntentWithdrawn)
+      // Note: IntentPublished events will be fetched from transaction info of IntentFunded events
       const portalEventsResponse: TvmEventResponse = await client.event.getEventsByContractAddress(
         portalAddress,
         {
           onlyConfirmed: true,
-          minBlockTimestamp: this.lastBlockTimestamp,
+          minBlockTimestamp,
           orderBy: 'block_timestamp,asc',
           limit: 200,
         },
       );
 
+      // TODO: Listener for IntentProven events must have a different interval
       // Get IntentProven events from all configured prover contracts
       const allProverEvents: TvmEventResponse['data'] = [];
-      for (const [proverType, proverAddress] of this.proverAddresses.entries()) {
-        try {
-          const proverEventsResponse = await client.event.getEventsByContractAddress(
-            proverAddress,
-            {
-              onlyConfirmed: true,
-              minBlockTimestamp: this.lastBlockTimestamp,
-              orderBy: 'block_timestamp,asc',
-              limit: 200,
-            },
-          );
-
-          if ((proverEventsResponse.data?.length || 0) > 0) {
-            allProverEvents.push(...proverEventsResponse.data!);
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error fetching events from ${proverType} prover at ${proverAddress}: ${getErrorMessage(error)}`,
-            toError(error),
-          );
-        }
-      }
+      // for (const [proverType, proverAddress] of this.proverAddresses.entries()) {
+      //   try {
+      //     const proverEventsResponse = await client.event.getEventsByContractAddress(
+      //       proverAddress,
+      //       {
+      //         onlyConfirmed: true,
+      //         minBlockTimestamp: this.lastBlockTimestamp,
+      //         orderBy: 'block_timestamp,asc',
+      //         limit: 200,
+      //       },
+      //     );
+      //
+      //     if ((proverEventsResponse.data?.length || 0) > 0) {
+      //       allProverEvents.push(...proverEventsResponse.data!);
+      //     }
+      //   } catch (error) {
+      //     this.logger.error(
+      //       `Error fetching events from ${proverType} prover at ${proverAddress}: ${getErrorMessage(error)}`,
+      //       toError(error),
+      //     );
+      //   }
+      // }
 
       // Combine all events
       const events: TvmEventResponse['data'] = [
@@ -264,14 +194,17 @@ export class TronListener extends BaseChainListener {
         this.logger.log('Found events in poll', {
           chainId: this.config.chainId,
           eventCount,
-          blockRange: `${this.lastBlockNumber}-${currentBlockNumber}`,
         });
       }
 
-      // Process events
+      // Collect unique transaction IDs from IntentFunded events
+      const intentFundedTxIds = new Set<string>();
+
+      // Process events and collect IntentFunded transaction IDs
       for (const event of events) {
-        if (event.event_name === 'IntentPublished') {
-          await this.processIntentEvent(event);
+        if (event.event_name === 'IntentFunded') {
+          // Collect transaction ID for fetching IntentPublished event
+          intentFundedTxIds.add(event.transaction_id);
         } else if (event.event_name === 'IntentFulfilled') {
           await this.processIntentFulfilledEvent(event);
         } else if (event.event_name === 'IntentProven') {
@@ -282,9 +215,20 @@ export class TronListener extends BaseChainListener {
         }
       }
 
+      // Fetch and process IntentPublished events from transactions
+      for (const txId of intentFundedTxIds) {
+        await this.processTransaction(txId, client);
+      }
+
+      // Use the lastest fetched event, to get the last verified block's timestamp
+      const newestEvent = events.reduce(
+        (current, event) =>
+          current && current.block_timestamp < event.block_timestamp ? event : current,
+        events[0],
+      );
+
       // Update last processed block and timestamp
-      this.lastBlockNumber = currentBlockNumber;
-      this.lastBlockTimestamp = currentBlock.block_header.raw_data.timestamp;
+      this.lastBlockTimestamp = newestEvent?.block_timestamp ?? this.lastBlockTimestamp;
     } catch (error) {
       this.logger.error(`Error polling for events: ${getErrorMessage(error)}`, toError(error));
       throw error;
@@ -295,61 +239,27 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private async processIntentEvent(event: TvmEvent): Promise<void> {
+  private async processIntentEvent(intent: Intent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentEvent', {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
-        'tvm.event_name': event.event_name,
-        'tvm.transaction_id': event.transaction_id,
-        'tvm.block_number': event.block_number,
+        'tvm.event_name': 'IntentPublished',
+        'tvm.transaction_id': intent.publishTxHash,
       },
     });
 
     try {
-      // Parse event result
-      const result = event.result;
-
-      // Decode route based on destination chain type - already returns Intent format
-      const destChainType = ChainTypeDetector.detect(BigInt(result.destination));
-      const route = PortalEncoder.decodeFromChain(
-        Buffer.from(result.route, 'hex'),
-        destChainType,
-        'route',
-      );
-
-      // Construct intent from Portal event data with normalized addresses
-      const intent = {
-        intentHash: result.hash as Hex,
-        destination: BigInt(result.destination),
-        route, // Already in Intent format with UniversalAddress from PortalEncoder
-        reward: {
-          creator: AddressNormalizer.normalize(
-            TvmUtilsService.fromHex(result.creator),
-            ChainType.TVM,
-          ),
-          prover: AddressNormalizer.normalize(
-            TvmUtilsService.fromHex(result.prover),
-            ChainType.TVM,
-          ),
-          deadline: BigInt(result.rewardDeadline),
-          nativeAmount: BigInt(result.nativeAmount),
-          tokens: result.rewardTokens ? this.parseTokenArray(result.rewardTokens as any) : [],
-        },
-        sourceChainId: BigInt(this.config.chainId),
-        publishTxHash: event.transaction_id,
-      };
-
       span.setAttributes({
         'tvm.intent_id': intent.intentHash,
         'tvm.source_chain': this.config.chainId.toString(),
-        'tvm.destination_chain': result.destination,
-        'tvm.creator': intent.reward.creator,
-        'tvm.prover': intent.reward.prover,
+        'tvm.destination_chain': intent.destination.toString(),
+        'tvm.creator': AddressNormalizer.denormalizeToTvm(intent.reward.creator),
+        'tvm.prover': AddressNormalizer.denormalizeToTvm(intent.reward.prover),
       });
 
       // Emit the intent event within the span context to propagate trace context
       api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-        this.eventsService.emit('intent.discovered', { intent, strategy: 'standard' });
+        this.eventsService.emit('intent.discovered', { intent });
       });
 
       span.addEvent('intent.emitted');
@@ -528,14 +438,54 @@ export class TronListener extends BaseChainListener {
     }
   }
 
-  private parseTokenArray(tokens: any[]): Array<{ token: any; amount: bigint }> {
-    if (!tokens || !Array.isArray(tokens)) {
-      return [];
-    }
+  /**
+   * Retrieves transaction info and extracts events
+   * @param txId - The transaction ID to fetch info for
+   * @param client - TronWeb client instance
+   * @returns Decoded IntentPublished event data or null if not found
+   */
+  private async processTransaction(txId: string, client: TronWeb) {
+    try {
+      // Fetch transaction info
+      const txInfo = await client.trx.getTransactionInfo(txId);
 
-    return tokens.map((token) => ({
-      token: AddressNormalizer.normalize(TvmUtilsService.fromHex(token.token), ChainType.TVM),
-      amount: BigInt(token.amount),
-    }));
+      if (!txInfo || !txInfo.log || !Array.isArray(txInfo.log)) {
+        return;
+      }
+
+      const intentPublishedEventHash = toEventHash(
+        getAbiItem({ abi: portalAbi, name: 'IntentPublished' }),
+      );
+
+      // Iterate through logs to find IntentPublished event
+      for (const log of txInfo.log) {
+        // Ensure topics have '0x' prefix for Viem
+        const topics = log.topics.map((topic: string) =>
+          topic.startsWith('0x') ? topic : `0x${topic}`,
+        ) as [Hex, ...Hex[]];
+
+        // Filter IntentPublished events using its event hash
+        if (topics[0] !== intentPublishedEventHash) {
+          // Skip other events.
+          continue;
+        }
+
+        // Ensure data has '0x' prefix for Viem
+        const data = log.data?.startsWith('0x') ? log.data : `0x${log.data || ''}`;
+
+        const evmLog = { topics, data: data as Hex };
+
+        const intent = parseIntentPublish(BigInt(this.config.chainId), evmLog);
+        // Add the transaction hash to the intent
+        intent.publishTxHash = txInfo.id;
+
+        await this.processIntentEvent(intent);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error fetching transaction info for ${txId}: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+    }
   }
 }

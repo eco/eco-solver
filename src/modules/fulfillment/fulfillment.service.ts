@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
+import { EventMap } from '@/common/events';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { DataDogService } from '@/modules/datadog';
@@ -132,8 +133,9 @@ export class FulfillmentService {
    * Handle intent discovered event
    */
   @OnEvent('intent.discovered')
-  async handleIntentDiscovered(payload: { intent: Intent; strategy: FulfillmentStrategyName }) {
-    const { intent, strategy } = payload;
+  async handleIntentDiscovered(payload: EventMap['intent.discovered']) {
+    // TODO: Get default strategy from configuration
+    const { intent, strategy = 'standard' } = payload;
     await this.submitIntent(intent, strategy);
   }
 

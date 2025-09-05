@@ -5,8 +5,6 @@
  * All addresses are stored as 32-byte hex strings (0x + 64 chars) regardless of blockchain type.
  */
 
-import { Hex, pad } from 'viem';
-
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { EvmAddress } from '@/modules/blockchain/evm/types/address';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
@@ -26,28 +24,6 @@ export type BlockchainAddress<chainType extends ChainType = ChainType> =
       : chainType extends ChainType.SVM
         ? SvmAddress
         : never;
-
-/**
- * Type guard to check if a value is a UniversalAddress
- */
-export function isUniversalAddress(value: unknown): value is UniversalAddress {
-  if (typeof value !== 'string') return false;
-  // Check for normalized format: 0x + 64 hex characters
-  return /^0x[a-fA-F0-9]{64}$/.test(value);
-}
-
-/**
- * Creates a UniversalAddress from a normalized hex string
- * @throws Error if the address is not in normalized format
- */
-export function toUniversalAddress(normalized: string): UniversalAddress {
-  if (!isUniversalAddress(normalized)) {
-    throw new Error(
-      `Invalid normalized address format: ${normalized}. Expected 0x + 64 hex characters`,
-    );
-  }
-  return normalized as UniversalAddress;
-}
 
 /**
  * Pads a hex string to 32 bytes (64 hex characters)

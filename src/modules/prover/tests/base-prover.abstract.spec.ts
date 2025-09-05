@@ -5,11 +5,8 @@ import { Hex } from 'viem';
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
-import {
-  padTo32Bytes,
-  toUniversalAddress,
-  UniversalAddress,
-} from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services'; // Concrete implementation for testing
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
@@ -41,12 +38,8 @@ describe('BaseProver', () => {
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
-  const testAddress1 = toUniversalAddress(
-    padTo32Bytes('0x1234567890123456789012345678901234567890'),
-  );
-  const testAddress2 = toUniversalAddress(
-    padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
-  );
+  const testAddress1 = AddressNormalizer.normalizeEvm('0x1234567890123456789012345678901234567890');
+  const testAddress2 = AddressNormalizer.normalizeEvm('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
 
   beforeEach(async () => {
     mockBlockchainReaderService = {} as jest.Mocked<BlockchainReaderService>;
