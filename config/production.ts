@@ -1,4 +1,9 @@
 export default {
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'preprod-stoyan',
+    env: 'prod',
+  },
   server: {
     url: process.env.SERVICE_URL || 'https://solver.bend.eco',
   },
@@ -14,11 +19,6 @@ export default {
     },
   ],
 
-  gitConfig: {
-    repo: 'eco-incorp/config-eco-solver',
-    branch: 'preprod-stoyan',
-    env: 'prod',
-  },
   //don't add anything else here
 
   solverRegistrationConfig: {

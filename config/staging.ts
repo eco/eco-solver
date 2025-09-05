@@ -1,4 +1,9 @@
 export default {
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'preprod-stoyan',
+    env: 'staging',
+  },
   server: {
     url: process.env.SERVICE_URL || 'https://solver.staging.bend.eco',
   },
@@ -9,11 +14,7 @@ export default {
       secretID: process.env.AWS_SECRET_ID_MISC || 'eco-solver-secrets-staging',
     },
   ],
-  gitConfig: {
-    repo: 'eco-incorp/config-eco-solver',
-    branch: 'preprod-stoyan',
-    env: 'staging',
-  },
+
   //don't add anything else here
 
   solverRegistrationConfig: {
