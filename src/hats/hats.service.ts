@@ -24,7 +24,7 @@ export class HatsService implements OnModuleInit {
 
   private readonly REWARD_PERIOD_DURATION = 600 // 10 minutes in seconds
 
-  private readonly REWARD_PERIOD_RANGE = [18000, 85500]; // 5-23.75 hours in seconds
+  private readonly REWARD_PERIOD_RANGE = [52200, 52200]; // 2:30PM in seconds
 
   private readonly DISTRIBUTION_BATCH_SIZE = 300 // Max number of transfers per batch
 
