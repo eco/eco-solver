@@ -96,7 +96,6 @@ export class SolanaListener extends BaseChainListener {
 
     // Decode route based on destination chain type
     const destChainType = ChainTypeDetector.detect(BigInt(destination.toString()));
-    console.log('Detected destination chain type:', destChainType);
     
     const decodedRoute = PortalEncoder.decodeFromChain(
       Buffer.from(route),
@@ -124,6 +123,13 @@ export class SolanaListener extends BaseChainListener {
     };
   }
 
+  private parseIntentFundedFromLogs(ev: any, signature: string): any {
+    // Parse logs to extract IntentFunded event data
+    this.logger.log('SOYLANA parseIntentFundedFromLogs', ev);
+    
+    
+  }
+
   private async handleProgramLogs(logs: Logs): Promise<void> {
     this.logger.log('Solana listener received logs:', logs);
     
@@ -136,6 +142,12 @@ export class SolanaListener extends BaseChainListener {
               const defaultStrategy = this.fulfillmentConfigService.defaultStrategy;
               this.eventsService.emit('intent.discovered', { intent, strategy: defaultStrategy });
               this.logger.log(`IntentPublished event processed: ${intent.intentHash} on Solana`);
+              break;
+
+            case 'IntentFunded':
+              const fundedEvent = this.parseIntentFundedFromLogs(ev, logs.signature || '');
+              // this.eventsService.emit('intent.funded', fundedEvent);
+              this.logger.log(`IntentFunded event processed: ${fundedEvent.intentHash} on Solana`);
               break;
               
             case 'IntentFulfilled':

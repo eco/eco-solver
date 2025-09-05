@@ -78,10 +78,17 @@ export class SvmReaderService extends BaseChainReader {
   }
 
   async isIntentFunded(intent: Intent, _chainId?: number | string): Promise<boolean> {
+    console.log('SOYLANA isIntentFunded', intent);
     try {
       // Get source chain info for vault derivation
       if (!intent.sourceChainId) {
         throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
+      }
+
+      // Short circuit: if reward tokens array is empty and nativeAmount is 0, consider it funded
+      if (intent.reward.tokens.length === 0 && intent.reward.nativeAmount === BigInt(0)) {
+        this.logger.debug(`Intent ${intent.intentHash} has no reward requirements, considering it funded`);
+        return true;
       }
 
       // Get portal program ID
@@ -93,31 +100,68 @@ export class SvmReaderService extends BaseChainReader {
         [Buffer.from('vault'), intentHashBuffer],
         portalProgramId,
       );
+      console.log('SOYLANA vaultPDA', vaultPDA);
 
-      // Check if the vault account exists and has been funded
-      const vaultAccountInfo = await this.connection.getAccountInfo(vaultPDA);
-
-      if (!vaultAccountInfo) {
-        this.logger.debug(`Vault account not found for intent ${intent.intentHash}`);
-        return false;
+      // Check native SOL balance if nativeAmount is required
+      if (intent.reward.nativeAmount > BigInt(0)) {
+        const vaultNativeBalance = await this.connection.getBalance(vaultPDA);
+        if (vaultNativeBalance < intent.reward.nativeAmount) {
+          this.logger.debug(
+            `Intent ${intent.intentHash} requires ${intent.reward.nativeAmount} lamports but vault only has ${vaultNativeBalance}`,
+          );
+          return false;
+        }
       }
 
-      // Check native balance
-      const hasNativeBalance = vaultAccountInfo.lamports > 0;
+        // Check token balances using getParsedTokenAccountsByOwner
+        if (intent.reward.tokens.length > 0) {
+          try {
+            // Get all token accounts owned by the vault PDA
+            const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(vaultPDA, {
+              programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token program
+            });
 
-      // For now, we'll consider an intent funded if the vault exists and has some SOL
-      // In production, you might want to check specific amounts based on intent requirements
-      const isFunded = hasNativeBalance;
+            console.log('SOYLANA tokenAccounts:', tokenAccounts);
 
-      if (isFunded) {
-        this.logger.debug(
-          `Intent ${intent.intentHash} is fully funded with ${vaultAccountInfo.lamports} lamports`,
-        );
-      } else {
-        this.logger.debug(`Intent ${intent.intentHash} is not sufficiently funded`);
-      }
+            // Create a map of mint address to balance for quick lookup
+            const tokenBalanceMap = new Map<string, bigint>();
+            for (const tokenAccount of tokenAccounts.value) {
+              const mintAddress = tokenAccount.account.data.parsed.info.mint;
+              const balance = BigInt(tokenAccount.account.data.parsed.info.tokenAmount.amount);
+              tokenBalanceMap.set(mintAddress, balance);
+            }
 
-      return isFunded;
+            console.log('SOYLANA tokenBalanceMap:', tokenBalanceMap);
+
+            // Check each required reward token
+            for (const rewardToken of intent.reward.tokens) {
+              console.log('SOYLANA rewardToken', rewardToken);
+              if (rewardToken.amount > BigInt(0)) {
+                // Denormalize the reward token address to Solana format
+                const svmTokenAddress = AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM);
+                const vaultTokenBalance = tokenBalanceMap.get(svmTokenAddress) || BigInt(0);
+
+                console.log(`SOYLANA token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`);
+
+                if (vaultTokenBalance < rewardToken.amount) {
+                  this.logger.debug(
+                    `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
+                  );
+                  return false;
+                }
+              }
+            }
+          } catch (error) {
+            this.logger.error(`Failed to get token accounts for vault ${vaultPDA.toBase58()}:`, toError(error));
+            // If we can't get token accounts, assume no tokens are available
+            if (intent.reward.tokens.some(token => token.amount > BigInt(0))) {
+              return false;
+            }
+          }
+        }
+
+      this.logger.debug(`Intent ${intent.intentHash} is fully funded`);
+      return true;
     } catch (error) {
       this.logger.error(`Failed to check intent funding for ${intent.intentHash}:`, toError(error));
       throw new Error(`Failed to check intent funding: ${getErrorMessage(error)}`);
