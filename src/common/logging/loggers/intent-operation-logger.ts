@@ -430,4 +430,29 @@ export class IntentOperationLogger extends BaseStructuredLogger {
 
     this.logMessage(context, 'error', `Gasless intent creation failed: ${error.message}`)
   }
+
+  /**
+   * Log feasibility check results
+   */
+  logFeasibilityCheckResult(intentHash: string, feasible: boolean, reason?: string): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      feasibility_check: {
+        is_feasible: feasible,
+        check_reason: reason || 'not_specified',
+        check_stage: 'intent_feasibility_validation',
+      },
+      operation: {
+        business_event: 'intent_feasibility_checked',
+        action_taken: feasible ? 'proceed_with_fulfillment' : 'reject_intent',
+      },
+    }
+
+    const message = feasible
+      ? 'Intent feasibility: passed'
+      : `Intent feasibility: failed (${reason})`
+    this.logMessage(context, feasible ? 'debug' : 'warn', message)
+  }
 }

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { UtilsIntentService } from './utils-intent.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { getIntentJobId } from '../common/utils/strings'
 import { Hex } from 'viem'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
@@ -14,7 +15,7 @@ import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfi
  */
 @Injectable()
 export class FeasableIntentService {
-  private logger = new Logger(FeasableIntentService.name)
+  private logger = new IntentOperationLogger('FeasableIntentService')
   constructor(
     private readonly intentFulfillmentQueue: IntentFulfillmentQueue,
     private readonly feeService: FeeService,
@@ -22,13 +23,10 @@ export class FeasableIntentService {
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
-  async feasableQuote(quoteIntent: QuoteIntentModel) {
+  @LogOperation('quote_feasibility_check', IntentOperationLogger)
+  async feasableQuote(@LogContext quoteIntent: QuoteIntentModel) {
     try {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `feasableQuote intent ${quoteIntent._id}`,
-        }),
-      )
+      // Debug logging handled by decorator
 
       // TODO: Add actual feasibility logic here
 
@@ -44,12 +42,9 @@ export class FeasableIntentService {
    * @param intentHash the intent hash to fetch the intent data from the db with
    * @returns
    */
-  async feasableIntent(intentHash: Hex) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `FeasableIntent intent ${intentHash}`,
-      }),
-    )
+  @LogOperation('intent_feasibility_check', IntentOperationLogger)
+  async feasableIntent(@LogContext intentHash: Hex) {
+    // Debug logging handled by decorator
 
     // Track feasibility check start
     this.ecoAnalytics.trackIntentFeasibilityCheckStarted(intentHash)
@@ -76,16 +71,15 @@ export class FeasableIntentService {
     const { error } = await this.feeService.isRouteFeasible(model.intent)
 
     const jobId = getIntentJobId('feasable', intentHash, model!.intent.logIndex)
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `FeasableIntent intent ${intentHash}`,
-        properties: {
-          feasable: !error,
-          ...(!error ? { jobId } : {}),
-        },
-      }),
-    )
+
     if (!error) {
+      // Log feasibility success using business event method
+      this.logger.logFeasibilityCheckResult(intentHash, true, 'route_is_feasible')
+
+      this.logger.debug({ intentHash }, `FeasableIntent intent ${intentHash}`, {
+        feasable: true,
+        jobId,
+      })
       //add to processing queue
       await this.intentFulfillmentQueue.addFulfillIntentJob({
         intentHash,
@@ -95,6 +89,13 @@ export class FeasableIntentService {
       // Track feasible intent queued for fulfillment
       this.ecoAnalytics.trackIntentFeasibleAndQueued(intentHash, jobId, model)
     } else {
+      // Log feasibility failure using business event method
+      this.logger.logFeasibilityCheckResult(
+        intentHash,
+        false,
+        error?.message || 'route_not_feasible',
+      )
+
       await this.utilsIntentService.updateInfeasableIntentModel(model, error)
 
       // Track infeasible intent
