@@ -534,7 +534,7 @@ describe('ChainListener', () => {
       // Ensure callback was set
       expect(intentFulfilledCallback).toBeDefined();
 
-      // Mock parseIntentFulfilled to throw an error  
+      // Mock parseIntentFulfilled to throw an error
       const mockEventsModule = require('@/modules/blockchain/evm/utils/events');
       mockEventsModule.parseIntentFulfilled.mockImplementationOnce(() => {
         throw new Error('Parse error');

@@ -319,8 +319,8 @@ describe('KernelWalletFactory', () => {
       const module = await Test.createTestingModule({
         providers: [
           KernelWalletFactory,
-          { 
-            provide: EvmConfigService, 
+          {
+            provide: EvmConfigService,
             useValue: {
               ...evmConfigService,
               getKernelWalletConfig: jest.fn().mockReturnValue({
@@ -328,15 +328,15 @@ describe('KernelWalletFactory', () => {
                   type: 'kms' as const,
                   ...mockKmsConfig,
                 },
-              })
-            }
+              }),
+            },
           },
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
         ],
       }).compile();
-      
+
       kmsFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
     });
 
@@ -371,7 +371,7 @@ describe('KernelWalletFactory', () => {
         region: mockKmsConfig.region,
       });
 
-      // Verify KernelWallet was created with KMS account  
+      // Verify KernelWallet was created with KMS account
       expect(KernelWallet).toHaveBeenCalledWith(
         chainId,
         mockKmsAccount,
@@ -410,8 +410,8 @@ describe('KernelWalletFactory', () => {
       const module = await Test.createTestingModule({
         providers: [
           KernelWalletFactory,
-          { 
-            provide: EvmConfigService, 
+          {
+            provide: EvmConfigService,
             useValue: {
               ...evmConfigService,
               getKernelWalletConfig: jest.fn().mockReturnValue({
@@ -419,15 +419,15 @@ describe('KernelWalletFactory', () => {
                   type: 'kms' as const,
                   ...kmsConfigWithOptions,
                 },
-              })
-            }
+              }),
+            },
           },
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
         ],
       }).compile();
-      
+
       const testFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
 
       const mockNetworkConfig = {
@@ -465,13 +465,13 @@ describe('KernelWalletFactory', () => {
     it('should handle unsupported signer type', async () => {
       // Mock the mocked viem function to return an account
       (privateKeyToAccount as jest.Mock).mockReturnValue(mockAccount);
-      
+
       // Create a new factory instance with unsupported config
       const module = await Test.createTestingModule({
         providers: [
           KernelWalletFactory,
-          { 
-            provide: EvmConfigService, 
+          {
+            provide: EvmConfigService,
             useValue: {
               ...evmConfigService,
               getKernelWalletConfig: jest.fn().mockReturnValue({
@@ -479,18 +479,20 @@ describe('KernelWalletFactory', () => {
                   type: 'unsupported' as any,
                   privateKey: mockEoaPrivateKey,
                 } as any,
-              })
-            }
+              }),
+            },
           },
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
         ],
       }).compile();
-      
+
       const testFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
-      
-      await expect(testFactory.createWallet(1)).rejects.toThrow('Unsupported signer type: unsupported');
+
+      await expect(testFactory.createWallet(1)).rejects.toThrow(
+        'Unsupported signer type: unsupported',
+      );
     });
 
     it('should handle missing signer configuration', async () => {
@@ -499,22 +501,22 @@ describe('KernelWalletFactory', () => {
         const module = await Test.createTestingModule({
           providers: [
             KernelWalletFactory,
-            { 
-              provide: EvmConfigService, 
+            {
+              provide: EvmConfigService,
               useValue: {
                 ...evmConfigService,
-                getKernelWalletConfig: jest.fn().mockReturnValue(null)
-              }
+                getKernelWalletConfig: jest.fn().mockReturnValue(null),
+              },
             },
             { provide: EvmTransportService, useValue: transportService },
             { provide: SystemLoggerService, useValue: mockLogger },
             { provide: OpenTelemetryService, useValue: mockOtelService },
           ],
         }).compile();
-        
+
         return module.get<KernelWalletFactory>(KernelWalletFactory);
       };
-      
+
       await expect(createModule()).rejects.toThrow('Kernel config required');
     });
 
@@ -573,27 +575,28 @@ describe('KernelWalletFactory', () => {
       const module = await Test.createTestingModule({
         providers: [
           KernelWalletFactory,
-          { 
-            provide: EvmConfigService, 
+          {
+            provide: EvmConfigService,
             useValue: {
               ...evmConfigService,
               getKernelWalletConfig: jest.fn().mockReturnValue({
                 signer: {
                   type: 'kms' as const,
-                  keyID: 'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
+                  keyID:
+                    'arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012',
                   region: 'us-east-1',
                 },
-              })
-            }
+              }),
+            },
           },
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
         ],
       }).compile();
-      
+
       const testFactory = module.get<KernelWalletFactory>(KernelWalletFactory);
-      
+
       const error = new Error('KMS key not found');
       (kmsToAccount as jest.Mock).mockRejectedValue(error);
 

@@ -36,7 +36,7 @@ export class ValidationContextImpl implements ValidationContext {
   async getWalletBalance(chainId: bigint, tokenAddress?: UniversalAddress): Promise<bigint> {
     const walletAddress = await this.getWalletAddress(chainId);
     const reader = this.blockchainReader.getReaderForChain(chainId);
-    
+
     if (!reader) {
       throw new Error(`No reader available for chain ${chainId}`);
     }

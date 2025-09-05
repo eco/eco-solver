@@ -52,7 +52,7 @@ export class PolymerProver extends BaseProver {
   private initializePolymerClient() {
     // TODO: Get API endpoint from configuration
     const apiEndpoint = process.env.POLYMER_API_ENDPOINT || 'https://proof.polymer.technology';
-    
+
     this.polymerApiClient = axios.create({
       baseURL: apiEndpoint,
       timeout: 30000,
@@ -77,7 +77,7 @@ export class PolymerProver extends BaseProver {
       );
 
       const response = await this.polymerApiClient.post('/api/v1/proof', params);
-      
+
       if (!response.data?.jobId) {
         throw new Error('Invalid response from Polymer API: missing jobId');
       }
@@ -132,26 +132,20 @@ export class PolymerProver extends BaseProver {
   /**
    * Relay proof to the source chain
    */
-  async relayProof(
-    intent: Intent,
-    eventData: IntentProvenEventData,
-    proof: Hex,
-  ): Promise<string> {
+  async relayProof(intent: Intent, eventData: IntentProvenEventData, proof: Hex): Promise<string> {
     try {
       const sourceChainId = Number(intent.sourceChainId || intent.destination);
       const proverContract = this.getContractAddress(sourceChainId);
-      
+
       if (!proverContract) {
         throw new Error(`No Polymer prover contract on source chain ${sourceChainId}`);
       }
 
-      this.logger.log(
-        `Relaying proof for intent ${intent.intentHash} to chain ${sourceChainId}`,
-      );
+      this.logger.log(`Relaying proof for intent ${intent.intentHash} to chain ${sourceChainId}`);
 
       // Get the blockchain reader to access wallet for transaction
       const wallet = await this.getWalletForChain(sourceChainId);
-      
+
       const proverAddress = AddressNormalizer.denormalizeToEvm(proverContract);
 
       // Encode the validate function call
@@ -161,9 +155,7 @@ export class PolymerProver extends BaseProver {
           {
             name: 'validate',
             type: 'function',
-            inputs: [
-              { name: 'proof', type: 'bytes' },
-            ],
+            inputs: [{ name: 'proof', type: 'bytes' }],
             outputs: [],
             stateMutability: 'nonpayable',
           },
@@ -184,10 +176,7 @@ export class PolymerProver extends BaseProver {
 
       return txHash;
     } catch (error: any) {
-      this.logger.error(
-        `Failed to relay proof for intent ${intent.intentHash}:`,
-        error,
-      );
+      this.logger.error(`Failed to relay proof for intent ${intent.intentHash}:`, error);
       throw error;
     }
   }

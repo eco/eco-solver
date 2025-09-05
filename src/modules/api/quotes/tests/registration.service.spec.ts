@@ -173,7 +173,9 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith('Registration failed: Registration base URL is not configured');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Registration failed: Registration base URL is not configured',
+      );
     });
 
     it('should not throw error when apiUrl is configured', async () => {

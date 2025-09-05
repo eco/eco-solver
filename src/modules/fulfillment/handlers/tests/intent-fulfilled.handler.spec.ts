@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
+import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';

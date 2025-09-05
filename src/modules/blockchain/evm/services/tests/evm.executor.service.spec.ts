@@ -80,7 +80,9 @@ describe('EvmExecutorService', () => {
     } as any;
 
     blockchainConfigService = {
-      getClaimant: jest.fn().mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890'),
+      getClaimant: jest
+        .fn()
+        .mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890'),
     } as any;
 
     transportService = {

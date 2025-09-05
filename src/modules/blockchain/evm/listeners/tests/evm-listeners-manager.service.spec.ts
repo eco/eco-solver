@@ -303,7 +303,7 @@ describe('EvmListenersManagerService', () => {
       // Update the mock functions to return the test values
       evmConfigService.getEvmPortalAddress.mockImplementation((chainId: number) => {
         const network = testNetworks.find((n) => n.chainId === chainId);
-        return network?.contracts.portal || '0xDefaultPortal' as Address;
+        return network?.contracts.portal || ('0xDefaultPortal' as Address);
       });
 
       await service.onModuleInit();

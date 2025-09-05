@@ -124,6 +124,8 @@ export class TvmExecutorService extends BaseChainExecutor {
                 amount: amount.toString(),
               });
 
+              // TODO: Make approve tokens to a large amount
+
               const txId = await wallet.triggerSmartContract(tokenAddress, erc20Abi, 'approve', [
                 { type: 'address', value: portalAddr },
                 { type: 'uint256', value: amount.toString() },
