@@ -336,6 +336,7 @@ export class RebalanceRepository {
       const oneHourAgo = getOneHourAgo()
       const count = await this.model.countDocuments({
         createdAt: { $gte: oneHourAgo },
+        status: RebalanceStatus.COMPLETED.toString(),
       })
       return count > 0
     } catch (error) {
@@ -362,7 +363,7 @@ export class RebalanceRepository {
     try {
       const timeAgo = getTimeAgo(timeRangeMinutes)
       return await this.model.countDocuments({
-        createdAt: { $gte: timeAgo },
+        createdAt: { $gte: timeAgo, status: RebalanceStatus.COMPLETED.toString() },
       })
     } catch (error) {
       this.logger.error(
