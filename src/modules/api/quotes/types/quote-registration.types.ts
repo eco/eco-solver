@@ -4,6 +4,8 @@ export interface SolverRegistrationRequestBody {
   supportsNativeTransfers?: boolean;
 
   quotesUrl: string;
+  quotesV2Url?: string;
+  reverseQuotesUrl?: string;
 
   receiveSignedIntentUrl: string;
 
