@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import * as crypto from 'crypto'
 
 export interface TronEnergyProvider {
   name: string
@@ -72,36 +73,82 @@ class NettsProvider implements TronEnergyProvider {
   public name = 'Netts'
   private client: AxiosInstance
 
-  constructor(private apiKey: string, private baseUrl: string = 'https://api.netts.io') {
+  constructor(private apiKey: string, private realIp: string, private baseUrl: string = 'https://netts.io') {
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        'X-API-KEY': this.apiKey,
+        'X-Real-IP': this.realIp,
         'Content-Type': 'application/json',
       },
     })
   }
 
   async rentEnergy(params: RentEnergyParams): Promise<RentEnergyResponse> {
-    return {
-      success: false,
-      error: 'Netts API implementation not yet completed - requires actual API documentation',
+    try {
+      const response: AxiosResponse = await this.client.post('/apiv2/order1h', {
+        amount: params.amount,
+        receiveAddress: params.receiverAddress,
+      })
+
+      return {
+        success: true,
+        txHash: response.data.txHash,
+        orderId: response.data.orderId,
+        energyRented: response.data.energy || params.amount,
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message,
+      }
     }
   }
 
   async estimateEnergyPrice(params: EstimateEnergyParams): Promise<EstimateEnergyResponse> {
-    return {
-      energyRequired: 0,
-      success: false,
-      error: 'Netts API implementation not yet completed - requires actual API documentation',
+    try {
+      const response: AxiosResponse = await this.client.get(`/apiv2/usdt/${params.from}&${params.to}`)
+      
+      return {
+        energyRequired: response.data.energyNeeded || response.data.recommendedEnergy || 0,
+        success: true,
+      }
+    } catch (error: any) {
+      return {
+        energyRequired: 0,
+        success: false,
+        error: error.response?.data?.error || error.message,
+      }
     }
   }
 
   async getEnergyRate(): Promise<EnergyRateResponse> {
-    return {
-      trxPerEnergy: 0,
-      success: false,
-      error: 'Netts API implementation not yet completed - requires actual API documentation',
+    try {
+      const response: AxiosResponse = await this.client.get('/apiv2/prices')
+      
+      const activePeriod = response.data.periods.find((period: any) => period.is_active)
+      
+      if (!activePeriod) {
+        throw new Error('No active pricing period found')
+      }
+      
+      const priceInSun = activePeriod.prices.less_than_200k?.price_sun || 
+                        activePeriod.prices.equal_131k?.price_sun ||
+                        activePeriod.prices.more_than_200k?.price_sun ||
+                        17
+      
+      const trxPerEnergy = priceInSun / 1000000
+      
+      return {
+        trxPerEnergy,
+        success: true,
+      }
+    } catch (error: any) {
+      return {
+        trxPerEnergy: 0,
+        success: false,
+        error: error.response?.data?.error || error.message,
+      }
     }
   }
 }
@@ -110,20 +157,56 @@ class CatfeeProvider implements TronEnergyProvider {
   public name = 'Catfee'
   private client: AxiosInstance
 
-  constructor(private apiKey: string, private baseUrl: string = 'https://api.catfee.com') {
+  constructor(private apiKey: string, private apiSecret: string, private baseUrl: string = 'https://api.catfee.io') {
     this.client = axios.create({
       baseURL: this.baseUrl,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
     })
   }
 
-  async rentEnergy(params: RentEnergyParams): Promise<RentEnergyResponse> {
+  private generateSignature(timestamp: string, method: string, requestPath: string, body: string = ''): string {
+    const message = timestamp + method + requestPath + body
+    return crypto.createHmac('sha256', this.apiSecret).update(message).digest('base64')
+  }
+
+  private getAuthHeaders(method: string, path: string, body: string = ''): Record<string, string> {
+    const timestamp = new Date().toISOString()
+    const signature = this.generateSignature(timestamp, method, path, body)
+    
     return {
-      success: false,
-      error: 'Catfee API implementation not yet completed - requires actual API documentation',
+      'CF-ACCESS-KEY': this.apiKey,
+      'CF-ACCESS-SIGN': signature,
+      'CF-ACCESS-TIMESTAMP': timestamp,
+      'Content-Type': 'application/json',
+    }
+  }
+
+  async rentEnergy(params: RentEnergyParams): Promise<RentEnergyResponse> {
+    try {
+      const body = JSON.stringify({
+        quantity: Math.max(params.amount, 65000),
+        receiver: params.receiverAddress,
+        duration: '1h',
+      })
+      
+      const headers = this.getAuthHeaders('POST', '/v1/order', body)
+      
+      const response: AxiosResponse = await this.client.post('/v1/order', JSON.parse(body), { headers })
+
+      if (response.data.code !== '0') {
+        throw new Error(response.data.msg || 'Order creation failed')
+      }
+
+      return {
+        success: true,
+        txHash: response.data.data.tx_hash || response.data.data.txHash,
+        orderId: response.data.data.id || response.data.data.order_id,
+        energyRented: response.data.data.quantity || params.amount,
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.msg || error.message,
+      }
     }
   }
 
@@ -136,10 +219,30 @@ class CatfeeProvider implements TronEnergyProvider {
   }
 
   async getEnergyRate(): Promise<EnergyRateResponse> {
-    return {
-      trxPerEnergy: 0,
-      success: false,
-      error: 'Catfee API implementation not yet completed - requires actual API documentation',
+    try {
+      const queryParams = '?quantity=65000&duration=1h'
+      const headers = this.getAuthHeaders('GET', '/v1/estimate' + queryParams)
+      
+      const response: AxiosResponse = await this.client.get('/v1/estimate' + queryParams, { headers })
+
+      if (response.data.code !== '0') {
+        throw new Error(response.data.msg || 'Price estimation failed')
+      }
+
+      const totalCostTrx = response.data.data.total_cost || response.data.data.cost || 0
+      const quantity = response.data.data.quantity || 65000
+      const trxPerEnergy = totalCostTrx / quantity
+
+      return {
+        trxPerEnergy,
+        success: true,
+      }
+    } catch (error: any) {
+      return {
+        trxPerEnergy: 0,
+        success: false,
+        error: error.response?.data?.msg || error.message,
+      }
     }
   }
 }
@@ -152,13 +255,21 @@ export class TronEnergyRental {
     nettsApiKey?: string,
     catfeeApiKey?: string,
     tronWebInstance?: any,
+    nettsRealIp?: string,
+    catfeeApiSecret?: string,
   ) {
     if (nettsApiKey) {
-      this.providers.push(new NettsProvider(nettsApiKey))
+      if (!nettsRealIp) {
+        throw new Error('NettsProvider requires both API key and real IP address')
+      }
+      this.providers.push(new NettsProvider(nettsApiKey, nettsRealIp))
     }
     
     if (catfeeApiKey) {
-      this.providers.push(new CatfeeProvider(catfeeApiKey))
+      if (!catfeeApiSecret) {
+        throw new Error('CatfeeProvider requires both API key and API secret')
+      }
+      this.providers.push(new CatfeeProvider(catfeeApiKey, catfeeApiSecret))
     }
 
     if (this.providers.length === 0) {
