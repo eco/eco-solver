@@ -34,7 +34,6 @@ export function getTransactionTargetData(
   call: CallDataInterface,
 ): TransactionTargetData | null {
   const targetConfig = solver.targets[call.target as string] as TargetContract
-  console.log('MADDEN: targetConfig', call.target, solver.targets)
   if (!targetConfig) {
     //shouldn't happen since we do this.targetsSupported(model, solver) before this call
     throw EcoError.IntentSourceTargetConfigNotFound(call.target as string)

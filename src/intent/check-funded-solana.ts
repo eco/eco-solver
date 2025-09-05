@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js'
-import { getAccount } from '@solana/spl-token'
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { hashIntent, IntentType } from '@/utils/encodeAndHash'
 import { BorshCoder, type Idl } from '@coral-xyz/anchor'
 import { getChainConfig } from '@/eco-configs/utils'
@@ -43,42 +43,73 @@ export async function checkIntentFunding(
     const { intentHash } = hashIntent(intent.destination, intent.route, intent.reward)
     const intentHashBytes = new Uint8Array(Buffer.from(intentHash.slice(2), 'hex'))
 
-    // 3. Get vault PDA
+    // Get vault PDA
     const [vaultPda] = getVaultPda(intentHashBytes)
 
-    // 4. Check SOL balance (native_amount is in lamports)
-    const solBalance = await connection.getBalance(vaultPda)
-    console.log('JUSTLOGGING: solBalance', solBalance)
-    console.log('JUSTLOGGING: intent.reward.nativeAmount', intent.reward.nativeAmount)
+    // Prepare all accounts we need to check in a single batch request
+    const accountsToFetch: PublicKey[] = []
+    const tokenMints: PublicKey[] = []
+    
+    // Add vault PDA for SOL balance
+    accountsToFetch.push(vaultPda)
+    
+    // Add associated token accounts for each token reward
+    for (const tokenReward of intent.reward.tokens) {
+      const tokenMint = new PublicKey(tokenReward.token)
+      tokenMints.push(tokenMint)
+      
+      // Calculate the associated token account address
+      const associatedTokenAccount = getAssociatedTokenAddressSync(
+        tokenMint,
+        vaultPda,
+        true // allowOwnerOffCurve - PDAs are off curve
+      )
+      accountsToFetch.push(associatedTokenAccount)
+    }
+
+    console.log('MONDAY: Fetching accounts in batch:', accountsToFetch.length)
+
+    // Single batch request to get all account info
+    const accountsInfo = await connection.getMultipleAccountsInfo(accountsToFetch)
+
+    // Check SOL balance (first account is always the vault PDA)
+    const vaultAccount = accountsInfo[0]
+    const solBalance = vaultAccount ? vaultAccount.lamports : 0
+    console.log('MONDAY: solBalance', solBalance)
+    console.log('MONDAY: intent.reward.nativeAmount', intent.reward.nativeAmount)
+    
     if (solBalance < Number(intent.reward.nativeAmount)) {
       return false
     }
 
-    // 5. Check token balances
-    for (const tokenReward of intent.reward.tokens) {
-      const tokenMint = new PublicKey(tokenReward.token)
-      console.log('JUSTLOGGING: tokenReward', tokenReward)
+    // Check token balances (remaining accounts are token accounts)
+    for (let i = 0; i < intent.reward.tokens.length; i++) {
+      const tokenReward = intent.reward.tokens[i]
+      const tokenAccountInfo = accountsInfo[i + 1] // +1 because first account is vault PDA
+      
+      console.log('MONDAY: tokenReward', tokenReward)
+      
+      if (!tokenAccountInfo) {
+        console.log('MONDAY: Token account does not exist for', tokenReward.token)
+        return false // Token account doesn't exist
+      }
 
-      return true // TODO: fix
+      // Parse token account data to get balance
+      // Token account data layout: [mint(32), owner(32), amount(8), ...]
+      const tokenAccountData = tokenAccountInfo.data
+      if (tokenAccountData.length < 72) {
+        console.error('Invalid token account data length')
+        return false
+      }
 
-      try {
-        // Get token account for this mint owned by vault
-        const tokenAccounts = await connection.getTokenAccountsByOwner(vaultPda, {
-          mint: tokenMint,
-        })
-
-        if (tokenAccounts.value.length === 0) {
-          return false // No token account exists
-        }
-
-        // Check balance of the token account
-        const tokenAccount = await getAccount(connection, tokenAccounts.value[0].pubkey)
-        if (Number(tokenAccount.amount) < tokenReward.amount) {
-          return false // Insufficient token balance
-        }
-      } catch (error) {
-        console.error(`Error checking token balance for ${tokenReward.token}:`, error)
-        return false // Token account doesn't exist or other error
+      // Amount is stored as little-endian u64 at offset 64
+      const amountBuffer = tokenAccountData.slice(64, 72)
+      const tokenBalance = amountBuffer.readBigUInt64LE(0)
+      
+      console.log('MONDAY: tokenBalance', tokenBalance.toString(), 'required:', tokenReward.amount.toString())
+      
+      if (Number(tokenBalance) < Number(tokenReward.amount)) {
+        return false // Insufficient token balance
       }
     }
 

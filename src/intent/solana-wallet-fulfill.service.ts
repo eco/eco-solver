@@ -461,7 +461,6 @@ export class SolanaWalletFulfillService implements IFulfillService {
       )
     }
 
-    console.log('MADDEN: getTokenTransferAccounts - token accounts:', accounts.length)
     console.log(
       'MADDEN: getTokenTransferAccounts - expected for tokens:',
       route.tokens.length,

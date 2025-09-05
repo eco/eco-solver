@@ -17,7 +17,6 @@ import {
 import { VmType } from '@/eco-configs/eco-config.types'
 import { RouteType, IntentType, RewardType } from '@/utils/encodeAndHash'
 
-// Note: VmType import from @eco-foundation/routes-ts was failing, using string literals directly
 import config from '../config/solana'
 import { getChainConfig } from '@/eco-configs/utils'
 import { RewardStruct, RouteStruct } from '@/intent/abi'
@@ -149,7 +148,7 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
     vm: VmType.SVM,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     creator: keypair.publicKey,
-    prover: new PublicKey('FvqiHNhnQpLS1dbCCrxzneeoAxeM5G6pB9jKuigYuAGC'),
+    prover: new PublicKey(getChainConfig(1399811149).HyperProver),
     nativeAmount: 0n,
     tokens: rewardTokens.map((token) => ({
       token: new PublicKey(token.token),

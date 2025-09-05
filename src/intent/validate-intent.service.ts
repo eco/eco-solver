@@ -220,13 +220,11 @@ export class ValidateIntentService implements OnModuleInit {
           isIntentFunded = false
         }
       } else {
-        const encodedRoute = encodeRoute(model.intent.route)
-        console.log('MACAFFREY: intentFunded', model.intent.destination, encodedRoute)
         isIntentFunded = await client.readContract({
           address: intentSource.sourceAddress as `0x${string}`,
           abi: portalAbi, 
           functionName: 'isIntentFunded',
-          args: [model.intent.destination, encodedRoute, model.intent.reward],
+          args: [model.intent.destination, encodeRoute(model.intent.route), model.intent.reward],
         })
       }
 

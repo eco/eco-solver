@@ -103,13 +103,6 @@ export class ProofService implements OnModuleInit {
     expirationDate: Date,
   ): boolean {
     const proofType = this.getProverType(chainID, prover)
-    console.log(
-      'SAQUON isIntentExpirationWithinProofMinimumDate',
-      chainID,
-      prover,
-      expirationDate,
-      proofType,
-    )
     if (!proofType) {
       return false
     }

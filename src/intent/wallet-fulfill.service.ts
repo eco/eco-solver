@@ -9,8 +9,6 @@ import {
   zeroAddress,
 } from 'viem'
 import { prepareEncodedProofs } from '@/utils/encodeProofs'
-import { InboxAbi } from '@eco-foundation/routes-ts'
-import { IInboxAbi } from '@/utils/IInbox'
 import { IMessageBridgeProverAbi } from '@/utils/IMessageBridgeProver'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
@@ -35,6 +33,7 @@ import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { RewardDataModel } from '@/intent/schemas/reward-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getChainConfig } from '@/eco-configs/utils'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -325,7 +324,7 @@ export class WalletFulfillService implements IFulfillService {
     }
 
     const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: portalAbi,
       functionName: 'fulfill',
       args: [
         model.intent.route as any, // TODO: fix this
@@ -366,12 +365,6 @@ export class WalletFulfillService implements IFulfillService {
       messageData,
     )
     console.log('SAQUON fee', fee)
-    console.log('SAQUON messageData', messageData)
-    console.log(
-      'SAQUON reward and reward hash',
-      model.intent.reward,
-      RewardDataModel.getHash(model.intent.reward),
-    )
 
     const data = encodeAbiParameters(
       [
@@ -390,7 +383,7 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     const fulfillIntentData = encodeFunctionData({
-      abi: IInboxAbi,
+      abi: portalAbi,
       functionName: 'fulfillAndProve',
       args: [
         model.intent.hash,
@@ -452,7 +445,7 @@ export class WalletFulfillService implements IFulfillService {
     )
 
     const fulfillIntentData = encodeFunctionData({
-      abi: InboxAbi,
+      abi: portalAbi,
       functionName: 'fulfillAndProve',
       args: [
         model.intent.route as any, // TODO: fix this
