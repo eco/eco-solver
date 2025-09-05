@@ -4,7 +4,7 @@ import { portalAbi } from '@/common/abis/portal.abi';
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 
 /**
@@ -26,6 +26,7 @@ export function parseIntentPublish(
   });
 
   // Decode route based on destination chain type - already returns an Intent format
+  const srcChainType = ChainTypeDetector.detect(sourceChainId);
   const destChainType = ChainTypeDetector.detect(log.args.destination);
   const route = PortalEncoder.decode(log.args.route, destChainType, 'route');
 
@@ -37,12 +38,12 @@ export function parseIntentPublish(
     route, // Already in Intent format with UniversalAddress from PortalEncoder
     reward: {
       deadline: log.args.rewardDeadline,
-      creator: AddressNormalizer.normalize(log.args.creator, ChainType.TVM),
-      prover: AddressNormalizer.normalize(log.args.prover, ChainType.TVM),
+      creator: AddressNormalizer.normalize(log.args.creator, srcChainType),
+      prover: AddressNormalizer.normalize(log.args.prover, srcChainType),
       nativeAmount: log.args.rewardNativeAmount,
       tokens: log.args.rewardTokens.map((token) => ({
         amount: token.amount,
-        token: AddressNormalizer.normalize(token.token, ChainType.TVM),
+        token: AddressNormalizer.normalize(token.token, srcChainType),
       })),
     },
   };
