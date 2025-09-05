@@ -40,6 +40,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'Stargate'>> {
     // Convert chain IDs to Stargate chain keys
     const srcChainKey = await this.getChainKey(tokenIn.chainId)
@@ -68,7 +69,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       })
 
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
+          id,
           message: 'Stargate params',
           properties: { params: params.toString() },
         }),
@@ -84,7 +86,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       const routesData: { routes: StargateQuote[] } = await response.json()
 
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
+          id,
           message: 'Stargate routes',
           properties: { routesData },
         }),
@@ -110,7 +113,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
+          id,
           message: 'Failed to get Stargate route',
           error,
           properties: {
@@ -134,7 +138,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       if (kernelWalletAddress !== walletAddress) {
         const error = new Error('Stargate is not configured with the provided wallet')
         this.logger.error(
-          EcoLogMessage.withError({
+          EcoLogMessage.withErrorAndId({
+            id: quote.id,
             error,
             message: error.message,
             properties: { walletAddress, kernelWalletAddress },
@@ -170,7 +175,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
 
   private async _execute(quote: RebalanceQuote<'Stargate'>) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
+        id: quote.id,
         message: 'StargateProviderService: executing quote',
         properties: {
           tokenIn: quote.tokenIn.config.address,
@@ -216,7 +222,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         )
       } catch (error) {
         this.logger.error(
-          EcoLogMessage.withError({
+          EcoLogMessage.withErrorAndId({
+            id: quote.id,
             message: 'Failed to execute Stargate transfer',
             error,
             properties: {

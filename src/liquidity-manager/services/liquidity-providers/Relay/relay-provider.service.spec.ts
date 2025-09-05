@@ -92,6 +92,7 @@ describe('RelayProviderService', () => {
           provide: EcoConfigService,
           useValue: {
             getSupportedChains: jest.fn().mockReturnValue([1n, 10n, 137n]),
+            getLiquidityManager: jest.fn().mockReturnValue({ maxQuoteSlippage: 0.01 }),
           },
         },
         {
@@ -137,6 +138,9 @@ describe('RelayProviderService', () => {
       amount: expect.any(String),
       wallet: mockWalletClient,
       tradeType: 'EXACT_INPUT',
+      options: {
+        slippageTolerance: '100',
+      },
     })
 
     expect(quote).toMatchObject({

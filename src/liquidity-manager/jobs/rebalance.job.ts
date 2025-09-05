@@ -65,16 +65,11 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    * @param processor - The processor handling the job.
    */
   async onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
-    const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
-    const { network, walletAddress } = rebalanceData
-
     processor.logger.log(
       EcoLogMessage.withId({
         message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
         id: job.data.id,
         properties: {
-          network,
-          walletAddress,
           jobName: job.name,
           data: job.data,
         },
@@ -94,7 +89,7 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
         id: job.data.id,
         message: `RebalanceJob: Failed`,
         error,
-        properties: { data: job.data },
+        properties: { data: job.data, jobName: job.name },
       }),
     )
   }

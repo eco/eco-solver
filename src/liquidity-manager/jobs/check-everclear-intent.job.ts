@@ -1,5 +1,5 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
-import { DelayedError, Queue, UnrecoverableError } from 'bullmq'
+import { Queue, UnrecoverableError } from 'bullmq'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import {
@@ -64,10 +64,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
     switch (result.status) {
       case 'pending':
-        await job.moveToDelayed(Date.now() + 5_000, job.token)
-        // we need to exit from the processor by throwing this error that will signal to the worker
-        // that the job has been delayed so that it does not try to complete (or fail the job) instead
-        throw new DelayedError()
+        this.delay(job, 5_000)
       case 'complete':
         return result
       case 'failed':

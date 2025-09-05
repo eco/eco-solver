@@ -42,6 +42,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
       const client: KernelAccountClient<Transport, Chain, SmartAccount, Client> =
@@ -63,6 +64,11 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         tradeType: 'EXACT_INPUT',
         user: walletAddress,
         recipient: walletAddress,
+        options: {
+          slippageTolerance: (
+            this.ecoConfigService.getLiquidityManager().maxQuoteSlippage * 10_000
+          ).toString(), // Convert to basis points
+        },
       })
 
       // Calculate amount out and slippage
@@ -70,6 +76,13 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       const amountOut = relayQuote.details?.currencyOut?.minimumAmount
 
       if (!relayQuote.details || !amountIn || !amountOut) {
+        this.logger.error(
+          EcoLogMessage.withId({
+            id,
+            message: 'RelayProviderService: quote details not found',
+            properties: { relayQuote, id },
+          }),
+        )
         throw EcoError.RebalancingRouteNotFound()
       }
 
@@ -86,7 +99,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
+          id,
           message: 'Failed to get Relay quote',
           error,
           properties: {
@@ -110,16 +124,11 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       }
 
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
+          id: quote.id,
           message: 'RelayProviderService: executing quote',
           properties: {
-            tokenIn: quote.tokenIn.config.address,
-            chainIn: quote.tokenIn.chainId,
-            tokenOut: quote.tokenOut.config.address,
-            chainOut: quote.tokenOut.chainId,
-            amountIn: quote.amountIn.toString(),
-            amountOut: quote.amountOut.toString(),
-            slippage: quote.slippage,
+            quote,
           },
         }),
       )
@@ -135,7 +144,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         wallet: adaptedWallet,
         onProgress: (data) => {
           this.logger.debug(
-            EcoLogMessage.fromDefault({
+            EcoLogMessage.withId({
+              id: quote.id,
               message: 'Relay execution progress',
               properties: { data },
             }),
@@ -143,17 +153,24 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         },
       })
 
+      this.logger.debug(
+        EcoLogMessage.withId({
+          id: quote.id,
+          message: 'Relay execution result',
+          properties: { res },
+        }),
+      )
+
       await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
       return res
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
+          id: quote.id,
           message: 'Failed to execute Relay quote',
           error,
           properties: {
-            tokenIn: `${quote.tokenIn.config.address} (${quote.tokenIn.chainId})`,
-            tokenOut: `${quote.tokenOut.config.address} (${quote.tokenOut.chainId})`,
-            amount: quote.amountIn.toString(),
+            quote,
           },
         }),
       )

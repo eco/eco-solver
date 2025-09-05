@@ -104,7 +104,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
-    const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
+    const { swapSlippage, maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
 
     // Validate tokens and chains before making API call
     const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
@@ -134,14 +134,14 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toAddress: this.walletAddress,
       toChainId: tokenOut.chainId,
       toTokenAddress: tokenOut.config.address,
-    }
-
-    if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
-      routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
+      options: {
+        slippage: tokenIn.chainId === tokenOut.chainId ? swapSlippage : maxQuoteSlippage,
+      },
     }
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
+        id,
         message: 'LiFi route request',
         properties: { route: routesRequest },
       }),
@@ -190,11 +190,25 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         throw error
       }
 
-      await this._execute(quote)
+      const result = await this._execute(quote)
+      this.logger.debug(
+        EcoLogMessage.withId({
+          id: quote.id,
+          message: 'LiFi: Execution result',
+          properties: { result },
+        }),
+      )
       if (quote.rebalanceJobID) {
         await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
       }
     } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withErrorAndId({
+          id: quote.id,
+          message: 'LiFi: Execution error',
+          error,
+        }),
+      )
       try {
         if (quote.rebalanceJobID) {
           await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
