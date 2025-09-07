@@ -28,5 +28,6 @@ export type {
   EnergyRateResponse,
   EstimateCostParams,
   TrxPriceResponse,
+  AccountBalanceResponse,
   TronEnergyBalance
 } from './tron-energy-rental'

@@ -63,6 +63,12 @@ export interface TrxPriceResponse {
   source?: string
 }
 
+export interface AccountBalanceResponse {
+  balance: number
+  success: boolean
+  error?: string
+}
+
 export interface TronEnergyBalance {
   address: string
   energy: number
@@ -180,27 +186,51 @@ class CatfeeProvider implements TronEnergyProvider {
     }
   }
 
+  async getAccountBalance(): Promise<AccountBalanceResponse> {
+    try {
+      const headers = this.getAuthHeaders('GET', '/v1/account')
+      const response: AxiosResponse = await this.client.get('/v1/account', { headers })
+
+      if (response.data.code !== 0) {
+        throw new Error(response.data.msg || 'Failed to get account balance')
+      }
+
+      return {
+        balance: response.data.data?.balance || 0,
+        success: true,
+      }
+    } catch (error: any) {
+      return {
+        balance: 0,
+        success: false,
+        error: error.response?.data?.msg || error.message,
+      }
+    }
+  }
+
   async rentEnergy(params: RentEnergyParams): Promise<RentEnergyResponse> {
     try {
-      const body = JSON.stringify({
-        quantity: Math.max(params.amount, 65000),
-        receiver: params.receiverAddress,
-        duration: '1h',
-      })
+      const queryPath = `/v1/order?quantity=${Math.max(params.amount, 65000)}&receiver=${params.receiverAddress}&duration=1h`
       
-      const headers = this.getAuthHeaders('POST', '/v1/order', body)
+      const headers = this.getAuthHeaders('POST', queryPath, '')
       
-      const response: AxiosResponse = await this.client.post('/v1/order', JSON.parse(body), { headers })
+      const response: AxiosResponse = await this.client.post(queryPath, {}, { headers })
 
-      if (response.data.code !== '0') {
+      if (response.data.code !== 0) {
         throw new Error(response.data.msg || 'Order creation failed')
+      }
+
+      // Check balance after rental
+      const balanceCheck = await this.getAccountBalance()
+      if (balanceCheck.success && balanceCheck.balance < 10) {
+        console.warn(`⚠️  Catfee account balance is low: ${balanceCheck.balance} TRX (below 10 TRX threshold)`)
       }
 
       return {
         success: true,
-        txHash: response.data.data.tx_hash || response.data.data.txHash,
-        orderId: response.data.data.id || response.data.data.order_id,
-        energyRented: response.data.data.quantity || params.amount,
+        txHash: response.data.data?.tx_hash || response.data.data?.txHash || response.data.data?.hash,
+        orderId: response.data.data?.id || response.data.data?.order_id || response.data.data?.orderId,
+        energyRented: response.data.data?.quantity || params.amount,
       }
     } catch (error: any) {
       return {
@@ -225,12 +255,13 @@ class CatfeeProvider implements TronEnergyProvider {
       
       const response: AxiosResponse = await this.client.get('/v1/estimate' + queryParams, { headers })
 
-      if (response.data.code !== '0') {
+      if (response.data.code !== 0) {
         throw new Error(response.data.msg || 'Price estimation failed')
       }
 
-      const totalCostTrx = response.data.data.total_cost || response.data.data.cost || 0
-      const quantity = response.data.data.quantity || 65000
+      const totalCostSun = response.data.data
+      const totalCostTrx = totalCostSun / 1000000
+      const quantity = 65000
       const trxPerEnergy = totalCostTrx / quantity
 
       return {
@@ -258,18 +289,19 @@ export class TronEnergyRental {
     nettsRealIp?: string,
     catfeeApiSecret?: string,
   ) {
-    if (nettsApiKey) {
-      if (!nettsRealIp) {
-        throw new Error('NettsProvider requires both API key and real IP address')
-      }
-      this.providers.push(new NettsProvider(nettsApiKey, nettsRealIp))
-    }
-    
+    // Prioritize catfee (more reliable) over netts
     if (catfeeApiKey) {
       if (!catfeeApiSecret) {
         throw new Error('CatfeeProvider requires both API key and API secret')
       }
       this.providers.push(new CatfeeProvider(catfeeApiKey, catfeeApiSecret))
+    }
+    
+    if (nettsApiKey) {
+      if (!nettsRealIp) {
+        throw new Error('NettsProvider requires both API key and real IP address')
+      }
+      this.providers.push(new NettsProvider(nettsApiKey, nettsRealIp))
     }
 
     if (this.providers.length === 0) {
@@ -574,6 +606,57 @@ export class TronEnergyRental {
     } catch (error) {
       console.error('USDT cost estimation failed:', error)
       return 0
+    }
+  }
+
+  async topUpCatfee(trxAmount: number): Promise<{success: boolean, txHash?: string, error?: string}> {
+    if (trxAmount < 10) {
+      return {
+        success: false,
+        error: 'Minimum top-up amount is 10 TRX'
+      }
+    }
+
+    if (!this.tronWeb) {
+      return {
+        success: false,
+        error: 'TronWeb instance required for TRX transfers'
+      }
+    }
+
+    if (!process.env.CATFEE_DEPOSIT_ADDRESS) {
+      return {
+        success: false,
+        error: 'CATFEE_DEPOSIT_ADDRESS not found in environment variables'
+      }
+    }
+
+    try {
+      const trxAmountInSun = this.tronWeb.toSun(trxAmount)
+      
+      const transaction = await this.tronWeb.transactionBuilder.sendTrx(
+        process.env.CATFEE_DEPOSIT_ADDRESS,
+        trxAmountInSun
+      )
+
+      const signedTransaction = await this.tronWeb.trx.sign(transaction)
+      const receipt = await this.tronWeb.trx.sendRawTransaction(signedTransaction)
+
+      if (receipt.result) {
+        console.log(`✅ Successfully topped up ${trxAmount} TRX to catfee account`)
+        return {
+          success: true,
+          txHash: receipt.txid
+        }
+      } else {
+        throw new Error('Transaction failed')
+      }
+    } catch (error: any) {
+      console.error('Catfee top-up failed:', error)
+      return {
+        success: false,
+        error: error.message
+      }
     }
   }
 }
