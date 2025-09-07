@@ -21,7 +21,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
   constructor(private configService: ConfigService) {}
 
   get chainId(): SolanaConfig['chainId'] {
-    return this.configService.get<string>('solana.chainId')!;
+    return this.configService.get<number>('solana.chainId')!;
   }
 
   get rpcUrl(): SolanaConfig['rpcUrl'] {
@@ -59,8 +59,8 @@ export class SolanaConfigService implements IBlockchainConfigService {
     if (!this.isConfigured()) {
       return [];
     }
-    // Return standard Solana network identifiers
-    return ['solana-mainnet', 'solana-devnet', 'solana-testnet'];
+    // Return standard Solana numeric chain identifiers
+    return [1399811149, 1399811150]; // mainnet, Shasta
   }
 
   getPortalAddress(_chainId: ChainIdentifier): UniversalAddress {

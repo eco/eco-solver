@@ -35,20 +35,23 @@ describe('BlockchainExecutorService', () => {
 
   beforeEach(async () => {
     blockchainConfigService = {
-      getAllConfiguredChains: jest
-        .fn()
-        .mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
+      getAllConfiguredChains: jest.fn().mockReturnValue([1, 10, 137, 1399811149, 1399811150]),
       getChainType: jest.fn().mockImplementation((chainId) => {
-        if (typeof chainId === 'number' || (typeof chainId === 'bigint' && chainId < 1000000)) {
-          return 'evm';
-        }
-        if (typeof chainId === 'string' && chainId.startsWith('solana')) {
+        const numericChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+        if (
+          numericChainId === 1399811149 ||
+          numericChainId === 1399811150 ||
+          numericChainId === 1399811151
+        ) {
           return 'svm';
+        }
+        if (typeof numericChainId === 'number' && numericChainId < 1000000) {
+          return 'evm';
         }
         return 'tvm';
       }),
       isChainSupported: jest.fn().mockImplementation((chainId) => {
-        const supportedChains = [1, 10, 137, 'solana-mainnet', 'solana-devnet'];
+        const supportedChains = [1, 10, 137, 1399811149, 1399811150];
         const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
         return supportedChains.includes(normalizedChainId);
       }),
@@ -128,8 +131,8 @@ describe('BlockchainExecutorService', () => {
 
     it('should initialize SVM executors for configured chains', () => {
       const supportedChains = service.getSupportedChains();
-      expect(supportedChains).toContain('solana-mainnet');
-      expect(supportedChains).toContain('solana-devnet');
+      expect(supportedChains).toContain(1399811149);
+      expect(supportedChains).toContain(1399811150);
     });
 
     it('should not initialize executors when configs are not available', async () => {
@@ -194,8 +197,8 @@ describe('BlockchainExecutorService', () => {
       expect(supportedChains).toContain(1);
       expect(supportedChains).toContain(10);
       expect(supportedChains).toContain(137);
-      expect(supportedChains).toContain('solana-mainnet');
-      expect(supportedChains).toContain('solana-devnet');
+      expect(supportedChains).toContain(1399811149);
+      expect(supportedChains).toContain(1399811150);
     });
   });
 
@@ -207,8 +210,8 @@ describe('BlockchainExecutorService', () => {
     });
 
     it('should return true for supported Solana chains', () => {
-      expect(service.isChainSupported('solana-mainnet')).toBe(true);
-      expect(service.isChainSupported('solana-devnet')).toBe(true);
+      expect(service.isChainSupported(1399811149)).toBe(true);
+      expect(service.isChainSupported(1399811150)).toBe(true);
     });
 
     it('should return false for unsupported chains', () => {
@@ -229,7 +232,7 @@ describe('BlockchainExecutorService', () => {
     });
 
     it('should return executor for supported Solana chains', () => {
-      const executor = service.getExecutorForChain('solana-mainnet');
+      const executor = service.getExecutorForChain(1399811149);
       expect(executor).toBe(svmExecutor);
     });
 
@@ -259,7 +262,7 @@ describe('BlockchainExecutorService', () => {
 
     it('should execute intent successfully on Solana chain', async () => {
       const solanaIntent = createMockIntent({
-        destination: 'solana-mainnet' as any,
+        destination: BigInt(1399811149),
       });
 
       await service.executeIntent(solanaIntent);
