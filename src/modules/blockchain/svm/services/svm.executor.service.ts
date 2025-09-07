@@ -55,7 +55,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     this.initializeProgram();
   }
 
-  async fulfill(intent: Intent, walletId?: string): Promise<ExecutionResult> {
+  async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
     if (!this.portalProgram || !this.wallet) {
       throw new Error('Portal program not initialized');
     }
@@ -74,7 +74,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       }
 
       const proverAddr = prover.getContractAddress(Number(intent.destination));
-      const proofData = await prover.generateProof(intent);
+      const _proofData = await prover.generateProof(intent);
 
       // Calculate hashes
       const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
@@ -103,7 +103,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
 
       // Convert prover address to Bytes32 format expected by the program
-      const proverBytes32 = this.addressToBytes32(proverAddr!);
+      const _proverBytes32 = this.addressToBytes32(proverAddr!);
 
       // Prepare route data for the instruction
       const routeData = this.prepareRouteData(intent.route);
@@ -155,7 +155,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  async fulfillAndProve(intent: Intent, walletId?: string): Promise<ExecutionResult> {
+  async fulfillAndProve(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
     if (!this.portalProgram || !this.wallet) {
       throw new Error('Portal program not initialized');
     }

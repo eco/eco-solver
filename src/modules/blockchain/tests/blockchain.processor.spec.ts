@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Job } from 'bullmq';
-import { Address, Hex } from 'viem';
+import { Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';

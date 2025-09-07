@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
 
-import { Address } from 'viem';
-
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';

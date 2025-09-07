@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 
-import { Address, encodePacked, Hex } from 'viem';
+import { encodePacked, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';

@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
 
-import { Address } from 'viem';
-
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';

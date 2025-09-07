@@ -1,4 +1,3 @@
-import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';

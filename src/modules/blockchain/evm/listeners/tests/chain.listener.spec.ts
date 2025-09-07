@@ -9,7 +9,6 @@ import { createMockEventsService } from '@/modules/events/tests/events.service.m
 import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
-import * as eventsModule from '../../utils/events';
 import { ChainListener } from '../chain.listener';
 
 // Mock AddressNormalizer at module level
@@ -22,7 +21,7 @@ jest.mock('@/common/utils/address-normalizer', () => ({
       const paddedAddress = cleanAddress.padEnd(40, '0').substring(0, 40);
       return `0x00000000000000000000000${paddedAddress}0001`;
     }),
-    denormalizeToEvm: jest.fn((universalAddress) => {
+    denormalizeToEvm: jest.fn((_universalAddress) => {
       // For testing, just return the mock portal address when called
       return '0xPortalAddress';
     }),
@@ -99,7 +98,7 @@ jest.mock('@/modules/blockchain/evm/utils/events', () => ({
 // Mock QueueSerializer
 jest.mock('@/modules/queue/utils/queue-serializer', () => ({
   QueueSerializer: {
-    serialize: jest.fn((obj) => 'serialized-object'),
+    serialize: jest.fn((_obj) => 'serialized-object'),
   },
 }));
 
@@ -316,9 +315,11 @@ describe('ChainListener', () => {
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
       // Mock parseIntentPublish to return an intent with empty calls for this specific test
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const mockEventsModule = require('@/modules/blockchain/evm/utils/events');
-      mockEventsModule.parseIntentPublish.mockReturnValueOnce({
+      const { parseIntentPublish } = await import('@/modules/blockchain/evm/utils/events');
+      const mockParseIntentPublish = parseIntentPublish as jest.MockedFunction<
+        typeof parseIntentPublish
+      >;
+      mockParseIntentPublish.mockReturnValueOnce({
         intentHash: mockLog.args.intentHash,
         destination: mockLog.args.destination,
         sourceChainId: 1n,
@@ -415,8 +416,8 @@ describe('ChainListener', () => {
       blockchainConfigService.getPortalAddress.mockReturnValue(customPortalUniversalAddress);
 
       // Mock the denormalizeToEvm to return the expected custom address for this test
-      const mockAddressNormalizer = require('@/common/utils/address-normalizer');
-      mockAddressNormalizer.AddressNormalizer.denormalizeToEvm.mockReturnValue('0xCustomPortal');
+      const { AddressNormalizer } = await import('@/common/utils/address-normalizer');
+      (AddressNormalizer.denormalizeToEvm as jest.Mock).mockReturnValue('0xCustomPortal');
 
       await listener.start();
 
@@ -451,14 +452,14 @@ describe('ChainListener', () => {
 
   describe('IntentFulfilled event handling', () => {
     let mockPublicClient: any;
-    let intentFulfilledCallback: Function;
+    let intentFulfilledCallback: (logs: any[]) => void;
 
     beforeEach(async () => {
       // Reset mocks
       jest.clearAllMocks();
 
       mockPublicClient = {
-        watchContractEvent: jest.fn((config) => {
+        watchContractEvent: jest.fn((_config) => {
           return mockUnsubscribe; // Return the same mock unsubscribe function
         }),
       };
@@ -521,7 +522,7 @@ describe('ChainListener', () => {
       );
     });
 
-    it('should handle errors in IntentFulfilled processing', () => {
+    it('should handle errors in IntentFulfilled processing', async () => {
       const mockLog = {
         args: {
           intentHash: '0x1234',
@@ -535,8 +536,11 @@ describe('ChainListener', () => {
       expect(intentFulfilledCallback).toBeDefined();
 
       // Mock parseIntentFulfilled to throw an error
-      const mockEventsModule = require('@/modules/blockchain/evm/utils/events');
-      mockEventsModule.parseIntentFulfilled.mockImplementationOnce(() => {
+      const { parseIntentFulfilled } = await import('@/modules/blockchain/evm/utils/events');
+      const mockParseIntentFulfilled = parseIntentFulfilled as jest.MockedFunction<
+        typeof parseIntentFulfilled
+      >;
+      mockParseIntentFulfilled.mockImplementationOnce(() => {
         throw new Error('Parse error');
       });
 

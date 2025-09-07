@@ -87,7 +87,9 @@ export class SvmReaderService extends BaseChainReader {
 
       // Short circuit: if reward tokens array is empty and nativeAmount is 0, consider it funded
       if (intent.reward.tokens.length === 0 && intent.reward.nativeAmount === BigInt(0)) {
-        this.logger.debug(`Intent ${intent.intentHash} has no reward requirements, considering it funded`);
+        this.logger.debug(
+          `Intent ${intent.intentHash} has no reward requirements, considering it funded`,
+        );
         return true;
       }
 
@@ -100,7 +102,6 @@ export class SvmReaderService extends BaseChainReader {
         [Buffer.from('vault'), intentHashBuffer],
         portalProgramId,
       );
-      console.log('SOYLANA vaultPDA', vaultPDA);
 
       // Check native SOL balance if nativeAmount is required
       if (intent.reward.nativeAmount > BigInt(0)) {
@@ -113,52 +114,60 @@ export class SvmReaderService extends BaseChainReader {
         }
       }
 
-        // Check token balances using getParsedTokenAccountsByOwner
-        if (intent.reward.tokens.length > 0) {
-          try {
-            // Get all token accounts owned by the vault PDA
-            const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(vaultPDA, {
-              programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token program
-            });
+      // Check token balances using getParsedTokenAccountsByOwner
+      if (intent.reward.tokens.length > 0) {
+        try {
+          // Get all token accounts owned by the vault PDA
+          const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(vaultPDA, {
+            programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token program
+          });
 
-            console.log('SOYLANA tokenAccounts:', tokenAccounts);
+          console.log('SOYLANA tokenAccounts:', tokenAccounts);
 
-            // Create a map of mint address to balance for quick lookup
-            const tokenBalanceMap = new Map<string, bigint>();
-            for (const tokenAccount of tokenAccounts.value) {
-              const mintAddress = tokenAccount.account.data.parsed.info.mint;
-              const balance = BigInt(tokenAccount.account.data.parsed.info.tokenAmount.amount);
-              tokenBalanceMap.set(mintAddress, balance);
-            }
+          // Create a map of mint address to balance for quick lookup
+          const tokenBalanceMap = new Map<string, bigint>();
+          for (const tokenAccount of tokenAccounts.value) {
+            const mintAddress = tokenAccount.account.data.parsed.info.mint;
+            const balance = BigInt(tokenAccount.account.data.parsed.info.tokenAmount.amount);
+            tokenBalanceMap.set(mintAddress, balance);
+          }
 
-            console.log('SOYLANA tokenBalanceMap:', tokenBalanceMap);
+          console.log('SOYLANA tokenBalanceMap:', tokenBalanceMap);
 
-            // Check each required reward token
-            for (const rewardToken of intent.reward.tokens) {
-              console.log('SOYLANA rewardToken', rewardToken);
-              if (rewardToken.amount > BigInt(0)) {
-                // Denormalize the reward token address to Solana format
-                const svmTokenAddress = AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM);
-                const vaultTokenBalance = tokenBalanceMap.get(svmTokenAddress) || BigInt(0);
+          // Check each required reward token
+          for (const rewardToken of intent.reward.tokens) {
+            console.log('SOYLANA rewardToken', rewardToken);
+            if (rewardToken.amount > BigInt(0)) {
+              // Denormalize the reward token address to Solana format
+              const svmTokenAddress = AddressNormalizer.denormalize(
+                rewardToken.token,
+                ChainType.SVM,
+              );
+              const vaultTokenBalance = tokenBalanceMap.get(svmTokenAddress) || BigInt(0);
 
-                console.log(`SOYLANA token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`);
+              console.log(
+                `SOYLANA token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
+              );
 
-                if (vaultTokenBalance < rewardToken.amount) {
-                  this.logger.debug(
-                    `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
-                  );
-                  return false;
-                }
+              if (vaultTokenBalance < rewardToken.amount) {
+                this.logger.debug(
+                  `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
+                );
+                return false;
               }
             }
-          } catch (error) {
-            this.logger.error(`Failed to get token accounts for vault ${vaultPDA.toBase58()}:`, toError(error));
-            // If we can't get token accounts, assume no tokens are available
-            if (intent.reward.tokens.some(token => token.amount > BigInt(0))) {
-              return false;
-            }
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to get token accounts for vault ${vaultPDA.toBase58()}:`,
+            toError(error),
+          );
+          // If we can't get token accounts, assume no tokens are available
+          if (intent.reward.tokens.some((token) => token.amount > BigInt(0))) {
+            return false;
           }
         }
+      }
 
       this.logger.debug(`Intent ${intent.intentHash} is fully funded`);
       return true;

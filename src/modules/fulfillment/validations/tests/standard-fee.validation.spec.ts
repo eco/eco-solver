@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
 
-import { Address } from 'viem';
-
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';

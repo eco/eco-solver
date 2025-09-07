@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { type Address, type Hex } from 'viem';
+import { type Hex } from 'viem';
 
 import { AppModule } from '@/app.module';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
