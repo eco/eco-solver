@@ -83,7 +83,7 @@ export class EvmExecutorService extends BaseChainExecutor {
       // TODO: Domain ID must be provided by the prover service
       const sourceDomainId = BigInt(sourceChainId);
 
-      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
+      const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
 
       const proverContract = prover.getContractAddress(destinationChainId);
       if (!proverContract) {
@@ -140,7 +140,10 @@ export class EvmExecutorService extends BaseChainExecutor {
 
       const [hash] = await wallet.writeContracts(
         [...approvalTxs, fulfillTx],
-        { value: 0n }, // EOA doesn't send ETH, prover fee is paid by the Kernel wallet
+        { 
+          value: 0n, // EOA doesn't send ETH, prover fee is paid by the Kernel wallet
+          gas: 2000000n 
+        },
       );
 
       span.setAttribute('evm.transaction_hash', hash);

@@ -9,7 +9,7 @@ export function hashIntentSvm(intent: Intent): {
   intentHash: Hex;
 } {
   const routeHash = PortalHashUtils.computeRouteHash(intent.route);
-  const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
+  const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
 
   // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
   const destinationBytes = new Uint8Array(8);

@@ -11,11 +11,23 @@ import { toRewardEVMIntent, toRouteEVMIntent } from '@/common/utils/intent-conve
 
 import { EVMRewardAbiItem, EVMRouteAbiItem } from '../abis/portal.abi';
 import { Intent } from '../interfaces/intent.interface';
+import { ChainType, ChainTypeDetector } from './chain-type-detector';
+import { AddressNormalizer } from './address-normalizer';
+
+import * as portalIdl from '@/common/abis/portal.json'
+import { BN, BorshCoder, Idl } from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
+const svmCoder = new BorshCoder(portalIdl as Idl)
 
 export class PortalHashUtils {
   static getIntentHash(intent: Intent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
     const routeHash = PortalHashUtils.computeRouteHash(intent.route);
-    const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
+    const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
+
+    console.log('SOYLANA intent', intent.route);
+    console.log('SOYLANA routeHash', routeHash);
+    console.log('SOYLANA intent.reward', intent.reward);
+    console.log('SOYLANA intent.destination', intent.destination);
 
     // Compute the intent hash using encodePacked
     // intentHash = keccak256(abi.encodePacked(destination, routeHash, rewardHash))
@@ -46,9 +58,43 @@ export class PortalHashUtils {
    * Accepts both Intent reward (with UniversalAddress) and EVMIntent reward
    *
    * @param reward - Reward data structure
+   * @param sourceChainId - Source chain ID to determine encoding type
    * @returns Reward hash as Hex
    */
-  static computeRewardHash(reward: Intent['reward']): Hex {
-    return keccak256(encodeAbiParameters([EVMRewardAbiItem], [toRewardEVMIntent(reward)]));
+  static computeRewardHash(reward: Intent['reward'], sourceChainId: bigint): Hex {
+    // Detect chain type from source chain ID
+    const chainType = ChainTypeDetector.detect(sourceChainId);
+    
+    switch (chainType) {
+      case ChainType.SVM: {
+        const { deadline, creator, prover, nativeAmount, tokens } = reward
+        console.log('SOYLANA reward', reward);
+
+        // Convert universal addresses to SVM-specific (base58) addresses
+        const creatorSvm = AddressNormalizer.denormalize(creator, ChainType.SVM);
+        const proverSvm = AddressNormalizer.denormalize(prover, ChainType.SVM);
+
+        const encoded = svmCoder.types.encode('Reward', {
+          deadline: new BN(deadline.toString()),
+          creator: new PublicKey(creatorSvm),
+          prover: new PublicKey(proverSvm),
+          native_amount: new BN(nativeAmount.toString()),
+          tokens: tokens.map(({ token, amount }) => ({
+            token: new PublicKey(AddressNormalizer.denormalize(token, ChainType.SVM)),
+            amount: new BN(amount.toString()),
+          })),
+        })
+
+        // Hash the encoded data to get a consistent 32-byte hash like EVM/TVM cases
+        return keccak256(`0x${encoded.toString('hex')}` as Hex)
+      }
+      case ChainType.EVM:
+      case ChainType.TVM:
+        return keccak256(encodeAbiParameters([EVMRewardAbiItem], [toRewardEVMIntent(reward)]));
+      default:
+        throw new Error(`Unsupported chain type: ${chainType} for source chain ID: ${sourceChainId}`);
+    }
   }
+
+
 }

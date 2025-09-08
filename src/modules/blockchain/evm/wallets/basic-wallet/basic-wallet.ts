@@ -28,7 +28,10 @@ export class BasicWallet extends BaseEvmWallet {
       const hashes: Hash[] = [];
 
       for (const call of calls) {
-        const hash = await this.writeContract(call);
+        const hash = await this.walletClient.sendTransaction({
+          ...call,
+          gas: options?.gas,
+        } as any);
         if (!options?.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
         hashes.push(hash);
       }
@@ -70,10 +73,14 @@ export class BasicWallet extends BaseEvmWallet {
         functionName: 'aggregate3Value',
         args: [multicallCalls],
         value: totalValue,
+        gas: options?.gas,
         account: this.walletClient.account,
       });
 
-      const hash = await this.walletClient.writeContract(request);
+      const hash = await this.walletClient.writeContract({
+        ...request,
+        gas: options?.gas,
+      } as any);
       if (!options?.skipWait) await this.publicClient.waitForTransactionReceipt({ hash });
       return [hash];
     }

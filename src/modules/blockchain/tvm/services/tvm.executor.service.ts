@@ -98,7 +98,7 @@ export class TvmExecutorService extends BaseChainExecutor {
           });
 
           // Calculate Portal hashes
-          const rewardHash = PortalHashUtils.computeRewardHash(intent.reward);
+          const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
 
           const portalAddrUA = this.tvmConfigService.getPortalAddress(destinationChainId);
           const portalAddr = AddressNormalizer.denormalizeToTvm(portalAddrUA);

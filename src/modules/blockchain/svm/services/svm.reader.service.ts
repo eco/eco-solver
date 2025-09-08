@@ -118,7 +118,7 @@ export class SvmReaderService extends BaseChainReader {
         try {
                       // Check each required reward token individually using associated token accounts
             for (const rewardToken of intent.reward.tokens) {
-              if (rewardToken.amount > BigInt(0) && rewardToken.amount < 0n) {
+              if (rewardToken.amount > BigInt(0)) {
                 // Denormalize the reward token address to Solana format
                 const svmTokenAddress = AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM);
                 const tokenMintPublicKey = new PublicKey(svmTokenAddress);

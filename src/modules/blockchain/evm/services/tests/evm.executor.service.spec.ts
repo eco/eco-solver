@@ -171,7 +171,7 @@ describe('EvmExecutorService', () => {
       expect(mockWallet.writeContracts).toHaveBeenCalled();
       const writeContractsCall = mockWallet.writeContracts.mock.calls[0];
       expect(writeContractsCall[0]).toHaveLength(2); // 1 approval + 1 fulfill
-      expect(writeContractsCall[1]).toEqual({ value: 0n });
+      expect(writeContractsCall[1]).toEqual({ value: 0n, gas: 1000000n });
 
       // Verify transaction receipt was waited for
       expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({

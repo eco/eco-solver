@@ -219,6 +219,7 @@ export class KernelWallet extends BaseEvmWallet {
         factory,
       });
 
+      // Note: Using 'as any' due to complex viem type constraints for deployment transaction
       const hash = await this.signerWalletClient.sendTransaction({
         to: factory,
         data: factoryData,
@@ -367,6 +368,7 @@ export class KernelWallet extends BaseEvmWallet {
         to: this.kernelAccount.address,
         data: encodeKernelExecuteCallData(calls),
         value: totalValue,
+        gas: _options?.gas,
       } as any);
 
       if (!activeSpan) {
@@ -484,6 +486,7 @@ export class KernelWallet extends BaseEvmWallet {
           abi: ecdsaExecutorAbi,
           functionName: 'execute',
           value: totalValue,
+          gas: _options?.gas,
           args: [
             this.kernelAccount.address,
             execution.mode,
