@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Address, encodeFunctionData, Hex } from 'viem';
+import { Address, encodeFunctionData } from 'viem';
 
 import { ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
-import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';

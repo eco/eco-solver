@@ -3,7 +3,11 @@ import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
-import { BlockchainConfigService, FulfillmentConfigService, SolanaConfigService } from '@/modules/config/services';
+import {
+  BlockchainConfigService,
+  FulfillmentConfigService,
+  SolanaConfigService,
+} from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -43,7 +47,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
     // Use pseudo-chainId for Solana (1399811149 represents Solana mainnet)
     const chainId = 1399811149;
-    
+
     // Create a new logger instance for the listener to avoid context pollution
     const listenerLogger = new SystemLoggerService(this.winstonLogger);
     listenerLogger.setContext(`SolanaListener:${chainId}`);
@@ -75,4 +79,4 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     this.listeners.clear();
     this.logger.log('Stopped all SVM listeners');
   }
-} 
+}

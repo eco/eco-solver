@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
 
-import { Address } from 'viem';
-
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';

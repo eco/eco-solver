@@ -4,11 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
-import {
-  padTo32Bytes,
-  toUniversalAddress,
-  UniversalAddress,
-} from '@/common/types/universal-address.type';
+import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';

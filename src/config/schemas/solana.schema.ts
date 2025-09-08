@@ -9,7 +9,7 @@ export const SvmAddressSchema = z.string().transform((v) => v as SvmAddress);
  * Solana configuration schema
  */
 export const SolanaSchema = z.object({
-  chainId: z.string().default('solana-mainnet'),
+  chainId: z.coerce.number().int().positive().default(1399811149),
   rpcUrl: z.string().url().default('https://api.mainnet-beta.solana.com'),
   wsUrl: z
     .string()

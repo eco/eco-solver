@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Intent } from '@/common/interfaces/intent.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -15,8 +14,6 @@ import { StrategyManagementService } from '../strategy-management.service';
 
 describe('StrategyManagementService', () => {
   let service: StrategyManagementService;
-  let configService: FulfillmentConfigService;
-  let standardStrategy: StandardFulfillmentStrategy;
 
   const mockLogger = {
     setContext: jest.fn(),
@@ -91,8 +88,6 @@ describe('StrategyManagementService', () => {
     }).compile();
 
     service = module.get<StrategyManagementService>(StrategyManagementService);
-    configService = module.get<FulfillmentConfigService>(FulfillmentConfigService);
-    standardStrategy = module.get<StandardFulfillmentStrategy>(StandardFulfillmentStrategy);
   });
 
   afterEach(() => {

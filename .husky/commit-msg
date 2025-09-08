@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Check conventional commit format
+commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?: .{1,50}'
+
+if ! grep -qE "$commit_regex" "$1"; then
+  echo "❌ Commit message format is invalid!"
+  echo ""
+  echo "Format: <type>(scope): <description>"
+  echo ""
+  echo "Types:"
+  echo "  feat:     A new feature"
+  echo "  fix:      A bug fix"
+  echo "  docs:     Documentation changes"
+  echo "  style:    Code style changes (formatting, etc)"
+  echo "  refactor: Code changes that neither fix bugs nor add features"
+  echo "  perf:     Performance improvements"
+  echo "  test:     Add or update tests"
+  echo "  chore:    Maintenance tasks"
+  echo "  ci:       CI/CD changes"
+  echo "  build:    Build system changes"
+  echo "  revert:   Revert a previous commit"
+  echo ""
+  echo "Example: feat(auth): add JWT token validation"
+  echo ""
+  echo "💡 To skip this check (emergency only): git commit --no-verify"
+  exit 1
+fi
+
+echo "✅ Commit message format is valid!"

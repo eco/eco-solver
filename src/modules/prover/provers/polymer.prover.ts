@@ -184,7 +184,7 @@ export class PolymerProver extends BaseProver {
   /**
    * Helper to get wallet for a specific chain
    */
-  private async getWalletForChain(chainId: number): Promise<any> {
+  private async getWalletForChain(_chainId: number): Promise<any> {
     // This will be resolved using the blockchain reader service
     // which is initialized in onModuleInit
     if (!this.blockchainReaderService) {

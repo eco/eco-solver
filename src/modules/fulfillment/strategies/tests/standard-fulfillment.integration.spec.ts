@@ -52,7 +52,7 @@ const createMockTokenConfigService = () => ({
       address: tokenAddress as Address,
     };
   }),
-  getSupportedTokens: jest.fn().mockImplementation((chainId: number) => {
+  getSupportedTokens: jest.fn().mockImplementation((_chainId: number) => {
     // Return test token addresses that we use in tests - with proper padding to match UniversalAddress format
     return [
       { address: '0x00000000000000000000000000000002f050fe938943acc45f65568000000000' as Address },
@@ -251,7 +251,7 @@ const createMockFulfillmentConfigService = () => ({
 
 // Mock BlockchainConfigService
 const createMockBlockchainConfigService = () => ({
-  getFeeLogic: jest.fn().mockImplementation((chainId) => {
+  getFeeLogic: jest.fn().mockImplementation((_chainId) => {
     return {
       tokens: {
         flatFee: '0.001', // 0.001 ETH as string (18 decimal places)

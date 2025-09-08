@@ -15,8 +15,6 @@ import { QuoteRegistrationService } from '../services/quote-registration.service
 describe('RegistrationService', () => {
   let service: QuoteRegistrationService;
   let httpService: HttpService;
-  let configService: QuotesConfigService;
-  let evmWalletManager: EvmWalletManager;
   let logger: SystemLoggerService;
   let blockchainConfigService: BlockchainConfigService;
   let mockWallet: IEvmWallet;
@@ -100,8 +98,6 @@ describe('RegistrationService', () => {
 
     service = module.get<QuoteRegistrationService>(QuoteRegistrationService);
     httpService = module.get<HttpService>(HttpService);
-    configService = module.get<QuotesConfigService>(QuotesConfigService);
-    evmWalletManager = module.get<EvmWalletManager>(EvmWalletManager);
     logger = module.get<SystemLoggerService>(SystemLoggerService);
     blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
   });

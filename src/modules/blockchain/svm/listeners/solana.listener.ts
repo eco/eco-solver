@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
+import { BorshCoder, EventParser, Idl } from '@coral-xyz/anchor';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
 
+import * as portalIdl from '@/common/abis/portal.json';
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -17,8 +19,6 @@ import {
 } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { BorshCoder, EventParser, Idl } from '@coral-xyz/anchor';
-import * as portalIdl from '@/common/abis/portal.json';
 
 @Injectable()
 export class SolanaListener extends BaseChainListener {
@@ -39,7 +39,6 @@ export class SolanaListener extends BaseChainListener {
 
     const coder = new BorshCoder(portalIdl as Idl);
     this.parser = new EventParser(new PublicKey(this.solanaConfigService.portalProgramId), coder);
-
   }
 
   async start(): Promise<void> {
@@ -50,11 +49,11 @@ export class SolanaListener extends BaseChainListener {
 
     // Get Portal program ID from Solana config service
     const portalProgramId = this.solanaConfigService.portalProgramId;
-    
+
     if (!portalProgramId) {
       throw new Error('Portal program ID not configured in Solana config');
     }
-    
+
     this.programId = new PublicKey(portalProgramId);
 
     this.subscriptionId = this.connection.onLogs(
@@ -96,12 +95,8 @@ export class SolanaListener extends BaseChainListener {
 
     // Decode route based on destination chain type
     const destChainType = ChainTypeDetector.detect(BigInt(destination.toString()));
-    
-    const decodedRoute = PortalEncoder.decodeFromChain(
-      Buffer.from(route),
-      destChainType,
-      'route',
-    );
+
+    const decodedRoute = PortalEncoder.decodeFromChain(Buffer.from(route), destChainType, 'route');
 
     return {
       intentHash,
@@ -123,16 +118,14 @@ export class SolanaListener extends BaseChainListener {
     };
   }
 
-  private parseIntentFundedFromLogs(ev: any, signature: string): any {
+  private parseIntentFundedFromLogs(ev: any, _signature: string): any {
     // Parse logs to extract IntentFunded event data
     this.logger.log('SOYLANA parseIntentFundedFromLogs', ev);
-    
-    
   }
 
   private async handleProgramLogs(logs: Logs): Promise<void> {
     this.logger.log('Solana listener received logs:', logs);
-    
+
     try {
       for (const ev of this.parser.parseLogs(logs.logs)) {
         try {
@@ -149,25 +142,29 @@ export class SolanaListener extends BaseChainListener {
               // this.eventsService.emit('intent.funded', fundedEvent);
               this.logger.log(`IntentFunded event processed: ${fundedEvent.intentHash} on Solana`);
               break;
-              
+
             case 'IntentFulfilled':
               const fulfilledEvent = this.parseIntentFulfilledFromLogs(logs);
               this.eventsService.emit('intent.fulfilled', fulfilledEvent);
-              this.logger.log(`IntentFulfilled event processed: ${fulfilledEvent.intentHash} on Solana`);
+              this.logger.log(
+                `IntentFulfilled event processed: ${fulfilledEvent.intentHash} on Solana`,
+              );
               break;
-              
+
             case 'IntentProven':
               const provenEvent = this.parseIntentProvenFromLogs(logs);
               this.eventsService.emit('intent.proven', provenEvent);
               this.logger.log(`IntentProven event processed: ${provenEvent.intentHash} on Solana`);
               break;
-              
+
             case 'IntentWithdrawn':
               const withdrawnEvent = this.parseIntentWithdrawnFromLogs(logs);
               this.eventsService.emit('intent.withdrawn', withdrawnEvent);
-              this.logger.log(`IntentWithdrawn event processed: ${withdrawnEvent.intentHash} on Solana`);
+              this.logger.log(
+                `IntentWithdrawn event processed: ${withdrawnEvent.intentHash} on Solana`,
+              );
               break;
-              
+
             default:
               this.logger.debug(`Unknown event type: ${ev.name}`, ev);
           }
@@ -257,6 +254,4 @@ export class SolanaListener extends BaseChainListener {
       chainId,
     };
   }
-
-
 }
