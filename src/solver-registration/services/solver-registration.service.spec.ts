@@ -36,6 +36,13 @@ describe('SolverRegistrationService', () => {
       getIntentSources: jest.fn(),
     }
 
+    jest
+      .spyOn(SolverRegistrationService.prototype, 'onApplicationBootstrap')
+      .mockImplementation(() => Promise.resolve())
+
+    // (Optional) also block direct calls, just in case
+    jest.spyOn(SolverRegistrationService.prototype, 'registerSolver').mockResolvedValue({})
+
     $ = EcoTester.setupTestFor(SolverRegistrationService)
       .withProviders([
         {
@@ -92,9 +99,51 @@ describe('SolverRegistrationService', () => {
     expect(dto.crossChainRoutes.crossChainRoutesConfig).toEqual({})
     expect(service['logger'].warn).toHaveBeenCalledWith(
       expect.objectContaining({
-        msg: expect.stringContaining('No tokens configured for intent source chain'),
+        msg: expect.stringContaining('No tokens configured for intentSourceChainID'),
       }),
     )
+  })
+
+  it('should skip routes when a solver has no targets', () => {
+    // Solver with empty targets
+    service['solversConfig'] = {
+      100: { chainID: 100, targets: {} } as any,
+    }
+    service['intentSourcesConfig'] = [{ chainID: 1, tokens: ['0xSRC1'] } as any]
+
+    const dto = (service as any).getSolverRegistrationDTO()
+
+    // No routes should be created since destinationTokens is empty
+    expect(dto.crossChainRoutes.crossChainRoutesConfig).toEqual({})
+  })
+
+  it('should not create a fromKey entry for sources with empty tokens, while keeping valid sources', () => {
+    service['solversConfig'] = {
+      100: { chainID: 100, targets: { '0xAAA': {} } } as any,
+    }
+
+    service['intentSourcesConfig'] = [
+      // Valid source
+      { chainID: 1, tokens: ['0xSRC1'] } as any,
+      // Empty-token source (should be skipped entirely)
+      { chainID: 2, tokens: [] } as any,
+      // Another valid source
+      { chainID: 3, tokens: ['0xSRC3'] } as any,
+    ]
+
+    const dto = (service as any).getSolverRegistrationDTO()
+    const cfg = dto.crossChainRoutes.crossChainRoutesConfig
+
+    // Only from-keys 1 and 3 should be present.
+    expect(Object.keys(cfg).sort()).toEqual(['1', '3'])
+
+    // And both should point to destination 100 with proper route arrays
+    expect(cfg['1']).toEqual({
+      '100': [{ send: '0xSRC1', receive: ['0xAAA'] }],
+    })
+    expect(cfg['3']).toEqual({
+      '100': [{ send: '0xSRC3', receive: ['0xAAA'] }],
+    })
   })
 
   it('should handle multiple solvers and sources', () => {
@@ -131,5 +180,26 @@ describe('SolverRegistrationService', () => {
     const receive = dto.crossChainRoutes.crossChainRoutesConfig['1']['100'][0].receive
 
     expect(receive).toEqual(['0xAAA', '0xCCC']) // sorted unique
+  })
+
+  describe('getServerEndpoint / joinUrl normalization', () => {
+    it('should join server url and parts without duplicate slashes', () => {
+      // Try with trailing slash on base and mixed parts
+      service['serverConfig'] = { url: 'https://quotes.eco.com/' } as any
+
+      const url1 = (service as any).getServerEndpoint('/api/', '/v1/', '/quotes')
+      expect(url1).toBe('https://quotes.eco.com/api/v1/quotes')
+
+      const url2 = (service as any).getServerEndpoint('api', 'v1', 'quotes')
+      expect(url2).toBe('https://quotes.eco.com/api/v1/quotes')
+
+      const url3 = (service as any).getServerEndpoint('/api', 'v1/', 'quotes/')
+      expect(url3).toBe('https://quotes.eco.com/api/v1/quotes')
+
+      // Also try base without trailing slash
+      service['serverConfig'] = { url: 'https://quotes.eco.com' } as any
+      const url4 = (service as any).getServerEndpoint('/api/', '/v2/', 'quote')
+      expect(url4).toBe('https://quotes.eco.com/api/v2/quote')
+    })
   })
 })

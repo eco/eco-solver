@@ -109,7 +109,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `${SolverRegistrationService.name}.registerSolver(): Solver has been registered`,
+          message: `registerSolver: Solver has been registered`,
           properties: { response },
         }),
       )
@@ -146,8 +146,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       }
     */
 
-    const crossChainRoutesConfig: CrossChainRoutesConfigDTO = {}
-
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: this.getServerEndpoint(API_ROOT, QUOTE_ROUTE),
@@ -164,12 +162,19 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
         INTENT_INITIATION_ROUTE,
         'getGaslessIntentTransactionData',
       ),
+
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
       crossChainRoutes: {
-        crossChainRoutesConfig,
+        crossChainRoutesConfig: this.getCrossChainRoutesConfig(),
       },
     }
+
+    return solverRegistrationDTO
+  }
+
+  private getCrossChainRoutesConfig(): CrossChainRoutesConfigDTO {
+    const crossChainRoutesConfig: CrossChainRoutesConfigDTO = {}
 
     for (const solver of Object.values(this.solversConfig)) {
       const destinationChainID = solver.chainID.toString()
@@ -178,7 +183,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       if (destinationTokens.length === 0) {
         this.logger.warn(
           EcoLogMessage.fromDefault({
-            message: `No targets configured for solver chain ${destinationChainID}, skipping`,
+            message: `getCrossChainRoutesConfig: No targets configured for solver destinationChainID ${destinationChainID}, skipping`,
           }),
         )
         continue
@@ -204,7 +209,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       }
     }
 
-    return solverRegistrationDTO
+    return crossChainRoutesConfig
   }
 
   private getRouteTokensDTOs(
@@ -216,7 +221,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     if (_.isEmpty(sourceTokens)) {
       this.logger.warn(
         EcoLogMessage.fromDefault({
-          message: `No tokens configured for intent source chain ${intentSourceChainID}, skipping`,
+          message: `getRouteTokensDTOs: No tokens configured for intentSourceChainID ${intentSourceChainID}, skipping`,
         }),
       )
       return []
@@ -234,7 +239,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     if (!intentSource) {
       this.logger.warn(
         EcoLogMessage.fromDefault({
-          message: `No intent source found for chain ID ${chainID}`,
+          message: `getSourceTokensForChain: No intent source found for chainID ${chainID}`,
         }),
       )
 
@@ -260,7 +265,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     this.logger.error(
       EcoLogMessage.fromDefault({
-        message: `Solver registration failed after retries`,
+        message: `tryRegisterWithBackoff: Solver registration failed after ${max} retries`,
       }),
     )
   }
