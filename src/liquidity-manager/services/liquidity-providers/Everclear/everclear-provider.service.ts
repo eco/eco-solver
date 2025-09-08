@@ -97,7 +97,18 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     }
 
     const walletAddress = await this.kernelAccountClientService.getAddress()
-    const amount = parseUnits(swapAmount.toString(), tokenIn.balance.decimals).toString()
+    const amountParsed = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
+    if (amountParsed <= 0n) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: 'Everclear: parsed amountIn is zero, skipping quote',
+          id,
+          properties: { swapAmount, decimals: tokenIn.balance.decimals },
+        }),
+      )
+      return []
+    }
+    const amount = amountParsed.toString()
 
     const requestBody = {
       origin: tokenIn.chainId.toString(),
@@ -125,11 +136,23 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
 
     const everclearQuote = await response.json()
 
+    const expectedAmount = BigInt(everclearQuote.expectedAmount)
+    if (expectedAmount <= 0n) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: 'Everclear: expectedAmount <= 0, skipping quote',
+          id,
+          properties: { expectedAmount: everclearQuote.expectedAmount, amount },
+        }),
+      )
+      return []
+    }
+
     const slippage = getSlippage(everclearQuote.expectedAmount, amount)
 
     const quote: RebalanceQuote<'Everclear'> = {
       amountIn: BigInt(amount),
-      amountOut: BigInt(everclearQuote.expectedAmount),
+      amountOut: expectedAmount,
       slippage,
       tokenIn,
       tokenOut,

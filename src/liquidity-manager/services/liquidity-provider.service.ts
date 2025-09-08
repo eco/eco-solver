@@ -58,6 +58,20 @@ export class LiquidityProviderService {
     @LogContext tokenOut: TokenData,
     @LogContext swapAmount: number,
   ): Promise<RebalanceQuote[]> {
+    if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'Skipping provider quote for zero/negative swapAmount',
+          properties: {
+            walletAddress,
+            swapAmount,
+            tokenIn: this.formatToken(tokenIn),
+            tokenOut: this.formatToken(tokenOut),
+          },
+        }),
+      )
+      return []
+    }
     const strategies = this.getWalletSupportedStrategies(walletAddress)
     const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
     const quoteId = uuidv4()
