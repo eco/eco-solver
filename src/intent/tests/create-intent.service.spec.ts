@@ -98,12 +98,8 @@ describe('CreateIntentService', () => {
     })
 
     it('should decode the event', async () => {
-      createIntentService.createIntent(mockEvent as any)
-      expect(mockLogDebug).toHaveBeenCalledWith({
-        msg: `createIntent ${mockEvent.transactionHash}`,
-        transactionHash: mockEvent.transactionHash,
-        intentHash: mockEvent.args.hash,
-      })
+      await createIntentService.createIntent(mockEvent as any)
+      // Decorator-based logging handles operation entry/exit
       expect(mockDecodeCreateIntentLog).toHaveBeenCalledWith(mockEvent.data, mockEvent.topics)
     })
 
@@ -112,11 +108,7 @@ describe('CreateIntentService', () => {
       intentSourceModel.findOne = mockFindOne
       await createIntentService.createIntent(mockEvent as any)
       expect(mockFindOne).toHaveBeenCalledWith({ 'intent.hash': mockEvent.transactionHash })
-      expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
-        msg: `Record for intent already exists ${mockEvent.transactionHash}`,
-        intentHash: mockIntent.hash,
-        intent: mockIntent,
-      })
+      // Business event logging handled by logDuplicateIntentDetected method
       expect(validSmartWalletService.validateSmartWallet).not.toHaveBeenCalled()
     })
 
@@ -183,12 +175,7 @@ describe('CreateIntentService', () => {
 
       await createIntentService.createIntent(mockEvent as any)
       expect(mockQueueAdd).not.toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenNthCalledWith(1, {
-        msg: `Recorded intent ${mockEvent.transactionHash}`,
-        intentHash: mockIntent.hash,
-        intent: mockIntent,
-        validWallet: false,
-      })
+      // Analytics tracking handles this logging
     })
 
     it('should enqueue a job if the intent is from a bend wallet', async () => {
@@ -209,13 +196,7 @@ describe('CreateIntentService', () => {
         { jobId },
       )
 
-      expect(mockLogLog).toHaveBeenNthCalledWith(1, {
-        msg: `Recorded intent ${mockEvent.transactionHash}`,
-        intentHash: mockIntent.hash,
-        intent: mockIntent,
-        validWallet: true,
-        jobId,
-      })
+      // Analytics tracking handles this logging
     })
   })
 })

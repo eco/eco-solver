@@ -127,24 +127,31 @@ async function extractContextFromArgs(
 function sanitizeResult(result: any): any {
   if (!result) return result
 
-  // Convert to string and limit size for logging
-  // Use custom replacer to handle BigInt values
-  const stringified = JSON.stringify(
-    result,
-    (key, value) => {
-      // Convert BigInt to string
-      if (typeof value === 'bigint') {
-        return value.toString()
-      }
-      return value
-    },
-    0,
-  )
-  if (stringified.length > 1000) {
+  try {
+    // Convert to string and limit size for logging
+    // Use custom replacer to handle BigInt values
+    const stringified = JSON.stringify(
+      result,
+      (key, value) => {
+        // Convert BigInt to string
+        if (typeof value === 'bigint') {
+          return value.toString()
+        }
+        return value
+      },
+      0,
+    )
+    
+    // Handle case where stringified could be undefined or null
+    if (!stringified || stringified.length <= 1000) {
+      return result
+    }
+    
     return `${stringified.substring(0, 1000)}...[truncated]`
+  } catch (error) {
+    // If JSON.stringify fails, return a safe representation
+    return `[Object: ${typeof result}]`
   }
-
-  return result
 }
 
 /**

@@ -261,11 +261,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
    * @param tokenOut Destination token data
    * @returns true if the route is supported, false otherwise
    */
-  @LogOperation('provider_validation', LiquidityManagerLogger)
-  private validateTokenSupport(
-    @LogContext tokenIn: TokenData,
-    @LogContext tokenOut: TokenData,
-  ): boolean {
+  private validateTokenSupport(tokenIn: TokenData, tokenOut: TokenData): boolean {
     // Check if chains are supported
     const isFromChainSupported = this.assetCacheManager.isChainSupported(tokenIn.chainId)
     const isToChainSupported = this.assetCacheManager.isChainSupported(tokenOut.chainId)

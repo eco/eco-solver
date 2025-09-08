@@ -60,7 +60,6 @@ export class Permit2Validator {
     return this.validateNonces(client, permit)
   }
 
-  @LogOperation('permit_address_validation', IntentOperationLogger)
   validatePermitAddress(@LogContext permit: Permit2Params): EcoResponse<void> {
     const { permit2Address } = permit
 
@@ -210,7 +209,6 @@ export class Permit2Validator {
     return {}
   }
 
-  @LogOperation('permit_expiration_validation', IntentOperationLogger)
   expirationCheck(expiration: number | bigint, logMessage: string): EcoResponse<void> {
     const now = Math.floor(Date.now() / 1000)
     const expiry = typeof expiration === 'bigint' ? Number(expiration) : expiration

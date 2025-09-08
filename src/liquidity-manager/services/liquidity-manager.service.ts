@@ -4,7 +4,7 @@ import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy } from 'lodash'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
-  analyzeToken,
+  analyzeToken as analyzeTokenUtil,
   analyzeTokenGroup,
   getGroupTotal,
   getSortGroupByDiff,
@@ -242,9 +242,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
   }
 
-  @LogSubOperation('individual_token_analysis')
-  analyzeToken(@LogContext token: TokenData) {
-    return analyzeToken(token.config, token.balance, {
+  analyzeToken(token: TokenData) {
+    return analyzeTokenUtil(token.config, token.balance, {
       up: this.config.thresholds.surplus,
       down: this.config.thresholds.deficit,
       targetSlippage: this.config.targetSlippage,

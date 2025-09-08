@@ -149,7 +149,6 @@ export class ValidationService implements OnModuleInit {
    * @param {Hex} opts.prover - The prover to validate against the intent sources.
    * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
     const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
@@ -170,7 +169,6 @@ export class ValidationService implements OnModuleInit {
     }
   }
 
-  @LogOperation('intent_validation', IntentOperationLogger)
   checkProverWhitelisted(chainID: number, prover: Hex): boolean {
     return this.ecoConfigService
       .getIntentSources()
@@ -189,7 +187,6 @@ export class ValidationService implements OnModuleInit {
    * @param intent the intent model
    * @returns
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   supportedNative(intent: ValidationIntentInterface): boolean {
     if (this.isNativeETHSupported) {
       if (isNativeIntent(intent)) {
@@ -210,7 +207,6 @@ export class ValidationService implements OnModuleInit {
    * @param solver the solver for the intent
    * @returns
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
     const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
@@ -232,7 +228,6 @@ export class ValidationService implements OnModuleInit {
    * @param txValidationFn
    * @returns
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   supportedTransaction(
     intent: ValidationIntentInterface,
     solver: Solver,
@@ -259,7 +254,6 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns  true if the transfer is within the bounds
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
     const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
     if (error) {
@@ -294,7 +288,6 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns true if the solver has sufficient balance
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
     const destinationChain = Number(intent.route.destination)
 
@@ -393,7 +386,6 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
     const time = Number(intent.reward.deadline) * 1000
@@ -410,7 +402,6 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   validDestination(intent: ValidationIntentInterface): boolean {
     return this.ecoConfigService.getSupportedChains().includes(intent.route.destination)
   }
@@ -421,7 +412,6 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent
    * @returns
    */
-  @LogOperation('intent_validation', IntentOperationLogger)
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
     return intent.route.destination !== intent.route.source
   }

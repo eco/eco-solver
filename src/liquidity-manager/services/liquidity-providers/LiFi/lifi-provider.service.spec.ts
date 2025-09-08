@@ -173,9 +173,6 @@ describe('LiFiProviderService', () => {
     })
 
     it('should throw error when source chain is not supported', async () => {
-      // Clear any previous mock calls
-      jest.clearAllMocks()
-
       const mockTokenIn = {
         chainId: 999, // Unsupported chain
         config: { address: '0xTokenIn' },
@@ -187,8 +184,11 @@ describe('LiFiProviderService', () => {
         balance: { decimals: 18 },
       }
 
-      // Mock unsupported source chain
+      // Reset and reconfigure the cache manager mocks to reject unsupported chain
+      mockAssetCacheManager.isChainSupported.mockReset()
       mockAssetCacheManager.isChainSupported.mockImplementation((chainId) => chainId !== 999)
+      mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
 
       await expect(
         lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
@@ -199,9 +199,6 @@ describe('LiFiProviderService', () => {
     })
 
     it('should throw error when source token is not supported', async () => {
-      // Clear any previous mock calls
-      jest.clearAllMocks()
-
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xUnsupportedToken' },
@@ -213,10 +210,13 @@ describe('LiFiProviderService', () => {
         balance: { decimals: 18 },
       }
 
-      // Mock unsupported source token
+      // Reset and reconfigure the mocks to reject unsupported token
+      mockAssetCacheManager.isChainSupported.mockReturnValue(true)
+      mockAssetCacheManager.isTokenSupported.mockReset()
       mockAssetCacheManager.isTokenSupported.mockImplementation(
         (chainId, address) => address !== '0xUnsupportedToken',
       )
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
 
       await expect(
         lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
@@ -227,9 +227,6 @@ describe('LiFiProviderService', () => {
     })
 
     it('should throw error when tokens are not connected', async () => {
-      // Clear any previous mock calls
-      jest.clearAllMocks()
-
       const mockTokenIn = {
         chainId: 1,
         config: { address: '0xTokenIn' },
@@ -241,7 +238,10 @@ describe('LiFiProviderService', () => {
         balance: { decimals: 18 },
       }
 
-      // Mock tokens not connected
+      // Reset and reconfigure the mocks to reject token connection
+      mockAssetCacheManager.isChainSupported.mockReturnValue(true)
+      mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+      mockAssetCacheManager.areTokensConnected.mockReset()
       mockAssetCacheManager.areTokensConnected.mockReturnValue(false)
 
       await expect(
@@ -421,26 +421,27 @@ describe('LiFiProviderService', () => {
       } as any)
 
       // Mock validation to reject unsupported core token
+      mockAssetCacheManager.isChainSupported.mockReset()
       mockAssetCacheManager.isChainSupported.mockImplementation((chainId) => chainId !== 999)
+      mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
 
-      // Create a spy on the getQuote method
+      // Mock LiFi SDK to return routes
+      jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [mockRoute] } as any)
+
+      // Create a spy on the getQuote method but don't mock its implementation
+      // Let the original method run but track its calls
       const getQuoteSpy = jest.spyOn(lifiProviderService, 'getQuote')
-      getQuoteSpy.mockResolvedValue({
-        amountIn: BigInt(mockRoute.fromAmount),
-        amountOut: BigInt(mockRoute.toAmount),
-        slippage: 0.05,
-        tokenIn: mockTokenIn,
-        tokenOut: supportedCoreToken,
-        strategy: 'LiFi',
-        context: mockRoute,
-      } as any)
 
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockImplementation(
         (addr, tokens) =>
           tokens.map((token) => ({
-            ...token,
-            config: { address: '0xTokenOut' },
-            balance: { decimals: 1 },
+            chainId: token.chainId,
+            config: { 
+              address: token.address,
+              chainId: token.chainId 
+            },
+            balance: { decimals: 18 },
           })) as any,
       )
 
@@ -448,7 +449,13 @@ describe('LiFiProviderService', () => {
       const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
 
       // Verify the result uses the supported core token
-      expect(result[0].tokenOut).toEqual(supportedCoreToken)
+      expect(result[0].tokenOut).toEqual(expect.objectContaining({
+        chainId: supportedCoreToken.chainID,
+        config: expect.objectContaining({
+          address: supportedCoreToken.token,
+          chainId: supportedCoreToken.chainID
+        })
+      }))
 
       // Verify that getQuote was only called for the supported core token
       expect(getQuoteSpy).toHaveBeenCalledTimes(2)

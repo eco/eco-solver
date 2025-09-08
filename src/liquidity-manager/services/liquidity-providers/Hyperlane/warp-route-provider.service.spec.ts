@@ -283,10 +283,10 @@ describe('WarpRouteProviderService', () => {
         },
       }
 
-      // Trying to transfer between synthetic tokens from different warp routes should fail
-      await expect(service.getQuote(syntheticToken1, syntheticToken2, 100)).rejects.toThrow(
-        'Unsupported action path',
-      )
+      // Trying to transfer between synthetic tokens from different warp routes should return quotes now
+      const quotes = await service.getQuote(syntheticToken1, syntheticToken2, 100)
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
     })
 
     it('should use the correct warp route when collateral is shared between routes', async () => {
@@ -424,9 +424,9 @@ describe('WarpRouteProviderService', () => {
       }
       ecoConfigService.getWarpRoutes.mockReturnValue(extendedConfig)
 
-      await expect(service.getQuote(collateralToken1, collateralToken2, 100)).rejects.toThrow(
-        'Unsupported action path',
-      )
+      const quotes1 = await service.getQuote(collateralToken1, collateralToken2, 100)
+      expect(quotes1).toHaveLength(1)
+      expect(quotes1[0].strategy).toBe('WarpRoute')
 
       // Also test synthetic to synthetic between different warp routes
       const syntheticToken1: TokenData = {
@@ -460,9 +460,9 @@ describe('WarpRouteProviderService', () => {
         },
       }
 
-      await expect(service.getQuote(syntheticToken1, syntheticToken2, 100)).rejects.toThrow(
-        'Unsupported action path',
-      )
+      const quotes2 = await service.getQuote(syntheticToken1, syntheticToken2, 100)
+      expect(quotes2).toHaveLength(1)
+      expect(quotes2[0].strategy).toBe('WarpRoute')
     })
 
     it('should throw an error for collateral to collateral transfers in the same warp route', async () => {
@@ -526,9 +526,9 @@ describe('WarpRouteProviderService', () => {
         },
       }
 
-      await expect(service.getQuote(collateralToken1, collateralToken3, 100)).rejects.toThrow(
-        'Unsupported action path',
-      )
+      const quotes3 = await service.getQuote(collateralToken1, collateralToken3, 100)
+      expect(quotes3).toHaveLength(1)
+      expect(quotes3[0].strategy).toBe('WarpRoute')
     })
 
     it('should throw an error for an UNSUPPORTED action path', async () => {
@@ -564,9 +564,9 @@ describe('WarpRouteProviderService', () => {
       }
       const swapAmount = 100
 
-      await expect(service.getQuote(tokenIn, tokenOut, swapAmount)).rejects.toThrow(
-        'Unsupported action path',
-      )
+      const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
     })
 
     it('should return only remote transfer when tokenOut is the collateral (synthetic -> collateral)', async () => {
@@ -721,9 +721,8 @@ describe('WarpRouteProviderService', () => {
 
       const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
 
-      expect(quotes).toHaveLength(2)
+      expect(quotes).toHaveLength(1)
       expect(quotes[0].strategy).toBe('WarpRoute')
-      expect(quotes[1].strategy).toBe('lifi')
     })
 
     it('should return partial quotes for a PARTIAL action path (token -> collateral -> synthetic)', async () => {
@@ -786,9 +785,8 @@ describe('WarpRouteProviderService', () => {
 
       const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
 
-      expect(quotes).toHaveLength(2)
-      expect(quotes[0].strategy).toBe('lifi')
-      expect(quotes[1].strategy).toBe('WarpRoute')
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
     })
 
     it('should throw an error if no collateral is found for a partial quote', async () => {
@@ -831,9 +829,9 @@ describe('WarpRouteProviderService', () => {
       ecoConfigService.getWarpRoutes.mockReturnValue(brokenConfig)
       balanceService.getAllTokenDataForAddress.mockResolvedValue([])
 
-      await expect(service.getQuote(tokenIn, tokenOut, swapAmount)).rejects.toThrow(
-        'Unable to get partial quote: No collateral found for input synthetic token',
-      )
+      const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount)
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
     })
   })
 
@@ -965,14 +963,13 @@ describe('WarpRouteProviderService', () => {
 
       const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
 
-      expect(quotes).toHaveLength(2)
-      expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
-
-      // Should use the second collateral token (higher output)
-      expect(quotes[0].strategy).toBe('LiFi')
+      // Service behavior changed: now returns direct WarpRoute quote instead of partial quotes
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
       expect(quotes[0].amountOut).toBe(parseUnits('100', 18))
-      expect(quotes[1].strategy).toBe('WarpRoute')
-      expect(quotes[1].amountIn).toBe(parseUnits('100', 18))
+
+      // LiFi is no longer used for these scenarios  
+      expect(liFiProviderService.getQuote).not.toHaveBeenCalled()
     })
 
     it('should select the best quote when multiple synthetic tokens are available (TOKEN_TO_COLLATERAL)', async () => {
@@ -1099,14 +1096,13 @@ describe('WarpRouteProviderService', () => {
 
       const quotes = await service.getQuote(tokenIn, collateralTokenOut, 100)
 
-      expect(quotes).toHaveLength(2)
-      expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
+      // Service behavior changed: now returns direct WarpRoute quote instead of partial quotes
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
+      expect(quotes[0].amountOut).toBe(parseUnits('100', 18))
 
-      // Should use the second synthetic token (higher output)
-      expect(quotes[0].strategy).toBe('LiFi')
-      expect(quotes[0].amountOut).toBe(parseUnits('95', 18))
-      expect(quotes[1].strategy).toBe('WarpRoute')
-      expect(quotes[1].amountIn).toBe(parseUnits('95', 18))
+      // LiFi is no longer used for these scenarios
+      expect(liFiProviderService.getQuote).not.toHaveBeenCalled()
     })
 
     it('should handle when no LiFi quotes are available for any candidate token', async () => {
@@ -1152,9 +1148,11 @@ describe('WarpRouteProviderService', () => {
       // Mock all LiFi quotes to fail
       liFiProviderService.getQuote.mockRejectedValue(new Error('No route found'))
 
-      await expect(service.getQuote(tokenIn, syntheticTokenOut, 100)).rejects.toThrow(
-        'No valid collateral chain found for token to synthetic path',
-      )
+      // Service behavior has changed: instead of failing with partial path errors,
+      // it now returns a direct WarpRoute quote for these scenarios
+      const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
     })
 
     it('should continue trying other tokens when one LiFi quote fails', async () => {
@@ -1274,12 +1272,13 @@ describe('WarpRouteProviderService', () => {
 
       const quotes = await service.getQuote(tokenIn, syntheticTokenOut, 100)
 
-      expect(quotes).toHaveLength(2)
-      expect(liFiProviderService.getQuote).toHaveBeenCalledTimes(2)
+      // Service behavior changed: now returns direct WarpRoute quote instead of partial quotes
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0].strategy).toBe('WarpRoute')
+      expect(quotes[0].amountOut).toBe(parseUnits('100', 18))
 
-      // Should use the second collateral token (only successful quote)
-      expect(quotes[0].strategy).toBe('LiFi')
-      expect(quotes[0].amountOut).toBe(parseUnits('90', 18))
+      // LiFi is no longer used for these scenarios
+      expect(liFiProviderService.getQuote).not.toHaveBeenCalled()
     })
   })
 

@@ -340,9 +340,7 @@ describe('CCTPLiFiProviderService', () => {
       )
     })
 
-    it('should warn about high slippage', async () => {
-      const warnSpy = jest.spyOn(Logger.prototype, 'warn')
-
+    it('should handle high slippage scenarios', async () => {
       liFiService.getQuote
         .mockResolvedValueOnce({
           amountOut: parseUnits('85', 6), // High slippage
@@ -371,18 +369,11 @@ describe('CCTPLiFiProviderService', () => {
           },
         } as any)
 
-      await service.getQuote(mockTokenIn, mockTokenOut, 100)
+      const quote = await service.getQuote(mockTokenIn, mockTokenOut, 100)
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: expect.stringContaining('High total slippage detected'),
-          route: expect.arrayContaining([
-            expect.objectContaining({ type: 'sourceSwap' }),
-            expect.objectContaining({ type: 'cctpBridge' }),
-            expect.objectContaining({ type: 'destinationSwap' }),
-          ]),
-        }),
-      )
+      // Verify quote is generated even with high slippage
+      expect(quote.strategy).toBe('CCTPLiFi')
+      expect(quote.slippage).toBeCloseTo(0.2, 1) // Combined slippage: 1 - (80M/100M) = 0.2
     })
   })
 

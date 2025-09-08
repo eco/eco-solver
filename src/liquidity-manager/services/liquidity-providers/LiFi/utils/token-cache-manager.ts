@@ -249,7 +249,6 @@ export class LiFiAssetCacheManager {
    * @param tokenAddress The token address to check
    * @returns true if the token is supported, false otherwise
    */
-  @LogOperation('provider_validation', GenericOperationLogger)
   isTokenSupported(@LogContext chainId: number, @LogContext tokenAddress: string): boolean {
     // If cache is not initialized or expired, use fallback behavior
     if (!this.isInitialized || !this.isCacheValid()) {
@@ -275,7 +274,6 @@ export class LiFiAssetCacheManager {
    * @param chainId The chain ID to check
    * @returns true if the chain is supported, false otherwise
    */
-  @LogOperation('provider_validation', GenericOperationLogger)
   isChainSupported(@LogContext chainId: number): boolean {
     // If cache is not initialized or expired, use fallback behavior
     if (!this.isInitialized || !this.isCacheValid()) {
@@ -297,7 +295,6 @@ export class LiFiAssetCacheManager {
    * @param toToken Destination token address
    * @returns true if both tokens are supported on their respective chains
    */
-  @LogOperation('provider_validation', GenericOperationLogger)
   areTokensConnected(
     @LogContext fromChain: number,
     @LogContext fromToken: string,
@@ -312,7 +309,6 @@ export class LiFiAssetCacheManager {
    * Get all supported chains
    * @returns Array of supported chain information
    */
-  @LogOperation('infrastructure_operation', GenericOperationLogger)
   getSupportedChains(): ChainInfo[] {
     return Array.from(this.cache.chains.values())
   }
@@ -322,7 +318,6 @@ export class LiFiAssetCacheManager {
    * @param chainId The chain ID
    * @returns Set of supported token addresses for the chain
    */
-  @LogOperation('infrastructure_operation', GenericOperationLogger)
   getSupportedTokensForChain(@LogContext chainId: number): Set<string> | undefined {
     return this.cache.tokens.get(chainId)
   }
@@ -331,7 +326,6 @@ export class LiFiAssetCacheManager {
    * Get cache status information
    * @returns Current cache status
    */
-  @LogOperation('infrastructure_operation', GenericOperationLogger)
   getCacheStatus(): CacheStatus {
     const now = new Date()
     const cacheAge = now.getTime() - this.cache.metadata.lastUpdated.getTime()
@@ -405,7 +399,6 @@ export class LiFiAssetCacheManager {
   /**
    * Cleanup resources (call this when service is destroyed)
    */
-  @LogOperation('infrastructure_operation', GenericOperationLogger)
   destroy(): void {
     this.clearRefreshTimer()
 

@@ -28,9 +28,10 @@ describe('LiquidityManagerService', () => {
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   let checkQueue: DeepMocked<Queue>
+  let module: TestingModule
 
   beforeEach(async () => {
-    const chainMod: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         LiquidityManagerService,
         { provide: BalanceService, useValue: createMock<BalanceService>() },
@@ -44,7 +45,10 @@ describe('LiquidityManagerService', () => {
         },
         {
           provide: RebalanceRepository,
-          useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
+          useValue: {
+            getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+            getPendingIncomingByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+          },
         },
         {
           provide: getModelToken(RebalanceModel.name),
@@ -65,14 +69,14 @@ describe('LiquidityManagerService', () => {
       .useValue(createMock<FlowProducer>())
       .compile()
 
-    balanceService = chainMod.get(BalanceService)
-    ecoConfigService = chainMod.get(EcoConfigService)
-    crowdLiquidityService = chainMod.get(CrowdLiquidityService)
-    liquidityManagerService = chainMod.get(LiquidityManagerService)
-    kernelAccountClientService = chainMod.get(KernelAccountClientService)
-    liquidityProviderService = chainMod.get(LiquidityProviderService)
-    queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
-    checkQueue = chainMod.get(getQueueToken(CheckBalancesQueue.queueName))
+    balanceService = module.get(BalanceService)
+    ecoConfigService = module.get(EcoConfigService)
+    crowdLiquidityService = module.get(CrowdLiquidityService)
+    liquidityManagerService = module.get(LiquidityManagerService)
+    kernelAccountClientService = module.get(KernelAccountClientService)
+    liquidityProviderService = module.get(LiquidityProviderService)
+    queue = module.get(getQueueToken(LiquidityManagerQueue.queueName))
+    checkQueue = module.get(getQueueToken(CheckBalancesQueue.queueName))
 
     Object.defineProperty(queue, 'name', {
       value: LiquidityManagerQueue.queueName,
@@ -140,12 +144,15 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10 }, balance: { balance: 100n } },
-        { config: { targetBalance: 100 }, balance: { balance: 100n } },
-        { config: { targetBalance: 200 }, balance: { balance: 100n } },
+        { config: { targetBalance: 10, chainId: 1, address: '0x1' }, balance: { balance: 100n }, chainId: 1 },
+        { config: { targetBalance: 100, chainId: 1, address: '0x2' }, balance: { balance: 100n }, chainId: 1 },
+        { config: { targetBalance: 200, chainId: 1, address: '0x3' }, balance: { balance: 100n }, chainId: 1 },
       ]
 
-      liquidityManagerService['config'] = mockConfig
+      // Set up the service properly by calling onApplicationBootstrap
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
+      jest.spyOn(balanceService, 'getInboxTokens').mockReturnValue(mockTokens.map(t => t.config) as any)
+      await liquidityManagerService.onApplicationBootstrap()
 
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue(mockTokens as any)
 
