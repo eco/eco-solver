@@ -363,6 +363,22 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     const groupID = EcoDbEntity.REBALANCE_JOB_GROUP.getEntityID()
 
     for (const quote of request.quotes) {
+      // Skip invalid quotes which could lead to bogus DB entries
+      if (quote.amountIn <= 0n || quote.amountOut <= 0n) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: 'Skipping storing invalid rebalance quote',
+            properties: {
+              walletAddress,
+              strategy: quote.strategy,
+              amountIn: quote.amountIn.toString(),
+              amountOut: quote.amountOut.toString(),
+            },
+          }),
+        )
+        continue
+      }
+
       quote.groupID = groupID
       quote.rebalanceJobID = EcoDbEntity.REBALANCE_JOB.getEntityID()
 
@@ -444,6 +460,21 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         // Calculate the amount to swap
         swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
 
+        // Skip zero/negative swap amounts
+        if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: 'Skipping quote for zero/negative swapAmount',
+              properties: {
+                swapAmount,
+                surplusToken: surplusToken.config,
+                deficitToken: deficitToken.config,
+              },
+            }),
+          )
+          continue
+        }
+
         const strategyQuotes = await this.liquidityProviderManager.getQuote(
           walletAddress,
           surplusToken,
@@ -521,6 +552,20 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate the amount to swap
         swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+
+        if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: 'Skipping fallback quote for zero/negative swapAmount',
+              properties: {
+                swapAmount,
+                surplusToken: surplusToken.config,
+                deficitToken: deficitToken.config,
+              },
+            }),
+          )
+          continue
+        }
 
         // Use the fallback method that routes through core tokens
         const fallbackQuotes = await this.liquidityProviderManager.fallback(
