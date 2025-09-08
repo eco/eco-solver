@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { getAccount, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { getAccount, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
 
@@ -78,7 +78,6 @@ export class SvmReaderService extends BaseChainReader {
   }
 
   async isIntentFunded(intent: Intent, _chainId?: number | string): Promise<boolean> {
-    console.log('SOYLANA isIntentFunded', intent);
     try {
       // Get source chain info for vault derivation
       if (!intent.sourceChainId) {
@@ -96,7 +95,7 @@ export class SvmReaderService extends BaseChainReader {
       // Get portal program ID
       const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
 
-      // Derive vault PDA from intent hash
+            // Derive vault PDA from intent hash
       const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
       const [vaultPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('vault'), intentHashBuffer],
@@ -114,43 +113,54 @@ export class SvmReaderService extends BaseChainReader {
         }
       }
 
-      // Check token balances using getParsedTokenAccountsByOwner
+      // Check token balances by directly querying associated token accounts
       if (intent.reward.tokens.length > 0) {
         try {
-          // Get all token accounts owned by the vault PDA
-          const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(vaultPDA, {
-            programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token program
-          });
-
-          console.log('SOYLANA tokenAccounts:', tokenAccounts);
-
-          // Create a map of mint address to balance for quick lookup
-          const tokenBalanceMap = new Map<string, bigint>();
-          for (const tokenAccount of tokenAccounts.value) {
-            const mintAddress = tokenAccount.account.data.parsed.info.mint;
-            const balance = BigInt(tokenAccount.account.data.parsed.info.tokenAmount.amount);
-            tokenBalanceMap.set(mintAddress, balance);
-          }
-
-          console.log('SOYLANA tokenBalanceMap:', tokenBalanceMap);
-
-            // Check each required reward token
+                      // Check each required reward token individually using associated token accounts
             for (const rewardToken of intent.reward.tokens) {
-              console.log('SOYLANA rewardToken', rewardToken);
-              if (rewardToken.amount > BigInt(0) && rewardToken.amount < BigInt(0)) { // cheat code for testing
+              if (rewardToken.amount > BigInt(0) && rewardToken.amount < 0n) {
                 // Denormalize the reward token address to Solana format
                 const svmTokenAddress = AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM);
-                const vaultTokenBalance = tokenBalanceMap.get(svmTokenAddress) || BigInt(0);
+                const tokenMintPublicKey = new PublicKey(svmTokenAddress);
 
-              console.log(
-                `SOYLANA token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
-              );
-
-              if (vaultTokenBalance < rewardToken.amount) {
-                this.logger.debug(
-                  `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
+                // Get the associated token address for the vault (PDA requires allowOwnerOffCurve)
+                let associatedTokenAddress = await getAssociatedTokenAddress(
+                  tokenMintPublicKey,
+                  vaultPDA,
+                  true, // allowOwnerOffCurve - required for PDAs
                 );
-                return false;
+                console.log('SOYLANA associatedTokenAddress:', associatedTokenAddress.toBase58());
+                // associatedTokenAddress = new PublicKey("AsKyz42B3soiCx4uF748fXXpHihuqzX9RZhrUXN5nPmt");
+                console.log('SOYLANA vaultPDA:', vaultPDA.toBase58());
+
+                try {
+                  // Get the token balance directly
+                  // wait 10 seconds
+                  await new Promise(resolve => setTimeout(resolve, 10000));
+                  const tokenBalance = await this.connection.getTokenAccountBalance(associatedTokenAddress);
+                  console.log('SOYLANA tokenBalance:', tokenBalance);
+                  const vaultTokenBalance = BigInt(tokenBalance.value.amount);
+
+                  this.logger.debug(
+                    `Token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
+                  );
+
+                if (vaultTokenBalance < rewardToken.amount) {
+                  this.logger.debug(
+                    `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
+                  );
+                  return false;
+                }
+              } catch (tokenError) {
+                // If the associated token account doesn't exist, balance is 0
+                if (getErrorMessage(tokenError).includes('could not find account')) {
+                  this.logger.debug(
+                    `Token account for ${svmTokenAddress} not found, balance is 0, required: ${rewardToken.amount}`,
+                  );
+                  return false;
+                } else {
+                  throw tokenError;
+                }
               }
             }
           }

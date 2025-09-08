@@ -109,6 +109,8 @@ export class EvmExecutorService extends BaseChainExecutor {
         }),
       }));
 
+      console.log('SOYLANA approvalTxs', approvalTxs);
+
       span.setAttribute('evm.approval_count', approvalTxs.length);
 
       const evmIntent = toEVMIntent(intent);
@@ -130,6 +132,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           ],
         }),
       };
+      console.log('SOYLANA fulfillTx', fulfillTx);
 
       span.addEvent('evm.transaction.submitting', {
         transaction_count: approvalTxs.length + 1,

@@ -124,8 +124,6 @@ export class SolanaListener extends BaseChainListener {
   }
 
   private async handleProgramLogs(logs: Logs): Promise<void> {
-    this.logger.log('Solana listener received logs:', logs);
-
     try {
       for (const ev of this.parser.parseLogs(logs.logs)) {
         try {

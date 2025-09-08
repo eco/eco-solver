@@ -17,7 +17,7 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
-import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
+// import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
 
 @Module({
   imports: [
@@ -55,7 +55,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     IntentsModule,
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
-    WithdrawalModule,
+    // WithdrawalModule,  // Temporarily disabled to fix BullMQ lock errors
     BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,

@@ -56,9 +56,16 @@ export class ExecutorBalanceValidation implements Validation {
 
       if (notEnough.length) {
         const tokens = notEnough.map(({ token }) => token);
+        const walletAddress = await context.getWalletAddress(chainID);
+        
+        // Create detailed balance information for each insufficient token
+        const balanceDetails = notEnough.map(({ token, balance, required }) => 
+          `${token} (has: ${balance}, needs: ${required})`
+        ).join(', ');
+        
         span.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
         throw new ValidationError(
-          `Not enough token balance found for: ${tokens.join(', ')}`,
+          `Not enough token balance on chain ${chainID} for wallet ${walletAddress}. Insufficient tokens: ${balanceDetails}`,
           ValidationErrorType.PERMANENT,
           'ExecutorBalanceValidation',
         );
