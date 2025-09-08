@@ -8,6 +8,7 @@ import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-inten
 import { QuoteRepository } from '@/quote/quote.repository'
 import { QuoteService } from './quote.service'
 import { QuoteV2RequestTransformService } from '@/quote/services/quote-v2-request-transform.service'
+import { QuoteV2Service } from '@/quote/quote-v2.service'
 import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.service'
 
 @Module({
@@ -20,10 +21,11 @@ import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.ser
   ],
   providers: [
     QuoteService,
+    QuoteV2Service,
     QuoteRepository,
     QuoteV2TransformService,
     QuoteV2RequestTransformService,
   ],
-  exports: [QuoteService, QuoteV2TransformService, QuoteV2RequestTransformService],
+  exports: [QuoteService, QuoteV2Service, QuoteV2TransformService, QuoteV2RequestTransformService],
 })
 export class QuoteModule {}

@@ -21,7 +21,7 @@ export class QuoteV2Controller {
   ) {}
 
   @Post()
-  async getQuote(@Body() v2Request: QuoteV2RequestDTO): Promise<QuoteV2ResponseDTO> {
+  async getReverseQuote(@Body() v2Request: QuoteV2RequestDTO): Promise<QuoteV2ResponseDTO> {
     const startTime = Date.now()
 
     this.logger.log(
