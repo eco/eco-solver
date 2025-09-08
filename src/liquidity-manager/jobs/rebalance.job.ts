@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { FlowChildJob, Job } from 'bullmq'
 import {
   LiquidityManagerJob,
@@ -74,14 +73,13 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     const { network, walletAddress, rebalance: serializedRebalance } = rebalanceData
 
     processor.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
-        properties: {
-          network,
-          walletAddress,
-          jobName: job.name,
-        },
-      }),
+      { operationType: 'job_execution', status: 'completed' },
+      'RebalanceJobManager: LiquidityManagerJob: Completed!',
+      {
+        network,
+        walletAddress,
+        jobName: job.name,
+      },
     )
   }
 
@@ -93,10 +91,12 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    */
   onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `RebalanceJob: Failed`,
-        properties: { error: error.message, stack: error.stack },
-      }),
+      { operationType: 'job_execution', status: 'failed' },
+      'RebalanceJob: Failed',
+      error,
+      {
+        stack: error.stack,
+      },
     )
   }
 }

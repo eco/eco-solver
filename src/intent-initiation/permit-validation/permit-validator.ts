@@ -1,7 +1,7 @@
 import { Call } from '@/intent-initiation/permit-validation/interfaces/call.interface'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoResponse } from '@/common/eco-response'
 import { getEip712DomainFromToken } from '@/intent-initiation/permit-validation/signing-utils'
 import { PermitAbi } from '@/contracts/Permit.abi'
@@ -9,11 +9,12 @@ import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/p
 import { PublicClient, verifyTypedData, Address, parseSignature, Signature, Hex } from 'viem'
 
 export class PermitValidator {
-  private static logger = new EcoLogger(PermitValidator.name)
+  private static logger = new IntentOperationLogger('PermitValidator')
 
+  @LogOperation('permit_validation', IntentOperationLogger)
   static async validatePermits(
-    client: PublicClient,
-    permits: PermitParams[],
+    @LogContext client: PublicClient,
+    @LogContext permits: PermitParams[],
   ): Promise<EcoResponse<void>> {
     for (const permit of permits) {
       const { error } = await this.validatePermit(client, permit)
@@ -26,9 +27,10 @@ export class PermitValidator {
     return {}
   }
 
+  @LogOperation('single_permit_validation', IntentOperationLogger)
   static async validatePermit(
-    client: PublicClient,
-    permit: PermitParams,
+    @LogContext client: PublicClient,
+    @LogContext permit: PermitParams,
   ): Promise<EcoResponse<void>> {
     if (Number(permit.deadline) < Math.floor(Date.now() / 1000)) {
       return { error: EcoError.PermitExpired }
@@ -37,9 +39,10 @@ export class PermitValidator {
     return this.validatePermitSignature(client, permit)
   }
 
+  @LogOperation('permit_signature_validation', IntentOperationLogger)
   static async validatePermitSignature(
-    client: PublicClient,
-    permit: PermitParams,
+    @LogContext client: PublicClient,
+    @LogContext permit: PermitParams,
   ): Promise<EcoResponse<void>> {
     const { tokenAddress, owner, spender, value, deadline, nonce, signature } = permit
 
@@ -113,20 +116,23 @@ export class PermitValidator {
     })
   }
 
+  @LogOperation('permit_nonce_validation', IntentOperationLogger)
   static async validateNonce(
-    client: PublicClient,
-    token: Address,
-    owner: Address,
-    expectedNonce: bigint,
+    @LogContext client: PublicClient,
+    @LogContext token: Address,
+    @LogContext owner: Address,
+    @LogContext expectedNonce: bigint,
   ): Promise<EcoResponse<void>> {
     const actualNonce = await this.getPermitNonce(client, token, owner)
 
     if (actualNonce !== expectedNonce) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `⛔ Nonce mismatch for token ${token}`,
-        }),
-      )
+      // Log nonce validation failure using business event method
+      this.logger.logPermitValidationResult('nonce-validation', 'permit_simulation', false, {
+        message: 'nonce_mismatch',
+        actualNonce,
+        expectedNonce,
+        token,
+      })
 
       return { error: EcoError.InvalidPermitNonce }
     }

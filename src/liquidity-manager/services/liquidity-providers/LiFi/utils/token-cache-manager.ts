@@ -1,5 +1,5 @@
-import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getTokens, getChains, ChainType } from '@lifi/sdk'
 
@@ -57,18 +57,15 @@ interface LiFiCacheConfig {
 export class LiFiAssetCacheManager {
   private cache: LiFiSupportedAssets
   private refreshTimer?: NodeJS.Timeout
-  private logger: Logger
+  private logger = new GenericOperationLogger('LiFiAssetCacheManager')
   private isInitialized: boolean = false
   private initializationPromise?: Promise<void>
   private config: LiFiCacheConfig
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    logger: Logger,
     config?: Partial<LiFiCacheConfig>,
   ) {
-    this.logger = logger
-
     // Default configuration
     this.config = {
       enabled: true,
@@ -94,13 +91,9 @@ export class LiFiAssetCacheManager {
    * Initialize the asset cache by fetching supported tokens and chains from LiFi
    * This method is idempotent and thread-safe
    */
+  @LogOperation('provider_bootstrap', GenericOperationLogger)
   async initialize(): Promise<void> {
     if (!this.config.enabled) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'LiFi: Asset cache disabled by configuration',
-        }),
-      )
       return
     }
 
@@ -125,34 +118,32 @@ export class LiFiAssetCacheManager {
   }
 
   private async performInitialization(): Promise<void> {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'LiFi: Initializing asset cache',
-      }),
-    )
-
     try {
       await this.refreshCache()
       this.setupRefreshTimer()
       this.isInitialized = true
 
+      // Log successful initialization as business event
       const status = this.getCacheStatus()
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'LiFi: Asset cache initialized successfully',
-          properties: {
-            totalChains: status.totalChains,
-            totalTokens: status.totalTokens,
-            cacheExpiresAt: status.nextRefresh,
-          },
-        }),
+      this.logger.logInfrastructureOperation(
+        'LiFiAssetCacheManager',
+        'cache_initialization',
+        true,
+        {
+          totalChains: status.totalChains,
+          totalTokens: status.totalTokens,
+          cacheExpiresAt: status.nextRefresh,
+        },
       )
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withError({
-          error,
-          message: 'LiFi: Failed to initialize asset cache',
-        }),
+      // Log failed initialization as business event
+      this.logger.logInfrastructureOperation(
+        'LiFiAssetCacheManager',
+        'cache_initialization',
+        false,
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
       )
 
       // Use fallback behavior - allow all tokens but log warnings
@@ -164,19 +155,13 @@ export class LiFiAssetCacheManager {
   /**
    * Refresh the asset cache by fetching latest data from LiFi
    */
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   async refreshCache(): Promise<void> {
     const maxRetries = this.config.maxRetries
     let lastError: Error | undefined
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'LiFi: Fetching supported assets',
-            properties: { attempt, maxRetries },
-          }),
-        )
-
         // Fetch both chains and tokens in parallel
         const [chainsResponse, tokensResponse] = await Promise.all([
           getChains({ chainTypes: [ChainType.EVM] }),
@@ -229,30 +214,16 @@ export class LiFiAssetCacheManager {
 
         this.cache.metadata.lastUpdated = new Date()
 
-        this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: 'LiFi: Asset cache refreshed successfully',
-            properties: {
-              chains: totalChains,
-              totalTokens,
-            },
-          }),
-        )
+        // Log successful cache refresh as business event
+        this.logger.logInfrastructureOperation('LiFiAssetCacheManager', 'cache_refresh', true, {
+          chains: totalChains,
+          totalTokens,
+          attempt,
+        })
 
         return
       } catch (error) {
         lastError = error as Error
-        this.logger.warn(
-          EcoLogMessage.withError({
-            error,
-            message: 'LiFi: Failed to fetch supported assets',
-            properties: {
-              attempt,
-              maxRetries,
-              willRetry: attempt < maxRetries,
-            },
-          }),
-        )
 
         if (attempt < maxRetries) {
           // Exponential backoff: 1s, 2s, 4s
@@ -262,8 +233,14 @@ export class LiFiAssetCacheManager {
       }
     }
 
-    // All retries failed
-    throw lastError || new Error('Failed to fetch LiFi supported assets after all retries')
+    // All retries failed - log as business event
+    const error = lastError || new Error('Failed to fetch LiFi supported assets after all retries')
+    this.logger.logInfrastructureOperation('LiFiAssetCacheManager', 'cache_refresh', false, {
+      maxRetries,
+      error: error.message,
+    })
+
+    throw error
   }
 
   /**
@@ -272,24 +249,13 @@ export class LiFiAssetCacheManager {
    * @param tokenAddress The token address to check
    * @returns true if the token is supported, false otherwise
    */
-  isTokenSupported(chainId: number, tokenAddress: string): boolean {
+  @LogOperation('provider_validation', GenericOperationLogger)
+  isTokenSupported(@LogContext chainId: number, @LogContext tokenAddress: string): boolean {
     // If cache is not initialized or expired, use fallback behavior
     if (!this.isInitialized || !this.isCacheValid()) {
       if (this.config.fallbackBehavior === 'allow-all') {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'LiFi: Asset cache not ready, allowing token by default',
-            properties: { chainId, tokenAddress },
-          }),
-        )
         return true
       } else {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'LiFi: Asset cache not ready, denying token by default',
-            properties: { chainId, tokenAddress },
-          }),
-        )
         return false
       }
     }
@@ -309,16 +275,11 @@ export class LiFiAssetCacheManager {
    * @param chainId The chain ID to check
    * @returns true if the chain is supported, false otherwise
    */
-  isChainSupported(chainId: number): boolean {
+  @LogOperation('provider_validation', GenericOperationLogger)
+  isChainSupported(@LogContext chainId: number): boolean {
     // If cache is not initialized or expired, use fallback behavior
     if (!this.isInitialized || !this.isCacheValid()) {
       if (this.config.fallbackBehavior === 'allow-all') {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'LiFi: Asset cache not ready, allowing chain by default',
-            properties: { chainId },
-          }),
-        )
         return true
       } else {
         return false
@@ -336,11 +297,12 @@ export class LiFiAssetCacheManager {
    * @param toToken Destination token address
    * @returns true if both tokens are supported on their respective chains
    */
+  @LogOperation('provider_validation', GenericOperationLogger)
   areTokensConnected(
-    fromChain: number,
-    fromToken: string,
-    toChain: number,
-    toToken: string,
+    @LogContext fromChain: number,
+    @LogContext fromToken: string,
+    @LogContext toChain: number,
+    @LogContext toToken: string,
   ): boolean {
     // Return true if both tokens are supported on their respective chains
     return this.isTokenSupported(fromChain, fromToken) && this.isTokenSupported(toChain, toToken)
@@ -350,6 +312,7 @@ export class LiFiAssetCacheManager {
    * Get all supported chains
    * @returns Array of supported chain information
    */
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   getSupportedChains(): ChainInfo[] {
     return Array.from(this.cache.chains.values())
   }
@@ -359,7 +322,8 @@ export class LiFiAssetCacheManager {
    * @param chainId The chain ID
    * @returns Set of supported token addresses for the chain
    */
-  getSupportedTokensForChain(chainId: number): Set<string> | undefined {
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
+  getSupportedTokensForChain(@LogContext chainId: number): Set<string> | undefined {
     return this.cache.tokens.get(chainId)
   }
 
@@ -367,6 +331,7 @@ export class LiFiAssetCacheManager {
    * Get cache status information
    * @returns Current cache status
    */
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   getCacheStatus(): CacheStatus {
     const now = new Date()
     const cacheAge = now.getTime() - this.cache.metadata.lastUpdated.getTime()
@@ -414,31 +379,17 @@ export class LiFiAssetCacheManager {
 
     this.refreshTimer = setInterval(async () => {
       try {
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'LiFi: Starting scheduled cache refresh',
-          }),
-        )
         await this.refreshCache()
       } catch (error) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            error,
-            message: 'LiFi: Failed to refresh asset cache on schedule',
-          }),
-        )
+        // Error is already logged by the decorator, we just silently handle it here
       }
     }, this.config.refreshInterval)
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'LiFi: Cache refresh timer scheduled',
-        properties: {
-          refreshIntervalMs: this.config.refreshInterval,
-          nextRefreshAt: new Date(Date.now() + this.config.refreshInterval),
-        },
-      }),
-    )
+    // Log timer setup as business event
+    this.logger.logInfrastructureOperation('LiFiAssetCacheManager', 'cache_timer_setup', true, {
+      refreshIntervalMs: this.config.refreshInterval,
+      nextRefreshAt: new Date(Date.now() + this.config.refreshInterval),
+    })
   }
 
   /**
@@ -454,12 +405,13 @@ export class LiFiAssetCacheManager {
   /**
    * Cleanup resources (call this when service is destroyed)
    */
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   destroy(): void {
     this.clearRefreshTimer()
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'LiFi: Asset cache manager destroyed',
-      }),
-    )
+
+    // Log destruction as business event
+    this.logger.logInfrastructureOperation('LiFiAssetCacheManager', 'cache_destroy', true, {
+      wasInitialized: this.isInitialized,
+    })
   }
 }

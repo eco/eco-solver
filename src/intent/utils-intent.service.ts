@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { Model } from 'mongoose'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Solver, TargetContract } from '../eco-configs/eco-config.types'
 import { EcoError } from '../common/errors/eco-error'
@@ -43,7 +44,7 @@ export interface IntentProcessData {
  */
 @Injectable()
 export class UtilsIntentService {
-  private logger = new Logger(UtilsIntentService.name)
+  private logger = new IntentOperationLogger('UtilsIntentService')
 
   constructor(
     @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
@@ -69,7 +70,11 @@ export class UtilsIntentService {
    * @param invalidCause the reason the intent is invalid
    * @returns
    */
-  async updateInvalidIntentModel(model: IntentSourceModel, invalidCause: ValidationChecks) {
+  @LogOperation('intent_status_update', IntentOperationLogger)
+  async updateInvalidIntentModel(
+    @LogContext model: IntentSourceModel,
+    @LogContext invalidCause: ValidationChecks,
+  ) {
     this.ecoAnalytics.trackIntentStatusUpdate(model, 'INVALID', invalidCause)
 
     model.status = 'INVALID'
@@ -85,7 +90,11 @@ export class UtilsIntentService {
    * @param infeasable  the infeasable result
    * @returns
    */
-  async updateInfeasableIntentModel(model: IntentSourceModel, infeasable: Error) {
+  @LogOperation('intent_status_update', IntentOperationLogger)
+  async updateInfeasableIntentModel(
+    @LogContext model: IntentSourceModel,
+    @LogContext infeasable: Error,
+  ) {
     this.ecoAnalytics.trackIntentStatusUpdate(model, 'INFEASABLE', infeasable)
 
     model.status = 'INFEASABLE'
@@ -99,7 +108,8 @@ export class UtilsIntentService {
    *
    * @param fulfillment the fulfillment log event
    */
-  async updateOnFulfillment(fulfillment: FulfillmentLog) {
+  @LogOperation('fulfillment_processing', IntentOperationLogger)
+  async updateOnFulfillment(@LogContext fulfillment: FulfillmentLog) {
     try {
       const model = await this.intentModel.findOne({
         'intent.hash': fulfillment.args._hash,
@@ -111,13 +121,10 @@ export class UtilsIntentService {
         this.ecoAnalytics.trackFulfillmentProcessingSuccess(fulfillment, model)
       } else {
         this.ecoAnalytics.trackFulfillmentProcessingIntentNotFound(fulfillment)
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: `Intent not found for fulfillment ${fulfillment.args._hash}`,
-            properties: {
-              fulfillment,
-            },
-          }),
+        // Log fulfillment warning using business event method
+        this.logger.logFulfillmentProcessingIntentNotFound(
+          fulfillment.args._hash,
+          'intent_not_found_in_database',
         )
       }
     } catch (error) {
@@ -133,7 +140,10 @@ export class UtilsIntentService {
    * @param intentHash the intent hash
    * @returns Intent model and solver
    */
-  async getIntentProcessData(intentHash: string): Promise<IntentProcessData | undefined> {
+  @LogOperation('intent_process_data_retrieval', IntentOperationLogger)
+  async getIntentProcessData(
+    @LogContext intentHash: string,
+  ): Promise<IntentProcessData | undefined> {
     try {
       const model = await this.intentModel.findOne({
         'intent.hash': intentHash,
@@ -159,31 +169,22 @@ export class UtilsIntentService {
       return { model, solver }
     } catch (e) {
       this.ecoAnalytics.trackIntentProcessDataRetrievalError(intentHash, e)
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in getIntentProcessData ${intentHash}`,
-          properties: {
-            intentHash: intentHash,
-            error: e,
-          },
-        }),
-      )
+      // Log process data retrieval error using business event method
+      this.logger.logProcessDataRetrievalError(intentHash, e as Error, 'intent_process_data')
       return
     }
   }
 
-  async getSolver(destination: bigint, opts?: any): Promise<Solver | undefined> {
+  @LogOperation('solver_resolution', IntentOperationLogger)
+  async getSolver(
+    @LogContext destination: bigint,
+    @LogContext opts?: any,
+  ): Promise<Solver | undefined> {
     const solver = this.ecoConfigService.getSolver(destination)
     if (!solver) {
       this.ecoAnalytics.trackSolverResolutionNotFound(destination, opts)
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `No solver found for chain ${destination}`,
-          properties: {
-            ...(opts ? opts : {}),
-          },
-        }),
-      )
+      // Log solver resolution failure using business event method
+      this.logger.logSolverResolutionResult(destination.toString(), null, false, 'no_solver_found')
       return
     }
 

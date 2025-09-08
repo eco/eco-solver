@@ -20,6 +20,7 @@ import * as _ from 'lodash'
 @Injectable()
 export class PermitValidationService {
   private logger = new IntentOperationLogger('PermitValidationService')
+  private permit2Validator = new Permit2Validator()
 
   constructor(
     private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
@@ -66,7 +67,7 @@ export class PermitValidationService {
     if (permit2) {
       permit2SimulationParams = this.getPermit2SimulationParams(permit2, owner, reward)
 
-      const { error: permit2ValidationError } = await Permit2Validator.validatePermits(
+      const { error: permit2ValidationError } = await this.permit2Validator.validatePermits(
         client,
         chainId,
         permit2SimulationParams,
@@ -99,7 +100,7 @@ export class PermitValidationService {
     @LogContext permit2s: Permit2Params[],
   ): Promise<EcoResponse<void>> {
     const permitCalls = PermitValidator.getPermitCalls(permits)
-    const permit2Calls = Permit2Validator.getPermitCalls(permit2s)
+    const permit2Calls = this.permit2Validator.getPermitCalls(permit2s)
     const calls = [...permitCalls, ...permit2Calls]
 
     try {
@@ -215,14 +216,8 @@ export class PermitValidationService {
     try {
       return isAddressEqual(spender, expectedVault) ? {} : { error: EcoError.InvalidVaultAddress }
     } catch (ex) {
-      this.logger.error(
-        {
-          intentHash: 'vault-validation',
-          operationType: 'validation',
-        },
-        `isAddressEqual: error comparing addresses: ${ex.message}`,
-        ex,
-      )
+      // Log vault address validation error using business event method
+      this.logger.logPermitValidationResult('vault-validation', 'vault_funding', false, ex)
 
       return { error: EcoError.InvalidVaultAddress }
     }

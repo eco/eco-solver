@@ -76,10 +76,7 @@ export class FeasableIntentService {
       // Log feasibility success using business event method
       this.logger.logFeasibilityCheckResult(intentHash, true, 'route_is_feasible')
 
-      this.logger.debug({ intentHash }, `FeasableIntent intent ${intentHash}`, {
-        feasable: true,
-        jobId,
-      })
+      // Debug logging is handled by the @LogOperation decorator
       //add to processing queue
       await this.intentFulfillmentQueue.addFulfillIntentJob({
         intentHash,

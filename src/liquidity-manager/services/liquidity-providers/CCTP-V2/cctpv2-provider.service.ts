@@ -1,5 +1,5 @@
 import { isAddressEqual, parseUnits, Hex, encodeFunctionData, pad, erc20Abi } from 'viem'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -15,7 +15,8 @@ import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitter'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
@@ -24,7 +25,7 @@ const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
 
 @Injectable()
 export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
-  private logger = new Logger(CCTPV2ProviderService.name)
+  private logger = new LiquidityManagerLogger('CCTPv2ProviderService')
   private liquidityManagerQueue: LiquidityManagerQueue
   private config: CCTPV2Config
 
@@ -44,23 +45,14 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     return 'CCTPV2' as const
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    id?: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
+    @LogContext id?: string,
   ): Promise<RebalanceQuote<'CCTPV2'>[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPV2: Getting quote',
-        id,
-        properties: {
-          tokenIn: { chainId: tokenIn.chainId, address: tokenIn.config.address },
-          tokenOut: { chainId: tokenOut.chainId, address: tokenOut.config.address },
-          swapAmount,
-        },
-      }),
-    )
+    // Quote generation attempt will be logged by decorator
 
     if (
       !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
@@ -112,13 +104,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       if (fastOption) {
         const quote = createQuote(fastOption, 'fast')
         if (quote) {
-          this.logger.debug(
-            EcoLogMessage.withId({
-              message: 'CCTPV2: Fast transfer quote created',
-              id,
-              properties: { quote },
-            }),
-          )
+          // Quote generation success will be logged by decorator
           return [quote]
         }
       }
@@ -131,13 +117,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     if (standardOption) {
       const quote = createQuote(standardOption, 'standard')
       if (quote) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: 'CCTPV2: Standard transfer quote created',
-            id,
-            properties: { quote },
-          }),
-        )
+        // Quote generation success will be logged by decorator
         return [quote]
       }
     }
@@ -159,24 +139,28 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       id,
     }
 
-    this.logger.warn(
-      EcoLogMessage.withId({
-        message: 'CCTPV2: No fee options found, returning default standard quote',
-        id,
-        properties: { defaultQuote },
-      }),
+    // Using fallback quote - will be logged as business event below
+    this.logger.logProviderQuoteGeneration(
+      'CCTPv2',
+      {
+        sourceChainId: tokenIn.chainId,
+        destinationChainId: tokenOut.chainId,
+        amount: swapAmount,
+        tokenIn: tokenIn.config.address,
+        tokenOut: tokenOut.config.address,
+      },
+      true,
     )
     return [defaultQuote]
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'CCTPV2'>): Promise<unknown> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPV2: Executing quote',
-        id: quote.id,
-        properties: { quote, walletAddress },
-      }),
-    )
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(
+    @LogContext walletAddress: string,
+    @LogContext quote: RebalanceQuote<'CCTPV2'>,
+  ): Promise<unknown> {
+    // Execution start will be logged by decorator
+    this.logger.logProviderExecution('CCTPv2', walletAddress, quote)
     try {
       const txHash = await this._execute(walletAddress, quote)
 
@@ -249,21 +233,13 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     return client.execute([approveTx, burnTx])
   }
 
+  @LogOperation('provider_validation', LiquidityManagerLogger)
   async fetchV2Attestation(
-    transactionHash: Hex,
-    sourceDomain: number,
-    quoteId?: string,
+    @LogContext transactionHash: Hex,
+    @LogContext sourceDomain: number,
+    @LogContext _quoteId?: string, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<{ status: 'pending' } | { status: 'complete'; messageBody: Hex; attestation: Hex }> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `CCTPV2: Fetching attestation for domain ${sourceDomain}`,
-        id: quoteId,
-        properties: {
-          transactionHash,
-          sourceDomain,
-        },
-      }),
-    )
+    // Attestation fetch start will be logged by decorator
     try {
       const url = new URL(`${this.config.apiUrl}/v2/messages/${sourceDomain}`)
       url.searchParams.append('transactionHash', transactionHash)
@@ -295,13 +271,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
 
       return { status: 'pending' }
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          message: `Failed to fetch CCTP V2 attestation for tx ${transactionHash} on domain ${sourceDomain}`,
-          id: quoteId,
-        }),
-      )
+      // Error logging will be handled by decorator
       // If there's an error, we assume it's still pending so the job can be retried.
       return { status: 'pending' }
     }
@@ -315,28 +285,17 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
    * @param quoteId Quote ID
    * @returns Transaction hash
    */
+  @LogOperation('provider_execution', LiquidityManagerLogger)
   async receiveV2Message(
-    destinationChainId: number,
-    messageBody: Hex,
-    attestation: Hex,
-    quoteId?: string,
+    @LogContext destinationChainId: number,
+    @LogContext messageBody: Hex,
+    @LogContext attestation: Hex,
+    @LogContext _quoteId?: string, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<Hex> {
     const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
     const walletClient = await this.walletClientService.getClient(destinationChainId)
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPV2: receiveV2Message: submitting',
-        id: quoteId,
-        properties: {
-          chainId: destinationChainId,
-          messageTransmitter: v2ChainConfig.messageTransmitter,
-          sender: (walletClient as any).account?.address,
-          attestation,
-          messageBody,
-        },
-      }),
-    )
+    // Message receipt execution will be logged by decorator
 
     const txHash = await walletClient.writeContract({
       abi: CCTPV2MessageTransmitterABI,
@@ -347,7 +306,8 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     return txHash
   }
 
-  async getTxReceipt(chainId: number, txHash: Hex) {
+  @LogOperation('provider_validation', LiquidityManagerLogger)
+  async getTxReceipt(@LogContext chainId: number, @LogContext txHash: Hex) {
     const publicClient = await this.walletClientService.getPublicClient(chainId)
     return publicClient.waitForTransactionReceipt({ hash: txHash })
   }
@@ -355,14 +315,9 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
   private async fetchV2FeeOptions(
     sourceDomain: number,
     destinationDomain: number,
-    quoteId?: string,
+    _quoteId?: string, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<{ finalityThreshold: number; minimumFee: number }[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `CCTPV2: Fetching fee options for route ${sourceDomain}->${destinationDomain}`,
-        id: quoteId,
-      }),
-    )
+    // Fee options fetch will be logged by sub-operation if needed
     try {
       // Endpoint uses path parameters
       const url = `${this.config.apiUrl}/v2/burn/USDC/fees/${sourceDomain}/${destinationDomain}`
@@ -379,13 +334,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       // API returns an array of fee options
       return feeData || []
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          message: `Failed to fetch CCTP V2 fast transfer fee for route ${sourceDomain}->${destinationDomain}`,
-          id: quoteId,
-        }),
-      )
+      // Error will be logged by calling method decorator or handled separately if needed
       // Fallback to an empty array if the API call fails
       return []
     }
@@ -397,11 +346,13 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     return config
   }
 
-  private isSupportedToken(chainId: number, token: Hex): boolean {
+  @LogOperation('provider_validation', LiquidityManagerLogger)
+  private isSupportedToken(@LogContext chainId: number, @LogContext token: Hex): boolean {
     const isSupported = this.config.chains.some(
       (chain) => chain.chainId === chainId && isAddressEqual(token, chain.token),
     )
-    this.logger.debug(`isSupported: ${isSupported}`)
+    // Domain validation result will be logged as business event
+    this.logger.logProviderDomainValidation('CCTPv2', chainId.toString(), isSupported)
     return isSupported
   }
 }

@@ -293,9 +293,11 @@ describe('ExecuteCCTPMintJobManager', () => {
       mgr.onFailed(job as any, processor, new Error('boom'))
 
       expect(processor.logger.error).toHaveBeenCalled()
-      const arg = (processor.logger.error as jest.Mock).mock.calls[0]?.[0]
-      expect(JSON.stringify(arg)).toContain('ExecuteCCTPMintJob: Failed')
-      expect(JSON.stringify(arg)).toContain('job-err')
+      const call = processor.logger.error.mock.calls[0]
+      const message = call?.[1] // message is the second parameter
+      const data = call?.[3] // data is the fourth parameter (after error)
+      expect(message).toContain('ExecuteCCTPMintJob: Failed')
+      expect(JSON.stringify(data)).toContain('job-err')
     })
   })
 })

@@ -4,8 +4,9 @@ import { ChainsSupported } from '@/common/chains/supported'
 import { convertViemChainToRelayChain, createClient, getClient } from '@reservoir0x/relay-sdk'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
@@ -16,7 +17,7 @@ import { SmartAccount } from 'viem/account-abstraction'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
-  private logger = new Logger(RelayProviderService.name)
+  private logger = new LiquidityManagerLogger('RelayProviderService')
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -34,14 +35,16 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     })
   }
 
+  @LogOperation('provider_strategy_get', LiquidityManagerLogger)
   getStrategy() {
     return 'Relay' as const
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
       const client: KernelAccountClient<Transport, Chain, SmartAccount, Client> =
@@ -75,32 +78,51 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
 
       const slippage = 1 - Number(amountOut) / Number(amountIn)
 
+      // Business event: Log successful quote generation
+      this.logger.logProviderQuoteGeneration(
+        'Relay',
+        {
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+          tokenIn: tokenIn.config.address,
+          tokenOut: tokenOut.config.address,
+          slippage,
+        },
+        true,
+      )
+
       return {
         slippage,
         tokenIn,
         tokenOut,
         amountIn: BigInt(amountIn),
         amountOut: BigInt(amountOut),
-        strategy: this.getStrategy(),
+        strategy: await this.getStrategy(),
         context: relayQuote,
       }
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: 'Failed to get Relay quote',
-          error,
-          properties: {
-            tokenIn: `${tokenIn.config.address} (${tokenIn.chainId})`,
-            tokenOut: `${tokenOut.config.address} (${tokenOut.chainId})`,
-            amount: swapAmount,
-          },
-        }),
+      // Business event: Log quote generation failure
+      this.logger.logProviderQuoteGeneration(
+        'Relay',
+        {
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+          tokenIn: tokenIn.config.address,
+          tokenOut: tokenOut.config.address,
+        },
+        false,
       )
       throw error
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Relay'>): Promise<unknown> {
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(
+    @LogContext walletAddress: string,
+    @LogContext quote: RebalanceQuote<'Relay'>,
+  ): Promise<unknown> {
     try {
       const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
 
@@ -109,20 +131,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         throw new Error('Wallet address mismatch for Relay execution')
       }
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'RelayProviderService: executing quote',
-          properties: {
-            tokenIn: quote.tokenIn.config.address,
-            chainIn: quote.tokenIn.chainId,
-            tokenOut: quote.tokenOut.config.address,
-            chainOut: quote.tokenOut.chainId,
-            amountIn: quote.amountIn.toString(),
-            amountOut: quote.amountOut.toString(),
-            slippage: quote.slippage,
-          },
-        }),
-      )
+      // Business event: Log provider execution
+      this.logger.logProviderExecution('Relay', walletAddress, quote)
 
       // Adapt the kernel wallet to a Relay-compatible wallet
       const adaptedWallet = adaptKernelWallet(client, (chainId) =>
@@ -133,31 +143,15 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       const res = await getClient()?.actions.execute({
         quote: quote.context,
         wallet: adaptedWallet,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onProgress: (data) => {
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: 'Relay execution progress',
-              properties: { data },
-            }),
-          )
+          // Progress logging is handled by decorators
         },
       })
 
       await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
       return res
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: 'Failed to execute Relay quote',
-          error,
-          properties: {
-            tokenIn: `${quote.tokenIn.config.address} (${quote.tokenIn.chainId})`,
-            tokenOut: `${quote.tokenOut.config.address} (${quote.tokenOut.chainId})`,
-            amount: quote.amountIn.toString(),
-          },
-        }),
-      )
-
       await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.FAILED)
       throw error
     }

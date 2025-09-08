@@ -130,4 +130,136 @@ export class GenericOperationLogger extends BaseStructuredLogger {
       },
     )
   }
+
+  // ================== PROCESSOR-SPECIFIC BUSINESS EVENT METHODS ==================
+
+  /**
+   * Log processor job start events
+   */
+  logProcessorJobStart(processorType: string, jobId: string, intentHash: string): void {
+    const context = {
+      eco: {
+        processor_type: processorType,
+        job_id: jobId,
+        intent_hash: intentHash,
+      },
+      job_processing: {
+        job_status: 'started',
+        processing_stage: 'initialization',
+      },
+      operation: {
+        business_event: 'processor_job_started',
+        action_taken: 'begin_job_processing',
+      },
+    }
+
+    this.logMessage(context, 'info', `Processor ${processorType} started job ${jobId}`)
+  }
+
+  /**
+   * Log processor job completion events
+   */
+  logProcessorJobComplete(processorType: string, jobId: string, processingTime: number): void {
+    const context = {
+      eco: {
+        processor_type: processorType,
+        job_id: jobId,
+      },
+      job_processing: {
+        job_status: 'completed',
+        processing_stage: 'finalized',
+        processing_time_ms: processingTime,
+      },
+      operation: {
+        business_event: 'processor_job_completed',
+        action_taken: 'complete_job_processing',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'info',
+      `Processor ${processorType} completed job ${jobId} in ${processingTime}ms`,
+    )
+  }
+
+  /**
+   * Log processor job failure events
+   */
+  logProcessorJobFailed(processorType: string, jobId: string, error: Error): void {
+    const context = {
+      eco: {
+        processor_type: processorType,
+        job_id: jobId,
+      },
+      job_processing: {
+        job_status: 'failed',
+        processing_stage: 'error',
+        error_type: error.name,
+        error_message: error.message,
+      },
+      operation: {
+        business_event: 'processor_job_failed',
+        action_taken: 'mark_job_failed',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'error',
+      `Processor ${processorType} job ${jobId} failed: ${error.message}`,
+    )
+  }
+
+  /**
+   * Log queue processing events
+   */
+  logQueueProcessing(
+    queueName: string,
+    jobCount: number,
+    processingStatus: 'active' | 'waiting' | 'completed',
+  ): void {
+    const context = {
+      queue_processing: {
+        queue_name: queueName,
+        job_count: jobCount,
+        queue_status: processingStatus,
+      },
+      operation: {
+        business_event: 'queue_processing_status',
+        action_taken: 'update_queue_metrics',
+      },
+    }
+
+    this.logMessage(context, 'debug', `Queue ${queueName}: ${jobCount} jobs ${processingStatus}`)
+  }
+
+  /**
+   * Log infrastructure service operations
+   */
+  logInfrastructureOperation(
+    serviceName: string,
+    operation: string,
+    success: boolean,
+    details?: Record<string, any>,
+  ): void {
+    const context = {
+      infrastructure: {
+        service_name: serviceName,
+        operation_type: operation,
+        operation_success: success,
+        ...details,
+      },
+      operation: {
+        business_event: 'infrastructure_operation',
+        action_taken: success ? 'operation_completed' : 'operation_failed',
+      },
+    }
+
+    this.logMessage(
+      context,
+      success ? 'info' : 'error',
+      `Infrastructure ${serviceName}: ${operation} ${success ? 'completed' : 'failed'}`,
+    )
+  }
 }

@@ -1,5 +1,4 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
@@ -20,12 +19,13 @@ import {
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { EcoAnalyticsService } from '@/analytics'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -34,7 +34,7 @@ export const BASE_DECIMALS: number = 6
 
 @Injectable()
 export class FeeService implements OnModuleInit {
-  private logger = new Logger(FeeService.name)
+  private logger = new GenericOperationLogger('FeeService')
   private intentConfigs: IntentConfig
   private whitelist: WhitelistFeeRecord
 
@@ -276,14 +276,16 @@ export class FeeService implements OnModuleInit {
       }
 
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: error!.message,
-          properties: {
-            error,
-            source,
-            solver,
-          },
-        }),
+        {
+          operationType: 'infrastructure_operation',
+          status: 'failed',
+        },
+        error!.message,
+        error!,
+        {
+          source,
+          solver,
+        },
       )
       return { error }
     }
@@ -500,14 +502,16 @@ export class FeeService implements OnModuleInit {
         if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
           const err = QuoteError.NonERC20TargetInCalls()
           this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: err.message,
-              properties: {
-                error: err,
-                call,
-                ttd,
-              },
-            }),
+            {
+              operationType: 'infrastructure_operation',
+              status: 'failed',
+            },
+            err.message,
+            err,
+            {
+              call,
+              ttd,
+            },
           )
           throw err
         }
@@ -537,14 +541,16 @@ export class FeeService implements OnModuleInit {
           )
 
           this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: QuoteError.SolverLacksLiquidity.name,
-              properties: {
-                error: err,
-                quote,
-                callTarget,
-              },
-            }),
+            {
+              operationType: 'infrastructure_operation',
+              status: 'failed',
+            },
+            'Solver lacks sufficient liquidity for transfer',
+            err,
+            {
+              quote,
+              callTarget,
+            },
           )
           throw err
         }

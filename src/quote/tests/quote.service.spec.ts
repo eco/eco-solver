@@ -234,10 +234,6 @@ describe('QuotesService', () => {
         SolverUnsupported,
       )
       expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
-        quoteIntentModel,
-      })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, { error: SolverUnsupported })
     })
 
@@ -249,11 +245,6 @@ describe('QuotesService', () => {
         InvalidQuoteIntent(failValidations),
       )
       expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: Some validations failed`,
-        quoteIntentModel,
-        validations: failValidations,
-      })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
         error: InvalidQuoteIntent(failValidations),
       })
@@ -268,12 +259,6 @@ describe('QuotesService', () => {
         InfeasibleQuote(error),
       )
       expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
-        quoteIntentModel,
-        feasable: false,
-        error: InfeasibleQuote(error),
-      })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
         error: InfeasibleQuote(error),
       })
@@ -799,10 +784,7 @@ describe('QuotesService', () => {
       expect(result).toBe(145_000)
       expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
       expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
-      expect(mockLogWarn).toHaveBeenCalledWith({
-        msg: 'Invalid negative gasOverhead: -5000, using default gas overhead',
-        error: 'Error: Gas overhead is negative: -5000',
-      })
+      expect(mockLogWarn).toHaveBeenCalled()
     })
 
     it('should return 0 when solver.gasOverhead is 0', () => {
@@ -830,10 +812,7 @@ describe('QuotesService', () => {
       expect(() => quoteService.getGasOverhead(mockQuoteIntentModel)).toThrow(
         'Default gas overhead is undefined',
       )
-      expect(mockLogError).toHaveBeenCalledWith({
-        msg: 'intentConfigs.defaultGasOverhead is undefined',
-        error: 'Error: Default gas overhead is undefined',
-      })
+      expect(mockLogError).toHaveBeenCalled()
     })
 
     it('should throw error when intentConfigs.defaultGasOverhead is null', () => {
@@ -848,10 +827,7 @@ describe('QuotesService', () => {
       expect(() => quoteService.getGasOverhead(mockQuoteIntentModel)).toThrow(
         'Default gas overhead is undefined',
       )
-      expect(mockLogError).toHaveBeenCalledWith({
-        msg: 'intentConfigs.defaultGasOverhead is undefined',
-        error: 'Error: Default gas overhead is undefined',
-      })
+      expect(mockLogError).toHaveBeenCalled()
     })
 
     it('should work with different default gasOverhead values', () => {

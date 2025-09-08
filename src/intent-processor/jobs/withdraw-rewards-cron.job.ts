@@ -1,5 +1,4 @@
 import { Job, Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
@@ -41,21 +40,23 @@ export class CheckWithdrawalsCronJobManager extends IntentProcessorJobManager {
 
   async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
     processor.logger.log(
-      EcoLogMessage.fromDefault({ message: `${CheckWithdrawalsCronJobManager.name}: process` }),
+      {
+        operationType: 'cron_job',
+        status: 'started',
+      },
+      `${CheckWithdrawalsCronJobManager.name}: process`,
     )
 
     return processor.intentProcessorService.getNextBatchWithdrawals()
   }
 
   onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: unknown) {
+    const errorObj = error instanceof Error ? error : new Error(String(error))
     processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${CheckWithdrawalsCronJobManager.name}: Failed`,
-        properties: {
-          error: (error as any)?.message ?? error,
-          stack: (error as any)?.stack,
-        },
-      }),
+      { operationType: 'job_execution', status: 'failed' },
+      `${CheckWithdrawalsCronJobManager.name}: Failed`,
+      errorObj,
+      { job_name: CheckWithdrawalsCronJobManager.name, job_id: job.id, job_data: job.data },
     )
   }
 }

@@ -46,7 +46,7 @@ export class DatadogValidator {
     processedData = this.validateAttributeValues(processedData, warnings)
 
     // Step 5: Check overall log size
-    const logSize = JSON.stringify(processedData).length
+    const logSize = this.safeStringify(processedData).length
     if (logSize > DATADOG_LIMITS.MAX_LOG_SIZE) {
       warnings.push(`Log size ${logSize} bytes exceeds limit ${DATADOG_LIMITS.MAX_LOG_SIZE} bytes`)
       processedData = this.truncateLogSize(processedData)
@@ -179,13 +179,13 @@ export class DatadogValidator {
   private static truncateLogSize(obj: any): any {
     // Progressive truncation strategy
     let processed = { ...obj }
-    let currentSize = JSON.stringify(processed).length
+    let currentSize = this.safeStringify(processed).length
 
     if (currentSize <= DATADOG_LIMITS.MAX_LOG_SIZE) return processed
 
     // 1. Truncate long string values progressively
     processed = this.progressiveStringTruncation(processed)
-    currentSize = JSON.stringify(processed).length
+    currentSize = this.safeStringify(processed).length
 
     if (currentSize <= DATADOG_LIMITS.MAX_LOG_SIZE) return processed
 
@@ -194,7 +194,7 @@ export class DatadogValidator {
     for (const field of optionalFields) {
       if (processed[field]) {
         delete processed[field]
-        currentSize = JSON.stringify(processed).length
+        currentSize = this.safeStringify(processed).length
         if (currentSize <= DATADOG_LIMITS.MAX_LOG_SIZE) break
       }
     }
@@ -223,7 +223,17 @@ export class DatadogValidator {
   }
 
   private static deepClone(obj: any): any {
-    return JSON.parse(JSON.stringify(obj))
+    return JSON.parse(this.safeStringify(obj))
+  }
+
+  private static safeStringify(obj: any): string {
+    return JSON.stringify(obj, (key, value) => {
+      // Convert BigInt to string for serialization
+      if (typeof value === 'bigint') {
+        return value.toString()
+      }
+      return value
+    })
   }
 
   private static simpleHash(str: string): number {

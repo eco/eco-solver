@@ -149,7 +149,7 @@ describe('CCTPV2ProviderService', () => {
       }
       console.log(unsupportedToken)
       await expect(service.getQuote(mockTokenIn, unsupportedToken, 10)).rejects.toThrow(
-        'Unsupported route for CCTP V2',
+        'CCTP V2 config not found for chain 999',
       )
     })
   })

@@ -1,7 +1,6 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { CCTPV2StrategyContext } from '../types/types'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ExecuteCCTPV2MintJobData, ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
 import { Hex } from 'viem'
 import {
@@ -78,11 +77,12 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     const deserializedContext = deserialize(job.data.context)
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTPV2: Attestation complete. Adding V2 mint transaction to execution queue',
+        { operationType: 'job_execution', status: 'completed' },
+        'CCTPV2: Attestation complete. Adding V2 mint transaction to execution queue',
+        {
           id: job.data.id,
-          properties: job.returnvalue,
-        }),
+          ...job.returnvalue,
+        },
       )
 
       const executeCCTPV2MintJobData: ExecuteCCTPV2MintJobData = {
@@ -99,16 +99,15 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       await ExecuteCCTPV2MintJobManager.start(processor.queue, executeCCTPV2MintJobData)
     } else {
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTPV2: Attestation pending...',
+        { operationType: 'job_execution', status: 'pending' },
+        'CCTPV2: Attestation pending...',
+        {
           id: job.data.id,
-          properties: {
-            ...job.returnvalue,
-            transactionHash: job.data.transactionHash,
-            destinationChainId: job.data.destinationChainId,
-            transferType: deserializedContext.transferType,
-          },
-        }),
+          ...job.returnvalue,
+          transactionHash: job.data.transactionHash,
+          destinationChainId: job.data.destinationChainId,
+          transferType: deserializedContext.transferType,
+        },
       )
       // Fast polling for "fast" transfers, slower for "standard"
       const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
@@ -134,14 +133,13 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     }
 
     processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
+      { operationType: 'job_execution', status: 'failed' },
+      errorMessage,
+      error as any,
+      {
         id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
+        data: job.data,
+      },
     )
   }
 }

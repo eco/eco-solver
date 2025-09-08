@@ -1,7 +1,7 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { ValidateVaultFundingArgs } from '@/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
 
@@ -28,9 +28,12 @@ export enum VaultStatus {
 }
 
 export class VaultFundingValidator {
-  private static logger = new EcoLogger(VaultFundingValidator.name)
+  private static logger = new IntentOperationLogger('VaultFundingValidator')
 
-  static async validateVaultFunding(args: ValidateVaultFundingArgs): Promise<EcoResponse<void>> {
+  @LogOperation('intent_validation', IntentOperationLogger)
+  static async validateVaultFunding(
+    @LogContext args: ValidateVaultFundingArgs,
+  ): Promise<EcoResponse<void>> {
     const { client, intentSourceAddress, intentHash, preventRedundantFunding } = args
 
     const vaultStatus = await this.getVaultStatus({
@@ -40,64 +43,65 @@ export class VaultFundingValidator {
     })
 
     if (vaultStatus === VaultStatus.CLAIMED) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `❌ Vault for intent ${intentHash} has already been claimed`,
-        }),
-      )
+      // Log business event: vault already claimed
+      this.logger.logPermitValidationResult(intentHash, 'vault_funding', false, {
+        message: `Vault for intent ${intentHash} has already been claimed`,
+        vaultStatus: 'claimed',
+      })
 
       return { error: EcoError.VaultAlreadyClaimed }
     }
 
     if (vaultStatus === VaultStatus.FULLY_FUNDED) {
       if (preventRedundantFunding) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `❌ Vault for intent ${intentHash} is already fully funded`,
-          }),
-        )
+        // Log business event: redundant funding prevented
+        this.logger.logPermitValidationResult(intentHash, 'vault_funding', false, {
+          message: `Vault for intent ${intentHash} is already fully funded`,
+          vaultStatus: 'fully_funded',
+          preventRedundantFunding: true,
+        })
 
         return { error: EcoError.VaultAlreadyFunded }
       }
 
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `⚠️ Vault for intent ${intentHash} is already funded`,
-        }),
-      )
+      // Log business event: vault already funded but allowing redundant funding
+      this.logger.warn({ intentHash }, `Vault for intent ${intentHash} is already funded`, {
+        vaultStatus: 'fully_funded',
+        preventRedundantFunding: false,
+      })
 
       return {}
     }
 
     if (vaultStatus < VaultStatus.FULLY_FUNDED) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `❌ Vault for intent ${intentHash} is not yet fully funded`,
-        }),
-      )
+      // Log business event: vault not fully funded
+      this.logger.logPermitValidationResult(intentHash, 'vault_funding', false, {
+        message: `Vault for intent ${intentHash} is not yet fully funded`,
+        vaultStatus: this.getVaultStatusName(vaultStatus),
+      })
 
       return { error: EcoError.VaultNotFullyFundedAfterPermit }
     }
 
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `✅ Vault validated and funded for intent ${intentHash}`,
-      }),
-    )
+    // Log business event: vault validation successful
+    this.logger.logPermitValidationResult(intentHash, 'vault_funding', true)
 
     return {}
   }
 
-  static async isVaultFunded(args: ValidateVaultFundingArgs): Promise<boolean> {
+  @LogOperation('vault_funding_validation', IntentOperationLogger)
+  static async isVaultFunded(@LogContext args: ValidateVaultFundingArgs): Promise<boolean> {
     const status = await this.getVaultStatus(args)
     return status >= VaultStatus.FULLY_FUNDED
   }
 
-  static isVaultStale(status: VaultStatus): boolean {
+  @LogOperation('vault_funding_validation', IntentOperationLogger)
+  static isVaultStale(@LogContext status: VaultStatus): boolean {
     return status === VaultStatus.CLAIMED || status === VaultStatus.FULLY_FUNDED
   }
 
-  static async getVaultStatus(args: ValidateVaultFundingArgs): Promise<VaultStatus> {
+  @LogOperation('vault_funding_validation', IntentOperationLogger)
+  static async getVaultStatus(@LogContext args: ValidateVaultFundingArgs): Promise<VaultStatus> {
     const { client, intentSourceAddress, intentHash } = args
 
     const vault = await client.readContract({
@@ -108,5 +112,25 @@ export class VaultFundingValidator {
     })
 
     return vault.status as VaultStatus
+  }
+
+  /**
+   * Helper method to get human-readable vault status name
+   */
+  private static getVaultStatusName(status: VaultStatus): string {
+    switch (status) {
+      case VaultStatus.EMPTY:
+        return 'empty'
+      case VaultStatus.PARTIALLY_FUNDED:
+        return 'partially_funded'
+      case VaultStatus.FULLY_FUNDED:
+        return 'fully_funded'
+      case VaultStatus.CLAIMED:
+        return 'claimed'
+      case VaultStatus.Refunded:
+        return 'refunded'
+      default:
+        return 'unknown'
+    }
   }
 }

@@ -33,7 +33,7 @@ export abstract class BaseStructuredLogger extends EcoLogger {
       // Record metrics for monitoring
       LoggingMetrics.recordValidation(
         endTime - startTime,
-        JSON.stringify(structure).length,
+        this.safeStringify(structure).length,
         validation.warnings.length > 0,
         validation.truncated,
       )
@@ -121,5 +121,18 @@ export abstract class BaseStructuredLogger extends EcoLogger {
    */
   static getLoggingMetrics() {
     return LoggingMetrics.getMetrics()
+  }
+
+  /**
+   * Safely stringify objects that may contain BigInt values
+   */
+  private safeStringify(obj: any): string {
+    return JSON.stringify(obj, (key, value) => {
+      // Convert BigInt to string for serialization
+      if (typeof value === 'bigint') {
+        return value.toString()
+      }
+      return value
+    })
   }
 }

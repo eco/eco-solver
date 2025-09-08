@@ -111,7 +111,7 @@ describe('PermitValidationService', () => {
   it('returns error from Permit2Validator', async () => {
     jest.spyOn(PermitValidator, 'validatePermits').mockResolvedValue({})
     jest
-      .spyOn(Permit2Validator, 'validatePermits')
+      .spyOn(Permit2Validator.prototype, 'validatePermits')
       .mockResolvedValue({ error: EcoError.InvalidPermit2Address })
     const spender = quoteTestUtils.getRandomAddress()
 
@@ -133,7 +133,7 @@ describe('PermitValidationService', () => {
 
   it('returns error if simulateContract fails', async () => {
     jest.spyOn(PermitValidator, 'validatePermits').mockResolvedValue({})
-    jest.spyOn(Permit2Validator, 'validatePermits').mockResolvedValue({})
+    jest.spyOn(Permit2Validator.prototype, 'validatePermits').mockResolvedValue({})
     jest
       .spyOn(PermitValidator, 'parseSignature')
       .mockReturnValue({ v: 0n, r: '0x', s: '0x' } satisfies Signature)
@@ -162,7 +162,7 @@ describe('PermitValidationService', () => {
 
   it('returns success when all validations pass', async () => {
     jest.spyOn(PermitValidator, 'validatePermits').mockResolvedValue({})
-    jest.spyOn(Permit2Validator, 'validatePermits').mockResolvedValue({})
+    jest.spyOn(Permit2Validator.prototype, 'validatePermits').mockResolvedValue({})
     jest
       .spyOn(PermitValidator, 'parseSignature')
       .mockReturnValue({ v: 0n, r: '0x', s: '0x' } satisfies Signature)

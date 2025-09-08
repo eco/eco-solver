@@ -90,11 +90,13 @@ describe('FulfillIntentJobManager', () => {
       manager.onFailed(job, mockProcessor as any, error)
 
       expect(mockLogger.error).toHaveBeenCalledWith(
+        { operationType: 'intent_fulfillment', status: 'failed' }, // metadata
+        'FulfillIntentJobManager: Failed', // message
+        error, // error object
         expect.objectContaining({
-          msg: 'FulfillIntentJobManager: Failed',
           job: { id: 'job-123', data: jobData },
           error: 'Something went wrong',
-        }),
+        }), // data
       )
     })
   })

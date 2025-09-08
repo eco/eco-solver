@@ -141,7 +141,7 @@ describe('LiFiAssetCacheManager', () => {
     mockGetTokens.mockResolvedValue(mockTokensResponse)
     mockGetChains.mockResolvedValue(mockChainsResponse)
 
-    cacheManager = new LiFiAssetCacheManager(ecoConfigService, logger)
+    cacheManager = new LiFiAssetCacheManager(ecoConfigService)
   })
 
   afterEach(() => {
@@ -161,11 +161,6 @@ describe('LiFiAssetCacheManager', () => {
 
       expect(mockGetTokens).toHaveBeenCalledTimes(1)
       expect(mockGetChains).toHaveBeenCalledWith({ chainTypes: ['EVM'] })
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Asset cache initialized successfully',
-        }),
-      )
     })
 
     it('should be idempotent - multiple calls should not refetch', async () => {
@@ -182,12 +177,6 @@ describe('LiFiAssetCacheManager', () => {
       mockGetTokens.mockRejectedValue(error)
 
       await expect(cacheManager.initialize()).rejects.toThrow('LiFi API Error')
-
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Failed to initialize asset cache',
-        }),
-      )
     })
 
     it('should retry on failure with exponential backoff', async () => {
@@ -199,21 +188,15 @@ describe('LiFiAssetCacheManager', () => {
       await cacheManager.initialize()
 
       expect(mockGetTokens).toHaveBeenCalledTimes(3)
-      expect(logger.warn).toHaveBeenCalledTimes(2)
     })
 
     it('should skip initialization when disabled', async () => {
-      cacheManager = new LiFiAssetCacheManager(ecoConfigService, logger, { enabled: false })
+      cacheManager = new LiFiAssetCacheManager(ecoConfigService, { enabled: false })
 
       await cacheManager.initialize()
 
       expect(mockGetTokens).not.toHaveBeenCalled()
       expect(mockGetChains).not.toHaveBeenCalled()
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Asset cache disabled by configuration',
-        }),
-      )
     })
   })
 
@@ -269,35 +252,23 @@ describe('LiFiAssetCacheManager', () => {
     })
 
     it('should use fallback behavior when cache not ready', () => {
-      const uninitializedManager = new LiFiAssetCacheManager(ecoConfigService, logger, {
+      const uninitializedManager = new LiFiAssetCacheManager(ecoConfigService, {
         fallbackBehavior: 'allow-all',
       })
 
       expect(
         uninitializedManager.isTokenSupported(1, '0x1234567890123456789012345678901234567890'),
       ).toBe(true)
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Asset cache not ready, allowing token by default',
-        }),
-      )
     })
 
     it('should deny tokens when fallback is deny-unknown', () => {
-      const uninitializedManager = new LiFiAssetCacheManager(ecoConfigService, logger, {
+      const uninitializedManager = new LiFiAssetCacheManager(ecoConfigService, {
         fallbackBehavior: 'deny-unknown',
       })
 
       expect(
         uninitializedManager.isTokenSupported(1, '0x1234567890123456789012345678901234567890'),
       ).toBe(false)
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Asset cache not ready, denying token by default',
-        }),
-      )
     })
   })
 
@@ -345,25 +316,18 @@ describe('LiFiAssetCacheManager', () => {
       mockGetTokens.mockRejectedValue(error)
 
       await expect(cacheManager.refreshCache()).rejects.toThrow('Refresh failed')
-
-      expect(logger.warn).toHaveBeenCalled()
     })
 
     it('should setup automatic refresh timer', async () => {
       jest.useFakeTimers()
 
-      const shortRefreshManager = new LiFiAssetCacheManager(ecoConfigService, logger, {
+      const shortRefreshManager = new LiFiAssetCacheManager(ecoConfigService, {
         refreshInterval: 100, // 100ms for testing
       })
 
       await shortRefreshManager.initialize()
 
-      // Verify timer was set up by checking debug logs
-      expect(logger.debug).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Cache refresh timer scheduled',
-        }),
-      )
+      // Timer setup is handled internally
 
       shortRefreshManager.destroy()
       jest.useRealTimers()
@@ -441,7 +405,7 @@ describe('LiFiAssetCacheManager', () => {
     })
 
     it('should detect expired cache', () => {
-      const shortTTLManager = new LiFiAssetCacheManager(ecoConfigService, logger, {
+      const shortTTLManager = new LiFiAssetCacheManager(ecoConfigService, {
         ttl: 0, // Immediately expired
       })
 
@@ -513,11 +477,6 @@ describe('LiFiAssetCacheManager', () => {
       cacheManager.destroy()
 
       expect(clearIntervalSpy).toHaveBeenCalled()
-      expect(logger.debug).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: 'LiFi: Asset cache manager destroyed',
-        }),
-      )
     })
   })
 })

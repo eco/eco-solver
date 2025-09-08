@@ -1,8 +1,9 @@
 import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { Job, Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { OnWorkerEvent } from '@nestjs/bullmq'
 import { BaseJobManager } from '@/common/bullmq/base-job'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 // Extract keys from `data` when `data` is defined
 type DataKeys<T> = T extends { data?: infer D } ? (D extends object ? keyof D : never) : never
@@ -36,19 +37,17 @@ export abstract class GroupedJobsProcessor<
    * @param job - The job to process.
    * @returns A promise that resolves to an object indicating if the job was delayed.
    */
-  async process(job: GroupJob) {
+  @LogOperation('processor_group_execution', GenericOperationLogger)
+  async process(@LogContext job: GroupJob) {
     const group = job.data?.[this.groupBy] as string
 
     if (group) {
       if (this.activeGroups.has(group)) {
+        // Log group concurrency management
         this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Job delayed due to group concurrency',
-            properties: {
-              jobName: job.name,
-              group,
-            },
-          }),
+          { operationType: 'group_concurrency', status: 'delayed' },
+          'Job delayed due to group concurrency',
+          { jobName: job.name, group, jobId: job.id },
         )
 
         await this.queue.add(job.name, job.data, {
@@ -70,7 +69,8 @@ export abstract class GroupedJobsProcessor<
    * @param job - The job that was completed.
    */
   @OnWorkerEvent('completed')
-  onCompleted(job: GroupJob) {
+  @LogOperation('processor_group_completion', GenericOperationLogger)
+  onCompleted(@LogContext job: GroupJob) {
     const returnvalue = job.returnvalue as object
     if (returnvalue && 'delayed' in returnvalue && returnvalue.delayed) {
       // Skip onCompleted hook if job got delayed
@@ -91,7 +91,8 @@ export abstract class GroupedJobsProcessor<
    * @param error - Error.
    */
   @OnWorkerEvent('failed')
-  onFailed(job: GroupJob, error: Error) {
+  @LogOperation('processor_group_failure', GenericOperationLogger)
+  onFailed(@LogContext job: GroupJob, error: Error) {
     if (this.groupBy in job.data && this.activeGroups.has(job.data[this.groupBy] as string)) {
       this.activeGroups.delete(job.data[this.groupBy] as string)
     }

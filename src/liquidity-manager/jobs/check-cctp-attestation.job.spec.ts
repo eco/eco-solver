@@ -259,10 +259,12 @@ describe('CheckCCTPAttestationJobManager', () => {
       mgr.onFailed(job as any, processor, new Error('boom'))
 
       expect(processor.logger.error).toHaveBeenCalled()
-      const call = processor.logger.error.mock.calls[0]?.[0]
+      const call = processor.logger.error.mock.calls[0]
+      const message = call?.[1] // message is the second parameter
+      const data = call?.[3] // data is the fourth parameter (after error)
       // sanity: message and id present
-      expect(JSON.stringify(call)).toContain('CCTP: CheckCCTPAttestationJob: Failed')
-      expect(JSON.stringify(call)).toContain('job-err')
+      expect(message).toContain('CCTP: CheckCCTPAttestationJob: Failed')
+      expect(JSON.stringify(data)).toContain('job-err')
     })
   })
 })

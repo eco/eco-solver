@@ -72,10 +72,6 @@ export class ValidateIntentService implements OnModuleInit {
    */
   @LogOperation('intent_validation', IntentOperationLogger)
   async validateIntent(@LogContext intentHash: Hex) {
-    this.logger.debug({ intentHash }, `validateIntent ${intentHash}`, {
-      intentHash: intentHash,
-    })
-
     // Track validation start
     this.ecoAnalytics.trackIntentValidationStarted(intentHash)
 
@@ -95,10 +91,6 @@ export class ValidateIntentService implements OnModuleInit {
     }
 
     const jobId = getIntentJobId('validate', intentHash, model.intent.logIndex)
-    this.logger.debug({ intentHash }, `validateIntent ${intentHash}`, {
-      intentHash,
-      jobId,
-    })
     //add to processing queue
     await this.intentQueue.add(QUEUES.SOURCE_INTENT.jobs.feasable_intent, intentHash, {
       jobId,
@@ -118,7 +110,11 @@ export class ValidateIntentService implements OnModuleInit {
    * @param solver the solver for the source chain
    * @returns true if they all pass, false otherwise
    */
-  async assertValidations(model: IntentSourceModel, solver: Solver): Promise<boolean> {
+  @LogOperation('intent_validation', IntentOperationLogger)
+  async assertValidations(
+    @LogContext model: IntentSourceModel,
+    @LogContext solver: Solver,
+  ): Promise<boolean> {
     const validations = (await this.validationService.assertValidations(
       model.intent,
       solver,
@@ -168,20 +164,12 @@ export class ValidateIntentService implements OnModuleInit {
    * @param model the source intent model
    * @returns
    */
-  async intentFunded(model: IntentSourceModel): Promise<boolean> {
+  @LogOperation('intent_validation', IntentOperationLogger)
+  async intentFunded(@LogContext model: IntentSourceModel): Promise<boolean> {
     const sourceChainID = Number(model.intent.route.source)
     const client = await this.multichainPublicClientService.getClient(sourceChainID)
     const intentSource = this.ecoConfigService.getIntentSource(sourceChainID)
     if (!intentSource) {
-      this.logger.error(
-        { intentHash: model.intent.hash, sourceChainId: sourceChainID },
-        EcoError.IntentSourceNotFound(sourceChainID).message,
-        new Error(`Intent source not found for chain ${sourceChainID}`),
-        {
-          model,
-        },
-      )
-
       // Track intent source not found error
       this.ecoAnalytics.trackError(
         ERROR_EVENTS.INTENT_FUNDING_CHECK_FAILED,
@@ -210,14 +198,6 @@ export class ValidateIntentService implements OnModuleInit {
       // Add delay for retries (skip delay on first attempt)
       if (retryCount > 0) {
         await delay(this.RETRY_DELAY_MS, retryCount - 1)
-
-        this.logger.debug(
-          { intentHash: model.intent.hash },
-          `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
-          {
-            intentHash: model.intent.hash,
-          },
-        )
 
         // Log business event for funding check retry
         this.logger.logFundingCheckRetry(
@@ -280,7 +260,8 @@ export class ValidateIntentService implements OnModuleInit {
    * @param intentHash the hash of the intent to find in the db
    * @returns
    */
-  private async destructureIntent(intentHash: Hex): Promise<IntentProcessData> {
+  @LogOperation('intent_processing', IntentOperationLogger)
+  private async destructureIntent(@LogContext intentHash: Hex): Promise<IntentProcessData> {
     const data = await this.utilsIntentService.getIntentProcessData(intentHash)
     const { model, solver, err } = data ?? {}
     if (!data || !model || !solver) {

@@ -128,7 +128,18 @@ function sanitizeResult(result: any): any {
   if (!result) return result
 
   // Convert to string and limit size for logging
-  const stringified = JSON.stringify(result, null, 0)
+  // Use custom replacer to handle BigInt values
+  const stringified = JSON.stringify(
+    result,
+    (key, value) => {
+      // Convert BigInt to string
+      if (typeof value === 'bigint') {
+        return value.toString()
+      }
+      return value
+    },
+    0,
+  )
   if (stringified.length > 1000) {
     return `${stringified.substring(0, 1000)}...[truncated]`
   }

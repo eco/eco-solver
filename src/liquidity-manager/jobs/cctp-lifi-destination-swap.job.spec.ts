@@ -229,9 +229,10 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
 
       // Two error logs: STRANDED USDC ALERT and detailed error
       expect(processor.logger.error).toHaveBeenCalled()
-      const logs = (processor.logger.error as jest.Mock).mock.calls.map((c) => JSON.stringify(c[0]))
-      expect(logs.some((s) => s.includes('STRANDED USDC ALERT'))).toBe(true)
-      expect(logs.some((s) => s.includes('Destination swap execution failed'))).toBe(true)
+      const calls = (processor.logger.error as jest.Mock).mock.calls
+      const messages = calls.map((call) => call[1]) // message is the second parameter
+      expect(messages.some((s) => s.includes('STRANDED USDC ALERT'))).toBe(true)
+      expect(messages.some((s) => s.includes('Destination swap execution failed'))).toBe(true)
     })
   })
 
@@ -246,7 +247,7 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
       await mgr.onComplete(job as any, processor)
 
       expect(processor.logger.log).toHaveBeenCalled()
-      const arg = (processor.logger.log as jest.Mock).mock.calls[0]?.[0]
+      const arg = (processor.logger.log as jest.Mock).mock.calls[0]?.[2] // data is the third parameter
 
       expect(arg).toMatchObject({
         groupID: job.data.groupID,
@@ -283,11 +284,13 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
       await mgr.onFailed(job as any, processor, new Error('boom'))
 
       expect(processor.logger.error).toHaveBeenCalled()
-      const arg = (processor.logger.error as jest.Mock).mock.calls[0]?.[0]
-      expect(JSON.stringify(arg)).toContain('FINAL FAILURE')
-      expect(JSON.stringify(arg)).toContain('job-err')
-      expect(JSON.stringify(arg)).toContain('0xwallet')
-      expect(JSON.stringify(arg)).toContain('12345') // usdcAmount
+      const calls = (processor.logger.error as jest.Mock).mock.calls
+      const message = calls[0]?.[1] // message is the second parameter
+      const data = calls[0]?.[3] // data is the fourth parameter (after error)
+      expect(message).toContain('FINAL FAILURE')
+      expect(JSON.stringify(data)).toContain('job-err')
+      expect(JSON.stringify(data)).toContain('0xwallet')
+      expect(JSON.stringify(data)).toContain('12345') // usdcAmount
     })
   })
 })

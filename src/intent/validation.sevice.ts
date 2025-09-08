@@ -1,4 +1,5 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { FeeService } from '@/fee/fee.service'
@@ -14,7 +15,7 @@ import {
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common'
 import { difference } from 'lodash'
 import { Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
@@ -81,7 +82,8 @@ export type TxValidationFn = (tx: TransactionTargetData) => boolean
 @Injectable()
 export class ValidationService implements OnModuleInit {
   private isNativeETHSupported = false
-  private readonly logger = new Logger(ValidationService.name)
+  private readonly logger = new IntentOperationLogger('ValidationService')
+  private readonly genericLogger = new Logger('ValidationService')
   private minEthBalanceWei: bigint
 
   constructor(
@@ -106,6 +108,7 @@ export class ValidationService implements OnModuleInit {
    * @param txValidationFn
    * @returns true if they all pass, false otherwise
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   async assertValidations(
     intent: ValidationIntentInterface,
     solver: Solver,
@@ -146,6 +149,7 @@ export class ValidationService implements OnModuleInit {
    * @param {Hex} opts.prover - The prover to validate against the intent sources.
    * @return {boolean} Returns true if the source chain ID and prover are supported, otherwise false.
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   supportedProver(opts: { source: number; destination: number; prover: Hex }): boolean {
     const isWhitelisted = this.checkProverWhitelisted(opts.source, opts.prover)
 
@@ -166,6 +170,7 @@ export class ValidationService implements OnModuleInit {
     }
   }
 
+  @LogOperation('intent_validation', IntentOperationLogger)
   checkProverWhitelisted(chainID: number, prover: Hex): boolean {
     return this.ecoConfigService
       .getIntentSources()
@@ -184,10 +189,11 @@ export class ValidationService implements OnModuleInit {
    * @param intent the intent model
    * @returns
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   supportedNative(intent: ValidationIntentInterface): boolean {
     if (this.isNativeETHSupported) {
       if (isNativeIntent(intent)) {
-        return equivalentNativeGas(intent, this.logger) && isNativeETH(intent)
+        return equivalentNativeGas(intent, this.genericLogger) && isNativeETH(intent)
       }
       return true
     } else {
@@ -204,24 +210,16 @@ export class ValidationService implements OnModuleInit {
    * @param solver the solver for the intent
    * @returns
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   supportedTargets(intent: ValidationIntentInterface, solver: Solver): boolean {
     const intentFunctionTargets = getFunctionTargets(intent.route.calls as CallDataInterface[])
     const solverTargets = Object.keys(solver.targets)
     //all targets are included in the solver targets array
     const targetsSupported = difference(intentFunctionTargets, solverTargets).length == 0
 
-    if (!targetsSupported) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Targets not supported for intent ${intent.hash ? intent.hash : 'quote'}`,
-          properties: {
-            ...(intent.hash && {
-              intentHash: intent.hash,
-              source: intent.route.source,
-            }),
-          },
-        }),
-      )
+    if (!targetsSupported && intent.hash) {
+      // Log validation failure using business event method
+      this.logger.logValidationFailure(intent, { supportedTargets: false }, ['unsupported_targets'])
     }
     return targetsSupported
   }
@@ -234,17 +232,19 @@ export class ValidationService implements OnModuleInit {
    * @param txValidationFn
    * @returns
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   supportedTransaction(
     intent: ValidationIntentInterface,
     solver: Solver,
     txValidationFn: TxValidationFn = () => true,
   ): boolean {
     if (intent.route.calls.length == 0) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `supportedSelectors: Target/data invalid`,
-        }),
-      )
+      // Log validation failure for invalid target/data
+      if (intent.hash) {
+        this.logger.logValidationFailure(intent, { supportedTransaction: false }, [
+          'invalid_target_data',
+        ])
+      }
       return false
     }
     const functionCalls = getFunctionCalls(intent.route.calls as CallDataInterface[])
@@ -259,38 +259,34 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns  true if the transfer is within the bounds
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   async validTransferLimit(intent: ValidationIntentInterface): Promise<boolean> {
     const { totalFillNormalized, error } = await this.feeService.getTotalFill(intent)
     if (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `validTransferLimit: Error getting total fill`,
-          properties: {
-            error: error.message,
-            intentHash: intent.hash,
-            source: intent.route.source,
-          },
-        }),
-      )
+      // Log validation failure for total fill calculation error
+      if (intent.hash) {
+        this.logger.logValidationFailure(intent, { validTransferLimit: false }, [
+          'total_fill_calculation_error',
+        ])
+      }
       return false
     }
 
     const { tokenBase6, nativeBase18 } = this.feeService.getFeeConfig({ intent }).limit
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `validTransferLimit: Total fill normalized`,
-        properties: {
-          tokenTotalFillNormalized: totalFillNormalized.token.toString(),
-          nativeTotalFillNormalized: totalFillNormalized.native.toString(),
-          tokenBase6: tokenBase6.toString(),
-          nativeBase18: nativeBase18.toString(),
-        },
-      }),
-    )
-
     // convert to a normalized total to use utils compare function
-    return isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+    const result = isGreaterEqual({ token: tokenBase6, native: nativeBase18 }, totalFillNormalized)
+
+    // Log feasibility check result
+    if (intent.hash) {
+      this.logger.logFeasibilityCheckResult(
+        intent.hash,
+        result,
+        result ? 'within_transfer_limits' : 'exceeds_transfer_limits',
+      )
+    }
+
+    return result
   }
 
   /**
@@ -298,6 +294,7 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns true if the solver has sufficient balance
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   async hasSufficientBalance(intent: ValidationIntentInterface): Promise<boolean> {
     const destinationChain = Number(intent.route.destination)
 
@@ -305,15 +302,12 @@ export class ValidationService implements OnModuleInit {
       // Early return if no solver configured for destination chain
       const solver = this.ecoConfigService.getSolver(destinationChain)
       if (!solver) {
-        this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: `hasSufficientBalance: No solver configured for destination chain`,
-            properties: {
-              intentHash: intent.hash,
-              destination: destinationChain,
-            },
-          }),
-        )
+        // Log validation failure for missing solver configuration
+        if (intent.hash) {
+          this.logger.logValidationFailure(intent, { sufficientBalance: false }, [
+            'no_solver_configured',
+          ])
+        }
         return false
       }
 
@@ -342,16 +336,12 @@ export class ValidationService implements OnModuleInit {
               solver.targets,
             )
             if (!hasSufficientTokenBalance) {
-              this.logger.warn(
-                EcoLogMessage.fromDefault({
-                  message: `hasSufficientBalance: Insufficient token balance`,
-                  properties: {
-                    intentHash: intent.hash,
-                    destination: destinationChain,
-                  },
-                }),
-              )
-
+              // Log validation failure for insufficient token balance
+              if (intent.hash) {
+                this.logger.logValidationFailure(intent, { sufficientBalance: false }, [
+                  'insufficient_token_balance',
+                ])
+              }
               return false
             }
           }
@@ -364,34 +354,23 @@ export class ValidationService implements OnModuleInit {
               totalFulfillNativeValue,
             )
             if (!hasSufficientNativeBalance) {
-              this.logger.warn(
-                EcoLogMessage.fromDefault({
-                  message: `hasSufficientBalance: Insufficient native balance`,
-                  properties: {
-                    intentHash: intent.hash,
-                    destination: destinationChain,
-                  },
-                }),
-              )
-
+              // Log validation failure for insufficient native balance
+              if (intent.hash) {
+                this.logger.logValidationFailure(intent, { sufficientBalance: false }, [
+                  'insufficient_native_balance',
+                ])
+              }
               return false
             }
           }
           return true
         } catch (error) {
           // If validation fails for this address, return false but continue checking others
-          this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: 'hasSufficientBalance: Error checking balance for address',
-              properties: {
-                error: error.message,
-                errorStack: error.stack,
-                walletAddress,
-                intentHash: intent.hash,
-                destination: intent.route.destination,
-              },
-            }),
-          )
+          if (intent.hash) {
+            this.logger.logValidationFailure(intent, { sufficientBalance: false }, [
+              'balance_check_error',
+            ])
+          }
           return false
         }
       })
@@ -399,17 +378,12 @@ export class ValidationService implements OnModuleInit {
       const results = await Promise.all(responses)
       return results.some(Boolean)
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `hasSufficientBalance: Error checking balance`,
-          properties: {
-            error: error?.message || String(error),
-            errorStack: error?.stack,
-            intentHash: intent.hash,
-            destination: destinationChain,
-          },
-        }),
-      )
+      // Log validation failure for general balance check error
+      if (intent.hash) {
+        this.logger.logValidationFailure(intent, { sufficientBalance: false }, [
+          'balance_check_general_error',
+        ])
+      }
       return false
     }
   }
@@ -419,6 +393,7 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   validExpirationTime(intent: ValidationIntentInterface): boolean {
     //convert to milliseconds
     const time = Number(intent.reward.deadline) * 1000
@@ -435,6 +410,7 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent model
    * @returns
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   validDestination(intent: ValidationIntentInterface): boolean {
     return this.ecoConfigService.getSupportedChains().includes(intent.route.destination)
   }
@@ -445,6 +421,7 @@ export class ValidationService implements OnModuleInit {
    * @param intent the source intent
    * @returns
    */
+  @LogOperation('intent_validation', IntentOperationLogger)
   fulfillOnDifferentChain(intent: ValidationIntentInterface): boolean {
     return intent.route.destination !== intent.route.source
   }

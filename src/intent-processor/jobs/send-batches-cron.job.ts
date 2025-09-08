@@ -1,5 +1,4 @@
 import { Job, Queue } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
@@ -34,18 +33,23 @@ export class CheckSendBatchCronJobManager extends IntentProcessorJobManager {
 
   async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
     processor.logger.log(
-      EcoLogMessage.fromDefault({ message: `${CheckSendBatchCronJobManager.name}: process` }),
+      {
+        operationType: 'cron_job',
+        status: 'started',
+      },
+      `${CheckSendBatchCronJobManager.name}: process`,
     )
 
     return processor.intentProcessorService.getNextSendBatch()
   }
 
   onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: unknown) {
+    const errorObj = error instanceof Error ? error : new Error(String(error))
     processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${CheckSendBatchCronJobManager.name}: Failed`,
-        properties: { error: (error as any)?.message ?? error },
-      }),
+      { operationType: 'job_execution', status: 'failed' },
+      `${CheckSendBatchCronJobManager.name}: Failed`,
+      errorObj,
+      { job_name: CheckSendBatchCronJobManager.name, job_id: job.id, job_data: job.data },
     )
   }
 }

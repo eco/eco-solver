@@ -7,6 +7,7 @@ describe('CheckBalancesCronJobManager.process', () => {
 
     const processor: any = {
       logger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      healthLogger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
       liquidityManagerService: {
         analyzeTokens: jest
           .fn()
@@ -45,6 +46,7 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
 
     const processor: any = {
       logger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      healthLogger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
       liquidityManagerService: {
         analyzeTokens: jest.fn().mockResolvedValue({
           items: [],

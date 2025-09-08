@@ -1,9 +1,10 @@
 import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getSlippage } from '@/liquidity-manager/utils/math'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { parseUnits } from 'viem'
@@ -14,7 +15,7 @@ import { Squid } from '@0xsquid/sdk'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
-  private logger = new Logger(SquidProviderService.name)
+  private logger = new LiquidityManagerLogger('SquidProviderService')
   private squid: Squid
 
   constructor(
@@ -36,20 +37,13 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     return 'Squid' as const
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    id?: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
+    @LogContext id?: string,
   ): Promise<RebalanceQuote<'Squid'>[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Squid: getting quote',
-        id,
-        properties: { tokenIn, tokenOut, swapAmount },
-      }),
-    )
-
     const walletAddress = await this.kernelAccountClientService.getAddress()
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
 
@@ -81,36 +75,47 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         id,
       }
 
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Squid: quote generated',
-          id,
-          properties: { quote },
-        }),
+      // Log provider quote generation success
+      this.logger.logProviderQuoteGeneration(
+        'Squid',
+        {
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+          tokenIn: tokenIn.config.address,
+          tokenOut: tokenOut.config.address,
+          slippage: swapSlippage,
+        },
+        true,
       )
 
       return [quote]
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          message: 'Squid: failed to get quote',
-          id,
-          error,
-          properties: { params },
-        }),
+      // Log provider quote generation failure
+      this.logger.logProviderQuoteGeneration(
+        'Squid',
+        {
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+          tokenIn: tokenIn.config.address,
+          tokenOut: tokenOut.config.address,
+          slippage: this.ecoConfigService.getLiquidityManager().swapSlippage,
+        },
+        false,
       )
+
       throw error
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Squid'>): Promise<string> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Squid: executing quote',
-        id: quote.id,
-        properties: { walletAddress, quote },
-      }),
-    )
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(
+    @LogContext walletAddress: string,
+    @LogContext quote: RebalanceQuote<'Squid'>,
+  ): Promise<string> {
+    // Log provider execution start
+    this.logger.logProviderExecution('Squid', walletAddress, quote)
 
     try {
       const kernelAddress = await this.kernelAccountClientService.getAddress()
@@ -145,26 +150,9 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         throw new Error('Transaction receipt was null.')
       }
 
-      this.logger.log(
-        EcoLogMessage.withId({
-          message: 'Squid: execution complete',
-          id: quote.id,
-          properties: { receipt: txReceipt },
-        }),
-      )
-
       await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
       return txReceipt.transactionHash
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          message: `Squid: failed to execute quote`,
-          id: quote.id,
-          error,
-          properties: { walletAddress, quote },
-        }),
-      )
-
       await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.FAILED)
       throw error
     }

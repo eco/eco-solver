@@ -1,6 +1,5 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { CCTPLiFiDestinationSwapJobData } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import { LiFiStrategyContext } from '../types/types'
 import {
@@ -67,11 +66,12 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
 
   async process(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: `CCTP: ExecuteCCTPMintJob: Processing`,
+      { operationType: 'job_execution' },
+      'CCTP: ExecuteCCTPMintJob: Processing',
+      {
         id: job.data.id,
-        properties: { job },
-      }),
+        job,
+      },
     )
 
     const { destinationChainId, messageBody, attestation } = job.data
@@ -96,17 +96,16 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     const { groupID, rebalanceJobID, cctpLiFiContext } = job.data
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: `CCTP: ExecuteCCTPMintJob: Completed!`,
+      { operationType: 'job_execution', status: 'completed' },
+      'CCTP: ExecuteCCTPMintJob: Completed!',
+      {
         id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          chainId: job.data.destinationChainId,
-          txHash: job.returnvalue,
-          messageHash: job.data.messageHash,
-        },
-      }),
+        groupID,
+        rebalanceJobID,
+        chainId: job.data.destinationChainId,
+        txHash: job.returnvalue,
+        messageHash: job.data.messageHash,
+      },
     )
 
     if (!(cctpLiFiContext && cctpLiFiContext.destinationSwapQuote)) {
@@ -115,15 +114,14 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     }
 
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
+      { operationType: 'job_execution' },
+      'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
+      {
         id: job.data.id,
-        properties: {
-          messageHash: job.data.messageHash,
-          destinationChainId: job.data.destinationChainId,
-          walletAddress: cctpLiFiContext.walletAddress,
-        },
-      }),
+        messageHash: job.data.messageHash,
+        destinationChainId: job.data.destinationChainId,
+        walletAddress: cctpLiFiContext.walletAddress,
+      },
     )
 
     // Import dynamically to avoid circular dependency
@@ -161,14 +159,13 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
       : 'CCTP: ExecuteCCTPMintJob: Failed: Retrying...'
 
     processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
+      { operationType: 'job_execution', status: 'failed' },
+      errorMessage,
+      error as any,
+      {
         id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
+        data: job.data,
+      },
     )
 
     if (isFinal) {

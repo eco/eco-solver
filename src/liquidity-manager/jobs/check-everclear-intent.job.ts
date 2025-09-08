@@ -1,6 +1,5 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { DelayedError, Queue, UnrecoverableError } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
@@ -55,11 +54,12 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     const { txHash, id } = job.data
     const result = await processor.everclearProviderService.checkIntentStatus(txHash)
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: Intent status check result',
+      { operationType: 'job_execution' },
+      'Everclear: Intent status check result',
+      {
         id,
-        properties: { result },
-      }),
+        result,
+      },
     )
 
     switch (result.status) {
@@ -84,16 +84,15 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     const { groupID, rebalanceJobID } = jobData
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
+      { operationType: 'job_execution', status: 'completed' },
+      `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
+      {
         id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          ...job.returnvalue,
-          txHash: job.data.txHash,
-        },
-      }),
+        groupID,
+        rebalanceJobID,
+        ...job.returnvalue,
+        txHash: job.data.txHash,
+      },
     )
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
@@ -117,14 +116,13 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     }
 
     processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
+      { operationType: 'job_execution', status: 'failed' },
+      errorMessage,
+      error as any,
+      {
         id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
+        data: job.data,
+      },
     )
   }
 }

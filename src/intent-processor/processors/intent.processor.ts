@@ -1,5 +1,7 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { IntentProcessorJob } from '@/intent-processor/jobs/intent-processor.job'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import { ExecuteWithdrawsJobManager } from '@/intent-processor/jobs/execute-withdraws.job'
@@ -23,6 +25,7 @@ export class IntentProcessor
   extends GroupedJobsProcessor<IntentProcessorJob>
   implements OnApplicationBootstrap
 {
+  private businessLogger = new GenericOperationLogger('IntentProcessor')
   protected appReady = false
 
   private readonly nonConcurrentJobs: IntentProcessorJobName[] = [
@@ -43,20 +46,31 @@ export class IntentProcessor
     ])
   }
 
-  async process(job: IntentProcessorJob) {
+  @LogOperation('processor_job_start', GenericOperationLogger)
+  async process(@LogContext job: IntentProcessorJob) {
     if (await this.avoidConcurrency(job)) {
-      this.logger.warn('Skipping job execution, queue is not empty.')
+      // Log business event for job skipping due to concurrency
+      this.businessLogger.logQueueProcessing(IntentProcessorQueue.queueName, 1, 'waiting')
       return
     }
+
+    // Log business event for job processing start
+    this.businessLogger.logProcessorJobStart(
+      'IntentProcessor',
+      job.id || 'unknown',
+      job.name || 'unknown',
+    )
 
     return super.process(job)
   }
 
+  @LogOperation('processor_execution', GenericOperationLogger)
   onApplicationBootstrap(): void {
     this.appReady = true
   }
 
-  protected async avoidConcurrency(job: IntentProcessorJob): Promise<boolean> {
+  @LogOperation('processor_execution', GenericOperationLogger)
+  protected async avoidConcurrency(@LogContext job: IntentProcessorJob): Promise<boolean> {
     if (!this.nonConcurrentJobs.includes(job.name)) {
       return false
     }

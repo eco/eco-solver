@@ -1,21 +1,22 @@
 import { SecretsManager } from '@aws-sdk/client-secrets-manager'
 import { AwsCredential } from './eco-config.types'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import * as config from 'config'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { ConfigSource } from './interfaces/config-source.interface'
-import { EcoError } from '../common/errors/eco-error'
 import { merge } from 'lodash'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 
 /**
  * Service to retrieve AWS secrets from AWS Secrets Manager
  */
 @Injectable()
 export class AwsConfigService implements OnModuleInit, ConfigSource {
-  private logger = new Logger(AwsConfigService.name)
+  private logger = new GenericOperationLogger('AwsConfigService')
   private _awsConfigs: Record<string, string> = {}
   constructor() {}
 
+  @LogOperation('config_operation', GenericOperationLogger)
   async onModuleInit() {
     await this.initConfigs()
   }
@@ -30,11 +31,14 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
   /**
    * Initialize the configs
    */
+  @LogOperation('config_operation', GenericOperationLogger)
   async initConfigs() {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Initializing aws configs`,
-      }),
+      {
+        operationType: 'config_operation',
+        status: 'started',
+      },
+      'Initializing AWS configs',
     )
     let awsCreds = config.get('aws') as any[]
     if (!Array.isArray(awsCreds)) {
@@ -68,7 +72,18 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
         return secret as Record<string, string>
       }
     } catch (err) {
-      this.logger.error(EcoError.getErrorMessage({ message: err.message }))
+      this.logger.error(
+        {
+          operationType: 'config_operation',
+          status: 'failed',
+        },
+        'Failed to retrieve AWS secrets',
+        err,
+        {
+          region: awsCreds.region,
+          secretID: awsCreds.secretID,
+        },
+      )
     }
     return {}
   }

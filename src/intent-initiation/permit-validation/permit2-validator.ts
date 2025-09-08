@@ -1,7 +1,7 @@
 import { Call } from '@/intent-initiation/permit-validation/interfaces/call.interface'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoResponse } from '@/common/eco-response'
 import { Permit2Abi } from '@/contracts/Permit2.abi'
 import { Permit2Params } from '@/intent-initiation/permit-validation/interfaces/permit2-params.interface'
@@ -13,12 +13,13 @@ const KNOWN_PERMIT2_ADDRESSES = new Set(
 )
 
 export class Permit2Validator {
-  private static logger = new EcoLogger(Permit2Validator.name)
+  private logger = new IntentOperationLogger('Permit2Validator')
 
-  static async validatePermits(
+  @LogOperation('intent_validation', IntentOperationLogger)
+  async validatePermits(
     client: PublicClient,
     chainId: number,
-    permits: Permit2Params[],
+    @LogContext permits: Permit2Params[],
   ): Promise<EcoResponse<void>> {
     for (const permit of permits) {
       const { error } = await this.validatePermit(client, chainId, permit)
@@ -31,10 +32,11 @@ export class Permit2Validator {
     return {}
   }
 
-  static async validatePermit(
+  @LogOperation('permit_validation', IntentOperationLogger)
+  async validatePermit(
     client: PublicClient,
     chainId: number,
-    permit: Permit2Params,
+    @LogContext permit: Permit2Params,
   ): Promise<EcoResponse<void>> {
     const { error } = this.validatePermitAddress(permit)
 
@@ -58,25 +60,35 @@ export class Permit2Validator {
     return this.validateNonces(client, permit)
   }
 
-  static validatePermitAddress(permit: Permit2Params): EcoResponse<void> {
+  @LogOperation('permit_address_validation', IntentOperationLogger)
+  validatePermitAddress(@LogContext permit: Permit2Params): EcoResponse<void> {
     const { permit2Address } = permit
 
     if (!KNOWN_PERMIT2_ADDRESSES.has(permit2Address.toLowerCase())) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Permit2 address not whitelisted: ${permit2Address}`,
-        }),
+      // Log permit address validation failure
+      this.logger.logPermitValidationResult(
+        'unknown', // intentHash not available in this context
+        'permit_simulation',
+        false,
+        new Error(`Permit2 address not whitelisted: ${permit2Address}`),
       )
-
       return { error: EcoError.InvalidPermit2Address }
     }
+
+    // Log successful permit address validation
+    this.logger.logPermitValidationResult(
+      'unknown', // intentHash not available in this context
+      'permit_simulation',
+      true,
+    )
 
     return {}
   }
 
-  static async validatePermitSignature(
+  @LogOperation('permit_signature_validation', IntentOperationLogger)
+  async validatePermitSignature(
     chainId: number,
-    permit: Permit2Params,
+    @LogContext permit: Permit2Params,
   ): Promise<EcoResponse<void>> {
     const { owner, spender, sigDeadline, details, permit2Address, signature } = permit
 
@@ -117,26 +129,32 @@ export class Permit2Validator {
     })
 
     if (!validSig) {
+      // Log permit signature validation failure
+      this.logger.logPermitValidationResult(
+        'unknown', // intentHash not available in this context
+        'permit_simulation',
+        false,
+        new Error('Invalid permit signature'),
+      )
       return { error: EcoError.InvalidPermitSignature }
     }
+
+    // Log successful permit signature validation
+    this.logger.logPermitValidationResult(
+      'unknown', // intentHash not available in this context
+      'permit_simulation',
+      true,
+    )
 
     return {}
   }
 
-  static async validateNonces(
+  @LogOperation('permit_nonce_validation', IntentOperationLogger)
+  async validateNonces(
     client: PublicClient,
-    permit: Permit2Params,
+    @LogContext permit: Permit2Params,
   ): Promise<EcoResponse<void>> {
     const { permit2Address, owner, spender, details } = permit
-
-    this.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `validateNonces`,
-        properties: {
-          permit,
-        },
-      }),
-    )
 
     for (const detail of details) {
       const { nonce: expectedNonce, token } = detail
@@ -149,24 +167,14 @@ export class Permit2Validator {
         args: [owner, token, spender],
       })
 
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `validateNonces`,
-          properties: {
-            amount,
-            onchainExpiration,
-            actualNonce,
-          },
-        }),
-      )
-
       if (BigInt(actualNonce) !== expectedNonce) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `⛔ Nonce mismatch for token ${token}`,
-          }),
+        // Log nonce validation failure
+        this.logger.logPermitValidationResult(
+          'unknown', // intentHash not available in this context
+          'permit_simulation',
+          false,
+          new Error(`Nonce mismatch for token ${token}`),
         )
-
         return { error: EcoError.InvalidPermitNonce }
       }
 
@@ -181,37 +189,47 @@ export class Permit2Validator {
 
       // Check if signed expiration is after onchain (expected)
       if (onchainExpiration < detail.expiration) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `⚠️ On-chain expiration is earlier than signed expiration`,
-          }),
+        // Log expiration mismatch failure
+        this.logger.logPermitValidationResult(
+          'unknown', // intentHash not available in this context
+          'permit_simulation',
+          false,
+          new Error('On-chain expiration is earlier than signed expiration'),
         )
-
         return { error: EcoError.PermitExpirationMismatch }
       }
     }
 
+    // Log successful nonce validation for all permits
+    this.logger.logPermitValidationResult(
+      'unknown', // intentHash not available in this context
+      'permit_simulation',
+      true,
+    )
+
     return {}
   }
 
-  static expirationCheck(expiration: number | bigint, logMessage: string): EcoResponse<void> {
+  @LogOperation('permit_expiration_validation', IntentOperationLogger)
+  expirationCheck(expiration: number | bigint, logMessage: string): EcoResponse<void> {
     const now = Math.floor(Date.now() / 1000)
     const expiry = typeof expiration === 'bigint' ? Number(expiration) : expiration
 
     if (expiry < now) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `⏰ Permit expired ${now - expiry} seconds ago for ${logMessage}`,
-        }),
+      // Log permit expiration failure
+      this.logger.logPermitValidationResult(
+        'unknown', // intentHash not available in this context
+        'permit_simulation',
+        false,
+        new Error(`Permit expired ${now - expiry} seconds ago for ${logMessage}`),
       )
-
       return { error: EcoError.PermitExpired }
     }
 
     return {}
   }
 
-  static getPermitCalls(permits: Permit2Params[]): Call[] {
+  getPermitCalls(permits: Permit2Params[]): Call[] {
     const calls = permits.map((permit) => {
       return {
         address: permit.permit2Address,

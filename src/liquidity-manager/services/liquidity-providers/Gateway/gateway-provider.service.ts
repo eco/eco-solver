@@ -2,13 +2,14 @@ import { Cache } from '@nestjs/cache-manager'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { GatewayHttpClient } from './utils/gateway-client'
 import { gatewayMinterAbi } from './constants/abis'
 import { GatewayQuoteValidationError } from './gateway.errors'
 import { GatewayTopUpJobData } from '@/liquidity-manager/jobs/gateway-topup.job'
 import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -24,7 +25,7 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
-  private logger = new Logger(GatewayProviderService.name)
+  private logger = new LiquidityManagerLogger('GatewayProviderService')
   private client: GatewayHttpClient
   // cacheManager and configService are required by @Cacheable decorator
   private liquidityManagerQueue: LiquidityManagerQueue
@@ -127,6 +128,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     this.liquidityManagerQueue = new LiquidityManagerQueue(this.queue)
   }
 
+  @LogOperation('provider_strategy_get', LiquidityManagerLogger)
   getStrategy() {
     return 'Gateway' as const
   }
@@ -135,34 +137,25 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
    * One-time bootstrap: if enabled and unified balance is zero on the configured domain,
    * enqueue a single GATEWAY_TOP_UP with a fixed amount from Kernel via depositFor.
    */
-  async ensureBootstrapOnce(id: string = 'bootstrap'): Promise<void> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: ensuring bootstrap',
-        id,
-      }),
-    )
+  @LogOperation('provider_bootstrap', LiquidityManagerLogger)
+  async ensureBootstrapOnce(@LogContext id: string = 'bootstrap'): Promise<void> {
     const cfg = this.configService.getGatewayConfig()
     const bootstrap = cfg.bootstrap
+
+    // Business event logging - explicit calls
+    this.logger.logProviderBootstrap(
+      'Gateway',
+      bootstrap?.chainId || 0,
+      bootstrap?.enabled || false,
+    )
+
     if (!bootstrap?.enabled) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: bootstrap is disabled',
-          id,
-        }),
-      )
-      return
+      return // Early return automatically logged by decorator
     }
 
     const chain = cfg.chains.find((c) => c.chainId === bootstrap.chainId)
     if (!chain) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: bootstrap chain not found',
-          id,
-        }),
-      )
-      return
+      return // Early return automatically logged by decorator
     }
 
     const depositor = (await this.walletClientService.getAccount()).address as Hex
@@ -172,22 +165,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       sources: [{ domain: chain.domain, depositor }],
     })
     const entry = bal.balances.find((b) => b.domain === chain.domain)
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: bootstrap balance',
-        id,
-        properties: { entry },
-      }),
-    )
+
+    // Business event: Log balance check
+    this.logger.logProviderBalanceCheck('Gateway', chain.domain.toString(), entry?.balance || '0')
+
     const isZero = !entry || entry.balance === '0'
     if (!isZero) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: bootstrap balance is not zero',
-          id,
-        }),
-      )
-      return
+      return // Early return automatically logged by decorator
     }
 
     // Resolve GatewayWallet address
@@ -196,23 +180,10 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       (chain.wallet as Hex | undefined) ||
       (gatewayInfo.find((d) => d.domain === chain.domain)?.wallet as Hex | undefined)
     if (!walletAddr) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: bootstrap wallet address not found',
-          id,
-        }),
-      )
-      return
+      return // Early return automatically logged by decorator
     }
 
     const amount = BigInt(bootstrap.amountBase6)
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: starting bootstrap',
-        id,
-        properties: { amount },
-      }),
-    )
     await this.liquidityManagerQueue.startGatewayTopUp({
       groupID: `DummyGroupID`,
       rebalanceJobID: `DummyRebalanceJobID`,
@@ -225,51 +196,41 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     })
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    id?: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
+    @LogContext id?: string,
   ): Promise<RebalanceQuote<'Gateway'>> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: getting quote',
-        id,
-        properties: { tokenIn, tokenOut, swapAmount },
-      }),
-    )
     const cfg = this.configService.getGatewayConfig()
+
+    // Business event: Log quote generation attempt
+    this.logger.logProviderQuoteGeneration(
+      'Gateway',
+      {
+        sourceChainId: tokenIn.chainId,
+        destinationChainId: tokenOut.chainId,
+        amount: swapAmount,
+      },
+      true,
+    )
+
     if (cfg.enabled === false) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: quote is disabled',
-          id,
-        }),
-      )
       throw new GatewayQuoteValidationError('Gateway provider is disabled')
     }
 
     if (tokenIn.chainId === tokenOut.chainId) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: same-chain route not supported',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
-      )
       throw new GatewayQuoteValidationError('Same-chain route not supported for Gateway')
     }
 
     const inChain = cfg.chains.find((c) => c.chainId === tokenIn.chainId)
     const outChain = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
     if (!inChain || !outChain) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: unsupported chain pair',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
-      )
+      // Business event: Log domain validation failure
+      this.logger.logProviderDomainValidation('Gateway', tokenIn.chainId.toString(), !!inChain)
+      this.logger.logProviderDomainValidation('Gateway', tokenOut.chainId.toString(), !!outChain)
+
       throw new GatewayQuoteValidationError('Unsupported chain pair for Gateway', {
         in: tokenIn.chainId,
         out: tokenOut.chainId,
@@ -281,13 +242,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       !isAddressEqual(tokenIn.config.address, inChain.usdc) ||
       !isAddressEqual(tokenOut.config.address, outChain.usdc)
     ) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: only USDC -> USDC routes are supported',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
-      )
       throw new GatewayQuoteValidationError('Only USDC -> USDC routes are supported')
     }
 
@@ -295,21 +249,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     const amountBase6 = parseUnits(String(swapAmount), 6)
     const amountIn = parseUnits(String(swapAmount), tokenIn.balance.decimals)
     const amountOut = parseUnits(String(swapAmount), tokenOut.balance.decimals)
-
-    if (tokenIn.balance.decimals !== 6 || tokenOut.balance.decimals !== 6) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'Gateway: USDC token decimals are not 6 — check token configuration',
-          id,
-          properties: {
-            inDecimals: tokenIn.balance.decimals,
-            outDecimals: tokenOut.balance.decimals,
-            tokenIn: tokenIn.config.address,
-            tokenOut: tokenOut.config.address,
-          },
-        }),
-      )
-    }
 
     // Validate chain support using Gateway info
     await this.ensureDomainsSupported(inChain.domain, outChain.domain, id)
@@ -320,22 +259,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     // Determine source domains to use based on actual per-domain balances
     const sources = await this.selectSourcesForAmount(amountBase6, id)
     const chosenSourceDomain = sources[0].domain
-
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: building zero-slippage quote',
-        id,
-        properties: {
-          chosenSourceDomain,
-          destinationDomain: outChain.domain,
-          amountBase6: amountBase6.toString(),
-          sources: sources.map((s) => {
-            const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
-            return `${s.domain}:${s.amountBase6.toString()}(+fee:${fee.toString()})`
-          }),
-        },
-      }),
-    )
 
     const percentCfg = this.getGatewayFeesConfig().percent
     // Slippage reported in percentage units (e.g., 0.005 means 0.005%)
@@ -357,21 +280,15 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       id,
     }
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: quote built',
-        id,
-        properties: { quote },
-      }),
-    )
-
     return quote
   }
 
   // Select per-domain sources that cover the requested amount, fee-aware
+  @LogOperation('provider_source_selection', LiquidityManagerLogger)
   private async selectSourcesForAmount(
-    amountBase6: bigint,
-    id?: string,
+    @LogContext amountBase6: bigint,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext id?: string,
   ): Promise<{ domain: number; amountBase6: bigint }[]> {
     const depositor = (await this.walletClientService.getAccount()).address as Hex
     const balanceResp = await this.client.getBalancesForDepositor('USDC', depositor)
@@ -397,6 +314,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
 
     if (remaining > 0n || !sources.length) {
+      // Business event: Log insufficient balance for source selection
+      this.logger.logProviderInsufficientBalance(
+        'Gateway',
+        remaining.toString(),
+        amountBase6.toString(),
+      )
+
       throw new GatewayQuoteValidationError(
         'Insufficient Gateway unified balance after selection',
         {
@@ -406,31 +330,16 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       )
     }
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: selected sources',
-        id,
-        properties: {
-          requestedBase6: amountBase6.toString(),
-          sources: sources.map((s) => {
-            const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
-            return `${s.domain}:${s.amountBase6.toString()}(+fee:${fee.toString()})`
-          }),
-        },
-      }),
-    )
-
     return sources
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Gateway'>): Promise<string> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: executing quote',
-        id: quote.id,
-        properties: { quote },
-      }),
-    )
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(
+    @LogContext walletAddress: string,
+    @LogContext quote: RebalanceQuote<'Gateway'>,
+  ): Promise<string> {
+    // Business event: Log provider execution
+    this.logger.logProviderExecution('Gateway', walletAddress, quote)
     try {
       const { destinationDomain, amountBase6, sources: contextSources, id } = quote.context
 
@@ -460,18 +369,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
 
       const signerClient = await this.walletClientService.getClient(quote.tokenIn.chainId)
       const transferItems: Array<{ burnIntent: any; signature: Hex }> = []
-
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: preparing transfer items',
-          id,
-          properties: {
-            sources: sources.map((s) => `${s.domain}:${s.amountBase6.toString()}`),
-            totalAmountBase6: amountBase6.toString(),
-            items: sources.length,
-          },
-        }),
-      )
 
       // Build burn intents for each source domain
       for (const src of sources) {
@@ -504,18 +401,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         })
         const signature: Hex = await (signerClient as any).signTypedData(typedData)
         transferItems.push({ burnIntent: (typedData as any).message, signature })
-
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: 'Gateway: signed burn intent',
-            id,
-            properties: {
-              sourceDomain: src.domain,
-              value: src.amountBase6.toString(),
-              maxFee: maxFeeForIntent.toString(),
-            },
-          }),
-        )
       }
 
       // 2) Request attestation from Gateway API using an array of burn intents
@@ -523,16 +408,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       if ('message' in attestationResp) {
         throw new Error(`Gateway attestation error: ${attestationResp.message}`)
       }
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: attestation received',
-          id,
-          properties: {
-            items: transferItems.length,
-            hasTransferId: !!(attestationResp as any).transferId,
-          },
-        }),
-      )
 
       // 3) Mint on destination
       const minterAddress = await this.getMinterAddress(destinationDomain)
@@ -548,19 +423,6 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         args: [attestationResp.attestation, attestationResp.signature],
       })
       await destPublicClient.waitForTransactionReceipt({ hash: txHash })
-
-      this.logger.log(
-        EcoLogMessage.withId({
-          message: 'Gateway: Minted on destination',
-          id,
-          properties: {
-            txHash,
-            chainId: quote.tokenOut.chainId,
-            depositor: eoaAddress,
-            recipient: kernelAddress,
-          },
-        }),
-      )
 
       // Enqueue top-up of unified balance from Kernel via depositFor to EOA (on tokenIn chain)
       const inChainTopUp = this.configService
@@ -584,27 +446,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         }
 
         await this.liquidityManagerQueue.startGatewayTopUp(gatewayTopUpJobData)
-
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: 'Gateway: top-up job enqueued',
-            id,
-            properties: {
-              chainId: quote.tokenIn.chainId,
-              amountBase6: quote.amountIn.toString(),
-              gatewayWallet: walletAddr,
-            },
-          }),
-        )
       } else {
-        this.logger.warn(
-          EcoLogMessage.withId({
-            message: 'Gateway: Skipping top-up enqueue (missing usdc or GatewayWallet address)',
-            id,
-            properties: { chainId: quote.tokenIn.chainId },
-          }),
-        )
-
         await this.rebalanceRepository.updateStatus(
           quote.rebalanceJobID!,
           RebalanceStatus.COMPLETED,
@@ -626,46 +468,32 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     ttl: 60 * 60 * 1000, // 1 hour
     bypassArgIndex: 0,
   })
+  @LogOperation('provider_domain_fetch', LiquidityManagerLogger)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async getSupportedDomains(_forceRefresh = false) {
+  private async getSupportedDomains(@LogContext _forceRefresh = false) {
     const info = await this.client.getInfo()
     const domains = info.domains.map((d) => ({
       domain: d.domain,
       wallet: d.walletContract,
       minter: d.minterContract,
     }))
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'Gateway: fetched supported domains',
-        properties: { domains },
-      }),
-    )
     return domains
   }
 
+  @LogOperation('provider_domain_validation', LiquidityManagerLogger)
   private async ensureDomainsSupported(
-    sourceDomain: number,
-    destinationDomain: number,
-    id?: string,
+    @LogContext sourceDomain: number,
+    @LogContext destinationDomain: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext id?: string,
   ) {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: validating domain support',
-        id,
-        properties: { sourceDomain, destinationDomain },
-      }),
-    )
     const domains = await this.getSupportedDomains(false)
     const src = domains.find((d) => d.domain === sourceDomain)
     const dst = domains.find((d) => d.domain === destinationDomain)
     if (!src || !src.wallet) {
-      this.logger.error(
-        EcoLogMessage.withId({
-          message: 'Gateway: source domain not supported by Gateway (wallet missing)',
-          id,
-          properties: { sourceDomain },
-        }),
-      )
+      // Business event: Log domain validation failure
+      this.logger.logProviderDomainValidation('Gateway', sourceDomain.toString(), false)
+
       throw new GatewayQuoteValidationError(
         'Source domain not supported by Gateway (wallet missing)',
         {
@@ -674,13 +502,9 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       )
     }
     if (!dst || !dst.minter) {
-      this.logger.error(
-        EcoLogMessage.withId({
-          message: 'Gateway: destination domain not supported by Gateway (minter missing)',
-          id,
-          properties: { destinationDomain },
-        }),
-      )
+      // Business event: Log domain validation failure
+      this.logger.logProviderDomainValidation('Gateway', destinationDomain.toString(), false)
+
       throw new GatewayQuoteValidationError(
         'Destination domain not supported by Gateway (minter missing)',
         {
@@ -688,9 +512,14 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
         },
       )
     }
+
+    // Business event: Log successful domain validation
+    this.logger.logProviderDomainValidation('Gateway', sourceDomain.toString(), true)
+    this.logger.logProviderDomainValidation('Gateway', destinationDomain.toString(), true)
   }
 
-  private async getMinterAddress(destinationDomain: number): Promise<Hex> {
+  @LogOperation('provider_minter_resolution', LiquidityManagerLogger)
+  private async getMinterAddress(@LogContext destinationDomain: number): Promise<Hex> {
     const cfg = this.configService.getGatewayConfig()
     const fromConfig = cfg.chains.find((c) => c.domain === destinationDomain)?.minter as
       | Hex
@@ -702,7 +531,12 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     return match.minter as Hex
   }
 
-  private async ensureSufficientUnifiedBalance(requiredBase6: bigint, id?: string) {
+  @LogOperation('provider_balance_validation', LiquidityManagerLogger)
+  private async ensureSufficientUnifiedBalance(
+    @LogContext requiredBase6: bigint,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext id?: string,
+  ) {
     const depositor = (await this.walletClientService.getAccount()).address as Hex
     const balanceResp = await (this.client as any).getBalancesForDepositor('USDC', depositor)
 
@@ -712,33 +546,17 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
     const availableBase6 = Array.from(domainToBalance.values()).reduce((acc, v) => acc + v, 0n)
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: checking unified balance across domains',
-        id,
-        properties: {
-          requiredBase6: requiredBase6.toString(),
-          availableBase6: availableBase6.toString(),
-          depositor,
-          perDomain: Object.fromEntries(
-            Array.from(domainToBalance.entries()).map(([d, v]) => [d, v.toString()]),
-          ),
-        },
-      }),
-    )
+    // Business event: Log balance check
+    this.logger.logProviderBalanceCheck('Gateway', depositor, availableBase6.toString())
 
     if (availableBase6 < requiredBase6) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'Gateway: Insufficient unified balance (across all domains)',
-          id,
-          properties: {
-            requiredBase6: requiredBase6.toString(),
-            availableBase6: availableBase6.toString(),
-            depositor,
-          },
-        }),
+      // Business event: Log insufficient balance
+      this.logger.logProviderInsufficientBalance(
+        'Gateway',
+        availableBase6.toString(),
+        requiredBase6.toString(),
       )
+
       throw new GatewayQuoteValidationError('Insufficient Gateway unified balance', {
         requestedBase6: requiredBase6.toString(),
         availableBase6: availableBase6.toString(),
@@ -750,7 +568,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     }
   }
 
-  private async getWalletAddress(sourceDomain: number): Promise<Hex> {
+  @LogOperation('provider_wallet_resolution', LiquidityManagerLogger)
+  private async getWalletAddress(@LogContext sourceDomain: number): Promise<Hex> {
     const cfg = this.configService.getGatewayConfig()
     const fromConfig = cfg.chains.find((c) => c.domain === sourceDomain)?.wallet as Hex | undefined
     if (fromConfig) return fromConfig

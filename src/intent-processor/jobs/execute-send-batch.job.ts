@@ -1,7 +1,6 @@
 import * as _ from 'lodash'
 import { BulkJobOptions, Job } from 'bullmq'
 import { encodePacked, Hex, keccak256 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
@@ -77,10 +76,10 @@ export class ExecuteSendBatchJobManager extends IntentProcessorJobManager<Execut
    */
   onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: Error) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${ExecuteSendBatchJobManager.name}: Failed`,
-        properties: { error: error.message },
-      }),
+      { operationType: 'job_execution', status: 'failed' },
+      `${ExecuteSendBatchJobManager.name}: Failed`,
+      error,
+      { job_name: ExecuteSendBatchJobManager.name, job_id: job.id, job_data: job.data },
     )
   }
 }

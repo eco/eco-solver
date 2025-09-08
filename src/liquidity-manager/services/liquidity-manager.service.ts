@@ -69,6 +69,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     this.checkBalancesQueueWrapper = new CheckBalancesQueue(this.checkBalancesQueue as any)
   }
 
+  @LogOperation('system_bootstrap', LiquidityManagerLogger)
   async onApplicationBootstrap() {
     // Remove existing job schedulers for CHECK_BALANCES (legacy + new queue)
     try {
@@ -79,11 +80,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       )
       await removeJobSchedulers(this.queue, LiquidityManagerJobName.CHECK_BALANCES)
     } catch (e) {
-      this.logger.warn(
-        { rebalanceId: 'system', walletAddress: 'system', strategy: 'system' },
-        'CHECK_BALANCES: failed to clean legacy queue schedulers',
-        { queue: this.queue.name, error: (e as any)?.message ?? e },
-      )
+      // Business event logging - queue cleanup failure
+      this.logger.logScheduledJobEvent('system', 'queue_cleanup', 'failed', {
+        queue: this.queue.name,
+        error: (e as any)?.message ?? e,
+      })
     }
 
     // Try to remove any previous schedulers on the new queue as well (idempotent)
@@ -95,11 +96,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       )
       await removeJobSchedulers(this.checkBalancesQueue, LiquidityManagerJobName.CHECK_BALANCES)
     } catch (e) {
-      this.logger.warn(
-        { rebalanceId: 'system', walletAddress: 'system', strategy: 'system' },
-        'CHECK_BALANCES: failed to clean dedicated queue schedulers',
-        { error: (e as any)?.message ?? e },
-      )
+      // Business event logging - dedicated queue cleanup failure
+      this.logger.logScheduledJobEvent('system', 'dedicated_queue_cleanup', 'failed', {
+        queue: this.checkBalancesQueueWrapper.name,
+        error: (e as any)?.message ?? e,
+      })
     }
 
     // Get wallet addresses we'll be monitoring
@@ -112,6 +113,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     await this.ensureGatewayBootstrap()
   }
 
+  @LogSubOperation('gateway_bootstrap')
   private async ensureGatewayBootstrap() {
     // Gateway bootstrap deposit (simple one-time) if enabled
     try {
@@ -119,16 +121,16 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       const anyProvider = (this.liquidityProviderManager as any).gatewayProviderService
       if (anyProvider?.ensureBootstrapOnce) {
         await anyProvider.ensureBootstrapOnce('bootstrap')
+        // Business event logging - successful bootstrap
+        this.logger.logProviderBootstrap('gateway', 0, true)
       }
     } catch (error) {
-      this.logger.warn(
-        { rebalanceId: 'system', walletAddress: 'system', strategy: 'system' },
-        'Gateway bootstrap deposit skipped or failed',
-        { error },
-      )
+      // Business event logging - bootstrap failure
+      this.logger.logProviderBootstrap('gateway', 0, false)
     }
   }
 
+  @LogOperation('rebalance_initialization', LiquidityManagerLogger)
   async initializeRebalances() {
     // Use OP as the default chain assuming the Kernel wallet is the same across all chains
     const opChainId = 10
@@ -240,7 +242,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     }
   }
 
-  analyzeToken(token: TokenData) {
+  @LogSubOperation('individual_token_analysis')
+  analyzeToken(@LogContext token: TokenData) {
     return analyzeToken(token.config, token.balance, {
       up: this.config.thresholds.surplus,
       down: this.config.thresholds.deficit,
@@ -272,7 +275,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokens)
   }
 
-  startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
+  @LogOperation('rebalance_start', LiquidityManagerLogger)
+  startRebalancing(@LogContext walletAddress: string, @LogContext rebalances: RebalanceRequest[]) {
     if (rebalances.length === 0) {
       return
     }

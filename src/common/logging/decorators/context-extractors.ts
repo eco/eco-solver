@@ -617,6 +617,170 @@ export const extractGaslessIntentRequestContext: ContextExtractor = (
 }
 
 /**
+ * Context extractor for Provider entities
+ * Maps provider service contexts to Datadog-optimized structure
+ */
+export const extractProviderContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for provider-specific identifiers
+  if (!('providerId' in entity || 'providerName' in entity || 'id' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      provider_id: entity.providerId || entity.providerName || entity.id,
+      source_chain_id: entity.chainId || entity.sourceChainId,
+      destination_chain_id: entity.destinationChainId,
+      wallet_address: entity.walletAddress || entity.address,
+    },
+    metrics: {
+      balance: entity.balance?.toString(),
+      liquidity_amount: entity.liquidityAmount?.toString(),
+      quote_amount: entity.quoteAmount?.toString(),
+    },
+    operation: {
+      provider_enabled: entity.enabled,
+      provider_status: entity.status,
+      last_updated: entity.updatedAt?.toISOString() || entity.lastUpdated?.toISOString(),
+    },
+  }
+}
+
+/**
+ * Context extractor for Processor entities
+ * Maps BullMQ processor contexts to Datadog-optimized structure
+ */
+export const extractProcessorContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for processor-specific identifiers
+  if (!('processorType' in entity || 'jobType' in entity || 'name' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      processor_type: entity.processorType || entity.jobType || entity.name,
+      job_id: entity.jobId || entity.id,
+      intent_hash: entity.intentHash,
+    },
+    metrics: {
+      processing_time: entity.processingTime?.toString(),
+      retry_count: entity.retryCount?.toString() || entity.attempts?.toString(),
+      queue_wait_time: entity.queueWaitTime?.toString(),
+    },
+    operation: {
+      job_status: entity.status || entity.state,
+      created_at: entity.createdAt?.toISOString() || entity.timestamp?.toISOString(),
+      completed_at: entity.completedAt?.toISOString() || entity.finishedOn?.toISOString(),
+    },
+  }
+}
+
+/**
+ * Context extractor for Health entities
+ * Maps health check and monitoring contexts to Datadog-optimized structure
+ */
+export const extractHealthContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for health-specific identifiers
+  if (!('checkType' in entity || 'healthStatus' in entity || 'target' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      health_check_type: entity.checkType || entity.type,
+      target_component: entity.target || entity.component,
+      source_chain_id: entity.chainId,
+    },
+    metrics: {
+      response_time: entity.responseTime?.toString(),
+      uptime: entity.uptime?.toString(),
+      error_count: entity.errorCount?.toString(),
+    },
+    operation: {
+      health_status: entity.healthStatus || entity.status,
+      is_healthy: entity.healthy || entity.isHealthy,
+      check_timestamp: entity.timestamp?.toISOString() || entity.checkedAt?.toISOString(),
+    },
+  }
+}
+
+/**
+ * Context extractor for Analytics entities
+ * Maps analytics service contexts to Datadog-optimized structure
+ */
+export const extractAnalyticsContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for analytics-specific identifiers
+  if (!('eventType' in entity || 'analyticsType' in entity || 'metric' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      analytics_event: entity.eventType || entity.analyticsType,
+      metric_name: entity.metric || entity.name,
+      source_chain_id: entity.chainId,
+    },
+    metrics: {
+      metric_value: entity.value?.toString() || entity.metricValue?.toString(),
+      count: entity.count?.toString(),
+      duration: entity.duration?.toString(),
+    },
+    operation: {
+      analytics_status: entity.status,
+      recorded_at: entity.recordedAt?.toISOString() || entity.timestamp?.toISOString(),
+    },
+  }
+}
+
+/**
+ * Context extractor for Validator entities
+ * Maps validation service contexts to Datadog-optimized structure
+ */
+export const extractValidatorContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for validator-specific identifiers
+  if (!('validationType' in entity || 'validator' in entity || 'validationResult' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      validation_type: entity.validationType || entity.validator,
+      intent_hash: entity.intentHash,
+      permit_hash: entity.permitHash,
+    },
+    validation: {
+      is_valid: entity.isValid || entity.valid || entity.validationResult,
+      validation_errors: entity.validationErrors || entity.errors,
+      validation_warnings: entity.validationWarnings || entity.warnings,
+    },
+    operation: {
+      validation_status: entity.status,
+      validated_at: entity.validatedAt?.toISOString() || entity.timestamp?.toISOString(),
+    },
+  }
+}
+
+/**
  * Main context extraction function that tries all extractors
  */
 export async function extractContextFromEntity(entity: any): Promise<ExtractedContext> {
@@ -636,6 +800,11 @@ export async function extractContextFromEntity(entity: any): Promise<ExtractedCo
     extractTokenDataContext,
     extractValidationChecksContext,
     extractGaslessIntentRequestContext,
+    extractProviderContext, // New provider context extractor
+    extractProcessorContext, // New processor context extractor
+    extractHealthContext, // New health context extractor
+    extractAnalyticsContext, // New analytics context extractor
+    extractValidatorContext, // New validator context extractor
     extractWalletContext,
     extractTransactionContext,
   ]

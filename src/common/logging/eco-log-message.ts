@@ -16,6 +16,7 @@ import {
   LogLevel,
   DATADOG_LIMITS,
 } from './types'
+import { stringify } from '../utils/serialize'
 
 interface BaseLoggingDataParams {
   message: string
@@ -106,7 +107,7 @@ export class EcoLogMessage {
     }
 
     // Validate log size
-    const logSize = JSON.stringify(validated).length
+    const logSize = stringify(validated).length
     if (logSize > DATADOG_LIMITS.MAX_LOG_SIZE) {
       // eslint-disable-next-line no-console
       console.warn(

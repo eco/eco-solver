@@ -5,7 +5,6 @@ import { IntentFulfillmentJobName } from '@/intent-fulfillment/queues/intent-ful
 import { serialize, Serialize, deserialize } from '@/common/utils/serialize'
 import { getIntentJobId } from '@/common/utils/strings'
 import { IntentFulfillmentProcessor } from '@/intent-fulfillment/processors/intent-fulfillment.processor'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 export type FulfillIntentJobData = {
   intentHash: Hex
@@ -52,40 +51,47 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
     if (this.is(job)) {
       const jobData = deserialize(job.data)
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `[START] Fulfilling job`,
-          properties: {
-            jobId: job.id,
-            intentHash: jobData.intentHash,
-            chainId: jobData.chainId,
-          },
-        }),
+        {
+          operationType: 'intent_fulfillment',
+          status: 'started',
+        },
+        `[START] Fulfilling job`,
+        {
+          jobId: job.id,
+          intentHash: jobData.intentHash,
+          chainId: jobData.chainId,
+        },
       )
 
       await processor.fulfillIntentService.fulfill(jobData.intentHash)
 
       processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `[END] Fulfilling job`,
-          properties: {
-            jobId: job.id,
-            intentHash: jobData.intentHash,
-            chainId: jobData.chainId,
-          },
-        }),
+        {
+          operationType: 'intent_fulfillment',
+          status: 'completed',
+        },
+        `[END] Fulfilling job`,
+        {
+          jobId: job.id,
+          intentHash: jobData.intentHash,
+          chainId: jobData.chainId,
+        },
       )
     }
   }
 
   onFailed(job: FulfillIntentJob, processor: IntentFulfillmentProcessor, error: Error) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${FulfillIntentJobManager.name}: Failed`,
-        properties: {
-          job: { id: job.id, data: deserialize(job.data) },
-          error: error.message,
-        },
-      }),
+      {
+        operationType: 'intent_fulfillment',
+        status: 'failed',
+      },
+      `${FulfillIntentJobManager.name}: Failed`,
+      error,
+      {
+        job: { id: job.id, data: deserialize(job.data) },
+        error: error.message,
+      },
     )
   }
 }

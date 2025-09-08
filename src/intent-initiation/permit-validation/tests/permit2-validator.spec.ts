@@ -31,6 +31,7 @@ const validPermit: Permit2Params = {
 
 describe('Permit2Validator', () => {
   let publicClient: PublicClient
+  let permit2Validator: Permit2Validator
 
   beforeEach(() => {
     publicClient = createMock<PublicClient>({
@@ -41,6 +42,7 @@ describe('Permit2Validator', () => {
       ]),
     })
 
+    permit2Validator = new Permit2Validator()
     mockVerifyTypedData.mockResolvedValue(true)
   })
 
@@ -49,7 +51,7 @@ describe('Permit2Validator', () => {
   })
 
   it('should validate a valid permit without errors', async () => {
-    const result = await Permit2Validator.validatePermits(publicClient, 1, [validPermit])
+    const result = await permit2Validator.validatePermits(publicClient, 1, [validPermit])
     expect(result).toEqual({})
     expect(mockVerifyTypedData).toHaveBeenCalled()
   })
@@ -59,19 +61,19 @@ describe('Permit2Validator', () => {
       ...validPermit,
       permit2Address: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Address,
     }
-    const result = await Permit2Validator.validatePermit(publicClient, 1, invalid)
+    const result = await permit2Validator.validatePermit(publicClient, 1, invalid)
     expect(result.error).toBe(EcoError.InvalidPermit2Address)
   })
 
   it('should return error for expired sigDeadline', async () => {
     const expired = { ...validPermit, sigDeadline: BigInt(now - 100) }
-    const result = await Permit2Validator.validatePermit(publicClient, 1, expired)
+    const result = await permit2Validator.validatePermit(publicClient, 1, expired)
     expect(result.error).toBe(EcoError.PermitExpired)
   })
 
   it('should return error for invalid signature', async () => {
     mockVerifyTypedData.mockResolvedValue(false)
-    const result = await Permit2Validator.validatePermitSignature(1, validPermit)
+    const result = await permit2Validator.validatePermitSignature(1, validPermit)
     expect(result.error).toBe(EcoError.InvalidPermitSignature)
   })
 
@@ -82,7 +84,7 @@ describe('Permit2Validator', () => {
       99n, // wrong nonce
     ])
 
-    const result = await Permit2Validator.validateNonces(publicClient, validPermit)
+    const result = await permit2Validator.validateNonces(publicClient, validPermit)
     expect(result.error).toBe(EcoError.InvalidPermitNonce)
   })
 
@@ -92,7 +94,7 @@ describe('Permit2Validator', () => {
       details: [{ ...validPermit.details[0], expiration: BigInt(now - 10) }],
     }
 
-    const result = await Permit2Validator.validateNonces(publicClient, expiredTokenPermit)
+    const result = await permit2Validator.validateNonces(publicClient, expiredTokenPermit)
     expect(result.error).toBe(EcoError.PermitExpired)
   })
 
@@ -103,12 +105,12 @@ describe('Permit2Validator', () => {
       5n,
     ])
 
-    const result = await Permit2Validator.validateNonces(publicClient, validPermit)
+    const result = await permit2Validator.validateNonces(publicClient, validPermit)
     expect(result.error).toBe(EcoError.PermitExpirationMismatch)
   })
 
   it('should generate correct permit calls', () => {
-    const calls = Permit2Validator.getPermitCalls([validPermit])
+    const calls = permit2Validator.getPermitCalls([validPermit])
     expect(calls).toHaveLength(1)
     expect(calls[0].functionName).toBe('permit')
   })

@@ -392,4 +392,175 @@ export class LiquidityManagerLogger extends BaseStructuredLogger {
 
     this.logMessage(context, success ? 'info' : 'error', message)
   }
+
+  // ================== PROVIDER-SPECIFIC BUSINESS EVENT METHODS ==================
+  // These methods support provider refactoring outlined in Phase 2 of the plan
+
+  /**
+   * Log provider bootstrap events
+   */
+  logProviderBootstrap(providerId: string, chainId: number, enabled: boolean): void {
+    const context = {
+      eco: {
+        provider_id: providerId,
+        source_chain_id: chainId,
+      },
+      provider_bootstrap: {
+        bootstrap_enabled: enabled,
+        bootstrap_chain_id: chainId,
+        bootstrap_status: enabled ? 'enabled' : 'disabled',
+      },
+      operation: {
+        business_event: 'provider_bootstrap',
+        action_taken: enabled ? 'enable_provider' : 'disable_provider',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'info',
+      `Provider ${providerId} bootstrap ${enabled ? 'enabled' : 'disabled'} on chain ${chainId}`,
+    )
+  }
+
+  /**
+   * Log provider quote generation events
+   */
+  logProviderQuoteGeneration(providerId: string, quoteRequest: any, success: boolean): void {
+    const context = {
+      eco: {
+        provider_id: providerId,
+        source_chain_id: quoteRequest?.sourceChainId || quoteRequest?.fromChain,
+        destination_chain_id: quoteRequest?.destinationChainId || quoteRequest?.toChain,
+      },
+      provider_quote: {
+        quote_success: success,
+        quote_amount: quoteRequest?.amount?.toString(),
+        token_in: quoteRequest?.tokenIn || quoteRequest?.fromToken,
+        token_out: quoteRequest?.tokenOut || quoteRequest?.toToken,
+        slippage: quoteRequest?.slippage,
+      },
+      operation: {
+        business_event: 'provider_quote_generation',
+        action_taken: success ? 'return_quote' : 'quote_failed',
+      },
+    }
+
+    this.logMessage(
+      context,
+      success ? 'info' : 'warn',
+      `Provider ${providerId} quote generation ${success ? 'successful' : 'failed'}`,
+    )
+  }
+
+  /**
+   * Log provider execution events
+   */
+  logProviderExecution(providerId: string, walletAddress: string, quote: any): void {
+    const context = {
+      eco: {
+        provider_id: providerId,
+        wallet_address: walletAddress,
+        quote_id: quote?.quoteId || quote?.id,
+        source_chain_id: quote?.sourceChainId || quote?.fromChain,
+        destination_chain_id: quote?.destinationChainId || quote?.toChain,
+      },
+      provider_execution: {
+        execution_amount: quote?.amount?.toString() || quote?.amountIn?.toString(),
+        expected_output: quote?.amountOut?.toString(),
+        execution_method: quote?.executionMethod || 'swap',
+      },
+      operation: {
+        business_event: 'provider_execution',
+        action_taken: 'execute_swap',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'info',
+      `Provider ${providerId} executing swap for wallet ${walletAddress}`,
+    )
+  }
+
+  /**
+   * Log provider balance check events
+   */
+  logProviderBalanceCheck(providerId: string, domain: string, balance: string): void {
+    const context = {
+      eco: {
+        provider_id: providerId,
+        source_chain_id: domain,
+      },
+      provider_balance: {
+        current_balance: balance,
+        balance_check_domain: domain,
+        balance_adequate: true, // Default - will be updated by insufficient balance logs
+      },
+      operation: {
+        business_event: 'provider_balance_check',
+        action_taken: 'check_balance',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'debug',
+      `Provider ${providerId} balance check: ${balance} on domain ${domain}`,
+    )
+  }
+
+  /**
+   * Log provider domain validation events
+   */
+  logProviderDomainValidation(providerId: string, domain: string, supported: boolean): void {
+    const context = {
+      eco: {
+        provider_id: providerId,
+        source_chain_id: domain,
+      },
+      provider_validation: {
+        validated_domain: domain,
+        domain_supported: supported,
+        validation_type: 'domain_support',
+      },
+      operation: {
+        business_event: 'provider_domain_validation',
+        action_taken: supported ? 'domain_accepted' : 'domain_rejected',
+      },
+    }
+
+    this.logMessage(
+      context,
+      supported ? 'debug' : 'warn',
+      `Provider ${providerId} domain ${domain} ${supported ? 'supported' : 'not supported'}`,
+    )
+  }
+
+  /**
+   * Log provider insufficient balance scenarios
+   */
+  logProviderInsufficientBalance(providerId: string, required: string, available: string): void {
+    const context = {
+      eco: {
+        provider_id: providerId,
+      },
+      provider_balance: {
+        required_balance: required,
+        available_balance: available,
+        balance_adequate: false,
+        balance_deficit: (BigInt(required) - BigInt(available)).toString(),
+      },
+      operation: {
+        business_event: 'provider_insufficient_balance',
+        action_taken: 'reject_quote',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'warn',
+      `Provider ${providerId} insufficient balance: need ${required}, have ${available}`,
+    )
+  }
 }

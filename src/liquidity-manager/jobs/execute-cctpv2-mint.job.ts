@@ -1,7 +1,6 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { CCTPV2StrategyContext } from '../types/types'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
@@ -53,17 +52,12 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
 
   async process(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
     const { destinationChainId, messageBody, attestation } = job.data
-    processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPV2: Processing V2 mint job',
-        id: job.data.id,
-        properties: {
-          destinationChainId,
-          messageLength: messageBody.length,
-          attestationLength: attestation.length,
-        },
-      }),
-    )
+    processor.logger.debug({ operationType: 'job_execution' }, 'CCTPV2: Processing V2 mint job', {
+      id: job.data.id,
+      destinationChainId,
+      messageLength: messageBody.length,
+      attestationLength: attestation.length,
+    })
     deserialize(job.data.context) // Deserialize for consistency, though not used here
 
     let txHash = job.data.txHash as Hex | undefined
@@ -87,17 +81,15 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     const { groupID, rebalanceJobID } = jobData
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: `CCTPV2: ExecuteCCTPV2MintJob: Completed!`,
+      { operationType: 'job_execution', status: 'completed' },
+      'CCTPV2: ExecuteCCTPV2MintJob: Completed!',
+      {
         id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          chainId: job.data.destinationChainId,
-          txHash: job.returnvalue,
-          id: job.data.id,
-        },
-      }),
+        groupID,
+        rebalanceJobID,
+        chainId: job.data.destinationChainId,
+        txHash: job.returnvalue,
+      },
     )
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
@@ -117,14 +109,13 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     }
 
     processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
+      { operationType: 'job_execution', status: 'failed' },
+      errorMessage,
+      error as any,
+      {
         id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
+        data: job.data,
+      },
     )
   }
 }

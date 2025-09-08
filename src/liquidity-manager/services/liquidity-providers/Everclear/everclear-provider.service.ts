@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
 import {
@@ -13,7 +13,8 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { EverclearConfig } from '@/eco-configs/eco-config.types'
 import { parseUnits } from 'viem'
 import { Hex } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EverclearApiError } from './everclear.errors'
 import { getSlippage } from '@/liquidity-manager/utils/math'
 import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
@@ -24,7 +25,7 @@ import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum
 
 @Injectable()
 export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {
-  private logger = new Logger(EverclearProviderService.name)
+  private logger = new LiquidityManagerLogger('EverclearProviderService')
   private config: EverclearConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
 
@@ -39,8 +40,12 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     this.liquidityManagerQueue = new LiquidityManagerQueue(this.queue)
   }
 
+  @LogOperation('provider_bootstrap', LiquidityManagerLogger)
   async onModuleInit() {
     this.config = this.configService.getEverclear()
+
+    // Log provider bootstrap completion
+    this.logger.logProviderBootstrap('Everclear', 0, true) // Chain ID 0 represents multi-chain support
   }
 
   getStrategy() {
@@ -57,39 +62,17 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     })
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    id?: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
+    @LogContext id?: string,
   ): Promise<RebalanceQuote<'Everclear'>[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: getting quote',
-        id,
-        properties: { tokenIn, tokenOut, swapAmount },
-      }),
-    )
-
     // Everclear only supports cross-chain transfers of the same token representation.
     // If origin and destination chains are the same, skip quoting entirely.
     if (tokenIn.chainId === tokenOut.chainId) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
-          id,
-          properties: {
-            tokenIn: {
-              address: tokenIn.config.address,
-              chainId: tokenIn.chainId,
-            },
-            tokenOut: {
-              address: tokenOut.config.address,
-              chainId: tokenOut.chainId,
-            },
-          },
-        }),
-      )
+      this.logger.logProviderDomainValidation('Everclear', tokenIn.chainId.toString(), false)
       return []
     }
 
@@ -99,23 +82,16 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     ])
 
     if (tokenInSymbol !== tokenOutSymbol) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
-          id,
-          properties: {
-            tokenIn: {
-              symbol: tokenInSymbol,
-              address: tokenIn.config.address,
-              chainId: tokenIn.config.chainId,
-            },
-            tokenOut: {
-              symbol: tokenOutSymbol,
-              address: tokenOut.config.address,
-              chainId: tokenOut.config.chainId,
-            },
-          },
-        }),
+      this.logger.logProviderQuoteGeneration(
+        'Everclear',
+        {
+          tokenIn,
+          tokenOut,
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+        },
+        false,
       )
       return []
     }
@@ -142,14 +118,6 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     if (!response.ok) {
       const errorBody = await response.text()
       const errorMessage = `Everclear API error: ${response.status} ${response.statusText}`
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          message: errorMessage,
-          error: new Error(errorBody),
-          id,
-          properties: { requestBody },
-        }),
-      )
       throw new EverclearApiError(errorMessage, response.status, errorBody, {
         requestBody,
       })
@@ -170,32 +138,38 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       id,
     }
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: quote generated',
-        id,
-        properties: { quote },
-      }),
+    // Log successful quote generation
+    this.logger.logProviderQuoteGeneration(
+      'Everclear',
+      {
+        tokenIn,
+        tokenOut,
+        sourceChainId: tokenIn.chainId,
+        destinationChainId: tokenOut.chainId,
+        amount: swapAmount,
+        slippage,
+      },
+      true,
     )
 
     return [quote]
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Everclear'>): Promise<string> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: executing quote',
-        id: quote.id,
-        properties: { walletAddress, quote },
-      }),
-    )
-
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(
+    @LogContext walletAddress: string,
+    @LogContext quote: RebalanceQuote<'Everclear'>,
+  ): Promise<string> {
     try {
-      const { tokenIn, tokenOut, amountIn, id } = quote
+      const { tokenIn, tokenOut, amountIn } = quote
+
+      // Log execution start
+      this.logger.logProviderExecution('Everclear', walletAddress, quote)
 
       // Everclear only supports cross-chain transfers of the same token representation.
       // If origin and destination chains are the same, do not execute.
       if (tokenIn.chainId === tokenOut.chainId) {
+        this.logger.logProviderDomainValidation('Everclear', tokenIn.chainId.toString(), false)
         throw new Error(
           `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
         )
@@ -207,6 +181,17 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       ])
 
       if (tokenInSymbol !== tokenOutSymbol) {
+        this.logger.logProviderQuoteGeneration(
+          'Everclear',
+          {
+            tokenIn,
+            tokenOut,
+            sourceChainId: tokenIn.chainId,
+            destinationChainId: tokenOut.chainId,
+            amount: Number(amountIn),
+          },
+          false,
+        )
         throw new Error(
           `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
         )
@@ -233,27 +218,12 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       if (!response.ok) {
         const errorBody = await response.text()
         const errorMessage = `Everclear API error on /intents: ${response.status} ${response.statusText}`
-        this.logger.error(
-          EcoLogMessage.withErrorAndId({
-            message: errorMessage,
-            error: new Error(errorBody),
-            id,
-            properties: { requestBody },
-          }),
-        )
         throw new EverclearApiError(errorMessage, response.status, errorBody, {
           requestBody,
         })
       }
 
       const txRequest = await response.json()
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Everclear: intent created',
-          id,
-          properties: { txRequest },
-        }),
-      )
       const client = await this.kernelAccountClientService.getClient(tokenIn.chainId)
 
       if (!client.account || !client.chain) {
@@ -262,26 +232,12 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
 
       const spenderAddress = txRequest.to as Hex
       const approveTx = createApproveTransaction(tokenIn.config.address, spenderAddress, amountIn)
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Everclear: approving tokens',
-          id,
-          properties: { approveTx },
-        }),
-      )
 
       const intentTx = {
         to: txRequest.to,
         data: txRequest.data,
         value: BigInt(txRequest.value ?? 0),
       }
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Everclear: intent transaction',
-          id,
-          properties: { intentTx },
-        }),
-      )
 
       let txHash: Hex
       try {
@@ -290,33 +246,9 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
         if (!txReceipt) {
           throw new Error('Transaction receipt was null.')
         }
-
-        this.logger.log(
-          EcoLogMessage.withId({
-            message: 'Everclear: transaction sent',
-            id,
-            properties: { txHash, txReceipt },
-          }),
-        )
       } catch (error) {
-        this.logger.error(
-          EcoLogMessage.withErrorAndId({
-            message: 'Everclear: transaction failed',
-            error,
-            id,
-            properties: { txRequest },
-          }),
-        )
         throw error
       }
-
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Everclear: transaction sent',
-          id,
-          properties: { txHash },
-        }),
-      )
 
       await this.liquidityManagerQueue.startCheckEverclearIntent({
         groupID: quote.groupID!,
@@ -324,14 +256,6 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
         txHash,
         id: quote.id,
       })
-
-      this.logger.log(
-        EcoLogMessage.withId({
-          message: 'Everclear: intent monitoring job queued',
-          id,
-          properties: { txHash },
-        }),
-      )
 
       return txHash
     } catch (error) {
@@ -344,13 +268,13 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     }
   }
 
+  @LogOperation('provider_validation', LiquidityManagerLogger)
   async checkIntentStatus(
-    txHash: Hex,
+    @LogContext txHash: Hex,
   ): Promise<{ status: 'pending' | 'complete' | 'failed'; intentId?: string }> {
     // 1. Get intent by txHash
     const intentResponse = await fetch(`${this.config.baseUrl}/intents?txHash=${txHash}`)
     if (!intentResponse.ok) {
-      this.logger.error(`Failed to fetch intent by txHash ${txHash}`)
       return { status: 'pending' } // Could be a temporary API issue, so keep polling
     }
 
@@ -358,7 +282,6 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
 
     // Check if response has intents array
     if (!response.intents || response.intents.length === 0) {
-      this.logger.debug(`Intent for txHash ${txHash} not found yet.`)
       return { status: 'pending' }
     }
 

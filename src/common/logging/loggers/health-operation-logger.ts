@@ -126,4 +126,98 @@ export class HealthOperationLogger extends BaseStructuredLogger {
     })
     this.logStructured(structure, 'error')
   }
+
+  // ================== HEALTH & MONITORING BUSINESS EVENT METHODS ==================
+
+  /**
+   * Log health check start events
+   */
+  logHealthCheckStart(checkType: string, target: string): void {
+    const context = {
+      health: {
+        health_check_type: checkType,
+        target_component: target,
+        check_status: 'started',
+      },
+      operation: {
+        business_event: 'health_check_started',
+        action_taken: 'begin_health_check',
+      },
+    }
+
+    this.logMessage(context, 'debug', `Health check started: ${checkType} for ${target}`)
+  }
+
+  /**
+   * Log health check result events
+   */
+  logHealthCheckResult(checkType: string, target: string, healthy: boolean, details?: any): void {
+    const context = {
+      health: {
+        health_check_type: checkType,
+        target_component: target,
+        check_status: healthy ? 'healthy' : 'unhealthy',
+        check_details: details,
+      },
+      operation: {
+        business_event: 'health_check_completed',
+        action_taken: healthy ? 'mark_healthy' : 'mark_unhealthy',
+      },
+    }
+
+    this.logMessage(
+      context,
+      healthy ? 'info' : 'error',
+      `Health check ${healthy ? 'passed' : 'failed'}: ${checkType} for ${target}`,
+    )
+  }
+
+  /**
+   * Log monitoring alerts
+   */
+  logMonitoringAlert(
+    alertType: string,
+    severity: 'low' | 'medium' | 'high',
+    message: string,
+  ): void {
+    const context = {
+      monitoring: {
+        alert_type: alertType,
+        alert_severity: severity,
+        alert_message: message,
+      },
+      operation: {
+        business_event: 'monitoring_alert_triggered',
+        action_taken: 'send_alert',
+      },
+    }
+
+    const logLevel = severity === 'high' ? 'error' : severity === 'medium' ? 'warn' : 'info'
+    this.logMessage(context, logLevel, `${severity.toUpperCase()} alert: ${alertType} - ${message}`)
+  }
+
+  /**
+   * Log system status change events
+   */
+  logSystemStatusChange(component: string, fromStatus: string, toStatus: string): void {
+    const context = {
+      system: {
+        component_name: component,
+        previous_status: fromStatus,
+        current_status: toStatus,
+        status_changed: true,
+      },
+      operation: {
+        business_event: 'system_status_change',
+        action_taken: 'update_component_status',
+      },
+    }
+
+    const logLevel = toStatus === 'healthy' ? 'info' : toStatus === 'unhealthy' ? 'error' : 'warn'
+    this.logMessage(
+      context,
+      logLevel,
+      `System status change: ${component} ${fromStatus} → ${toStatus}`,
+    )
+  }
 }

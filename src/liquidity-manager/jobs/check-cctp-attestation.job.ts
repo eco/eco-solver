@@ -1,5 +1,4 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import {
   ExecuteCCTPMintJobData,
   ExecuteCCTPMintJobManager,
@@ -100,16 +99,14 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   ): Promise<void> {
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message:
-            'CCTP: CheckCCTPAttestationJob: Attestation complete. Adding CCTP mint transaction to execution queue',
+        { operationType: 'job_execution', status: 'completed' },
+        'CCTP: CheckCCTPAttestationJob: Attestation complete. Adding CCTP mint transaction to execution queue',
+        {
           id: job.data.id,
-          properties: {
-            groupID: job.data.groupID,
-            rebalanceJobID: job.data.rebalanceJobID,
-            returnvalue: job.returnvalue,
-          },
-        }),
+          groupID: job.data.groupID,
+          rebalanceJobID: job.data.rebalanceJobID,
+          returnvalue: job.returnvalue,
+        },
       )
 
       const executeCCTPMintJobData: ExecuteCCTPMintJobData = {
@@ -121,18 +118,17 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
       await ExecuteCCTPMintJobManager.start(processor.queue, executeCCTPMintJobData)
     } else {
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
+        { operationType: 'job_execution', status: 'pending' },
+        'CCTP: CheckCCTPAttestationJob: Attestation pending...',
+        {
           id: job.data.id,
-          properties: {
-            groupID: job.data.groupID,
-            rebalanceJobID: job.data.rebalanceJobID,
-            ...job.returnvalue,
-            messageHash: job.data.messageHash,
-            destinationChainId: job.data.destinationChainId,
-            isCCTPLiFi: !!job.data.cctpLiFiContext,
-          },
-        }),
+          groupID: job.data.groupID,
+          rebalanceJobID: job.data.rebalanceJobID,
+          ...job.returnvalue,
+          messageHash: job.data.messageHash,
+          destinationChainId: job.data.destinationChainId,
+          isCCTPLiFi: !!job.data.cctpLiFiContext,
+        },
       )
 
       await CheckCCTPAttestationJobManager.start(processor.queue, job.data, 30_000)
@@ -163,14 +159,13 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     }
 
     processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
+      { operationType: 'job_execution', status: 'failed' },
+      errorMessage,
+      error as any,
+      {
         id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
+        data: job.data,
+      },
     )
   }
 }

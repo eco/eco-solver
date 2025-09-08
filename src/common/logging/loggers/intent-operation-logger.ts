@@ -455,4 +455,106 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       : `Intent feasibility: failed (${reason})`
     this.logMessage(context, feasible ? 'debug' : 'warn', message)
   }
+
+  /**
+   * Log LIT action execution results
+   */
+  logLitActionResult(intentHash: string, success: boolean, result?: any, error?: any): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      lit_action: {
+        execution_result: success ? 'success' : 'failure',
+        result_data: result,
+        error_details: error?.message,
+      },
+      operation: {
+        business_event: 'lit_action_executed',
+        action_taken: success ? 'process_result' : 'handle_execution_error',
+      },
+    }
+
+    const message = success
+      ? `LIT action executed successfully for intent ${intentHash}`
+      : `LIT action execution failed for intent ${intentHash}: ${error?.message}`
+    this.logMessage(context, success ? 'info' : 'error', message)
+  }
+
+  /**
+   * Log intent not found during fulfillment processing
+   */
+  logFulfillmentProcessingIntentNotFound(intentHash: string, reason: string): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      fulfillment_processing: {
+        not_found_reason: reason,
+        processing_stage: 'intent_lookup',
+      },
+      operation: {
+        business_event: 'fulfillment_processing_intent_not_found',
+        action_taken: 'abort_processing',
+      },
+    }
+
+    this.logMessage(context, 'warn', `Intent not found during fulfillment processing: ${reason}`)
+  }
+
+  /**
+   * Log process data retrieval errors
+   */
+  logProcessDataRetrievalError(intentHash: string, error: Error, dataType: string): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      data_retrieval: {
+        data_type: dataType,
+        error_message: error.message,
+        retrieval_stage: 'process_data_fetch',
+      },
+      operation: {
+        business_event: 'process_data_retrieval_error',
+        action_taken: 'return_error_response',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'error',
+      `Process data retrieval failed for ${dataType}: ${error.message}`,
+    )
+  }
+
+  /**
+   * Log solver resolution results
+   */
+  logSolverResolutionResult(
+    intentHash: string,
+    solver: any,
+    resolved: boolean,
+    reason?: string,
+  ): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      solver_resolution: {
+        solver_id: solver?.id || solver?.name,
+        resolution_result: resolved ? 'resolved' : 'not_resolved',
+        resolution_reason: reason,
+      },
+      operation: {
+        business_event: 'solver_resolution_attempted',
+        action_taken: resolved ? 'assign_solver' : 'try_next_solver',
+      },
+    }
+
+    const message = resolved
+      ? `Solver resolution successful: ${solver?.id || solver?.name}`
+      : `Solver resolution failed: ${reason}`
+    this.logMessage(context, resolved ? 'info' : 'warn', message)
+  }
 }

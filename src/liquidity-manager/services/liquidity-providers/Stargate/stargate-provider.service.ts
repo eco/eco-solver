@@ -1,8 +1,9 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex, parseUnits } from 'viem'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
@@ -13,7 +14,7 @@ import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/
 
 @Injectable()
 export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
-  private logger = new Logger(StargateProviderService.name)
+  private logger = new LiquidityManagerLogger('StargateProviderService')
   private walletAddress: string
   private chainKeyMap: Record<number, string> = {}
 
@@ -24,6 +25,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
+  @LogOperation('provider_bootstrap', LiquidityManagerLogger)
   async onModuleInit() {
     // Use first intent source's network as the default network
     const [intentSource] = this.ecoConfigService.getIntentSources()
@@ -36,10 +38,11 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     return 'Stargate' as const
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
   ): Promise<RebalanceQuote<'Stargate'>> {
     // Convert chain IDs to Stargate chain keys
     const srcChainKey = await this.getChainKey(tokenIn.chainId)
@@ -67,13 +70,6 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         dstAmountMin: amountMin.toString(),
       })
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'Stargate params',
-          properties: { params: params.toString() },
-        }),
-      )
-
       // Call Stargate API to get routes
       const response = await fetch(`https://stargate.finance/api/v1/routes?${params.toString()}`)
 
@@ -83,11 +79,17 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
 
       const routesData: { routes: StargateQuote[] } = await response.json()
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: 'Stargate routes',
-          properties: { routesData },
-        }),
+      // Log successful quote generation
+      this.logger.logProviderQuoteGeneration(
+        'Stargate',
+        {
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+          tokenIn: tokenIn.config.address,
+          tokenOut: tokenOut.config.address,
+        },
+        true,
       )
 
       if (!routesData || !routesData.routes || routesData.routes.length === 0) {
@@ -109,42 +111,38 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         context: route,
       }
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: 'Failed to get Stargate route',
-          error,
-          properties: {
-            fromToken: tokenIn.config.address,
-            toToken: tokenOut.config.address,
-            fromChain: tokenIn.chainId,
-            toChain: tokenOut.chainId,
-            amount: amountIn.toString(),
-          },
-        }),
+      // Log failed quote generation
+      this.logger.logProviderQuoteGeneration(
+        'Stargate',
+        {
+          sourceChainId: tokenIn.chainId,
+          destinationChainId: tokenOut.chainId,
+          amount: swapAmount,
+          tokenIn: tokenIn.config.address,
+          tokenOut: tokenOut.config.address,
+        },
+        false,
       )
       throw EcoError.RebalancingRouteNotFound()
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'Stargate'>) {
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(@LogContext walletAddress: string, @LogContext quote: RebalanceQuote<'Stargate'>) {
     try {
       // Verify wallet matches
       const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
 
       if (kernelWalletAddress !== walletAddress) {
         const error = new Error('Stargate is not configured with the provided wallet')
-        this.logger.error(
-          EcoLogMessage.withError({
-            error,
-            message: error.message,
-            properties: { walletAddress, kernelWalletAddress },
-          }),
-        )
         if (quote.rebalanceJobID) {
           await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
         }
         throw error
       }
+
+      // Log provider execution
+      this.logger.logProviderExecution('Stargate', walletAddress, quote)
 
       // Execute the quote
       const res = await this._execute(quote)
@@ -169,21 +167,6 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
   }
 
   private async _execute(quote: RebalanceQuote<'Stargate'>) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'StargateProviderService: executing quote',
-        properties: {
-          tokenIn: quote.tokenIn.config.address,
-          chainIn: quote.tokenIn.chainId,
-          tokenOut: quote.tokenOut.config.address,
-          chainOut: quote.tokenOut.chainId,
-          amountIn: quote.amountIn.toString(),
-          amountOut: quote.amountOut.toString(),
-          slippage: quote.slippage,
-        },
-      }),
-    )
-
     for (const step of quote.context.steps) {
       const { chainKey, transaction } = step
       try {
@@ -204,27 +187,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         const publicClient = await this.multiChainPublicClientService.getClient(chainId)
         await publicClient.waitForTransactionReceipt({ hash })
 
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Stargate step executed successfully',
-            properties: {
-              step,
-              chainId,
-              hash,
-            },
-          }),
-        )
+        // Transaction executed successfully - no explicit logging needed as decorator handles it
       } catch (error) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: 'Failed to execute Stargate transfer',
-            error,
-            properties: {
-              quote,
-              step,
-            },
-          }),
-        )
         throw error
       }
     }
@@ -268,6 +232,7 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
    * Loads chain keys from Stargate API if they haven't been loaded already
    * @returns A promise that resolves when the chains are loaded
    */
+  @LogOperation('provider_bootstrap', LiquidityManagerLogger)
   private async loadChainKeys(): Promise<void> {
     // Create a new loading promise
     try {
@@ -288,26 +253,9 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
         }
       }
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Stargate chain keys fetched successfully',
-          properties: {
-            chainCount: Object.keys(this.chainKeyMap).length,
-            chains: Object.entries(this.chainKeyMap).map(([chainId, key]) => ({
-              chainId,
-              key,
-            })),
-          },
-        }),
-      )
+      // Log successful provider bootstrap
+      this.logger.logProviderBootstrap('Stargate', 0, true) // Chain ID 0 for general bootstrap
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: 'Failed to fetch Stargate chain keys, using fallback values',
-          error,
-        }),
-      )
-
       throw error
     }
   }

@@ -12,7 +12,8 @@ import {
   TransactionRequest,
   isAddress,
 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { TokenConfig } from '@/balance/types'
 import { BalanceService } from '@/balance/balance.service'
@@ -23,13 +24,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
-import {
-  ActionPath,
-  WarpRoute,
-  WarpRouteResult,
-  PARTIAL_QUOTE_PATHS,
-  WarpToken,
-} from './warp-route.types'
+import { ActionPath, WarpRoute, WarpRouteResult, WarpToken } from './warp-route.types'
 import {
   WarpRouteError,
   WarpRouteNotFoundError,
@@ -45,7 +40,8 @@ import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum
 
 @Injectable()
 export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
-  private logger = new Logger(WarpRouteProviderService.name)
+  private logger = new LiquidityManagerLogger('WarpRouteProviderService')
+  private genericLogger = new Logger('WarpRouteProviderService')
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -59,11 +55,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return 'WarpRoute' as const
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    id?: string,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
+    @LogContext swapAmount: number,
+    @LogContext id?: string,
   ): Promise<RebalanceQuote[]> {
     // Validate inputs
     this.validateTokenData(tokenIn, 'tokenIn')
@@ -71,17 +68,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     if (swapAmount <= 0) {
       throw new InvalidInputError('Swap amount must be positive', { swapAmount })
     }
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'WarpRouteProviderService: getting quote',
-        id,
-        properties: {
-          tokenIn,
-          tokenOut,
-          swapAmount,
-        },
-      }),
-    )
+    // Quote generation will be logged by @LogOperation decorator
 
     // Get all possible warp routes for both tokens
     const warpRoutesIn = this.getAllWarpRoutes(tokenIn.config.chainId, tokenIn.config.address)
@@ -94,16 +81,21 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     )
 
     if (actionPath === ActionPath.UNSUPPORTED) {
+      // Log domain validation failure
+      this.logger.logProviderDomainValidation(
+        'WarpRoute',
+        `${tokenIn.config.chainId}-${tokenOut.config.chainId}`,
+        false,
+      )
       throw new UnsupportedActionPathError(tokenIn.config, tokenOut.config)
     }
 
     if (actionPath === ActionPath.PARTIAL) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRouteProviderService: getting partial quote',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
+      // Log partial quote generation attempt
+      this.logger.logProviderQuoteGeneration(
+        'WarpRoute',
+        { tokenIn, tokenOut, amount: swapAmount, id, partial: true },
+        true,
       )
       const quotes = await this.getPartialQuote(
         tokenIn,
@@ -113,13 +105,6 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         warpRouteOut,
         id,
       )
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRouteProviderService: partial quote generated',
-          id,
-          properties: { quotes },
-        }),
-      )
       return quotes
     }
 
@@ -127,81 +112,44 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const quote = this.getRemoteTransferQuote(tokenIn, tokenOut, amount, id)
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'WarpRouteProviderService: quote generated',
-        id,
-        properties: { quote },
-      }),
+    // Log successful quote generation
+    this.logger.logProviderQuoteGeneration(
+      'WarpRoute',
+      { tokenIn, tokenOut, amount: swapAmount, id },
+      true,
     )
 
     return [quote]
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>) {
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(@LogContext walletAddress: string, @LogContext quote: RebalanceQuote<'WarpRoute'>) {
     try {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'WarpRouteProviderService: executing quote',
-          id: quote.id,
-          properties: {
-            groupID: quote.groupID,
-            rebalanceJobID: quote.rebalanceJobID,
-            tokenIn: quote.tokenIn.config.address,
-            chainIn: quote.tokenIn.config.chainId,
-            tokenOut: quote.tokenOut.config.address,
-            chainOut: quote.tokenOut.config.chainId,
-            amountIn: quote.amountIn,
-            amountOut: quote.amountOut,
-            slippage: quote.slippage,
-          },
-        }),
-      )
+      // Quote execution will be logged by @LogOperation decorator
 
       const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
       const txHash = await withRetry(
         () => this._execute(walletAddress, quote),
         { maxRetries: 2, retryDelay: 2000 },
-        this.logger,
+        this.genericLogger,
         { operation: 'execute', quote: quote.id },
       )
       const receipt = await withRetry(
         () => client.waitForTransactionReceipt({ hash: txHash }),
         { maxRetries: 3, retryDelay: 5000 },
-        this.logger,
+        this.genericLogger,
         { operation: 'waitForReceipt', txHash },
       )
 
       const { messageId } = this.getMessageFromReceipt(receipt)
 
-      this.logger.log(
-        EcoLogMessage.withId({
-          message:
-            'WarpRouteProviderService: remote transfer executed, waiting for message to get relayed',
-          id: quote.id,
-          properties: {
-            chainId: quote.tokenIn.config.chainId,
-            transactionHash: txHash,
-            destinationChainId: quote.tokenOut.config.chainId,
-            messageId,
-          },
-        }),
-      )
+      // Log provider execution business event
+      this.logger.logProviderExecution('WarpRoute', walletAddress, quote)
 
       // Used to complete the job only after the message is relayed
       await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
 
-      this.logger.log(
-        EcoLogMessage.withId({
-          id: quote.id,
-          message: 'WarpRouteProviderService: message relayed',
-          properties: {
-            chainId: quote.tokenOut.config.chainId,
-            transactionHash: txHash,
-            messageId,
-          },
-        }),
-      )
+      // Message relay completion will be handled by decorator
 
       if (quote.rebalanceJobID) {
         await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
@@ -292,7 +240,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
           args: [destinationChainId],
         }),
       { maxRetries: 3, retryDelay: 1000 },
-      this.logger,
+      this.genericLogger,
       { operation: 'quoteGasPayment', chainId: tokenIn.chainId },
     )
 
@@ -328,7 +276,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return [transferRemoteTx]
   }
 
-  private validateTokenData(tokenData: TokenData, fieldName: string): void {
+  @LogOperation('provider_validation', LiquidityManagerLogger)
+  private validateTokenData(@LogContext tokenData: TokenData, @LogContext fieldName: string): void {
     if (!tokenData) {
       throw new InvalidInputError(`${fieldName} is required`)
     }
@@ -377,9 +326,10 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return results
   }
 
+  @LogOperation('provider_domain_validation', LiquidityManagerLogger)
   private determineWarpRoutes(
-    warpRoutesIn: WarpRouteResult[],
-    warpRoutesOut: WarpRouteResult[],
+    @LogContext warpRoutesIn: WarpRouteResult[],
+    @LogContext warpRoutesOut: WarpRouteResult[],
   ): {
     warpRouteIn: WarpRouteResult | undefined
     warpRouteOut: WarpRouteResult | undefined
@@ -387,7 +337,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   } {
     // Case 1: Both tokens are NOT in any warp route
     if (warpRoutesIn.length === 0 && warpRoutesOut.length === 0) {
-      this.logger.debug('WarpRoute: determineWarpRoutes -> UNSUPPORTED (no warp routes)')
+      // Domain validation will be logged by decorator
       return {
         warpRouteIn: undefined,
         warpRouteOut: undefined,
@@ -397,7 +347,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     // Case 2: One token is in a warp route, the other is not -> PARTIAL
     if (warpRoutesIn.length === 0 || warpRoutesOut.length === 0) {
-      this.logger.debug('WarpRoute: determineWarpRoutes -> PARTIAL')
+      // Domain validation result will be logged by decorator
       return {
         warpRouteIn: warpRoutesIn[0],
         warpRouteOut: warpRoutesOut[0],
@@ -423,7 +373,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     // If no common route found, it's unsupported
     if (!commonRouteIn || !commonRouteOut) {
-      this.logger.debug('WarpRoute: determineWarpRoutes -> UNSUPPORTED (different warp routes)')
+      // Domain validation will be logged by decorator
       return {
         warpRouteIn: warpRoutesIn[0], // Return first found for error context
         warpRouteOut: warpRoutesOut[0],
@@ -437,7 +387,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     // Collateral to collateral is not supported
     if (warpTokenIn?.type === 'collateral' && warpTokenOut?.type === 'collateral') {
-      this.logger.debug('WarpRoute: determineWarpRoutes -> UNSUPPORTED (collateral to collateral)')
+      // Domain validation will be logged by decorator
       return {
         warpRouteIn: commonRouteIn,
         warpRouteOut: commonRouteOut,
@@ -446,7 +396,12 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     }
 
     // All other cases in the same warp route are FULL
-    this.logger.debug('WarpRoute: determineWarpRoutes -> FULL')
+    // Log successful domain validation
+    this.logger.logProviderDomainValidation(
+      'WarpRoute',
+      `${commonRouteIn.warpToken?.chainId}-${commonRouteOut.warpToken?.chainId}`,
+      true,
+    )
     return {
       warpRouteIn: commonRouteIn,
       warpRouteOut: commonRouteOut,
@@ -462,12 +417,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     warpRouteOut: WarpRouteResult | undefined,
     id?: string,
   ): Promise<RebalanceQuote[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `WarpRoute: getting partial quote. From ${tokenIn.config.address} on ${tokenIn.config.chainId} to ${tokenOut.config.address} on ${tokenOut.config.chainId}`,
-        id,
-      }),
-    )
+    // Partial quote generation will be logged by decorator
 
     const { warpRoute: routeIn, warpToken: warpTokenIn } = warpRouteIn || {}
     const { warpRoute: routeOut, warpToken: warpTokenOut } = warpRouteOut || {}
@@ -519,12 +469,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       return this.handleTokenToCollateralPath(tokenIn, tokenOut, routeOut!, swapAmount, client, id)
     }
 
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'WarpRoute: no partial quote path found.',
-        id,
-      }),
-    )
+    // Partial quote path analysis will be logged by decorator
     throw new PartialQuoteError('No partial quote path found', {
       tokenIn: tokenIn.config,
       tokenOut: tokenOut.config,
@@ -552,12 +497,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     let bestAmountOut = 0n
 
     for (const candidateToken of candidateTokens) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: `WarpRoute: Trying LiFi quote to ${candidateToken.token} on ${candidateToken.chainId}`,
-          id,
-        }),
-      )
+      // LiFi quote attempt will be logged by decorator
 
       try {
         const tokenConfig = this.getTokenConfig({
@@ -580,20 +520,10 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         if (outputAmount > bestAmountOut) {
           bestResult = { tokenData: tokenOut, quote: liFiQuote, outputAmount }
           bestAmountOut = outputAmount
-          this.logger.debug(
-            EcoLogMessage.withId({
-              message: `WarpRoute: New best quote found with output ${outputAmount}`,
-              id,
-            }),
-          )
+          // Best quote selection will be logged by decorator
         }
       } catch (error: any) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `WarpRoute: No LiFi quote to ${candidateToken.token}. Error: ${error.message}`,
-            id,
-          }),
-        )
+        // Quote failure will be logged by decorator
       }
     }
 
@@ -649,12 +579,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.SYNTHETIC_TO_COLLATERAL}`,
-        id,
-      }),
-    )
+    // Synthetic to collateral path will be logged by decorator
 
     const collateralChain = warpRoute.chains.find((c) => c.type === 'collateral')
     if (!collateralChain) {
@@ -700,12 +625,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.COLLATERAL_TO_SYNTHETIC}`,
-        id,
-      }),
-    )
+    // Collateral to synthetic path will be logged by decorator
 
     const syntheticChains = warpRoute.chains.filter((c) => c.type === 'synthetic')
     if (!syntheticChains || syntheticChains.length === 0) {
@@ -716,12 +636,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     }
 
     for (const syntheticChain of syntheticChains) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: `WarpRoute: C->S->T: trying intermediate ${syntheticChain.token} on ${syntheticChain.chainId}`,
-          id,
-        }),
-      )
+      // Intermediate chain attempt will be logged by decorator
       const intermediateTokenConfig = this.getTokenConfig({
         chainId: syntheticChain.chainId,
         token: syntheticChain.token,
@@ -749,12 +664,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
         )
         return [remoteTransferQuote, liFiQuote]
       } catch (error: any) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `WarpRoute: No LiFi quote from intermediate ${syntheticChain.token} to ${tokenOut.config.address}. Error: ${error.message}`,
-            id,
-          }),
-        )
+        // Intermediate quote failure will be logged by decorator
       }
     }
 
@@ -773,12 +683,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.TOKEN_TO_SYNTHETIC}`,
-        id,
-      }),
-    )
+    // Token to synthetic path will be logged by decorator
 
     const collateralChains = warpRoute.chains.filter((c) => c.type === 'collateral')
     if (!collateralChains || collateralChains.length === 0) {
@@ -822,12 +727,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     client: any,
     id?: string,
   ): Promise<RebalanceQuote[]> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: `WarpRoute: trying path ${PARTIAL_QUOTE_PATHS.TOKEN_TO_COLLATERAL}`,
-        id,
-      }),
-    )
+    // Token to collateral path will be logged by decorator
 
     const syntheticChains = warpRoute.chains.filter((c) => c.type === 'synthetic')
     if (!syntheticChains || syntheticChains.length === 0) {
