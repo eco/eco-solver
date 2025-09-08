@@ -1,5 +1,4 @@
-export const portalIDL = {
-  address: 'DYsTQz94hnjMadMWqYqyqwHG2ZWLMwatAbnAiA9M2vNh',
+export const portalIdl = {
   metadata: {
     name: 'portal',
     version: '0.1.0',
@@ -407,10 +406,6 @@ export const portalIDL = {
             name: 'data',
             type: 'bytes',
           },
-          {
-            name: 'value',
-            type: 'u64',
-          },
         ],
       },
     },
@@ -466,7 +461,9 @@ export const portalIDL = {
           {
             name: 'route_hash',
             type: {
-              array: ['u8', 32],
+              defined: {
+                name: 'Bytes32',
+              },
             },
           },
           {
@@ -768,6 +765,10 @@ export const portalIDL = {
                 name: 'Bytes32',
               },
             },
+          },
+          {
+            name: 'native_amount',
+            type: 'u64',
           },
           {
             name: 'tokens',
