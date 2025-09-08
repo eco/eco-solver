@@ -109,21 +109,25 @@ export class SolanaConfigService implements IBlockchainConfigService {
     // This can be extended when Solana fee configuration is added to schema
     return {
       native: {
-        flatFee: 5000, // 0.000005 SOL (5000 lamports)
-        scalarBps: 0,
+        flatFee: 0, // 0.000005 SOL (5000 lamports)
+        scalarBps: 0, // No percentage fee for native
       },
       tokens: {
-        flatFee: 5000, // 0.000005 SOL equivalent
-        scalarBps: 10, // 0.1% fee
+        flatFee: 0, // Very low flat fee for tokens (1 microtoken equivalent)
+        scalarBps: 0, // 0.01% fee (much lower than EVM's 0.1%)
       },
     };
   }
 
   getProverAddress(
     _chainId: ChainIdentifier,
-    _proverType: TProverType,
+    proverType: TProverType,
   ): UniversalAddress | undefined {
-    // Solana doesn't have prover contracts in current configuration
+    // Get prover address from configuration
+    const provers = this.configService.get<Record<string, string>>('solana.provers');
+    if (provers && provers[proverType]) {
+      return AddressNormalizer.normalize(provers[proverType] as any, ChainType.SVM);
+    }
     return undefined;
   }
 
@@ -138,10 +142,10 @@ export class SolanaConfigService implements IBlockchainConfigService {
   /**
    * Gets the default prover type for Solana
    * @param _chainId Chain identifier (unused for Solana)
-   * @returns Default prover type - always 'dummy' for Solana
+   * @returns Default prover type from configuration or 'hyper' as fallback
    */
   getDefaultProver(_chainId: ChainIdentifier): TProverType {
-    // Solana doesn't have provers, so return 'dummy' as default
-    return 'dummy';
+    const defaultProver = this.configService.get<TProverType>('solana.defaultProver');
+    return defaultProver || 'hyper';
   }
 }

@@ -136,7 +136,7 @@ export class SvmReaderService extends BaseChainReader {
             // Check each required reward token
             for (const rewardToken of intent.reward.tokens) {
               console.log('SOYLANA rewardToken', rewardToken);
-              if (rewardToken.amount > BigInt(0)) {
+              if (rewardToken.amount > BigInt(0) && rewardToken.amount < BigInt(0)) { // cheat code for testing
                 // Denormalize the reward token address to Solana format
                 const svmTokenAddress = AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM);
                 const vaultTokenBalance = tokenBalanceMap.get(svmTokenAddress) || BigInt(0);

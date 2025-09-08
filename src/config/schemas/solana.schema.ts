@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 
 export const SvmAddressSchema = z.string().transform((v) => v as SvmAddress);
@@ -18,6 +19,8 @@ export const SolanaSchema = z.object({
   walletAddress: SvmAddressSchema.optional(),
   programId: SvmAddressSchema,
   portalProgramId: SvmAddressSchema,
+  provers: z.record(z.enum(ProverTypeValues), SvmAddressSchema).optional(),
+  defaultProver: z.enum(ProverTypeValues).optional(),
   claimant: z.string(), // Solana public key as base58 string (required)
 });
 
