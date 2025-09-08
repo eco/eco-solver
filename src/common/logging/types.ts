@@ -19,7 +19,11 @@ export interface IntentOperationLogParams {
   amountIn?: string
   amountOut?: string
   nativeValue?: string
-  deadline?: number
+  deadline?: string
+  salt?: string
+  logIndex?: number
+  routeTokens?: Array<{ token: string; amount: string }>
+  rewardTokens?: Array<{ token: string; amount: string }>
   intentExecutionType?: (typeof IntentExecutionTypeKeys)[number]
   operationType: 'creation' | 'fulfillment' | 'validation' | 'funding'
   status: 'started' | 'completed' | 'failed'
@@ -39,6 +43,13 @@ export interface LiquidityOperationLogParams {
   amountOut?: string
   slippage?: number
   groupId?: string
+  rebalanceJobId?: string
+  currentBalanceIn?: string
+  targetBalanceIn?: string
+  currentBalanceOut?: string
+  targetBalanceOut?: string
+  tokenInDecimals?: number
+  tokenOutDecimals?: number
   operationType: 'rebalancing' | 'liquidity_provision' | 'withdrawal' | 'quote_rejection'
   status: 'pending' | 'completed' | 'failed' | 'rejected'
   rejectionReason?: RejectionReason
@@ -56,6 +67,7 @@ export interface QuoteGenerationLogParams {
   tokenOutAddress?: string
   amountIn?: string
   amountOut?: string
+  receipt?: string
   intentExecutionType?: (typeof IntentExecutionTypeKeys)[number] | string
   operationType: 'quote_generation' | 'quote_validation' | 'quote_rejection'
   status: 'started' | 'completed' | 'failed'
@@ -227,6 +239,22 @@ export interface EcoBusinessContext {
   strategy?: string
   intent_execution_type?: string
   rejection_reason?: string
+  // New schema fields for complete coverage
+  salt?: string
+  log_index?: number
+  deadline?: string
+  rebalance_job_id?: string
+  receipt?: string
+  token_in_address?: string
+  token_out_address?: string
+  amount_in?: string
+  amount_out?: string
+  current_balance_in?: string
+  target_balance_in?: string
+  current_balance_out?: string
+  target_balance_out?: string
+  token_in_decimals?: number
+  token_out_decimals?: number
 }
 
 export interface OperationContext {
@@ -243,7 +271,7 @@ export interface MetricsContext {
   native_value?: string
   swap_amount?: number
   slippage?: number
-  deadline?: number
+  deadline?: string
   current_balance?: number
   target_balance?: number
   token_in_address?: string

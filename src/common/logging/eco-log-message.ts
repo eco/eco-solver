@@ -150,6 +150,21 @@ export class EcoLogMessage {
     intentExecutionType?: string
     rejectionReason?: string
     transactionHash?: string
+    salt?: string
+    logIndex?: number
+    deadline?: string
+    rebalanceJobId?: string
+    receipt?: string
+    tokenInAddress?: string
+    tokenOutAddress?: string
+    amountIn?: string
+    amountOut?: string
+    currentBalanceIn?: string
+    targetBalanceIn?: string
+    currentBalanceOut?: string
+    targetBalanceOut?: string
+    tokenInDecimals?: number
+    tokenOutDecimals?: number
     [key: string]: any
   }): EcoBusinessContext {
     return {
@@ -168,6 +183,22 @@ export class EcoLogMessage {
       ...(params.intentExecutionType && { intent_execution_type: params.intentExecutionType }),
       ...(params.rejectionReason && { rejection_reason: params.rejectionReason }),
       ...(params.transactionHash && { transaction_hash: params.transactionHash }),
+      // New schema fields for complete coverage
+      ...(params.salt && { salt: params.salt }),
+      ...(params.logIndex && { log_index: params.logIndex }),
+      ...(params.deadline && { deadline: params.deadline }),
+      ...(params.rebalanceJobId && { rebalance_job_id: params.rebalanceJobId }),
+      ...(params.receipt && { receipt: params.receipt }),
+      ...(params.tokenInAddress && { token_in_address: params.tokenInAddress }),
+      ...(params.tokenOutAddress && { token_out_address: params.tokenOutAddress }),
+      ...(params.amountIn && { amount_in: params.amountIn }),
+      ...(params.amountOut && { amount_out: params.amountOut }),
+      ...(params.currentBalanceIn && { current_balance_in: params.currentBalanceIn }),
+      ...(params.targetBalanceIn && { target_balance_in: params.targetBalanceIn }),
+      ...(params.currentBalanceOut && { current_balance_out: params.currentBalanceOut }),
+      ...(params.targetBalanceOut && { target_balance_out: params.targetBalanceOut }),
+      ...(params.tokenInDecimals && { token_in_decimals: params.tokenInDecimals }),
+      ...(params.tokenOutDecimals && { token_out_decimals: params.tokenOutDecimals }),
     }
   }
 
@@ -177,7 +208,7 @@ export class EcoLogMessage {
     amountOut?: string
     nativeValue?: string
     slippage?: number
-    deadline?: number
+    deadline?: string
     tokenInAddress?: string
     tokenOutAddress?: string
     gasUsed?: number
@@ -286,12 +317,39 @@ export class EcoLogMessage {
       status: params.status,
     }
 
-    return this.createDatadogStructure(params.message, 'info', {
+    // Include route and reward token arrays for comprehensive financial analysis
+    const enhancedStructure: any = {
       eco: ecoContext,
       metrics: Object.keys(metricsContext).length > 0 ? metricsContext : undefined,
       operation: operationContext,
       ...params.properties,
-    })
+    }
+
+    // Add route tokens array if provided
+    if (params.routeTokens && params.routeTokens.length > 0) {
+      enhancedStructure.route_analysis = {
+        route_tokens: params.routeTokens,
+        token_count: params.routeTokens.length,
+        total_route_value: params.routeTokens.reduce((sum, token) => {
+          const amount = parseFloat(token.amount) || 0
+          return sum + amount
+        }, 0),
+      }
+    }
+
+    // Add reward tokens array if provided
+    if (params.rewardTokens && params.rewardTokens.length > 0) {
+      enhancedStructure.reward_analysis = {
+        reward_tokens: params.rewardTokens,
+        reward_token_count: params.rewardTokens.length,
+        total_reward_value: params.rewardTokens.reduce((sum, token) => {
+          const amount = parseFloat(token.amount) || 0
+          return sum + amount
+        }, 0),
+      }
+    }
+
+    return this.createDatadogStructure(params.message, 'info', enhancedStructure)
   }
 
   /**

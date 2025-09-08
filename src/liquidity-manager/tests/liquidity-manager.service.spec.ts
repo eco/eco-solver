@@ -144,14 +144,28 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10, chainId: 1, address: '0x1' }, balance: { balance: 100n }, chainId: 1 },
-        { config: { targetBalance: 100, chainId: 1, address: '0x2' }, balance: { balance: 100n }, chainId: 1 },
-        { config: { targetBalance: 200, chainId: 1, address: '0x3' }, balance: { balance: 100n }, chainId: 1 },
+        {
+          config: { targetBalance: 10, chainId: 1, address: '0x1' },
+          balance: { balance: 100n },
+          chainId: 1,
+        },
+        {
+          config: { targetBalance: 100, chainId: 1, address: '0x2' },
+          balance: { balance: 100n },
+          chainId: 1,
+        },
+        {
+          config: { targetBalance: 200, chainId: 1, address: '0x3' },
+          balance: { balance: 100n },
+          chainId: 1,
+        },
       ]
 
       // Set up the service properly by calling onApplicationBootstrap
       jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
-      jest.spyOn(balanceService, 'getInboxTokens').mockReturnValue(mockTokens.map(t => t.config) as any)
+      jest
+        .spyOn(balanceService, 'getInboxTokens')
+        .mockReturnValue(mockTokens.map((t) => t.config) as any)
       await liquidityManagerService.onApplicationBootstrap()
 
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue(mockTokens as any)

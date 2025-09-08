@@ -437,9 +437,9 @@ describe('LiFiProviderService', () => {
         (addr, tokens) =>
           tokens.map((token) => ({
             chainId: token.chainId,
-            config: { 
+            config: {
               address: token.address,
-              chainId: token.chainId 
+              chainId: token.chainId,
             },
             balance: { decimals: 18 },
           })) as any,
@@ -449,13 +449,15 @@ describe('LiFiProviderService', () => {
       const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
 
       // Verify the result uses the supported core token
-      expect(result[0].tokenOut).toEqual(expect.objectContaining({
-        chainId: supportedCoreToken.chainID,
-        config: expect.objectContaining({
-          address: supportedCoreToken.token,
-          chainId: supportedCoreToken.chainID
-        })
-      }))
+      expect(result[0].tokenOut).toEqual(
+        expect.objectContaining({
+          chainId: supportedCoreToken.chainID,
+          config: expect.objectContaining({
+            address: supportedCoreToken.token,
+            chainId: supportedCoreToken.chainID,
+          }),
+        }),
+      )
 
       // Verify that getQuote was only called for the supported core token
       expect(getQuoteSpy).toHaveBeenCalledTimes(2)

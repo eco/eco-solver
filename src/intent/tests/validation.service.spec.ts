@@ -207,7 +207,13 @@ describe('ValidationService', () => {
       it('should fail if no source intent exists with the models source chain id', async () => {
         const intent = { event: { sourceChainID } } as any
         ecoConfigService.getIntentSources.mockReturnValueOnce([])
-        expect(await validationService.supportedProver({ source: Number(sourceChainID), destination: chainID, prover: prover as any })).toBe(false)
+        expect(
+          await validationService.supportedProver({
+            source: Number(sourceChainID),
+            destination: chainID,
+            prover: prover as any,
+          }),
+        ).toBe(false)
       })
 
       it('should fail if no source supports the prover', async () => {
@@ -215,7 +221,13 @@ describe('ValidationService', () => {
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [unsupportedProver], chainID } as any,
         ])
-        expect(await validationService.supportedProver({ source: Number(sourceChainID), destination: chainID, prover: prover as any })).toBe(false)
+        expect(
+          await validationService.supportedProver({
+            source: Number(sourceChainID),
+            destination: chainID,
+            prover: prover as any,
+          }),
+        ).toBe(false)
       })
 
       it('should fail if no source supports the prover on the required chain', async () => {
@@ -223,7 +235,13 @@ describe('ValidationService', () => {
         ecoConfigService.getIntentSources.mockReturnValueOnce([
           { provers: [prover], chainID: unsupportedChain } as any,
         ])
-        expect(await validationService.supportedProver({ source: Number(sourceChainID), destination: chainID, prover: prover as any })).toBe(false)
+        expect(
+          await validationService.supportedProver({
+            source: Number(sourceChainID),
+            destination: chainID,
+            prover: prover as any,
+          }),
+        ).toBe(false)
       })
 
       it('should succeed if a single source supports the prover', async () => {

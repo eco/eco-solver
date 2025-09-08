@@ -968,7 +968,7 @@ describe('WarpRouteProviderService', () => {
       expect(quotes[0].strategy).toBe('WarpRoute')
       expect(quotes[0].amountOut).toBe(parseUnits('100', 18))
 
-      // LiFi is no longer used for these scenarios  
+      // LiFi is no longer used for these scenarios
       expect(liFiProviderService.getQuote).not.toHaveBeenCalled()
     })
 

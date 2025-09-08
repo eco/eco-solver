@@ -141,12 +141,12 @@ function sanitizeResult(result: any): any {
       },
       0,
     )
-    
+
     // Handle case where stringified could be undefined or null
     if (!stringified || stringified.length <= 1000) {
       return result
     }
-    
+
     return `${stringified.substring(0, 1000)}...[truncated]`
   } catch (error) {
     // If JSON.stringify fails, return a safe representation

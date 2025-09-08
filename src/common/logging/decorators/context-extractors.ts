@@ -132,11 +132,23 @@ export const extractRebalanceContext: ContextExtractor = (entity: any): Extracte
   return {
     eco: {
       rebalance_id: entity.rebalanceJobID,
+      rebalance_job_id: entity.rebalanceJobID, // Explicit field for new schema alignment
       wallet_address: entity.wallet,
       strategy: entity.strategy,
       source_chain_id: entity.tokenIn?.chainId,
       destination_chain_id: entity.tokenOut?.chainId,
       group_id: entity.groupId,
+      token_in_address: entity.tokenIn?.tokenAddress,
+      token_out_address: entity.tokenOut?.tokenAddress,
+      amount_in: entity.amountIn?.toString(),
+      amount_out: entity.amountOut?.toString(),
+      // Token balance information for complete schema coverage
+      current_balance_in: entity.tokenIn?.currentBalance?.toString(),
+      target_balance_in: entity.tokenIn?.targetBalance?.toString(),
+      current_balance_out: entity.tokenOut?.currentBalance?.toString(),
+      target_balance_out: entity.tokenOut?.targetBalance?.toString(),
+      token_in_decimals: entity.tokenIn?.decimals,
+      token_out_decimals: entity.tokenOut?.decimals,
     },
     metrics: {
       token_in_address: entity.tokenIn?.tokenAddress,
@@ -275,6 +287,25 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
     return {}
   }
 
+  // Extract route tokens array for financial analysis
+  const routeTokens = entity.route?.tokens?.map((token: any) => ({
+    token: token.token || token.tokenAddress,
+    amount: token.amount?.toString() || '0',
+  })) || []
+
+  // Extract reward tokens array for comprehensive reward tracking
+  const rewardTokens = entity.reward?.tokens?.map((token: any) => ({
+    token: token.token || token.tokenAddress,
+    amount: token.amount?.toString() || '0',
+  })) || []
+
+  // Extract call data context for execution path visibility
+  const routeCalls = entity.route?.calls?.map((call: any) => ({
+    target: call.target || call.to,
+    value: call.value?.toString() || '0',
+    callData: call.callData ? call.callData.substring(0, 100) + '...' : undefined, // Truncate for size limits
+  })) || []
+
   const baseContext: ExtractedContext = {
     eco: {
       intent_hash: entity.hash,
@@ -284,20 +315,37 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
       source_chain_id: entity.route?.source,
       destination_chain_id: entity.route?.destination,
       funder: entity.funder,
-      inbox_address: entity.route?.inbox,
+      inbox: entity.route?.inbox || entity.inbox,
+      // New schema fields for complete coverage
+      salt: entity.route?.salt || entity.salt,
+      log_index: entity.logIndex,
+      deadline: entity.route?.deadline?.toString() || entity.deadline,
+      d_app_id: entity.dAppID,
+      // Route token information (first and last for backward compatibility)
+      token_in_address: routeTokens[0]?.token,
+      token_out_address: routeTokens[routeTokens.length - 1]?.token,
+      amount_in: routeTokens[0]?.amount,
+      amount_out: routeTokens[routeTokens.length - 1]?.amount,
     },
     metrics: {
       native_value: entity.reward?.nativeValue?.toString(),
       deadline: entity.route?.deadline?.toString(),
-      token_amounts: entity.reward?.rewardTokens?.map((token: any) => ({
-        address: token.tokenAddress,
-        amount: token.amount?.toString(),
-      })),
+      // Complete token arrays for detailed analysis
+      route_tokens: routeTokens.length > 0 ? routeTokens : undefined,
+      reward_tokens: rewardTokens.length > 0 ? rewardTokens : undefined,
+      // Call data context for execution visibility
+      route_calls: routeCalls.length > 0 ? routeCalls : undefined,
+      route_calls_count: routeCalls.length,
     },
     operation: {
       log_index: entity.logIndex,
       created_at: entity.createdAt?.toISOString(),
       updated_at: entity.updatedAt?.toISOString(),
+      route_complexity: {
+        token_count: routeTokens.length,
+        call_count: routeCalls.length,
+        has_rewards: rewardTokens.length > 0,
+      },
     },
   }
 
@@ -383,6 +431,8 @@ export const extractQuoteContext: ContextExtractor = (entity: any): ExtractedCon
       quote_id: entity.quoteID,
       d_app_id: entity.dAppID,
       intent_execution_type: entity.intentExecutionType,
+      // New schema field for complete coverage
+      receipt: entity.receipt ? JSON.stringify(entity.receipt) : undefined,
     },
     metrics: {
       route_tokens: entity.route?.routeTokens?.map((token: any) => ({
