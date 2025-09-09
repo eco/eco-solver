@@ -65,9 +65,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         user: walletAddress,
         recipient: walletAddress,
         options: {
-          slippageTolerance: (
-            this.ecoConfigService.getLiquidityManager().maxQuoteSlippage * 10_000
-          ).toString(), // Convert to basis points
+          slippageTolerance: this.ecoConfigService.getLiquidityManagerMaxQuoteSlippageBps(),
         },
       })
 

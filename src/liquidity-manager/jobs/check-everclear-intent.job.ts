@@ -14,6 +14,8 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
+const EVERCLEAR_RETRY_DELAY_MS = 5_000
+
 export interface CheckEverclearIntentJobData extends LiquidityManagerQueueDataType {
   txHash: Hex
 }
@@ -39,7 +41,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       attempts: 10, // Retry up to 10 times for long-running intents
       backoff: {
         type: 'exponential',
-        delay: 5_000, // 5 seconds
+        delay: EVERCLEAR_RETRY_DELAY_MS,
       },
     })
   }
@@ -64,7 +66,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
     switch (result.status) {
       case 'pending':
-        this.delay(job, 5_000)
+        this.delay(job, EVERCLEAR_RETRY_DELAY_MS)
       case 'complete':
         return result
       case 'failed':

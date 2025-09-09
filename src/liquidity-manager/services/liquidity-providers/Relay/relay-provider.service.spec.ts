@@ -93,6 +93,7 @@ describe('RelayProviderService', () => {
           useValue: {
             getSupportedChains: jest.fn().mockReturnValue([1n, 10n, 137n]),
             getLiquidityManager: jest.fn().mockReturnValue({ maxQuoteSlippage: 0.01 }),
+            getLiquidityManagerMaxQuoteSlippageBps: jest.fn().mockReturnValue('100'),
           },
         },
         {
