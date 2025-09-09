@@ -3,6 +3,7 @@ import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
+import { getErrorMessage } from '@/common/utils/error-handler';
 import {
   BlockchainConfigService,
   FulfillmentConfigService,
@@ -45,29 +46,28 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       return;
     }
 
-    // Use pseudo-chainId for Solana (1399811149 represents Solana mainnet)
-    const chainId = 1399811149;
+    const chainId = this.solanaConfigService.chainId;
 
     // Create a new logger instance for the listener to avoid context pollution
     const listenerLogger = new SystemLoggerService(this.winstonLogger);
     listenerLogger.setContext(`SolanaListener:${chainId}`);
 
-    const listener = new SolanaListener(
-      this.solanaConfigService,
-      this.eventsService,
-      this.fulfillmentConfigService,
-      listenerLogger,
-      this.blockchainConfigService,
-    );
+    try {
+      const listener = new SolanaListener(
+        this.solanaConfigService,
+        this.eventsService,
+        this.fulfillmentConfigService,
+        listenerLogger,
+        this.blockchainConfigService,
+      );
 
-    await listener.start();
-    this.listeners.set(chainId, listener);
+      await listener.start();
+      this.listeners.set(chainId, listener);
 
-    this.logger.log(
-      `Started ${this.listeners.size} SVM listeners for chains: ${Array.from(
-        this.listeners.keys(),
-      ).join(', ')}`,
-    );
+      this.logger.log(`Started SVM listener for chain ${chainId}`);
+    } catch (error) {
+      this.logger.error(`Unable to start listener for ${chainId}: ${getErrorMessage(error)}`);
+    }
   }
 
   private async stopAllListeners(): Promise<void> {

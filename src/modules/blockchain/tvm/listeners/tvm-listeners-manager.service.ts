@@ -3,6 +3,7 @@ import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
+import { getErrorMessage } from '@/common/utils/error-handler';
 import { TvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -47,19 +48,25 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const listenerLogger = new SystemLoggerService(this.winstonLogger);
       listenerLogger.setContext(`TronListener:${network.chainId}`);
 
-      const listener = new TronListener(
-        network,
-        this.tvmConfigService.getTransactionSettings(),
-        this.eventsService,
-        listenerLogger,
-        this.otelService,
-        this.tvmConfigService,
-      );
+      try {
+        const listener = new TronListener(
+          network,
+          this.tvmConfigService.getTransactionSettings(),
+          this.eventsService,
+          listenerLogger,
+          this.otelService,
+          this.tvmConfigService,
+        );
 
-      this.listeners.push(listener);
-      await listener.start();
+        this.listeners.push(listener);
+        await listener.start();
 
-      this.logger.log(`Started TVM listener for chain ${network.chainId}`);
+        this.logger.log(`Started TVM listener for chain ${network.chainId}`);
+      } catch (error) {
+        this.logger.error(
+          `Unable to start listener for ${network.chainId}: ${getErrorMessage(error)}`,
+        );
+      }
     }
 
     this.logger.log(`Initialized ${this.listeners.length} TVM listeners`);

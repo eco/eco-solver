@@ -6,8 +6,7 @@ function readU64LE(buf: Buffer, offset = 0): bigint {
 }
 
 /** Minimal decode for SPL Token instruction data (op 3/12 only) */
-export function decodeSplTransferData(dataB64: string) {
-  const data = Buffer.from(dataB64, 'base64');
+export function decodeSplTransferData(data: Buffer) {
   const opcode = data[0];
 
   if (opcode === 3) {

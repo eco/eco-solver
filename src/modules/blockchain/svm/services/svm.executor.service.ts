@@ -30,6 +30,7 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
 import { PortalIdl } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
+import { extractCallData } from '@/modules/blockchain/svm/utils/call-data';
 import { decodeSplTransferData } from '@/modules/blockchain/svm/utils/decode';
 import { hashIntentSvm } from '@/modules/blockchain/svm/utils/hash';
 import { prepareSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
@@ -349,10 +350,9 @@ export class SvmExecutorService extends BaseChainExecutor {
    * Checks if a call is an SPL token transfer
    */
   private isSPLTokenTransfer(call: Intent['route']['calls'][number]): boolean {
-    const targetString = call.target.toString();
-    const tokenProgramId = TOKEN_PROGRAM_ID.toBase58();
+    const tokenProgramId = AddressNormalizer.normalizeSvm(TOKEN_PROGRAM_ID);
 
-    if (targetString.toLowerCase() === tokenProgramId.toLowerCase()) {
+    if (call.target.toLowerCase() === tokenProgramId.toLowerCase()) {
       const dataBytes = toBuffer(call.data);
       // Check if it's a transfer instruction (instruction type 3)
       return dataBytes.length >= 9;
@@ -363,7 +363,8 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private async createSPLTransferInstruction(call: Intent['route']['calls'][number]) {
     // Decode the transfer amount from the call data
-    const { amount } = decodeSplTransferData(call.data);
+    const dataBuffer = extractCallData(call.data);
+    const { amount } = decodeSplTransferData(dataBuffer);
     const target = AddressNormalizer.denormalizeToSvm(call.target);
     const tokenMint = new web3.PublicKey(target);
 
@@ -401,7 +402,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     // Add accounts for each token transfer
     // This needs to match VecTokenTransferAccounts structure from Rust
     for (const token of route.tokens) {
-      const tokenMint = new web3.PublicKey(token.token);
+      const tokenAddr = AddressNormalizer.denormalizeToSvm(token.token);
+      const tokenMint = new web3.PublicKey(tokenAddr);
 
       // Source token account (solver's)
       const sourceTokenAccount = await getAssociatedTokenAddress(tokenMint, this.keypair.publicKey);
@@ -452,7 +454,8 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       // For each token in the route, we need to provide call accounts
       for (const token of route.tokens) {
-        const tokenMint = new web3.PublicKey(token.token);
+        const tokenAddr = AddressNormalizer.denormalizeToSvm(token.token);
+        const tokenMint = new web3.PublicKey(tokenAddr);
 
         // Executor's associated token account (source)
         const executorAta = await getAssociatedTokenAddress(

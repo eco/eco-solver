@@ -4,6 +4,7 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { getErrorMessage } from '@/common/utils/error-handler';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
@@ -41,25 +42,27 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const listenerLogger = new SystemLoggerService(this.winstonLogger);
       listenerLogger.setContext(`ChainListener:${network.chainId}`);
 
-      const listener = new ChainListener(
-        config,
-        this.transportService,
-        this.eventsService,
-        listenerLogger,
-        this.otelService,
-        this.blockchainConfigService,
-        this.evmConfigService,
-      );
+      try {
+        const listener = new ChainListener(
+          config,
+          this.transportService,
+          this.eventsService,
+          listenerLogger,
+          this.otelService,
+          this.blockchainConfigService,
+          this.evmConfigService,
+        );
 
-      await listener.start();
-      this.listeners.set(network.chainId, listener);
+        await listener.start();
+        this.listeners.set(network.chainId, listener);
+
+        this.logger.log(`Started EVM listener for chain ${network.chainId}`);
+      } catch (error) {
+        this.logger.error(
+          `Unable to start listener for ${network.chainId}: ${getErrorMessage(error)}`,
+        );
+      }
     }
-
-    this.logger.log(
-      `Started ${this.listeners.size} EVM listeners for chains: ${Array.from(
-        this.listeners.keys(),
-      ).join(', ')}`,
-    );
   }
 
   async onModuleDestroy(): Promise<void> {

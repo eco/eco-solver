@@ -19,6 +19,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
+import { extractCallData } from '@/modules/blockchain/svm/utils/call-data';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -324,24 +325,18 @@ export class SvmReaderService extends BaseChainReader {
       }
 
       // Remove '0x' prefix and convert to buffer
-      const instructionData = Buffer.from(call.data.slice(2), 'hex');
+      const instructionData = extractCallData(call.data);
 
       // Basic sanity check - Solana token instructions should have reasonable length
       if (instructionData.length < 1) {
         throw new Error('Invalid Solana instruction: call data too short');
       }
 
-      // TODO: Validate offset
-      // The first 4 bytes of the data are the content left
-      const offset = 4;
-      // The number of accounts is added to the end of the data
-      const account_bytes_length = 1;
-
       // Parse the instruction discriminator (first byte)
       // Solana SPL Token instruction discriminators:
       // - Transfer: 3
       // - TransferChecked: 12
-      const instructionType = instructionData[offset];
+      const instructionType = instructionData[0];
 
       span.setAttribute('svm.instruction_type', instructionType);
       span.setAttribute('svm.call_data_length', instructionData.length);
@@ -366,7 +361,7 @@ export class SvmReaderService extends BaseChainReader {
       // Additional validation based on instruction type
       if (isTransferInstruction) {
         // Transfer instruction should have exactly 8 bytes of data (discriminator + amount as u64)
-        if (instructionData.length !== offset + 9 + account_bytes_length) {
+        if (instructionData.length !== 9) {
           // 1 byte discriminator + 8 bytes amount
           throw new Error(
             `Invalid Transfer instruction: expected 9 bytes, got ${instructionData.length}`,
@@ -374,7 +369,7 @@ export class SvmReaderService extends BaseChainReader {
         }
       } else if (isTransferCheckedInstruction) {
         // TransferChecked instruction should have exactly 9 bytes of data (discriminator + amount as u64 + decimals as u8)
-        if (instructionData.length !== offset + 10 + account_bytes_length) {
+        if (instructionData.length !== 10) {
           // 1 byte discriminator + 8 bytes amount + 1 byte decimals
           throw new Error(
             `Invalid TransferChecked instruction: expected 10 bytes, got ${instructionData.length}`,
