@@ -279,4 +279,72 @@ export class SvmReaderService extends BaseChainReader {
       span.end();
     }
   }
+
+  async validateTokenTransferCall(
+    call: Intent['route']['calls'][number],
+    chainId: number | string,
+  ): Promise<boolean> {
+    const span = this.otelService.startSpan('svm.reader.validateTokenTransferCall', {
+      attributes: {
+        'svm.operation': 'validateTokenTransferCall',
+        'svm.target': call.target,
+        'svm.chain_id': chainId.toString(),
+        'svm.value': call.value.toString(),
+      },
+    });
+
+    try {
+      // First, validate that the target is a supported token address
+      const isTokenSupported = this.solanaConfigService.isTokenSupported(chainId, call.target);
+      
+      span.setAttribute('svm.token_supported', isTokenSupported);
+      
+      if (!isTokenSupported) {
+        throw new Error(`Target ${call.target} is not a supported token address on Solana`);
+      }
+
+      // Then, validate the Solana instruction data
+      // TODO: Implement proper Solana instruction validation
+      // For now, we'll perform basic validation that the callData is not empty
+      // and has reasonable length for a Solana instruction
+      
+      // Solana instructions have different structure than EVM call data
+      // They use a different encoding format and instruction layout
+      
+      if (!call.data || call.data === '0x') {
+        throw new Error('Invalid Solana instruction: call data is empty');
+      }
+
+      // Remove '0x' prefix for length check
+      const dataLength = call.data.slice(2).length / 2; // Convert hex length to byte length
+      
+      // Basic sanity check - Solana instructions should have reasonable length
+      if (dataLength < 4) {
+        throw new Error('Invalid Solana instruction: call data too short');
+      }
+
+      // For now, we'll accept all non-empty call data as potentially valid
+      // In the future, this could be enhanced to:
+      // 1. Parse Solana instruction format
+      // 2. Validate it's a token program instruction
+      // 3. Ensure it's specifically a transfer instruction
+      
+      span.setAttribute('svm.call_data_length', dataLength);
+      span.setAttribute('svm.validation_result', 'basic_validation_passed');
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      
+      this.logger.debug(
+        `Basic Solana instruction validation passed for target ${call.target}. ` +
+          'Consider implementing detailed instruction parsing for better validation.',
+      );
+      
+      return true;
+    } catch (error) {
+      span.recordException(toError(error));
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw new Error(`Invalid Solana instruction for target ${call.target}: ${getErrorMessage(error)}`);
+    } finally {
+      span.end();
+    }
+  }
 }

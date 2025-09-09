@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, encodePacked, erc20Abi, Hex } from 'viem';
+import { Address, decodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
@@ -225,6 +225,57 @@ export class EvmReaderService extends BaseChainReader {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);
+    } finally {
+      span.end();
+    }
+  }
+
+  async validateTokenTransferCall(
+    call: Intent['route']['calls'][number],
+    chainId: number | string,
+  ): Promise<boolean> {
+    const span = this.otelService.startSpan('evm.reader.validateTokenTransferCall', {
+      attributes: {
+        'evm.operation': 'validateTokenTransferCall',
+        'evm.target': call.target,
+        'evm.chain_id': chainId.toString(),
+        'evm.value': call.value.toString(),
+      },
+    });
+
+    try {
+      // First, validate that the target is a supported token address
+      const isTokenSupported = this.evmConfigService.isTokenSupported(Number(chainId), call.target);
+      
+      span.setAttribute('evm.token_supported', isTokenSupported);
+      
+      if (!isTokenSupported) {
+        throw new Error(`Target ${call.target} is not a supported token address on chain ${chainId}`);
+      }
+
+      // Then, validate that the call data is a valid ERC20 transfer function
+      const fn = decodeFunctionData({
+        abi: erc20Abi,
+        data: call.data,
+      });
+
+      span.setAttribute('evm.function_name', fn.functionName);
+
+      // Check if it's a transfer function
+      const isTransferCall = fn.functionName === 'transfer';
+      
+      span.setAttribute('evm.is_transfer_call', isTransferCall);
+      
+      if (!isTransferCall) {
+        throw new Error(`Invalid ERC20 call: only transfer function is allowed, got ${fn.functionName}`);
+      }
+
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return true;
+    } catch (error) {
+      span.recordException(toError(error));
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw new Error(`Invalid ERC20 call for target ${call.target} on chain ${chainId}: ${getErrorMessage(error)}`);
     } finally {
       span.end();
     }

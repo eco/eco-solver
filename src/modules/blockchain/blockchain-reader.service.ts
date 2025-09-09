@@ -132,6 +132,24 @@ export class BlockchainReaderService {
     return reader.fetchProverFee(intent, prover, messageData, normalizedChainId, claimant!);
   }
 
+  /**
+   * Validate if a call is a valid token transfer call for a specific chain
+   * @param chainId The chain ID
+   * @param call The route call to validate
+   * @returns true if the call is a valid token transfer
+   */
+  async validateTokenTransferCall(
+    chainId: string | number | bigint,
+    call: Intent['route']['calls'][number],
+  ): Promise<boolean> {
+    const reader = this.getReaderForChain(chainId);
+    if (!reader) {
+      throw new Error(`No reader available for chain ${chainId}`);
+    }
+    const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+    return reader.validateTokenTransferCall(call, normalizedChainId);
+  }
+
   private initializeReaders() {
     // Get all configured chains from the unified config service
     const configuredChains = this.blockchainConfigService.getAllConfiguredChains();

@@ -1,11 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { decodeFunctionData, erc20Abi } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { TokenConfigService } from '@/modules/config/services/token-config.service';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -14,8 +12,8 @@ import { Validation } from './validation.interface';
 @Injectable()
 export class RouteCallsValidation implements Validation {
   constructor(
-    private tokenConfigService: TokenConfigService,
     private readonly otelService: OpenTelemetryService,
+    private readonly blockchainReaderService: BlockchainReaderService,
   ) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
@@ -43,63 +41,32 @@ export class RouteCallsValidation implements Validation {
         return true;
       }
 
-      // Detect chain type for validation logic
-      const chainType = ChainTypeDetector.detect(intent.destination);
-      span.setAttribute('chain.type', chainType);
-
-      const tokens = this.tokenConfigService.getSupportedTokens(intent.destination);
-      span.setAttribute('supported.tokens.count', tokens.length);
-
+      // Validate each call using blockchain reader service
+      // The blockchain reader service handles both token address validation and transfer call validation
       for (let i = 0; i < intent.route.calls.length; i++) {
         const call = intent.route.calls[i];
-
-        // Normalize addresses
-        const isTokenCall =
-          tokens.length === 0 || tokens.some((token) => token.address === call.target);
-
-        // Add debugging attributes for TVM address normalization
-        span.setAttribute(`route.call.${i}.target`, call.target);
 
         span.setAttributes({
           [`route.call.${i}.target`]: call.target,
           [`route.call.${i}.value`]: call.value?.toString() || '0',
-          [`route.call.${i}.isTokenCall`]: isTokenCall,
         });
 
-        if (!isTokenCall) {
-          throw new Error(
-            `Invalid route call: target ${call.target} is not a supported token address on chain ${intent.destination}`,
+        try {
+          const isValidTokenTransferCall = await this.blockchainReaderService.validateTokenTransferCall(
+            intent.destination,
+            call,
           );
-        }
 
-        // Validate call data based on chain type
-        if (chainType === ChainType.EVM || chainType === ChainType.TVM) {
-          // Both EVM and TVM use the same ABI encoding for contract calls
-          try {
-            const fn = decodeFunctionData({
-              abi: erc20Abi,
-              data: call.data,
-            });
+          span.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
 
-            span.setAttribute(`route.call.${i}.functionName`, fn.functionName);
-
-            if (fn.functionName !== 'transfer') {
-              const tokenStandard = chainType === ChainType.TVM ? 'TRC20' : 'ERC20';
-              throw new Error(
-                `Invalid route call: only ${tokenStandard} transfer function is allowed, got ${fn.functionName}`,
-              );
-            }
-          } catch (error) {
-            // Invalid token call data
-            const tokenStandard = chainType === ChainType.TVM ? 'TRC20' : 'ERC20';
-            throw new Error(
-              `Invalid route call: unable to decode ${tokenStandard} call data for target ${call.target}`,
-            );
+          if (!isValidTokenTransferCall) {
+            throw new Error(`Invalid token transfer call for target ${call.target}`);
           }
-        } else if (chainType === ChainType.SVM) {
-          // Solana uses different instruction format
-          // For now, skip validation as it requires different decoding logic
-          span.setAttribute(`route.call.${i}.validation`, 'skipped for SVM');
+        } catch (error) {
+          span.setAttribute(`route.call.${i}.validationError`, (error as Error).message);
+          throw new Error(
+            `Invalid route call for target ${call.target} on chain ${intent.destination}: ${(error as Error).message}`,
+          );
         }
       }
 

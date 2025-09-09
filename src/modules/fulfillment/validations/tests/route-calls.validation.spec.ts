@@ -1,19 +1,24 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
-import { TokenConfigService } from '@/modules/config/services/token-config.service';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RouteCallsValidation } from '../route-calls.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
+// Helper function to create UniversalAddress from string
+function toUniversalAddress(address: string): UniversalAddress {
+  return address as UniversalAddress;
+}
+
 describe('RouteCallsValidation', () => {
   let validation: RouteCallsValidation;
-  let tokenConfigService: jest.Mocked<TokenConfigService>;
+  let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
   beforeEach(async () => {
-    const mockTokenConfigService = {
-      getSupportedTokens: jest.fn(),
+    const mockBlockchainReaderService = {
+      validateTokenTransferCall: jest.fn(),
     };
 
     const mockOtelService = {
@@ -31,8 +36,8 @@ describe('RouteCallsValidation', () => {
       providers: [
         RouteCallsValidation,
         {
-          provide: TokenConfigService,
-          useValue: mockTokenConfigService,
+          provide: BlockchainReaderService,
+          useValue: mockBlockchainReaderService,
         },
         {
           provide: OpenTelemetryService,
@@ -42,7 +47,7 @@ describe('RouteCallsValidation', () => {
     }).compile();
 
     validation = module.get<RouteCallsValidation>(RouteCallsValidation);
-    tokenConfigService = module.get(TokenConfigService);
+    blockchainReaderService = module.get(BlockchainReaderService);
   });
 
   describe('validate', () => {
@@ -54,22 +59,6 @@ describe('RouteCallsValidation', () => {
     });
     const mockContext = createMockValidationContext();
 
-    const mockTokens = [
-      {
-        address: toUniversalAddress(
-          '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
-        ), // USDC
-        decimals: 6,
-        limit: { max: 1000000 },
-      },
-      {
-        address: toUniversalAddress(
-          '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
-        ), // USDT
-        decimals: 6,
-        limit: { max: 1000000 },
-      },
-    ];
 
     describe('no calls scenarios', () => {
       it('should return true when no calls exist', async () => {
@@ -83,7 +72,7 @@ describe('RouteCallsValidation', () => {
         const result = await validation.validate(intentWithNoCalls, mockContext);
 
         expect(result).toBe(true);
-        expect(tokenConfigService.getSupportedTokens).not.toHaveBeenCalled();
+        expect(blockchainReaderService.validateTokenTransferCall).not.toHaveBeenCalled();
       });
     });
 
@@ -111,12 +100,20 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockResolvedValue(true);
 
         const result = await validation.validate(intentWithValidTransferCalls, mockContext);
 
         expect(result).toBe(true);
-        expect(tokenConfigService.getSupportedTokens).toHaveBeenCalledWith(BigInt(10));
+        expect(blockchainReaderService.validateTokenTransferCall).toHaveBeenCalledTimes(2);
+        expect(blockchainReaderService.validateTokenTransferCall).toHaveBeenCalledWith(
+          BigInt(10),
+          intentWithValidTransferCalls.route.calls[0],
+        );
+        expect(blockchainReaderService.validateTokenTransferCall).toHaveBeenCalledWith(
+          BigInt(10),
+          intentWithValidTransferCalls.route.calls[1],
+        );
       });
     });
 
@@ -137,10 +134,12 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
+          new Error('Target 0x0000000000000000000000005555555555555555555555555555555555555555 is not a supported token address on chain 10'),
+        );
 
         await expect(validation.validate(intentWithNonTokenCall, mockContext)).rejects.toThrow(
-          'Invalid route call: target 0x0000000000000000000000005555555555555555555555555555555555555555 is not a supported token address on chain 10',
+          'Invalid route call for target 0x0000000000000000000000005555555555555555555555555555555555555555 on chain 10: Target 0x0000000000000000000000005555555555555555555555555555555555555555 is not a supported token address on chain 10',
         );
       });
 
@@ -160,10 +159,12 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
+          new Error('Invalid ERC20 call: only transfer function is allowed, got approve'),
+        );
 
         await expect(validation.validate(intentWithApprove, mockContext)).rejects.toThrow(
-          'Invalid route call: unable to decode ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Invalid route call for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 on chain 10: Invalid ERC20 call: only transfer function is allowed, got approve',
         );
       });
 
@@ -183,32 +184,16 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
+          new Error('Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+        );
 
         await expect(validation.validate(intentWithTransferFrom, mockContext)).rejects.toThrow(
-          'Invalid route call: unable to decode ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Invalid route call for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 on chain 10: Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
 
       it('should handle case-insensitive token address comparison', async () => {
-        // Create mock tokens with lowercase address to match the test case
-        const mockTokensWithLowercase = [
-          {
-            address: toUniversalAddress(
-              '0x0000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c31607',
-            ), // lowercase USDC
-            decimals: 6,
-            limit: { max: 1000000 },
-          },
-          {
-            address: toUniversalAddress(
-              '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
-            ), // USDT
-            decimals: 6,
-            limit: { max: 1000000 },
-          },
-        ];
-
         const intentWithLowercaseToken = createMockIntent({
           route: {
             ...mockIntent.route,
@@ -224,11 +209,11 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokensWithLowercase);
+        blockchainReaderService.validateTokenTransferCall.mockResolvedValue(true);
 
         const result = await validation.validate(intentWithLowercaseToken, mockContext);
 
-        expect(result).toBe(true); // Should pass when addresses match exactly
+        expect(result).toBe(true); // Should pass when blockchain reader service validates successfully
       });
 
       it('should throw error when call data cannot be decoded as ERC20', async () => {
@@ -247,10 +232,12 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
+          new Error('Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+        );
 
         await expect(validation.validate(intentWithInvalidData, mockContext)).rejects.toThrow(
-          'Invalid route call: unable to decode ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Invalid route call for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 on chain 10: Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
 
@@ -270,10 +257,12 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
+          new Error('Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+        );
 
         await expect(validation.validate(intentWithCustomFunction, mockContext)).rejects.toThrow(
-          'Invalid route call: unable to decode ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Invalid route call for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 on chain 10: Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
       });
     });
@@ -295,10 +284,12 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue([]);
+        blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
+          new Error('Invalid ERC20 call: only transfer function is allowed, got approve'),
+        );
 
         await expect(validation.validate(intentWithNonTransferCall, mockContext)).rejects.toThrow(
-          'Invalid route call: unable to decode ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Invalid route call for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 on chain 10: Invalid ERC20 call: only transfer function is allowed, got approve',
         );
       });
 
@@ -318,10 +309,10 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue([]);
+        blockchainReaderService.validateTokenTransferCall.mockResolvedValue(true);
 
         const result = await validation.validate(intentWithTransferCall, mockContext);
-        expect(result).toBe(true); // When no tokens configured, all calls are allowed
+        expect(result).toBe(true); // When blockchain reader service validates successfully
       });
     });
 
@@ -349,10 +340,15 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        // First call succeeds, second call fails
+        blockchainReaderService.validateTokenTransferCall
+          .mockResolvedValueOnce(true)
+          .mockRejectedValueOnce(
+            new Error('Target 0x0000000000000000000000006666666666666666666666666666666666666666 is not a supported token address on chain 10'),
+          );
 
         await expect(validation.validate(intentWithMixedCalls, mockContext)).rejects.toThrow(
-          'Invalid route call: target 0x0000000000000000000000006666666666666666666666666666666666666666 is not a supported token address on chain 10',
+          'Invalid route call for target 0x0000000000000000000000006666666666666666666666666666666666666666 on chain 10: Target 0x0000000000000000000000006666666666666666666666666666666666666666 is not a supported token address on chain 10',
         );
       });
 
@@ -372,11 +368,11 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockResolvedValue(true);
 
         const result = await validation.validate(intentWithTokenTransfer, mockContext);
 
-        // Should pass both checks (is token address AND is transfer function)
+        // Should pass both checks (is token address AND is transfer function) - handled by blockchain reader
         expect(result).toBe(true);
       });
 
@@ -410,11 +406,12 @@ describe('RouteCallsValidation', () => {
           },
         });
 
-        tokenConfigService.getSupportedTokens.mockReturnValue(mockTokens);
+        blockchainReaderService.validateTokenTransferCall.mockResolvedValue(true);
 
         const result = await validation.validate(intentWithAllValidTransfers, mockContext);
 
         expect(result).toBe(true);
+        expect(blockchainReaderService.validateTokenTransferCall).toHaveBeenCalledTimes(3);
       });
     });
   });

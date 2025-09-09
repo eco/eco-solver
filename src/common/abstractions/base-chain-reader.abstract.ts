@@ -24,4 +24,16 @@ export abstract class BaseChainReader {
     chainId: number | string,
     claimant: UniversalAddress,
   ): Promise<bigint>;
+
+  /**
+   * Validates if a call is a valid token transfer call for the specific blockchain
+   * Also validates that the target is a supported token address on the given chain
+   * @param call The route call to validate
+   * @param chainId The chain ID to validate against
+   * @returns Promise<boolean> true if the call is a valid token transfer to a supported token
+   */
+  abstract validateTokenTransferCall(
+    call: Intent['route']['calls'][number],
+    chainId: number | string,
+  ): Promise<boolean>;
 }

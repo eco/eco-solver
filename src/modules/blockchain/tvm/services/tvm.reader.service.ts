@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
-import { encodePacked, erc20Abi, Hex } from 'viem';
+import { decodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
@@ -285,6 +285,58 @@ export class TvmReaderService extends BaseChainReader {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);
+    } finally {
+      span.end();
+    }
+  }
+
+  async validateTokenTransferCall(
+    call: Intent['route']['calls'][number],
+    chainId: number | string,
+  ): Promise<boolean> {
+    const span = this.otelService.startSpan('tvm.reader.validateTokenTransferCall', {
+      attributes: {
+        'tvm.operation': 'validateTokenTransferCall',
+        'tvm.target': call.target,
+        'tvm.chain_id': chainId.toString(),
+        'tvm.value': call.value.toString(),
+      },
+    });
+
+    try {
+      // First, validate that the target is a supported token address
+      const isTokenSupported = this.tvmConfigService.isTokenSupported(Number(chainId), call.target);
+      
+      span.setAttribute('tvm.token_supported', isTokenSupported);
+      
+      if (!isTokenSupported) {
+        throw new Error(`Target ${call.target} is not a supported token address on chain ${chainId}`);
+      }
+
+      // Then, validate that the call data is a valid TRC20 transfer function
+      // TVM (TRON) uses the same ABI encoding as EVM for TRC20 tokens
+      const fn = decodeFunctionData({
+        abi: erc20Abi,
+        data: call.data,
+      });
+
+      span.setAttribute('tvm.function_name', fn.functionName);
+
+      // Check if it's a transfer function
+      const isTransferCall = fn.functionName === 'transfer';
+      
+      span.setAttribute('tvm.is_transfer_call', isTransferCall);
+      
+      if (!isTransferCall) {
+        throw new Error(`Invalid TRC20 call: only transfer function is allowed, got ${fn.functionName}`);
+      }
+
+      span.setStatus({ code: api.SpanStatusCode.OK });
+      return true;
+    } catch (error) {
+      span.recordException(toError(error));
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw new Error(`Invalid TRC20 call for target ${call.target} on chain ${chainId}: ${getErrorMessage(error)}`);
     } finally {
       span.end();
     }
