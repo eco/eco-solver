@@ -27,18 +27,17 @@ import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
 import { PortalIdl } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
-import { extractCallData } from '@/modules/blockchain/svm/utils/call-data';
-import { decodeSplTransferData } from '@/modules/blockchain/svm/utils/decode';
 import { hashIntentSvm } from '@/modules/blockchain/svm/utils/hash';
 import { prepareSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
-import { SvmWalletManagerService } from './svm-wallet-manager.service';
+import { SvmWalletManagerService, SvmWalletType } from './svm-wallet-manager.service';
 
 @Injectable()
 export class SvmExecutorService extends BaseChainExecutor {
@@ -70,21 +69,16 @@ export class SvmExecutorService extends BaseChainExecutor {
       const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
         units: 600_000,
       });
+      const transaction = new Transaction().add(computeBudgetIx);
 
-      const tokenTransferIxs = await this.generateTokenTransferInstructions(intent.route.calls);
-      const fulfillIx = await this.generateFulfillIx(intent);
-
-      // Build and send transaction
-      const transaction = new Transaction()
-        .add(computeBudgetIx)
-        .add(...tokenTransferIxs)
-        .add(fulfillIx);
-
-      // Process token transfers if needed
       if (intent.route.tokens && intent.route.tokens.length > 0) {
         const transferInstructions = await this.buildTokenTransferInstructions(intent);
         transferInstructions.forEach((ix) => transaction.add(ix));
       }
+
+      // Generate the fulfill instruction for the Portal program
+      const fulfillIx = await this.generateFulfillIx(intent);
+      transaction.add(fulfillIx);
 
       const signature = await this.wallet.sendTransaction(transaction, {
         skipPreflight: false,
@@ -112,12 +106,13 @@ export class SvmExecutorService extends BaseChainExecutor {
     return BigInt(balance);
   }
 
-  async getWalletAddress(): Promise<UniversalAddress> {
-    if (!this.wallet) {
-      throw new Error('Wallet not initialized');
-    }
-    const publicKey = await this.wallet.getAddress();
-    return AddressNormalizer.normalizeSvm(publicKey);
+  async getWalletAddress(
+    walletType: WalletType,
+    chainId: bigint | number,
+  ): Promise<UniversalAddress> {
+    // Convert WalletType to SvmWalletType (currently only 'basic' is supported)
+    const svmWalletType: SvmWalletType = walletType as SvmWalletType;
+    return this.walletManager.getWalletAddress(Number(chainId), svmWalletType);
   }
 
   async isTransactionConfirmed(txHash: string, _chainId: number): Promise<boolean> {
@@ -295,7 +290,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           tokenMint,
           senderPublicKey,
           false,
-          TOKEN_PROGRAM_ID, // Try standard token program first
+          TOKEN_PROGRAM_ID,
         );
 
         const destinationTokenAccount = getAssociatedTokenAddressSync(
@@ -304,6 +299,25 @@ export class SvmExecutorService extends BaseChainExecutor {
           false,
           TOKEN_PROGRAM_ID,
         );
+
+        // Check if destination token account exists, create if not
+        try {
+          const destAccountInfo = await this.connection.getAccountInfo(destinationTokenAccount);
+          if (!destAccountInfo) {
+            // Add instruction to create the associated token account
+            const createAccountIx = createAssociatedTokenAccountInstruction(
+              senderPublicKey, // payer
+              destinationTokenAccount, // associatedToken
+              recipientPublicKey, // owner
+              tokenMint, // mint
+            );
+            instructions.push(createAccountIx);
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Failed to check destination token account for ${token.token}: ${getErrorMessage(error)}`,
+          );
+        }
 
         // Create transfer instruction
         const transferIx = createTransferInstruction(
@@ -324,76 +338,6 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
 
     return instructions;
-  }
-
-  /**
-   * Creates token transfer instructions for the intent's route tokens
-   */
-  private async generateTokenTransferInstructions(
-    calls: Intent['route']['calls'],
-  ): Promise<web3.TransactionInstruction[]> {
-    const instructions: web3.TransactionInstruction[] = [];
-
-    // Process each call in the route
-    for (const call of calls) {
-      // Check if this is an SPL token transfer
-      if (this.isSPLTokenTransfer(call)) {
-        const instruction = await this.createSPLTransferInstruction(call);
-        instructions.push(instruction);
-      }
-    }
-
-    return instructions;
-  }
-
-  /**
-   * Checks if a call is an SPL token transfer
-   */
-  private isSPLTokenTransfer(call: Intent['route']['calls'][number]): boolean {
-    const tokenProgramId = AddressNormalizer.normalizeSvm(TOKEN_PROGRAM_ID);
-
-    if (call.target.toLowerCase() === tokenProgramId.toLowerCase()) {
-      const dataBytes = toBuffer(call.data);
-      // Check if it's a transfer instruction (instruction type 3)
-      return dataBytes.length >= 9;
-    }
-
-    return false;
-  }
-
-  private async createSPLTransferInstruction(call: Intent['route']['calls'][number]) {
-    // Decode the transfer amount from the call data
-    const dataBuffer = extractCallData(call.data);
-    const { amount } = decodeSplTransferData(dataBuffer);
-    const target = AddressNormalizer.denormalizeToSvm(call.target);
-    const tokenMint = new web3.PublicKey(target);
-
-    // Get source and destination token accounts
-    const sourceTokenAccount = await getAssociatedTokenAddress(tokenMint, this.keypair.publicKey);
-
-    // For now, use a placeholder recipient - this should come from the intent
-    const recipientPubkey = new web3.PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh');
-    const destinationTokenAccount = await getAssociatedTokenAddress(tokenMint, recipientPubkey);
-
-    // Check if destination token account exists, create if not
-    const destAccountInfo = await this.connection.getAccountInfo(destinationTokenAccount);
-    if (!destAccountInfo) {
-      // Return instruction to create the associated token account
-      return createAssociatedTokenAccountInstruction(
-        this.keypair.publicKey,
-        destinationTokenAccount,
-        recipientPubkey,
-        tokenMint,
-      );
-    }
-
-    // Create the transfer instruction
-    return createTransferInstruction(
-      sourceTokenAccount,
-      destinationTokenAccount,
-      this.keypair.publicKey,
-      Number(amount),
-    );
   }
 
   private async getTokenAccounts(route: Intent['route']): Promise<web3.AccountMeta[]> {
