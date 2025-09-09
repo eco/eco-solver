@@ -55,6 +55,11 @@ export const RouteStruct = [
     type: 'address',
   },
   {
+    internalType: 'uint256',
+    name: 'nativeAmount',
+    type: 'uint256',
+  },
+  {
     components: [
       {
         internalType: 'address',

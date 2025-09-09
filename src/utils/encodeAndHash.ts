@@ -15,6 +15,7 @@ export type RouteType<TVM extends VmType = VmType> = {
   salt: Hex
   deadline: bigint
   portal: Address<TVM>
+  nativeAmount: bigint
   tokens: readonly {
     token: Address<TVM>
     amount: bigint
@@ -48,6 +49,7 @@ export type IntentType<SourceVM extends VmType = VmType, TargetVM extends VmType
 export function encodeRoute(route: RouteType): Hex {
   switch (route.vm) {
     case VmType.EVM:
+      console.log('SAQUON encodeRoute EVM', route);
       return encodeAbiParameters([{ type: 'tuple', components: RouteStruct }], [route])
     case VmType.SVM:
       // Use Anchor's BorshCoder for proper Solana serialization
@@ -198,6 +200,7 @@ export function decodeRoute(vm: VmType, route: Hex): RouteType {
         salt: saltHex,
         deadline: BigInt(decoded.deadline.toString()),
         portal: new PublicKey(decoded.portal[0]),
+        nativeAmount: BigInt(decoded.nativeAmount.toString()),
         tokens: decoded.tokens.map(({ token, amount }: any) => ({
           token: token.toString() as Hex,
           amount: BigInt(amount.toString()),
@@ -260,6 +263,7 @@ export function hashIntentSvm(
 } {
   const routeHash = hashRoute(route)
   const rewardHash = hashReward(reward)
+  console.log('JUSTLOGGING: rewardHash', routeHash, rewardHash)
 
   // Match Rust: destination.to_be_bytes() (u64 as big-endian bytes)
   const destinationBytes = new Uint8Array(8)

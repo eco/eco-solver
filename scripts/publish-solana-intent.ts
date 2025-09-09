@@ -202,6 +202,7 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
     salt: salt,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     portal: optimismPortalAddress as Hex,
+    nativeAmount: 0n,
     tokens: routeTokens.map((token) => ({
       token: token.token as Hex,
       amount: BigInt(token.amount),
@@ -279,6 +280,7 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
             salt: salt,
             deadline: route.deadline,
             portal: route.portal,
+            nativeAmount: 0n,
             tokens: route.tokens,
             calls: route.calls,
           },
@@ -313,16 +315,16 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
 
     console.log(`Intent published and confirmed! Transaction: ${signature}`)
 
+    const intentHash = hashIntentSvm(BigInt(intent.destination), intent.route, intent.reward)
+
+    console.log('JUSTLOGGING: intent', BigInt(intent.destination),intent.route)
+
     // Conditionally fund the intent if requested
     let fundingSignature: string | null = null
     if (fundIntent) {
       console.log('Funding the published intent...')
 
       try {
-        const intentHash = hashIntentSvm(BigInt(intent.destination), intent.route, intent.reward)
-
-        console.log('JUSTLOGGING: intentHash', intentHash)
-
         // Calculate vault PDA from intent hash
         const intentHashBytes = new Uint8Array(Buffer.from(intentHash.intentHash.slice(2), 'hex'))
         const [vaultPda] = getVaultPda(intentHashBytes)
