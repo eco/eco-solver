@@ -46,23 +46,10 @@ export class IntentFundedValidation implements Validation {
     const sourceChainId = intent.sourceChainId;
 
     try {
-      if (!sourceChainId) {
-        throw new ValidationError(
-          `Intent ${intent.intentHash} is missing source chain ID`,
-          ValidationErrorType.PERMANENT,
-          'IntentFundedValidation',
-        );
-      }
-
       span.setAttribute('funding.checking_chain', sourceChainId.toString());
 
       // Always perform on-chain verification for intent funding status
       const isFunded = await this.blockchainReader.isIntentFunded(sourceChainId, intent);
-
-      // If we have vault address, add it to span for debugging
-      if (intent.vaultAddress) {
-        span.setAttribute('funding.vault_address', intent.vaultAddress);
-      }
 
       span.setAttributes({
         'funding.is_funded': isFunded,

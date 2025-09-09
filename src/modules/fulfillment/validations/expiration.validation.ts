@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { now } from '@/common/utils/time';
 import { FulfillmentConfigService } from '@/modules/config/services';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -34,7 +35,7 @@ export class ExpirationValidation implements Validation {
       });
 
     try {
-      const currentTimestamp = BigInt(Math.floor(Date.now() / 1000));
+      const currentTimestamp = BigInt(now());
 
       span.setAttributes({
         'expiration.current_timestamp': currentTimestamp.toString(),
@@ -62,10 +63,15 @@ export class ExpirationValidation implements Validation {
       }
 
       // Get the maximum deadline buffer required by provers for this route
-      const bufferSeconds = this.proverService.getMaxDeadlineBuffer(
+      const prover = this.proverService.getProver(
         Number(intent.sourceChainId),
-        Number(intent.destination),
+        intent.reward.prover,
       );
+      if (!prover) {
+        throw new ValidationError('Prover not found.');
+      }
+
+      const bufferSeconds = prover.getDeadlineBuffer();
 
       span.setAttributes({
         'expiration.required_buffer': bufferSeconds.toString(),

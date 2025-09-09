@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
 import { TronWeb } from 'tronweb';
 import { erc20Abi } from 'viem';
@@ -31,6 +31,7 @@ export class TvmExecutorService extends BaseChainExecutor {
     private tvmConfigService: TvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private walletManager: TvmWalletManagerService,
+    @Inject(forwardRef(() => ProverService))
     private proverService: ProverService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,

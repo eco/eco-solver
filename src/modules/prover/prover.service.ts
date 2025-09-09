@@ -63,7 +63,7 @@ export class ProverService implements OnModuleInit {
     return { isValid: true };
   }
 
-  getProver(chainId: number | string, address: UniversalAddress) {
+  getProver(chainId: number, address: UniversalAddress) {
     for (const prover of this.provers.values()) {
       const proverAddr = prover.getContractAddress(chainId);
 
@@ -90,8 +90,7 @@ export class ProverService implements OnModuleInit {
       }
     }
 
-    // If no prover supports this route, return a default buffer (5 minutes)
-    return maxBuffer > 0n ? maxBuffer : 300n;
+    throw new Error('Unable to get max deadline buffer');
   }
 
   findProverForRoute(sourceChainId: number, destinationChainId: number): BaseProver | null {

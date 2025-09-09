@@ -9,8 +9,10 @@ import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstrac
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
-import { toEVMIntent } from '@/common/utils/intent-converter';
+import { toRewardEVMIntent } from '@/common/utils/intent-converter';
+import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -114,20 +116,15 @@ export class EvmReaderService extends BaseChainReader {
 
       const client = this.transportService.getPublicClient(chainId);
 
-      // Use Portal contract's isIntentFunded function
-      // Convert to EVM intent format for contract call
-      const evmIntent = toEVMIntent(intent);
-      const portalIntent = {
-        destination: evmIntent.destination,
-        route: evmIntent.route,
-        reward: evmIntent.reward,
-      };
+      const destinationChainType = ChainTypeDetector.detect(intent.destination);
+      const routeEncodedBuffer = PortalEncoder.encode(intent.route, destinationChainType);
+      const routeEncoded = '0x' + routeEncodedBuffer.toString('hex');
 
       const isFunded = await client.readContract({
         address: portalAddress,
         abi: portalAbi,
         functionName: 'isIntentFunded',
-        args: [portalIntent],
+        args: [intent.destination, routeEncoded as Hex, toRewardEVMIntent(intent.reward)],
       });
 
       span.setAttributes({

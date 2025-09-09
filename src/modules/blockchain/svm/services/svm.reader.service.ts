@@ -6,6 +6,7 @@ import {
   getAssociatedTokenAddress,
   getAssociatedTokenAddressSync,
   TOKEN_PROGRAM_ID,
+  TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
@@ -76,7 +77,7 @@ export class SvmReaderService extends BaseChainReader {
       return BigInt(tokenAccount.amount.toString());
     } catch (error) {
       // If the associated token account doesn't exist, return 0
-      if (getErrorMessage(error).includes('could not find account')) {
+      if (error instanceof TokenAccountNotFoundError) {
         return BigInt(0);
       }
       throw error;
@@ -330,11 +331,17 @@ export class SvmReaderService extends BaseChainReader {
         throw new Error('Invalid Solana instruction: call data too short');
       }
 
+      // TODO: Validate offset
+      // The first 4 bytes of the data are the content left
+      const offset = 4;
+      // The number of accounts is added to the end of the data
+      const account_bytes_length = 1;
+
       // Parse the instruction discriminator (first byte)
       // Solana SPL Token instruction discriminators:
       // - Transfer: 3
       // - TransferChecked: 12
-      const instructionType = instructionData[0];
+      const instructionType = instructionData[offset];
 
       span.setAttribute('svm.instruction_type', instructionType);
       span.setAttribute('svm.call_data_length', instructionData.length);
@@ -359,7 +366,7 @@ export class SvmReaderService extends BaseChainReader {
       // Additional validation based on instruction type
       if (isTransferInstruction) {
         // Transfer instruction should have exactly 8 bytes of data (discriminator + amount as u64)
-        if (instructionData.length !== 9) {
+        if (instructionData.length !== offset + 9 + account_bytes_length) {
           // 1 byte discriminator + 8 bytes amount
           throw new Error(
             `Invalid Transfer instruction: expected 9 bytes, got ${instructionData.length}`,
@@ -367,7 +374,7 @@ export class SvmReaderService extends BaseChainReader {
         }
       } else if (isTransferCheckedInstruction) {
         // TransferChecked instruction should have exactly 9 bytes of data (discriminator + amount as u64 + decimals as u8)
-        if (instructionData.length !== 10) {
+        if (instructionData.length !== offset + 10 + account_bytes_length) {
           // 1 byte discriminator + 8 bytes amount + 1 byte decimals
           throw new Error(
             `Invalid TransferChecked instruction: expected 10 bytes, got ${instructionData.length}`,

@@ -30,7 +30,7 @@ export abstract class BaseProver implements OnModuleInit {
 
   abstract getDeadlineBuffer(): bigint;
 
-  getContractAddress(chainId: string | number | bigint): UniversalAddress | undefined {
+  getContractAddress(chainId: number): UniversalAddress | undefined {
     return this.blockchainConfigService.getProverAddress(chainId, this.type as TProverType);
   }
 
