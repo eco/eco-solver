@@ -149,7 +149,7 @@ describe('QuoteV2Controller', () => {
       jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(mockQuoteV2Response)
 
       // Act
-      const result = await controller.getQuote(mockV2Request)
+      const result = await controller.getReverseQuote(mockV2Request)
 
       // Assert
       expect(result).toEqual(mockQuoteV2Response)
@@ -173,7 +173,7 @@ describe('QuoteV2Controller', () => {
         })
 
       // Act & Assert
-      await expect(controller.getQuote(mockV2Request)).rejects.toThrow()
+      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
     })
 
     it('should handle quote service errors', async () => {
@@ -184,7 +184,7 @@ describe('QuoteV2Controller', () => {
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
 
       // Act & Assert
-      await expect(controller.getQuote(mockV2Request)).rejects.toThrow()
+      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
       expect(ecoAnalytics.trackError).toHaveBeenCalled()
     })
 
@@ -197,7 +197,7 @@ describe('QuoteV2Controller', () => {
       jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(null)
 
       // Act & Assert
-      await expect(controller.getQuote(mockV2Request)).rejects.toThrow()
+      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
       expect(ecoAnalytics.trackError).toHaveBeenCalled()
     })
   })
