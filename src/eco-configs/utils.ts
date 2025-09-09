@@ -66,10 +66,10 @@ export function getChainConfig(chainID: number | string): EcoChainConfig {
     }
   } else if (id === '10-pre') {
     return {
-      IntentSource: '0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7',
-      Inbox: '0xae890b7d63c7e1c814bd45bc8ccec5e166f505c7',
+      IntentSource: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
+      Inbox: '0x90F0c8aCC1E083Bcb4F487f84FC349ae8d5e28D7',
       MetaProver: '0x0000000000000000000000000000000000000000',
-      HyperProver: '0x9523b6c0cAaC8122DbD5Dd1c1d336CEBA637038D',
+      HyperProver: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C',
     }
   }
   const config = EcoProtocolAddresses[id]

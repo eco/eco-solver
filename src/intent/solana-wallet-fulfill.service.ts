@@ -354,7 +354,10 @@ export class SolanaWalletFulfillService implements IFulfillService {
       model.intent.route,
     )
 
-    const transformedRoute = addAccountsToRoute(RouteDataModel.toSvmRoute(model.intent.route), remainingAccounts.callAccounts)
+    const transformedRoute = addAccountsToRoute(
+      RouteDataModel.toSvmRoute(model.intent.route),
+      remainingAccounts.callAccounts,
+    )
     console.log('MADDEN: transformedRoute', transformedRoute)
 
     const intentHashRecomputed = hashIntentSvm(
@@ -558,7 +561,7 @@ export class SolanaWalletFulfillService implements IFulfillService {
     }
 
     try {
-      const privateKey = JSON.parse(privateKeyStr)
+      const decodedSecretKey = bs58.decode(secretKeyString)
       return web3.Keypair.fromSecretKey(new Uint8Array(privateKey))
     } catch (error) {
       throw new Error('Failed to parse SOLANA_PRIVATE_KEY')

@@ -1,5 +1,5 @@
 {
-  "address": "6c4yNBMyjP8C4EC7KNwxouQdSKoDMA2i7jXzYgqw56eX",
+  "address": "52gVFYqekRiSUxWwCKPNKw9LhBsVxbZiLSnGVsTBGh5F",
   "metadata": {
     "name": "portal",
     "version": "0.1.0",
@@ -517,10 +517,6 @@
           {
             "name": "data",
             "type": "bytes"
-          },
-          {
-            "name": "value",
-            "type": "u64"
           }
         ]
       }
@@ -577,10 +573,9 @@
           {
             "name": "route_hash",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "defined": {
+                "name": "Bytes32"
+              }
             }
           },
           {
@@ -882,6 +877,10 @@
                 "name": "Bytes32"
               }
             }
+          },
+          {
+            "name": "native_amount",
+            "type": "u64"
           },
           {
             "name": "tokens",

@@ -1,29 +1,17 @@
 #!/usr/bin/env ts-node
+/* eslint-disable */
 
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  parseEther,
-  Address,
-  encodeFunctionData,
-  erc20Abi,
-} from 'viem'
+import { Address, createPublicClient, createWalletClient, erc20Abi, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { optimism } from 'viem/chains'
 import * as dotenv from 'dotenv'
 import { VmType } from '@/eco-configs/eco-config.types'
-import { RouteType, IntentType, RewardType } from '@/utils/encodeAndHash'
+import { encodeRoute, hashIntent, IntentType, RewardType, RouteType } from '@/utils/encodeAndHash'
 import { getChainConfig } from '@/eco-configs/utils'
 import config from '../config/solana'
-import { encodeRoute, hashIntent } from '@/utils/encodeAndHash'
-import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import {
-  TOKEN_PROGRAM_ID,
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-} from '@solana/spl-token'
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 // Load environment variables from .env file
@@ -40,6 +28,14 @@ const deadlineWindow = 7200 // 2 hours
 const args = process.argv.slice(2)
 const shouldFund = args.includes('--fund') && args[args.indexOf('--fund') + 1] === 'yes'
 
+function encodeTransferCheckedData(amount: bigint | number, decimals: number): Buffer {
+  const buf = Buffer.alloc(1 + 8 + 1)
+  buf.writeUInt8(12, 0) // 12 = TransferChecked
+  buf.writeBigUInt64LE(BigInt(amount), 1)
+  buf.writeUInt8(decimals, 1 + 8)
+  return buf
+}
+
 async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   console.log('Publishing Optimism to Solana Intent...')
 
@@ -52,7 +48,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   })
 
   // Load private key from environment
-  const privateKeyEnv = process.env.EVM_PRIVATE_KEY
+  const privateKeyEnv = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY
   if (!privateKeyEnv) {
     throw new Error('OPTIMISM_PRIVATE_KEY environment variable not found')
   }
@@ -97,7 +93,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
     vm: VmType.EVM,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     creator: account.address,
-    prover: '0x9523b6c0cAaC8122DbD5Dd1c1d336CEBA637038D', // Placeholder - needs actual EVM prover
+    prover: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C', // Placeholder - needs actual EVM prover
     nativeAmount: 0n,
     tokens: rewardTokens.map((token) => ({
       token: token.token as Address,
@@ -124,17 +120,8 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
   // Create proper TransferChecked instruction data
   // TransferChecked format: [instruction(1), amount(8), decimals(1)]
-  const transferCheckedInstructionData = Buffer.alloc(10) // 1 + 8 + 1 = 10 bytes
-  transferCheckedInstructionData[0] = 12 // TransferChecked instruction
 
-  // Write the amount as 8 bytes little-endian  []
-  const amountBytes = Buffer.alloc(8)
-  const view = new DataView(amountBytes.buffer)
-  view.setBigUint64(0, transferAmount, true) // true for little-endian
-  amountBytes.copy(transferCheckedInstructionData, 1)
-
-  // Write decimals (6 for USDC)
-  transferCheckedInstructionData[9] = 6
+  const transferCheckedInstructionData = encodeTransferCheckedData(transferAmount, 6)
 
   const transferCheckedInstruction = {
     data: transferCheckedInstructionData,
@@ -237,7 +224,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
         functionName: 'allowance',
         args: [account.address, contractAddress],
       })
-      
+
       console.log(`Current allowance: ${Number(currentAllowance) / 1e6} USDC`)
       console.log(`Required amount: ${Number(tokenAmount) / 1e6} USDC`)
 
@@ -248,11 +235,13 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
         functionName: 'balanceOf',
         args: [account.address],
       })
-      
+
       console.log(`Token balance: ${Number(tokenBalance) / 1e6} USDC`)
 
       if (tokenBalance < tokenAmount) {
-        throw new Error(`Insufficient token balance. Have: ${Number(tokenBalance) / 1e6} USDC, Need: ${Number(tokenAmount) / 1e6} USDC`)
+        throw new Error(
+          `Insufficient token balance. Have: ${Number(tokenBalance) / 1e6} USDC, Need: ${Number(tokenAmount) / 1e6} USDC`,
+        )
       }
 
       // Only approve if allowance is insufficient
@@ -283,7 +272,9 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
         console.log(`New allowance after approval: ${Number(newAllowance) / 1e6} USDC`)
 
         if (newAllowance < tokenAmount) {
-          throw new Error(`Approval failed. Expected: ${Number(tokenAmount) / 1e6} USDC, Got: ${Number(newAllowance) / 1e6} USDC`)
+          throw new Error(
+            `Approval failed. Expected: ${Number(tokenAmount) / 1e6} USDC, Got: ${Number(newAllowance) / 1e6} USDC`,
+          )
         }
       } else {
         console.log(`Sufficient allowance already exists: ${Number(currentAllowance) / 1e6} USDC`)

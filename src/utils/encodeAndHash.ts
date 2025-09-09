@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 import { Address, VmType } from '@/eco-configs/eco-config.types'
 import { RewardStruct, RouteStruct } from '@/intent/abi'
 import { BN, BorshCoder, Idl, web3 } from '@coral-xyz/anchor'
@@ -58,6 +60,7 @@ export function encodeRoute(route: RouteType): Hex {
         salt: { 0: Array.from(saltBytes) }, // Bytes32 struct format
         deadline: new BN(deadline.toString()), // Convert BigInt to BN for u64
         portal: { 0: Array.from(portalBytes) }, // Bytes32 struct format
+        native_amount: new BN('0'),
         tokens: tokens.map(({ token, amount }) => ({
           token: token instanceof PublicKey ? token : new PublicKey(token),
           amount: new BN(amount.toString()), // Convert BigInt to BN for u64
@@ -75,49 +78,58 @@ export function encodeRoute(route: RouteType): Hex {
   }
 }
 
-export function addAccountsToRoute(route: RouteType<VmType.SVM>, accounts: web3.AccountMeta[]): RouteType<VmType.SVM> {
-    // [data_length (4 bytes)][instruction_data (variable)][account_count (1 byte)]
-    let sizeBytesLength = 4;
-    const calls = route.calls.map(({ target, data, value }, callIndex) => {
-        const callDataBytes = Buffer.from(data.slice(2), 'hex')
-        const dataLength = callDataBytes.readUInt32LE(0)
-        const instructionData = callDataBytes.slice(sizeBytesLength, sizeBytesLength + dataLength)
-        const accountCount = callDataBytes[sizeBytesLength + dataLength]
+export function addAccountsToRoute(
+  route: RouteType<VmType.SVM>,
+  accounts: web3.AccountMeta[],
+): RouteType<VmType.SVM> {
+  // [data_length (4 bytes)][instruction_data (variable)][account_count (1 byte)]
+  let sizeBytesLength = 4
+  const calls = route.calls.map(({ target, data, value }, callIndex) => {
+    const callDataBytes = Buffer.from(data.slice(2), 'hex')
+    const dataLength = callDataBytes.readUInt32LE(0)
+    const instructionData = callDataBytes.slice(sizeBytesLength, sizeBytesLength + dataLength)
+    const accountCount = callDataBytes[sizeBytesLength + dataLength]
 
-        const startIndex = callIndex * accountCount
+    const startIndex = callIndex * accountCount
 
-        if (accountCount != accounts.length) {
-            throw new Error(`Account count mismatch for call ${callIndex}: ${accountCount} != ${accounts.length}`)
-        }
+    if (accountCount != accounts.length) {
+      throw new Error(
+        `Account count mismatch for call ${callIndex}: ${accountCount} != ${accounts.length}`,
+      )
+    }
 
-        // pub struct CalldataWithAccounts {
-        //     pub calldata: Calldata,
-        //     pub accounts: Vec<SerializableAccountMeta>,
-        // }
+    // pub struct CalldataWithAccounts {
+    //     pub calldata: Calldata,
+    //     pub accounts: Vec<SerializableAccountMeta>,
+    // }
 
-        const accountsLength = Buffer.alloc(4)
-        accountsLength.writeUInt32LE(accounts.length, 0)
+    const accountsLength = Buffer.alloc(4)
+    accountsLength.writeUInt32LE(accounts.length, 0)
 
-        const accountsData = Buffer.concat(
-            accounts.map((acc) => {
-              // SerializableAccountMeta: { pubkey: [u8; 32], is_signer: bool, is_writable: bool }
-              const pubkeyBytes = Buffer.from(acc.pubkey.toBytes())
-              const isSignerByte = Buffer.from([acc.isSigner ? 1 : 0])
-              const isWritableByte = Buffer.from([acc.isWritable ? 1 : 0])
-              return Buffer.concat([pubkeyBytes, isSignerByte, isWritableByte])
-            }),
-          )
-        
-        const serializedCalldata = Buffer.concat([callDataBytes, accountsLength, accountsData])
+    const accountsData = Buffer.concat(
+      accounts.map((acc) => {
+        // SerializableAccountMeta: { pubkey: [u8; 32], is_signer: bool, is_writable: bool }
+        const pubkeyBytes = Buffer.from(acc.pubkey.toBytes())
+        const isSignerByte = Buffer.from([acc.isSigner ? 1 : 0])
+        const isWritableByte = Buffer.from([acc.isWritable ? 1 : 0])
+        return Buffer.concat([pubkeyBytes, isSignerByte, isWritableByte])
+      }),
+    )
 
-        return {
-            target, data: `0x${serializedCalldata.toString('hex')}` as Hex, value, accounts: accounts}
-    });
+    const serializedCalldata = Buffer.concat([callDataBytes, accountsLength, accountsData])
 
     return {
-        ...route,
-        calls: calls
+      target,
+      data: `0x${serializedCalldata.toString('hex')}` as Hex,
+      value,
+      accounts: accounts,
     }
+  })
+
+  return {
+    ...route,
+    calls: calls,
+  }
 }
 
 export function hashRoute(route: RouteType): Hex {
