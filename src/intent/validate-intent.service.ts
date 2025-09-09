@@ -17,7 +17,6 @@ import { ValidationChecks, ValidationService, validationsFailed } from '@/intent
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
 import { IntentV2Pure, portalAbi } from '@/contracts/v2-abi/Portal'
-import { jsonBigInt } from '@/commander/utils'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
