@@ -1,5 +1,4 @@
 import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { IntentSource } from '../eco-configs/eco-config.types'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -24,11 +23,11 @@ export abstract class ChainSyncService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `ChainSyncService:OnApplicationBootstrap`,
-      }),
-    )
+    this.logger.debug(`ChainSyncService:OnApplicationBootstrap`, {
+      service: 'chain-sync-service',
+      operation: 'application_bootstrap',
+      intent_source_count: this.ecoConfigService.getIntentSources().length,
+    })
     await this.syncTxs()
   }
 

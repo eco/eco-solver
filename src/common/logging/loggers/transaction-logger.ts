@@ -1,5 +1,5 @@
-import { EcoLogMessage } from '../eco-log-message'
 import { EcoError } from '../../errors/eco-error'
+import { EcoLogMessage } from '../eco-log-message'
 import { TransactionOperationLogContext } from '../types'
 import { BaseStructuredLogger } from './base-structured-logger'
 import '../decorators/context-extractors'

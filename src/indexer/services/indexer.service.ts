@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common'
 import { Hex } from 'viem'
 import { IndexerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import {
   BatchWithdrawGasless,
   BatchWithdraws,
@@ -10,7 +12,7 @@ import { SendBatchData } from '@/indexer/interfaces/send-batch-data.interface'
 
 @Injectable()
 export class IndexerService {
-  private logger = new Logger(IndexerService.name)
+  private logger = new GenericOperationLogger('IndexerService')
 
   private config: IndexerConfig
 
@@ -18,7 +20,8 @@ export class IndexerService {
     this.config = this.ecoConfigService.getIndexer()
   }
 
-  async getNextBatchWithdrawals(intentSourceAddr?: Hex): Promise<BatchWithdraws[]> {
+  @LogOperation('get_next_batch_withdrawals', GenericOperationLogger)
+  async getNextBatchWithdrawals(@LogContext intentSourceAddr?: Hex): Promise<BatchWithdraws[]> {
     const searchParams = { evt_log_address: intentSourceAddr }
     const data = await this.fetch<(BatchWithdraws | BatchWithdrawGasless)[]>(
       '/intents/nextBatchWithdrawals',
@@ -35,7 +38,8 @@ export class IndexerService {
     return withdrawals
   }
 
-  getNextSendBatch(intentSourceAddr?: Hex) {
+  @LogOperation('get_next_send_batch', GenericOperationLogger)
+  getNextSendBatch(@LogContext intentSourceAddr?: Hex) {
     const searchParams = { evt_log_address: intentSourceAddr }
     return this.fetch<SendBatchData[]>('/intents/nextBatch', { searchParams })
   }
@@ -59,7 +63,12 @@ export class IndexerService {
       const response = await fetch(url.toString(), { method: 'GET', ...fetchOpts })
       return await response.json()
     } catch (error) {
-      this.logger.error('Indexer: Fetch error', error)
+      this.logger.error(
+        { operationType: 'api_call', status: 'failed' },
+        'Indexer: Fetch error',
+        error,
+        { endpoint, url: url.toString() }
+      )
       throw error
     }
   }

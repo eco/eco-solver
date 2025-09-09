@@ -8,12 +8,14 @@ import {
   OnModuleInit,
   Post,
 } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-intent-response.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { ModuleRef } from '@nestjs/core'
+import { LogOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { IntentOperationLogger } from '@/common/logging/loggers/intent-operation-logger'
 import { QuoteErrorsInterface } from '@/quote/errors'
 
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
@@ -35,18 +37,10 @@ export class IntentInitiationController implements OnModuleInit {
   })
   @Post('/initiateGaslessIntent')
   @ApiResponse({ type: GaslessIntentResponseDTO })
+  @LogOperation('initiate_gasless_intent', IntentOperationLogger)
   async initiateGaslessIntent(
-    @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+    @Body() @LogContext gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<GaslessIntentResponseDTO> {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Received Initiate Gasless Intent Request:`,
-        properties: {
-          gaslessIntentRequestDTO,
-        },
-      }),
-    )
-
     const { response: txReceipt, error } =
       await this.intentInitiationService.initiateGaslessIntent(gaslessIntentRequestDTO)
 

@@ -1,5 +1,5 @@
-import { EcoLogMessage } from '../eco-log-message'
 import { EcoError } from '../../errors/eco-error'
+import { EcoLogMessage } from '../eco-log-message'
 import { IntentOperationLogContext } from '../types'
 import { BaseStructuredLogger } from './base-structured-logger'
 import { extractIntentContext, mergeContexts } from '../decorators/context-extractors'
@@ -121,7 +121,42 @@ export class IntentOperationLogger extends BaseStructuredLogger {
     tokenInAddress: string,
     tokenOutAddress: string,
     properties?: object,
+  ): void
+  logIntentCreation(
+    context: IntentOperationLogContext,
+    amountIn: string,
+    amountOut: string,
+    tokenInAddress: string,
+    tokenOutAddress: string,
+    routeTokens: Array<{ token: string; amount: string }>,
+    rewardTokens: Array<{ token: string; amount: string }>,
+    properties?: object,
+  ): void
+  logIntentCreation(
+    context: IntentOperationLogContext,
+    amountIn: string,
+    amountOut: string,
+    tokenInAddress: string,
+    tokenOutAddress: string,
+    routeTokensOrProperties?: Array<{ token: string; amount: string }> | object,
+    rewardTokens?: Array<{ token: string; amount: string }>,
+    properties?: object,
   ): void {
+    // Handle overloaded parameters
+    let finalRouteTokens: Array<{ token: string; amount: string }> | undefined
+    let finalRewardTokens: Array<{ token: string; amount: string }> | undefined
+    let finalProperties: object | undefined
+
+    if (Array.isArray(routeTokensOrProperties)) {
+      finalRouteTokens = routeTokensOrProperties
+      finalRewardTokens = rewardTokens
+      finalProperties = properties
+    } else {
+      finalRouteTokens = undefined
+      finalRewardTokens = undefined
+      finalProperties = routeTokensOrProperties
+    }
+
     const structure = EcoLogMessage.forIntentOperation({
       message: 'Intent created successfully',
       intentHash: context.intentHash,
@@ -134,9 +169,11 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       tokenOutAddress,
       amountIn,
       amountOut,
+      routeTokens: finalRouteTokens,
+      rewardTokens: finalRewardTokens,
       operationType: 'creation',
       status: 'completed',
-      properties,
+      properties: finalProperties,
     })
     this.logStructured(structure, 'info')
   }

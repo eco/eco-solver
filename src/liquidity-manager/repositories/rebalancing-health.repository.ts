@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RebalanceRepository } from './rebalance.repository'
 import { RebalanceQuoteRejectionRepository } from './rebalance-quote-rejection.repository'
 
@@ -78,11 +77,10 @@ export class RebalancingHealthRepository {
    */
   async checkRebalancingHealth(): Promise<HealthStatus> {
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Checking rebalancing health status',
-        }),
-      )
+      this.logger.log('Checking rebalancing health status', {
+        service: 'rebalancing-health-repository',
+        operation: 'check_health_status',
+      })
 
       const [hasRejections, hasSuccesses, rejectionCount, successCount] = await Promise.all([
         this.rejectionRepository.hasRejectionsInLastHour(),
@@ -108,21 +106,19 @@ export class RebalancingHealthRepository {
         healthReason,
       }
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Rebalancing health status calculated',
-          properties: healthStatus,
-        }),
-      )
+      this.logger.log('Rebalancing health status calculated', {
+        service: 'rebalancing-health-repository',
+        operation: 'check_health_status',
+        ...healthStatus,
+      })
 
       return healthStatus
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to check rebalancing health',
-          properties: { error: error.message },
-        }),
-      )
+      this.logger.error('Failed to check rebalancing health', {
+        service: 'rebalancing-health-repository',
+        operation: 'check_health_status',
+        error: error.message,
+      })
 
       return {
         isHealthy: false,
@@ -169,12 +165,11 @@ export class RebalancingHealthRepository {
    */
   async getHealthMetrics(timeRangeMinutes: number = 60): Promise<HealthMetrics> {
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Getting health metrics',
-          properties: { timeRangeMinutes },
-        }),
-      )
+      this.logger.log('Getting health metrics', {
+        service: 'rebalancing-health-repository',
+        operation: 'get_health_metrics',
+        timeRangeMinutes,
+      })
 
       const [successCount, rejectionCount] = await Promise.all([
         this.rebalanceRepository.getRecentSuccessCount(timeRangeMinutes),
@@ -205,21 +200,20 @@ export class RebalancingHealthRepository {
         healthReason,
       }
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Health metrics calculated',
-          properties: metrics,
-        }),
-      )
+      this.logger.log('Health metrics calculated', {
+        service: 'rebalancing-health-repository',
+        operation: 'get_health_metrics',
+        ...metrics,
+      })
 
       return metrics
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to get health metrics',
-          properties: { timeRangeMinutes, error: error.message },
-        }),
-      )
+      this.logger.error('Failed to get health metrics', {
+        service: 'rebalancing-health-repository',
+        operation: 'get_health_metrics',
+        timeRangeMinutes,
+        error: error.message,
+      })
 
       return {
         timeRangeMinutes,

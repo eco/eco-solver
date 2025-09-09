@@ -2,7 +2,6 @@
 const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@/request-signing/typed-data'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { recoverTypedDataAddress, Hex } from 'viem'
@@ -62,14 +61,12 @@ export class SignatureVerificationService {
 
       return { response: recoveredAddress }
     } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `verifyTypedData: error`,
-          properties: {
-            error: EcoError.getErrorMessage(ex),
-          },
-        }),
-      )
+      this.logger.error(`verifyTypedData: error`, {
+        service: 'signature-verification-service',
+        operation: 'verify_typed_data',
+        error: EcoError.getErrorMessage(ex),
+        expiry_time: expiryTime,
+      })
 
       return { error: EcoError.TypedDataVerificationFailed }
     }

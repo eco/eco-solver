@@ -1,4 +1,3 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
@@ -25,15 +24,16 @@ export class IntentFundedEventRepository {
       const intentFundedEventModel = await this.model.create(addIntentFundedEvent)
       return { response: intentFundedEventModel }
     } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in addEvent`,
-          properties: {
-            addIntentFundedEvent,
-            error: ex.message,
-          },
-        }),
-      )
+      this.logger.error('Error adding intent funded event to database', {
+        service: 'intent-funded-event-repository',
+        operation: 'add_event',
+        intent_hash: addIntentFundedEvent.args.intentHash,
+        transaction_hash: addIntentFundedEvent.transactionHash,
+        log_index: addIntentFundedEvent.logIndex,
+        block_number: addIntentFundedEvent.blockNumber,
+        source_chain_id: addIntentFundedEvent.sourceChainID,
+        error: ex.message,
+      })
 
       return { error: ex }
     }

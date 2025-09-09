@@ -1,5 +1,5 @@
-import { EcoLogMessage } from '../eco-log-message'
 import { EcoError } from '../../errors/eco-error'
+import { EcoLogMessage } from '../eco-log-message'
 import { QuoteGenerationLogContext } from '../types'
 import { BaseStructuredLogger } from './base-structured-logger'
 import { extractQuoteContext, mergeContexts } from '../decorators/context-extractors'
@@ -31,6 +31,33 @@ export class QuoteGenerationLogger extends BaseStructuredLogger {
       properties,
     })
     this.logStructured(structure, 'info')
+  }
+
+  /**
+   * Log quote execution with receipt data for post-execution analytics
+   */
+  logQuoteExecution(
+    context: QuoteGenerationLogContext,
+    receipt: string,
+    executionSuccess: boolean,
+    properties?: object,
+  ): void {
+    const structure = EcoLogMessage.forQuoteGeneration({
+      message: executionSuccess ? 'Quote executed successfully' : 'Quote execution failed',
+      quoteId: context.quoteId,
+      intentHash: context.intentHash,
+      dAppId: context.dAppId,
+      sourceChainId: context.sourceChainId,
+      destinationChainId: context.destinationChainId,
+      tokenInAddress: context.tokenInAddress,
+      tokenOutAddress: context.tokenOutAddress,
+      intentExecutionType: context.intentExecutionType,
+      receipt: receipt,
+      operationType: 'quote_validation',
+      status: executionSuccess ? 'completed' : 'failed',
+      properties,
+    })
+    this.logStructured(structure, executionSuccess ? 'info' : 'error')
   }
 
   /**

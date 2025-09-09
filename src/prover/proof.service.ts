@@ -5,7 +5,6 @@ import { IProverAbi } from '@eco-foundation/routes-ts'
 import { addSeconds, compareAsc } from 'date-fns'
 import { ProofCall, ProofType } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 
@@ -126,14 +125,12 @@ export class ProofService implements OnModuleInit {
 
     this.provers = proofs.flat()
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `loadProofTypes loaded all the proof types`,
-        properties: {
-          proofs: this.provers,
-        },
-      }),
-    )
+    this.logger.debug(`loadProofTypes loaded all the proof types`, {
+      service: 'proof-service',
+      operation: 'load_proof_types',
+      prover_count: this.provers.length,
+      proof_types: _.uniq(this.provers.map((p) => p.type)),
+    })
   }
 
   /**
@@ -160,16 +157,13 @@ export class ProofService implements OnModuleInit {
       const { result: proofType, error } = proofTypeResults[proverIndex]
 
       if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `getProofTypes: error fetching proof type`,
-            properties: {
-              chainID,
-              proverAddr,
-              error: error.message,
-            },
-          }),
-        )
+        this.logger.error(`getProofTypes: error fetching proof type`, {
+          service: 'proof-service',
+          operation: 'get_proof_types',
+          chain_id: chainID,
+          prover_address: proverAddr,
+          error: error.message,
+        })
         continue
       }
 

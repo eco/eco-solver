@@ -36,12 +36,6 @@ export class SolveIntentProcessor extends WorkerHost {
   ): Promise<any> {
     const startTime = Date.now()
 
-    // Log processor job start
-    this.logger.logProcessorJobStart(
-      'SolveIntentProcessor',
-      job.id?.toString() || 'unknown',
-      job.data?.intentHash || 'unknown',
-    )
 
     // Track job start
     this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.STARTED, {
@@ -71,12 +65,6 @@ export class SolveIntentProcessor extends WorkerHost {
           throw new Error(`Unknown job type: ${job.name}`)
       }
 
-      // Log processor job completion
-      this.logger.logProcessorJobComplete(
-        'SolveIntentProcessor',
-        job.id?.toString() || 'unknown',
-        Date.now() - startTime,
-      )
 
       // Track job completion
       this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.COMPLETED, {
@@ -89,12 +77,6 @@ export class SolveIntentProcessor extends WorkerHost {
 
       return result
     } catch (error) {
-      // Log processor job failure
-      this.logger.logProcessorJobFailed(
-        'SolveIntentProcessor',
-        job.id?.toString() || 'unknown',
-        error as Error,
-      )
 
       // Track job failure
       this.ecoAnalytics.trackError(ANALYTICS_EVENTS.JOB.FAILED, error, {
@@ -112,29 +94,16 @@ export class SolveIntentProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   @LogOperation('processor_job_failed', GenericOperationLogger)
   onJobFailed(@LogContext job: Job<any, any, string>, @LogContext error: Error) {
-    // Log additional failure context from worker event
-    this.logger.logProcessorJobFailed(
-      'SolveIntentProcessor',
-      job.id?.toString() || 'unknown',
-      error,
-    )
   }
 
   @OnWorkerEvent('stalled')
   @LogOperation('processor_job_stalled', GenericOperationLogger)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onStalled(@LogContext jobId: string, @LogContext prev?: string) {
-    // Log queue processing status for stalled job
-    this.logger.logQueueProcessing('SOURCE_INTENT', 1, 'waiting')
   }
 
   @OnWorkerEvent('error')
   @LogOperation('processor_error', GenericOperationLogger)
   onWorkerError(@LogContext error: Error) {
-    // Log infrastructure operation error
-    this.logger.logInfrastructureOperation('SolveIntentProcessor', 'worker_processing', false, {
-      errorName: error.name,
-      errorMessage: error.message,
-    })
   }
 }

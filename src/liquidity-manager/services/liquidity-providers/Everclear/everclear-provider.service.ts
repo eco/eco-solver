@@ -100,11 +100,17 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     const amountParsed = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     if (amountParsed <= 0n) {
       this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'Everclear: parsed amountIn is zero, skipping quote',
-          id,
-          properties: { swapAmount, decimals: tokenIn.balance.decimals },
-        }),
+        {
+          rebalanceId: id || 'everclear_quote',
+          walletAddress,
+          strategy: 'everclear',
+        },
+        'Everclear: parsed amountIn is zero, skipping quote',
+        {
+          swap_amount: swapAmount,
+          decimals: tokenIn.balance.decimals,
+          parsed_amount: amountParsed.toString(),
+        },
       )
       return []
     }
@@ -139,11 +145,16 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     const expectedAmount = BigInt(everclearQuote.expectedAmount)
     if (expectedAmount <= 0n) {
       this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'Everclear: expectedAmount <= 0, skipping quote',
-          id,
-          properties: { expectedAmount: everclearQuote.expectedAmount, amount },
-        }),
+        {
+          rebalanceId: id || 'everclear_quote',
+          walletAddress,
+          strategy: 'everclear',
+        },
+        'Everclear: expectedAmount <= 0, skipping quote',
+        {
+          expected_amount: everclearQuote.expectedAmount,
+          input_amount: amount,
+        },
       )
       return []
     }

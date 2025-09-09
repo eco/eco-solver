@@ -1,4 +1,3 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
@@ -69,45 +68,36 @@ export class RebalanceQuoteRejectionRepository {
     rejectionData: CreateRejectionData,
   ): Promise<EcoResponse<RebalanceQuoteRejectionModel>> {
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Persisting quote rejection',
-          properties: {
-            rebalanceId: rejectionData.rebalanceId,
-            strategy: rejectionData.strategy,
-            reason: rejectionData.reason,
-            tokenInChain: rejectionData.tokenIn.chainId,
-            tokenOutChain: rejectionData.tokenOut.chainId,
-          },
-        }),
-      )
+      this.logger.log('Persisting quote rejection', {
+        service: 'rebalance-quote-rejection-repository',
+        operation: 'create_rejection',
+        rebalanceId: rejectionData.rebalanceId,
+        strategy: rejectionData.strategy,
+        reason: rejectionData.reason,
+        tokenInChain: rejectionData.tokenIn.chainId,
+        tokenOutChain: rejectionData.tokenOut.chainId,
+      })
 
       const rejectionModel = await this.model.create(rejectionData)
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Quote rejection persisted successfully',
-          properties: {
-            rejectionId: rejectionModel._id,
-            rebalanceId: rejectionData.rebalanceId,
-          },
-        }),
-      )
+      this.logger.log('Quote rejection persisted successfully', {
+        service: 'rebalance-quote-rejection-repository',
+        operation: 'create_rejection',
+        rejectionId: rejectionModel._id,
+        rebalanceId: rejectionData.rebalanceId,
+      })
 
       return { response: rejectionModel }
     } catch (error) {
       // Non-blocking: log error but don't throw to avoid breaking quote operations
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to persist quote rejection - continuing with quote operation',
-          properties: {
-            rebalanceId: rejectionData.rebalanceId,
-            strategy: rejectionData.strategy,
-            reason: rejectionData.reason,
-            error: error.message,
-          },
-        }),
-      )
+      this.logger.error('Failed to persist quote rejection - continuing with quote operation', {
+        service: 'rebalance-quote-rejection-repository',
+        operation: 'create_rejection',
+        rebalanceId: rejectionData.rebalanceId,
+        strategy: rejectionData.strategy,
+        reason: rejectionData.reason,
+        error: error.message,
+      })
 
       return { error }
     }
@@ -129,12 +119,11 @@ export class RebalanceQuoteRejectionRepository {
       })
       return count > 0
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to check rejections in last hour',
-          properties: { error: error.message },
-        }),
-      )
+      this.logger.error('Failed to check rejections in last hour', {
+        service: 'rebalance-quote-rejection-repository',
+        operation: 'check_recent_rejections',
+        error: error.message,
+      })
       return false
     }
   }
@@ -155,12 +144,12 @@ export class RebalanceQuoteRejectionRepository {
         createdAt: { $gte: timeAgo },
       })
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to get recent rejection count',
-          properties: { timeRangeMinutes, error: error.message },
-        }),
-      )
+      this.logger.error('Failed to get recent rejection count', {
+        service: 'rebalance-quote-rejection-repository',
+        operation: 'get_rejection_count',
+        timeRangeMinutes,
+        error: error.message,
+      })
       return 0
     }
   }

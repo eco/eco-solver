@@ -1,6 +1,5 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
@@ -16,6 +15,9 @@ import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { LogOperation, LogSubOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { IntentOperationLogger } from '@/common/logging/loggers/intent-operation-logger'
 
 /**
  * This service subscribes to IntentSource contracts for IntentFunded events. It subscribes on all
@@ -42,6 +44,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    * filtering on the prover addresses and destination chain ids. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */
+  @LogOperation('intent_funded_subscription', IntentOperationLogger)
   async subscribe(): Promise<void> {
     const subscribeTasks = this.ecoConfigService.getIntentSources().map(async (source) => {
       const client = await this.publicClientService.getClient(source.chainID)
@@ -54,19 +57,13 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   /**
    * Unsubscribes from all IntentSource contracts. It closes all clients in {@link onModuleDestroy}
    */
+  @LogSubOperation('unsubscribe')
   async unsubscribe() {
     super.unsubscribe()
   }
 
-  async subscribeTo(client: PublicClient, source: IntentSource) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch intent funded: subscribeToSource`,
-        properties: {
-          source,
-        },
-      }),
-    )
+  @LogSubOperation('subscribe_to_source')
+  async subscribeTo(client: PublicClient, @LogContext source: IntentSource) {
     this.unwatch[source.chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
@@ -87,35 +84,25 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           }
           await this.addJob(source, { doValidation: true })(logs)
         } catch (error) {
-          this.logger.error(
-            EcoLogMessage.withError({
-              message: 'watch intent-funded onLogs handler error',
-              error,
-            }),
-          )
+          this.logger.error('watch intent-funded onLogs handler error', {
+            service: 'watch-intent-funded',
+            operation: 'handle_logs',
+            error: error.message,
+            source: source.sourceAddress,
+          })
         }
       },
     })
   }
 
-  private async isOurIntent(log: IntentFundedLog): Promise<boolean> {
+  @LogSubOperation('validate_our_intent')
+  private async isOurIntent(@LogContext log: IntentFundedLog): Promise<boolean> {
     /* Make sure it's one of ours. It might not be ours because:
      * .The intent was created by another solver, so won't be in our database.
      * .The intent was not even a gasless one! Remember, publishAndFund() *also* emits IntentFunded events,
      *  and those ones are not gasless intents.
      */
     const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
-
-    if (error) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `IntentFunded event is not ours, skipping`,
-          properties: {
-            intentHash: log.args.intentHash,
-          },
-        }),
-      )
-    }
 
     return !error
   }
@@ -142,12 +129,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
 
           const jobId = getIntentJobId('watch-intent-funded', intentHash, intentFunded.logIndex)
 
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `addJob: watch intent funded`,
-              properties: { intentFunded, jobId },
-            }),
-          )
+          // Intent funded job creation context automatically captured by parent operation decorator
 
           // Add to db
           await this.addIntentFundedEvent(intentFunded)
@@ -183,27 +165,19 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     }
   }
 
-  async addIntentFundedEvent(addIntentFundedEvent: IntentFundedLog): Promise<void> {
+  @LogSubOperation('add_intent_funded_event')
+  async addIntentFundedEvent(@LogContext addIntentFundedEvent: IntentFundedLog): Promise<void> {
     try {
       // Check db if the intent is already filled
       await this.intentFundedEventRepository.addEvent(addIntentFundedEvent)
     } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in addIntentFundedEvent ${addIntentFundedEvent.transactionHash}`,
-          properties: {
-            intentHash: addIntentFundedEvent.transactionHash,
-            error: ex.message,
-          },
-        }),
-      )
-
       // Track database error
       this.ecoAnalytics.trackError(ERROR_EVENTS.WATCH_INTENT_FUNDED_DB_ERROR, ex, {
         addIntentFundedEvent,
         operation: 'addIntentFundedEvent',
         transactionHash: addIntentFundedEvent.transactionHash,
       })
+      throw ex
     }
   }
 
@@ -213,6 +187,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    * @param sourceChainID the sourceChainID to get the last recorded transaction for
    * @returns
    */
+  @LogSubOperation('get_last_recorded_tx')
   async getLastRecordedTx(sourceChainID: bigint): Promise<IntentFundedEventModel | undefined> {
     return this.intentFundedEventRepository.getLastRecordedTx(sourceChainID)
   }

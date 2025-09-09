@@ -288,23 +288,26 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
   }
 
   // Extract route tokens array for financial analysis
-  const routeTokens = entity.route?.tokens?.map((token: any) => ({
-    token: token.token || token.tokenAddress,
-    amount: token.amount?.toString() || '0',
-  })) || []
+  const routeTokens =
+    entity.route?.tokens?.map((token: any) => ({
+      token: token.token || token.tokenAddress,
+      amount: token.amount?.toString() || '0',
+    })) || []
 
   // Extract reward tokens array for comprehensive reward tracking
-  const rewardTokens = entity.reward?.tokens?.map((token: any) => ({
-    token: token.token || token.tokenAddress,
-    amount: token.amount?.toString() || '0',
-  })) || []
+  const rewardTokens =
+    entity.reward?.tokens?.map((token: any) => ({
+      token: token.token || token.tokenAddress,
+      amount: token.amount?.toString() || '0',
+    })) || []
 
   // Extract call data context for execution path visibility
-  const routeCalls = entity.route?.calls?.map((call: any) => ({
-    target: call.target || call.to,
-    value: call.value?.toString() || '0',
-    callData: call.callData ? call.callData.substring(0, 100) + '...' : undefined, // Truncate for size limits
-  })) || []
+  const routeCalls =
+    entity.route?.calls?.map((call: any) => ({
+      target: call.target || call.to,
+      value: call.value?.toString() || '0',
+      callData: call.callData ? call.callData.substring(0, 100) + '...' : undefined, // Truncate for size limits
+    })) || []
 
   const baseContext: ExtractedContext = {
     eco: {

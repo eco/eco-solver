@@ -1,7 +1,6 @@
 import { APIConfig } from './interfaces/api-config.interface'
 import { APIRequestUtils } from './api-request-utils'
 import { AxiosRequestConfig } from 'axios'
-import { EcoLogMessage } from '../logging/eco-log-message'
 import { ExecuteRequestParams } from './interfaces/execute-request-params.interface'
 import { HttpService } from '@nestjs/axios'
 import { Logger } from '@nestjs/common'
@@ -214,15 +213,13 @@ export class APIRequestExecutor {
     } catch (ex) {
       const errorResponse = this.handleError<T>(ex)
 
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error executing HTTP request`,
-          properties: {
-            errorMessage: errorResponse.error,
-            request: this.getRequestForLogging(requestOptions),
-          },
-        }),
-      )
+      this.logger.error(`Error executing HTTP request`, {
+        service: 'api-request-executor',
+        operation: 'execute_request',
+        error_message: errorResponse.error,
+        request_url: requestOptions.url,
+        request_method: requestOptions.method,
+      })
 
       return errorResponse
     }

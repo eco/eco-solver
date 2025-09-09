@@ -1,6 +1,6 @@
 import { BaseStructuredLogger } from './base-structured-logger'
-import { GenericOperationLogContext, GenericOperationLogParams } from '../types'
 import { EcoLogMessage } from '../eco-log-message'
+import { GenericOperationLogContext, GenericOperationLogParams } from '../types'
 
 /**
  * Generic Operation Logger for transaction processing, signing services, and other

@@ -1,7 +1,6 @@
 import { Network } from '@/common/alchemy/network'
 import { Logger } from '@nestjs/common'
 import * as _ from 'lodash'
-import { EcoLogMessage } from '../logging/eco-log-message'
 import { Chain, TransactionReceipt } from 'viem'
 import { AwsCredential } from '@/eco-configs/eco-config.types'
 import { ProofType } from '@/contracts'
@@ -191,17 +190,14 @@ export class EcoError extends Error {
     properties: object,
     logStack?: boolean,
   ) {
-    srcLogger.error(
-      EcoLogMessage.fromDefault({
-        message: `${caller}: error`,
-        properties: {
-          error: error.message,
-          ...properties,
-        },
-      }),
-
-      logStack && error.stack,
-    )
+    srcLogger.error(`${caller}: error`, {
+      service: 'eco-error',
+      operation: 'log_error',
+      caller,
+      error: error.message,
+      stack: logStack ? error.stack : undefined,
+      ...properties,
+    })
   }
 
   static getErrorMessage(error: any): string {

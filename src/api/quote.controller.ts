@@ -1,6 +1,7 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
 import { Body, Controller, InternalServerErrorException, Post } from '@nestjs/common'
 import { QuoteGenerationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
@@ -19,22 +20,9 @@ export class QuoteController {
   ) {}
 
   @Post()
-  async getQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
+  @LogOperation('quote_generation', QuoteGenerationLogger)
+  async getQuote(@Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
     const startTime = Date.now()
-
-    this.logger.log(
-      {
-        quoteId: quoteIntentDataDTO.quoteID,
-        dAppId: quoteIntentDataDTO.dAppID,
-        sourceChainId: Number(quoteIntentDataDTO.route.source),
-        destinationChainId: Number(quoteIntentDataDTO.route.destination),
-        intentExecutionType: quoteIntentDataDTO.intentExecutionTypes.join(','),
-        operationType: 'quote_generation',
-        status: 'started',
-      },
-      'Received quote request',
-      { quoteIntentDataDTO },
-    )
 
     // Track quote request start
     this.ecoAnalytics.trackQuoteRequestReceived(quoteIntentDataDTO)
@@ -42,23 +30,6 @@ export class QuoteController {
     const { response: quote, error } = await this.quoteService.getQuote(quoteIntentDataDTO)
     const processingTime = Date.now() - startTime
 
-    this.logger.log(
-      {
-        quoteId: quoteIntentDataDTO.quoteID,
-        dAppId: quoteIntentDataDTO.dAppID,
-        sourceChainId: Number(quoteIntentDataDTO.route.source),
-        destinationChainId: Number(quoteIntentDataDTO.route.destination),
-        intentExecutionType: quoteIntentDataDTO.intentExecutionTypes.join(','),
-        operationType: 'quote_generation',
-        status: error ? 'failed' : 'completed',
-      },
-      'Responding to quote request',
-      {
-        quote,
-        error,
-        processingTimeMs: processingTime,
-      },
-    )
 
     if (!error) {
       // Track successful quote response
@@ -88,22 +59,9 @@ export class QuoteController {
   }
 
   @Post('/reverse')
-  async getReverseQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
+  @LogOperation('reverse_quote_generation', QuoteGenerationLogger)
+  async getReverseQuote(@Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
     const startTime = Date.now()
-
-    this.logger.log(
-      {
-        quoteId: quoteIntentDataDTO.quoteID,
-        dAppId: quoteIntentDataDTO.dAppID,
-        sourceChainId: Number(quoteIntentDataDTO.route.source),
-        destinationChainId: Number(quoteIntentDataDTO.route.destination),
-        intentExecutionType: quoteIntentDataDTO.intentExecutionTypes.join(','),
-        operationType: 'quote_generation',
-        status: 'started',
-      },
-      'Received reverse quote request',
-      { quoteIntentDataDTO },
-    )
 
     // Track reverse quote request start
     this.ecoAnalytics.trackReverseQuoteRequestReceived(quoteIntentDataDTO)
@@ -111,23 +69,6 @@ export class QuoteController {
     const { response: quote, error } = await this.quoteService.getReverseQuote(quoteIntentDataDTO)
     const processingTime = Date.now() - startTime
 
-    this.logger.log(
-      {
-        quoteId: quoteIntentDataDTO.quoteID,
-        dAppId: quoteIntentDataDTO.dAppID,
-        sourceChainId: Number(quoteIntentDataDTO.route.source),
-        destinationChainId: Number(quoteIntentDataDTO.route.destination),
-        intentExecutionType: quoteIntentDataDTO.intentExecutionTypes.join(','),
-        operationType: 'quote_generation',
-        status: error ? 'failed' : 'completed',
-      },
-      'Responding to reverse quote request',
-      {
-        quote,
-        error,
-        processingTimeMs: processingTime,
-      },
-    )
 
     if (!error) {
       // Track successful reverse quote response

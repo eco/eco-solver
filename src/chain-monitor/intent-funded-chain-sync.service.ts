@@ -1,7 +1,6 @@
 import { ChainSyncService } from '@/chain-monitor/chain-sync.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
@@ -94,13 +93,14 @@ export class IntentFundedChainSyncService extends ChainSyncService {
 
     if (intentFundedLogs.length === 0) {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `No transactions found for source ${source.network} to sync from block ${fromBlock}`,
-          properties: {
-            chainID: source.chainID,
-            fromBlock,
-          },
-        }),
+        `No transactions found for source ${source.network} to sync from block ${fromBlock}`,
+        {
+          service: 'intent-funded-chain-sync-service',
+          operation: 'get_missing_txs',
+          source_network: source.network,
+          chain_id: source.chainID,
+          from_block: fromBlock?.toString(),
+        },
       )
       return []
     }

@@ -1,4 +1,3 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
@@ -89,43 +88,33 @@ export class RebalanceRepository {
     const rebalanceData = input as CreateRebalanceData
 
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Persisting successful rebalance',
-          properties: {
-            strategy: rebalanceData.strategy,
-            wallet: rebalanceData.wallet,
-            tokenInChain: rebalanceData.tokenIn.chainId,
-            tokenOutChain: rebalanceData.tokenOut.chainId,
-            groupId: rebalanceData.groupId,
-          },
-        }),
-      )
+      this.logger.log('Persisting successful rebalance', {
+        service: 'rebalance-repository',
+        operation: 'create_rebalance',
+        strategy: rebalanceData.strategy,
+        wallet: rebalanceData.wallet,
+        token_in_chain: rebalanceData.tokenIn.chainId,
+        token_out_chain: rebalanceData.tokenOut.chainId,
+        group_id: rebalanceData.groupId,
+      })
 
       const rebalanceModel = await this.model.create(rebalanceData)
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Successful rebalance persisted',
-          properties: {
-            rebalanceId: rebalanceModel._id,
-            strategy: rebalanceData.strategy,
-            groupId: rebalanceData.groupId,
-          },
-        }),
-      )
+      this.logger.log('Successful rebalance persisted', {
+        service: 'rebalance-repository',
+        operation: 'create_rebalance',
+        rebalance_id: rebalanceModel._id,
+        strategy: rebalanceData.strategy,
+        group_id: rebalanceData.groupId,
+      })
 
       return { response: rebalanceModel }
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to persist successful rebalance',
-          properties: {
-            rebalanceData: rebalanceData,
-            error: error.message,
-          },
-        }),
-      )
+      this.logger.error('Failed to persist successful rebalance', {
+        service: 'rebalance-repository',
+        operation: 'create_rebalance',
+        error: error.message,
+      })
 
       return { error }
     }
@@ -159,16 +148,13 @@ export class RebalanceRepository {
     const results: RebalanceModel[] = []
     const errors: any[] = []
 
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Creating batch rebalances',
-        properties: {
-          wallet: walletAddress,
-          groupId: batchGroupId,
-          quotesCount: quotes.length,
-        },
-      }),
-    )
+    this.logger.log('Creating batch rebalances', {
+      service: 'rebalance-repository',
+      operation: 'create_batch',
+      wallet: walletAddress,
+      group_id: batchGroupId,
+      quotes_count: quotes.length,
+    })
 
     for (const quote of quotes) {
       const rebalanceData: CreateRebalanceData = {
@@ -192,35 +178,29 @@ export class RebalanceRepository {
     }
 
     if (errors.length > 0) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to store rebalancing batch',
-          properties: {
-            wallet: walletAddress,
-            groupId: batchGroupId,
-            quotesCount: quotes.length,
-            successCount: results.length,
-            errorCount: errors.length,
-            firstError: errors[0]?.message,
-          },
-        }),
-      )
+      this.logger.error('Failed to store rebalancing batch', {
+        service: 'rebalance-repository',
+        operation: 'create_batch',
+        wallet: walletAddress,
+        group_id: batchGroupId,
+        quotes_count: quotes.length,
+        success_count: results.length,
+        error_count: errors.length,
+        first_error: errors[0]?.message,
+      })
 
       return {
         error: new Error(`${errors.length} out of ${quotes.length} rebalances failed to persist`),
       }
     }
 
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Rebalancing batch stored successfully',
-        properties: {
-          wallet: walletAddress,
-          groupId: batchGroupId,
-          storedCount: results.length,
-        },
-      }),
-    )
+    this.logger.log('Rebalancing batch stored successfully', {
+      service: 'rebalance-repository',
+      operation: 'create_batch',
+      wallet: walletAddress,
+      group_id: batchGroupId,
+      stored_count: results.length,
+    })
 
     return { response: results }
   }
@@ -339,12 +319,11 @@ export class RebalanceRepository {
       })
       return count > 0
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to check successful rebalances in last hour',
-          properties: { error: error.message },
-        }),
-      )
+      this.logger.error('Failed to check successful rebalances in last hour', {
+        service: 'rebalance-repository',
+        operation: 'has_successful_rebalances_in_last_hour',
+        error: error.message,
+      })
       return false
     }
   }
@@ -365,12 +344,12 @@ export class RebalanceRepository {
         createdAt: { $gte: timeAgo },
       })
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to get recent success count',
-          properties: { timeRangeMinutes, error: error.message },
-        }),
-      )
+      this.logger.error('Failed to get recent success count', {
+        service: 'rebalance-repository',
+        operation: 'get_recent_success_count',
+        time_range_minutes: timeRangeMinutes,
+        error: error.message,
+      })
       return 0
     }
   }

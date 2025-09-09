@@ -1,4 +1,3 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { QUEUES } from '@/common/redis/constants'
 import { getIntentJobId } from '@/common/utils/strings'
 import { ProofType } from '@/contracts'
@@ -49,14 +48,12 @@ export class RetryInfeasableIntentsService implements OnApplicationBootstrap {
    */
   async retryInfeasableIntents() {
     const models = await this.getInfeasableIntents()
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `retryInfeasableIntents`,
-        properties: {
-          models,
-        },
-      }),
-    )
+    this.logger.debug(`retryInfeasableIntents`, {
+      service: 'retry-infeasable-intents-service',
+      operation: 'retry_infeasable_intents',
+      intent_count: models.length,
+      intent_hashes: models.map((m) => m.intent.hash),
+    })
 
     const retryTasks = models.map(async (model) => {
       const jobId = getIntentJobId('retry', model.intent.hash, model.intent.logIndex)

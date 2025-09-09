@@ -1,4 +1,3 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateConfig } from '@/eco-configs/eco-config.types'
 import { Solver } from '@/eco-configs/eco-config.types'
@@ -19,29 +18,29 @@ export class FulfillmentEstimateService implements OnModuleInit {
     this.fulfillmentConfig = this.ecoConfigService.getFulfillmentEstimateConfig()
 
     if (this.fulfillmentConfig.executionPaddingSeconds == null) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'executionPaddingSeconds not found in fulfillmentEstimateConfig',
-        }),
-      )
+      this.logger.error('executionPaddingSeconds not found in fulfillmentEstimateConfig', {
+        service: 'fulfillment-estimate-service',
+        operation: 'module_init',
+        config_field: 'executionPaddingSeconds',
+      })
       throw new Error('executionPaddingSeconds not found in fulfillmentEstimateConfig')
     }
 
     if (this.fulfillmentConfig.blockTimePercentile == null) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'blockTimePercentile not found in fulfillmentEstimateConfig',
-        }),
-      )
+      this.logger.error('blockTimePercentile not found in fulfillmentEstimateConfig', {
+        service: 'fulfillment-estimate-service',
+        operation: 'module_init',
+        config_field: 'blockTimePercentile',
+      })
       throw new Error('blockTimePercentile not found in fulfillmentEstimateConfig')
     }
 
     if (this.fulfillmentConfig.defaultBlockTime == null) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'defaultBlockTime not found in fulfillmentEstimateConfig',
-        }),
-      )
+      this.logger.error('defaultBlockTime not found in fulfillmentEstimateConfig', {
+        service: 'fulfillment-estimate-service',
+        operation: 'module_init',
+        config_field: 'defaultBlockTime',
+      })
       throw new Error('defaultBlockTime not found in fulfillmentEstimateConfig')
     }
   }
@@ -69,11 +68,11 @@ export class FulfillmentEstimateService implements OnModuleInit {
    */
   getAverageBlockTime(solver: Solver | undefined): number {
     if (solver?.averageBlockTime == null) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'solver.averageBlockTime is undefined, using default block time',
-        }),
-      )
+      this.logger.warn('solver.averageBlockTime is undefined, using default block time', {
+        service: 'fulfillment-estimate-service',
+        operation: 'get_average_block_time',
+        fallback_value: this.fulfillmentConfig.defaultBlockTime,
+      })
       return this.fulfillmentConfig.defaultBlockTime
     }
 

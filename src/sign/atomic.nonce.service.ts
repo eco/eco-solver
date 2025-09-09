@@ -3,7 +3,8 @@ import type { Address } from 'abitype'
 import { Model, QueryOptions } from 'mongoose'
 import type { Client } from 'viem/_types/clients/createClient'
 import { Injectable, Logger } from '@nestjs/common'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { getAtomicNonceKey } from './sign.helper'
 
 export type AtomicKeyParams = {
@@ -30,10 +31,11 @@ export type AtomicGetParameters = Prettify<AtomicKeyParams & { client: Client }>
 export abstract class AtomicNonceService<T extends { nonce: number }>
   implements NonceManagerSource
 {
-  protected logger = new Logger(AtomicNonceService.name)
+  protected logger = new GenericOperationLogger('AtomicNonceService')
 
   constructor(protected model: Model<T>) {}
 
+  @LogOperation('sync_nonces', GenericOperationLogger)
   async syncNonces(): Promise<void> {
     const params: AtomicKeyClientParams[] = await this.getSyncParams()
     if (params.length === 0) {
@@ -60,35 +62,39 @@ export abstract class AtomicNonceService<T extends { nonce: number }>
         const updates = { $set: { nonce: nonce.nonceNum, chainID, address } }
         const options = { upsert: true, new: true }
         this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `AtomicNonceService: updating nonce in sync`,
-            properties: {
-              query,
-              updates,
-            },
-          }),
+          { operationType: 'sync_nonces', status: 'in_progress' },
+          `AtomicNonceService: updating nonce in sync`,
+          {
+            address,
+            chainId: chainID,
+            nonce: nonce.nonceNum,
+            query,
+            updates,
+          }
         )
         return this.model.findOneAndUpdate(query, updates, options).exec()
       })
 
       await Promise.all(updates)
     } catch (e) {
-      EcoLogMessage.fromDefault({
-        message: `Error syncing nonces`,
-        properties: {
-          error: e,
-        },
-      })
+      this.logger.error(
+        { operationType: 'sync_nonces', status: 'failed' },
+        `Error syncing nonces`,
+        e,
+        { errorMessage: e instanceof Error ? e.message : String(e) }
+      )
     }
   }
 
-  async get(parameters: AtomicGetParameters): Promise<number> {
+  @LogOperation('get_nonce', GenericOperationLogger)
+  async get(@LogContext parameters: AtomicGetParameters): Promise<number> {
     return await this.getIncNonce(parameters)
   }
 
   async set(params: AtomicGetParameters, nonce: number): Promise<void> {} // eslint-disable-line @typescript-eslint/no-unused-vars
 
-  async getIncNonce(parameters: AtomicGetParameters): Promise<number> {
+  @LogOperation('get_inc_nonce', GenericOperationLogger)
+  async getIncNonce(@LogContext parameters: AtomicGetParameters): Promise<number> {
     const query = { key: getAtomicNonceKey(parameters) }
     const updates = { $inc: { nonce: 1 } }
     const options: QueryOptions = {

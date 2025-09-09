@@ -3,7 +3,6 @@ import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
@@ -51,22 +50,21 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       this.logger,
     )
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${SolverRegistrationService.name}.onModuleInit()`,
-        properties: {
-          solverRegistrationDTO: this.getSolverRegistrationDTO(),
-        },
-      }),
-    )
+    this.logger.debug(`${SolverRegistrationService.name}.onModuleInit()`, {
+      service: 'solver-registration-service',
+      operation: 'module_init',
+      server_config: {
+        url: this.serverConfig.url,
+      },
+      solver_count: Object.keys(this.solversConfig).length,
+    })
   }
 
   async onApplicationBootstrap() {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `${SolverRegistrationService.name}.onApplicationBootstrap()`,
-      }),
-    )
+    this.logger.log(`${SolverRegistrationService.name}.onApplicationBootstrap()`, {
+      service: 'solver-registration-service',
+      operation: 'application_bootstrap',
+    })
 
     await this.registerSolver()
   }
@@ -88,35 +86,35 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       })
 
       if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `Error registering solver`,
-            properties: {
-              error,
-            },
-          }),
-        )
+        this.logger.error(`Error registering solver`, {
+          service: 'solver-registration-service',
+          operation: 'register_solver',
+          error: error,
+          quotes_url: this.quotesConfig
+            ? `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`
+            : undefined,
+        })
 
         return { error }
       }
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `${SolverRegistrationService.name}.registerSolver(): Solver has been registered`,
-          properties: { response },
-        }),
+        `${SolverRegistrationService.name}.registerSolver(): Solver has been registered`,
+        {
+          service: 'solver-registration-service',
+          operation: 'register_solver',
+          response,
+          solver_chains: Object.keys(this.solversConfig),
+        },
       )
 
       return {}
     } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Exception registering solver`,
-          properties: {
-            error: ex.message,
-          },
-        }),
-      )
+      this.logger.error(`Exception registering solver`, {
+        service: 'solver-registration-service',
+        operation: 'register_solver',
+        error: ex.message,
+      })
 
       return { error: EcoError.SolverRegistrationError }
     }

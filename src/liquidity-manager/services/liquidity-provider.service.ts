@@ -60,15 +60,17 @@ export class LiquidityProviderService {
   ): Promise<RebalanceQuote[]> {
     if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'Skipping provider quote for zero/negative swapAmount',
-          properties: {
-            walletAddress,
-            swapAmount,
-            tokenIn: this.formatToken(tokenIn),
-            tokenOut: this.formatToken(tokenOut),
-          },
-        }),
+        {
+          rebalanceId: 'provider_quote',
+          walletAddress,
+          strategy: 'liquidity_provider',
+        },
+        'Skipping provider quote for zero/negative swapAmount',
+        {
+          swap_amount: swapAmount,
+          token_in: this.formatToken(tokenIn),
+          token_out: this.formatToken(tokenOut),
+        },
       )
       return []
     }

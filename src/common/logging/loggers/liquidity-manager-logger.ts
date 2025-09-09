@@ -1,5 +1,5 @@
-import { EcoLogMessage } from '../eco-log-message'
 import { EcoError } from '../../errors/eco-error'
+import { EcoLogMessage } from '../eco-log-message'
 import { LiquidityManagerLogContext, RejectionReason } from '../types'
 import { BaseStructuredLogger } from './base-structured-logger'
 import { extractRebalanceContext, mergeContexts } from '../decorators/context-extractors'

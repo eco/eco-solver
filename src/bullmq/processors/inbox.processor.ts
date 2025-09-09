@@ -20,23 +20,12 @@ export class InboxProcessor extends WorkerHost {
     @LogContext job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
-    // Business event logging for job start
-    this.logger.logProcessorJobStart(
-      'InboxProcessor',
-      job.id || 'unknown',
-      job.data?.intentHash || 'unknown',
-    )
 
     switch (job.name) {
       case QUEUES.INBOX.jobs.fulfillment:
         return await this.utilsIntentService.updateOnFulfillment(job.data as FulfillmentLog)
       default:
-        this.logger.error(
-          { operationType: 'processor_error', status: 'failed' },
-          `InboxProcessor: Invalid job type ${job.name}`,
-          undefined,
-          { jobName: job.name, jobId: job.id },
-        )
+        throw new Error(`Unknown job type: ${job.name}`)
         return Promise.reject('Invalid job type')
     }
   }
@@ -44,28 +33,15 @@ export class InboxProcessor extends WorkerHost {
   @OnWorkerEvent('failed')
   @LogOperation('processor_job_failed', GenericOperationLogger)
   onJobFailed(@LogContext job: Job<any, any, string>, error: Error) {
-    // Business event logging for job failure
-    this.logger.logProcessorJobFailed('InboxProcessor', job.id || 'unknown', error)
   }
 
   @OnWorkerEvent('stalled')
   @LogOperation('processor_stalled', GenericOperationLogger)
   onStalled(@LogContext jobId: string, prev?: string) {
-    this.logger.warn(
-      { operationType: 'processor_stalled', status: 'warning' },
-      `InboxProcessor: Job stalled`,
-      { jobId, prev },
-    )
   }
 
   @OnWorkerEvent('error')
   @LogOperation('processor_error', GenericOperationLogger)
   onWorkerError(error: Error) {
-    this.logger.error(
-      { operationType: 'processor_error', status: 'error' },
-      `InboxProcessor: Worker error`,
-      error,
-      { errorName: error.name, errorMessage: error.message },
-    )
   }
 }

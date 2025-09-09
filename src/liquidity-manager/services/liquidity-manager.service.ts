@@ -307,15 +307,20 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       // Skip invalid quotes which could lead to bogus DB entries
       if (quote.amountIn <= 0n || quote.amountOut <= 0n) {
         this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'Skipping storing invalid rebalance quote',
-            properties: {
-              walletAddress,
-              strategy: quote.strategy,
-              amountIn: quote.amountIn.toString(),
-              amountOut: quote.amountOut.toString(),
-            },
-          }),
+          {
+            rebalanceId: quote.rebalanceJobID || 'pending',
+            walletAddress,
+            strategy: quote.strategy,
+            sourceChainId: quote.tokenIn.chainId,
+            destinationChainId: quote.tokenOut.chainId,
+          },
+          'Skipping storing invalid rebalance quote',
+          {
+            token_in: quote.tokenIn.config,
+            token_out: quote.tokenOut.config,
+            amount_in: quote.amountIn.toString(),
+            amount_out: quote.amountOut.toString(),
+          },
         )
         continue
       }
@@ -399,14 +404,17 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
         // Skip zero/negative swap amounts
         if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
           this.logger.warn(
-            EcoLogMessage.fromDefault({
-              message: 'Skipping quote for zero/negative swapAmount',
-              properties: {
-                swapAmount,
-                surplusToken: surplusToken.config,
-                deficitToken: deficitToken.config,
-              },
-            }),
+            {
+              rebalanceId: 'system',
+              walletAddress,
+              strategy: 'quote_generation',
+            },
+            'Skipping quote for zero/negative swapAmount',
+            {
+              surplus_token: surplusToken.config,
+              deficit_token: deficitToken.config,
+              swap_amount: swapAmount,
+            },
           )
           continue
         }
@@ -466,14 +474,18 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
         if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
           this.logger.warn(
-            EcoLogMessage.fromDefault({
-              message: 'Skipping fallback quote for zero/negative swapAmount',
-              properties: {
-                swapAmount,
-                surplusToken: surplusToken.config,
-                deficitToken: deficitToken.config,
-              },
-            }),
+            {
+              rebalanceId: 'fallback_system',
+              walletAddress,
+              strategy: 'fallback_quote_generation',
+            },
+            'Skipping fallback quote for zero/negative swapAmount',
+            {
+              surplus_token: surplusToken.config,
+              deficit_token: deficitToken.config,
+              swap_amount: swapAmount,
+              fallback_attempt: true,
+            },
           )
           continue
         }
