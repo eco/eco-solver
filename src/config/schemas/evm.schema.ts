@@ -151,6 +151,5 @@ export type EvmConfig = z.infer<typeof EvmSchema>;
 export type EvmNetworkConfig = z.infer<typeof EvmNetworkSchema>;
 export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
-export type BasicWalletConfig = z.infer<typeof BasicWalletConfigSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;

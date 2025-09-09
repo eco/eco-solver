@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -56,13 +58,15 @@ export class ExecutorBalanceValidation implements Validation {
 
       if (notEnough.length) {
         const tokens = notEnough.map(({ token }) => token);
-        const walletAddress = await context.getWalletAddress(chainID);
-        
+        const destinationChainType = ChainTypeDetector.detect(chainID);
+        const walletAddressUA = await context.getWalletAddress(chainID);
+        const walletAddress = AddressNormalizer.denormalize(walletAddressUA, destinationChainType);
+
         // Create detailed balance information for each insufficient token
-        const balanceDetails = notEnough.map(({ token, balance, required }) => 
-          `${token} (has: ${balance}, needs: ${required})`
-        ).join(', ');
-        
+        const balanceDetails = notEnough
+          .map(({ token, balance, required }) => `${token} (has: ${balance}, needs: ${required})`)
+          .join(', ');
+
         span.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
         throw new ValidationError(
           `Not enough token balance on chain ${chainID} for wallet ${walletAddress}. Insufficient tokens: ${balanceDetails}`,

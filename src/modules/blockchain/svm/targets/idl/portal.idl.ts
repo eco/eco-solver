@@ -1,4 +1,7 @@
-export const portalIdl = {
+import { Idl } from '@coral-xyz/anchor';
+
+export const portalIdl: Idl = {
+  address: '52gVFYqekRiSUxWwCKPNKw9LhBsVxbZiLSnGVsTBGh5F',
   metadata: {
     name: 'portal',
     version: '0.1.0',
@@ -838,4 +841,4 @@ export const portalIdl = {
       },
     },
   ],
-} as const;
+};

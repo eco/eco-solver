@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
-import { RedisSchema } from '@/config/config.schema';
-
-type RedisConfig = z.infer<typeof RedisSchema>;
+import { RedisConfig } from '@/config/schemas';
 
 @Injectable()
 export class RedisConfigService {

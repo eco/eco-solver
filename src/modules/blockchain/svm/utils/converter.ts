@@ -15,3 +15,13 @@ export function addressToBytes32(address: string): number[] {
   result.set(bytes.slice(0, 32));
   return Array.from(result);
 }
+
+/**
+ * Helper to convert 32-byte array to address for SVM
+ */
+export function bytes32ToAddress(bytes: number[] | Uint8Array): string {
+  const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  // Check if it looks like a Solana public key (32 bytes, non-zero)
+  const pubkey = new PublicKey(buffer);
+  return pubkey.toString();
+}

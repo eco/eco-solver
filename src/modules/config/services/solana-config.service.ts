@@ -1,20 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
 import { TProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
+import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
-import { SolanaSchema } from '@/config/config.schema';
-import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
+import { SolanaConfig } from '@/config/schemas';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
 import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
-
-type SolanaConfig = z.infer<typeof SolanaSchema>;
 
 @Injectable()
 export class SolanaConfigService implements IBlockchainConfigService {
@@ -34,6 +29,14 @@ export class SolanaConfigService implements IBlockchainConfigService {
 
   get secretKey(): SolanaConfig['secretKey'] {
     return this.configService.get<string>('solana.secretKey')!;
+  }
+
+  get fee(): SolanaConfig['fee'] {
+    return this.configService.get<SolanaConfig['fee']>('solana.fee')!;
+  }
+
+  get tokens(): SolanaConfig['tokens'] {
+    return this.configService.get<SolanaConfig['tokens']>('solana.tokens')!;
   }
 
   get walletAddress(): SolanaConfig['walletAddress'] {
@@ -59,8 +62,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
     if (!this.isConfigured()) {
       return [];
     }
-    // Return standard Solana numeric chain identifiers
-    return [1399811149, 1399811150]; // mainnet, Shasta
+    return [this.chainId];
   }
 
   getPortalAddress(_chainId: ChainIdentifier): UniversalAddress {
@@ -72,51 +74,49 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return AddressNormalizer.normalize(portalId as any, ChainType.SVM);
   }
 
+  isTokenSupported(_chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean {
+    const normalizedAddress = AddressNormalizer.denormalizeToEvm(tokenAddress);
+    return this.tokens.some(
+      (token) => token.address.toLowerCase() === normalizedAddress.toLowerCase(),
+    );
+  }
+
   getSupportedTokens(_chainId: ChainIdentifier): Array<{
     address: UniversalAddress;
     decimals: number;
     limit?: number | { min?: number; max?: number };
   }> {
-    // Solana doesn't have token restrictions in current configuration
-    // Return empty array to indicate all SPL tokens are supported
-    return [];
-  }
-
-  isTokenSupported(_chainId: ChainIdentifier, _tokenAddress: UniversalAddress): boolean {
-    // For Solana, all SPL tokens are supported by default
-    // This can be extended in the future if token restrictions are added
-    return true;
+    return this.tokens.map((token) => ({
+      address: AddressNormalizer.normalizeSvm(token.address),
+      decimals: token.decimals,
+      limit: token.limit,
+    }));
   }
 
   getTokenConfig(
-    _chainId: ChainIdentifier,
+    chainId: ChainIdentifier,
     tokenAddress: UniversalAddress,
   ): {
     address: UniversalAddress;
     decimals: number;
     limit?: number | { min?: number; max?: number };
   } {
-    // Return default configuration for Solana SPL tokens
-    // Decimals default to 9 for most SPL tokens
+    const tokenConfig = this.tokens.find(
+      (token) => AddressNormalizer.normalizeSvm(token.address) === tokenAddress,
+    );
+    if (!tokenConfig) {
+      throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
+    }
+
     return {
-      address: tokenAddress,
-      decimals: 9,
+      address: AddressNormalizer.normalizeSvm(tokenConfig.address),
+      decimals: tokenConfig.decimals,
+      limit: tokenConfig.limit,
     };
   }
 
-  getFeeLogic(_chainId: ChainIdentifier): AssetsFeeSchemaType {
-    // Return default fee configuration for Solana
-    // This can be extended when Solana fee configuration is added to schema
-    return {
-      native: {
-        flatFee: 0, // 0.000005 SOL (5000 lamports)
-        scalarBps: 0, // No percentage fee for native
-      },
-      tokens: {
-        flatFee: 0, // Very low flat fee for tokens (1 microtoken equivalent)
-        scalarBps: 0, // 0.01% fee (much lower than EVM's 0.1%)
-      },
-    };
+  getFeeLogic(_chainId: ChainIdentifier): SolanaConfig['fee'] {
+    return this.fee;
   }
 
   getProverAddress(
@@ -124,9 +124,9 @@ export class SolanaConfigService implements IBlockchainConfigService {
     proverType: TProverType,
   ): UniversalAddress | undefined {
     // Get prover address from configuration
-    const provers = this.configService.get<Record<string, string>>('solana.provers');
+    const provers = this.configService.get<Record<string, BlockchainAddress>>('solana.provers');
     if (provers && provers[proverType]) {
-      return AddressNormalizer.normalize(provers[proverType] as any, ChainType.SVM);
+      return AddressNormalizer.normalize(provers[proverType], ChainType.SVM);
     }
     return undefined;
   }
@@ -145,7 +145,6 @@ export class SolanaConfigService implements IBlockchainConfigService {
    * @returns Default prover type from configuration or 'hyper' as fallback
    */
   getDefaultProver(_chainId: ChainIdentifier): TProverType {
-    const defaultProver = this.configService.get<TProverType>('solana.defaultProver');
-    return defaultProver || 'hyper';
+    return this.configService.get<TProverType>('solana.defaultProver')!;
   }
 }

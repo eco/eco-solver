@@ -50,6 +50,3 @@ export const FulfillmentSchema = z.object({
 });
 
 export type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
-export type FulfillmentStrategyConfig = z.infer<typeof FulfillmentStrategySchema>;
-export type FulfillmentStrategiesConfig = z.infer<typeof FulfillmentStrategiesSchema>;
-export type ValidationsConfig = z.infer<typeof ValidationsSchema>;

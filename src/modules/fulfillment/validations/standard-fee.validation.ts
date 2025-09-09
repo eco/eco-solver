@@ -105,10 +105,10 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
     // Calculate the required fee: baseFee + (totalValue * scalarBps / 10000)
     // Note: totalValue should NOT be added to the fee - it's the transfer amount, not a fee
-    const base = 10000;
+    const base = 10_000;
     const scalarBpsInt = BigInt(Math.floor(fee.tokens.scalarBps * base));
     const percentageFee = (totalValue * scalarBpsInt) / BigInt(base * 10000);
-    const totalRequiredFee = baseFee + percentageFee;
+    const totalRequiredFee = totalValue + baseFee + percentageFee;
 
     return {
       baseFee,

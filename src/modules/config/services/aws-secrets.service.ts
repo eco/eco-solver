@@ -5,12 +5,9 @@ import {
   SecretsManagerClient,
   SecretsManagerClientConfig,
 } from '@aws-sdk/client-secrets-manager';
-import { z } from 'zod';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
-import { AwsSchema } from '@/config/config.schema';
-
-type AwsConfig = z.infer<typeof AwsSchema>;
+import { AwsConfig } from '@/config/schemas';
 
 @Injectable()
 export class AwsSecretsService {

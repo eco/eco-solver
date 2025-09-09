@@ -1,12 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
-import { QueueSchema } from '@/config/config.schema';
+import { QueueConfig } from '@/config/schemas';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
-
-type QueueConfig = z.infer<typeof QueueSchema>;
 
 @Injectable()
 export class QueueConfigService {
@@ -39,6 +35,16 @@ export class QueueConfigService {
   }
 
   /**
+   * Get retry configuration for temporary errors specifically
+   */
+  get temporaryRetryConfig() {
+    return {
+      attempts: this.configService.get<number>('queue.retry.temporary.attempts', 5),
+      backoffMs: this.configService.get<number>('queue.retry.temporary.backoffMs', 5000),
+    };
+  }
+
+  /**
    * Get retry configuration for a specific error type
    */
   getRetryOptions(errorType: ValidationErrorType) {
@@ -58,15 +64,5 @@ export class QueueConfigService {
       default:
         return { attempts: 1 }; // Default to no retry
     }
-  }
-
-  /**
-   * Get retry configuration for temporary errors specifically
-   */
-  get temporaryRetryConfig() {
-    return {
-      attempts: this.configService.get<number>('queue.retry.temporary.attempts', 5),
-      backoffMs: this.configService.get<number>('queue.retry.temporary.backoffMs', 5000),
-    };
   }
 }

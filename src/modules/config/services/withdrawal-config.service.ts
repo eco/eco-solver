@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
-import { WithdrawalSchema } from '@/config/config.schema';
-
-type WithdrawalConfig = z.infer<typeof WithdrawalSchema>;
+import { WithdrawalConfig } from '@/config/schemas';
 
 @Injectable()
 export class WithdrawalConfigService {

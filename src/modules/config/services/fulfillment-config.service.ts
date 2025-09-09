@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
 import { normalize } from '@/common/tokens/normalize';
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { FulfillmentSchema } from '@/config/config.schema';
+import { FulfillmentConfig } from '@/config/schemas';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 
 import { BlockchainConfigService } from './blockchain-config.service';
-
-type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
 
 @Injectable()
 export class FulfillmentConfigService {

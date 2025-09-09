@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { getAccount, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import {
+  getAccount,
+  getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
 
@@ -95,7 +99,7 @@ export class SvmReaderService extends BaseChainReader {
       // Get portal program ID
       const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
 
-            // Derive vault PDA from intent hash
+      // Derive vault PDA from intent hash
       const intentHashBuffer = Buffer.from(intent.intentHash.slice(2), 'hex');
       const [vaultPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('vault'), intentHashBuffer],
@@ -116,34 +120,34 @@ export class SvmReaderService extends BaseChainReader {
       // Check token balances by directly querying associated token accounts
       if (intent.reward.tokens.length > 0) {
         try {
-                      // Check each required reward token individually using associated token accounts
-            for (const rewardToken of intent.reward.tokens) {
-              if (rewardToken.amount > BigInt(0)) {
-                // Denormalize the reward token address to Solana format
-                const svmTokenAddress = AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM);
-                const tokenMintPublicKey = new PublicKey(svmTokenAddress);
+          // Check each required reward token individually using associated token accounts
+          for (const rewardToken of intent.reward.tokens) {
+            if (rewardToken.amount > BigInt(0)) {
+              // Denormalize the reward token address to Solana format
+              const svmTokenAddress = AddressNormalizer.denormalize(
+                rewardToken.token,
+                ChainType.SVM,
+              );
+              const tokenMintPublicKey = new PublicKey(svmTokenAddress);
 
-                // Get the associated token address for the vault (PDA requires allowOwnerOffCurve)
-                let associatedTokenAddress = await getAssociatedTokenAddress(
-                  tokenMintPublicKey,
-                  vaultPDA,
-                  true, // allowOwnerOffCurve - required for PDAs
+              // Get the associated token address for the vault (PDA requires allowOwnerOffCurve)
+              const associatedTokenAddress = await getAssociatedTokenAddress(
+                tokenMintPublicKey,
+                vaultPDA,
+                true, // allowOwnerOffCurve - required for PDAs
+              );
+
+              try {
+                // Get the token balance directly
+                // wait 10 seconds
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+                const tokenBalance =
+                  await this.connection.getTokenAccountBalance(associatedTokenAddress);
+                const vaultTokenBalance = BigInt(tokenBalance.value.amount);
+
+                this.logger.debug(
+                  `Token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
                 );
-                console.log('SOYLANA associatedTokenAddress:', associatedTokenAddress.toBase58());
-                // associatedTokenAddress = new PublicKey("AsKyz42B3soiCx4uF748fXXpHihuqzX9RZhrUXN5nPmt");
-                console.log('SOYLANA vaultPDA:', vaultPDA.toBase58());
-
-                try {
-                  // Get the token balance directly
-                  // wait 10 seconds
-                  await new Promise(resolve => setTimeout(resolve, 10000));
-                  const tokenBalance = await this.connection.getTokenAccountBalance(associatedTokenAddress);
-                  console.log('SOYLANA tokenBalance:', tokenBalance);
-                  const vaultTokenBalance = BigInt(tokenBalance.value.amount);
-
-                  this.logger.debug(
-                    `Token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
-                  );
 
                 if (vaultTokenBalance < rewardToken.amount) {
                   this.logger.debug(

@@ -1,3 +1,5 @@
+import { Program } from '@coral-xyz/anchor';
+
 /**
  * Program IDL in camelCase format in order to be used in JS/TS.
  *
@@ -846,3 +848,5 @@ export type PortalIdl = {
     },
   ];
 };
+
+export type RouteInstruction = Parameters<Program<PortalIdl>['methods']['fulfill']>[0]['route'];

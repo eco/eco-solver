@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { z } from 'zod';
-
-import { AwsSchema } from '@/config/config.schema';
-
-type AwsConfig = z.infer<typeof AwsSchema>;
+import { AwsConfig } from '@/config/schemas';
 
 @Injectable()
 export class AwsConfigService {

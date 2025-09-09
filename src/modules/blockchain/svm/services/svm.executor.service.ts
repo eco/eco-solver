@@ -28,7 +28,10 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
-import { PortalIdl } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+import {
+  PortalIdl,
+  RouteInstruction,
+} from '@/modules/blockchain/svm/targets/types/portal-idl.type';
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
 import { addressToBytes32 } from '@/modules/blockchain/svm/utils/converter';
 import { decodeSplTransferData } from '@/modules/blockchain/svm/utils/decode';
@@ -395,9 +398,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     );
   }
 
-  private prepareRouteData(
-    route: Intent['route'],
-  ): Parameters<Program<PortalIdl>['methods']['fulfill']>[0]['route'] {
+  private prepareRouteData(route: Intent['route']): RouteInstruction {
     return {
       salt: { 0: Array.from(toBuffer(route.salt)) },
       deadline: new BN(route.deadline.toString()),
