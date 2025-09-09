@@ -15,6 +15,8 @@ import { SquidProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { CCTPV2ProviderService } from './liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 import { GatewayProviderService } from './liquidity-providers/Gateway/gateway-provider.service'
+import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
+import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
 
 const walletAddr = '0xWalletAddress'
 
@@ -29,6 +31,7 @@ describe('LiquidityProviderService', () => {
   let cctpLiFiProviderService: CCTPLiFiProviderService
   let squidProviderService: SquidProviderService
   let everclearProviderService: EverclearProviderService
+  let rejectionRepository: RebalanceQuoteRejectionRepository
 
   beforeAll(() => {
     jest.spyOn(uuid, 'v4').mockReturnValue('1' as any)
@@ -60,6 +63,10 @@ describe('LiquidityProviderService', () => {
         },
         { provide: EverclearProviderService, useValue: createMock<EverclearProviderService>() },
         { provide: GatewayProviderService, useValue: createMock<GatewayProviderService>() },
+        {
+          provide: RebalanceQuoteRejectionRepository,
+          useValue: createMock<RebalanceQuoteRejectionRepository>(),
+        },
       ],
     }).compile()
 
@@ -74,6 +81,9 @@ describe('LiquidityProviderService', () => {
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
     squidProviderService = module.get<SquidProviderService>(SquidProviderService)
     everclearProviderService = module.get<EverclearProviderService>(EverclearProviderService)
+    rejectionRepository = module.get<RebalanceQuoteRejectionRepository>(
+      RebalanceQuoteRejectionRepository,
+    )
 
     // Set up the mock for getLiquidityManager after getting the service
     const liquidityManagerConfigMock = {
@@ -339,6 +349,150 @@ describe('LiquidityProviderService', () => {
       await expect(liquidityProviderService.execute(walletAddr, mockQuote as any)).rejects.toThrow(
         'Strategy not supported: UnsupportedStrategy',
       )
+    })
+  })
+
+  describe('rejection persistence integration', () => {
+    const mockTokenIn = { chainId: 1, config: { address: '0xTokenIn' } }
+    const mockTokenOut = { chainId: 2, config: { address: '0xTokenOut' } }
+    const mockSwapAmount = 100
+
+    beforeEach(() => {
+      jest.spyOn(rejectionRepository, 'create').mockResolvedValue({ response: {} as any })
+    })
+
+    it('should persist HIGH_SLIPPAGE rejection when quote exceeds maximum slippage', async () => {
+      const mockQuoteWithHighSlippage = {
+        amountIn: 100n,
+        amountOut: 200n,
+        slippage: 0.01, // 1% slippage > 0.5% max
+        tokenIn: mockTokenIn,
+        tokenOut: mockTokenOut,
+        id: '1',
+        strategy: 'LiFi',
+      }
+
+      jest
+        .spyOn(liFiProviderService, 'getQuote')
+        .mockResolvedValue([mockQuoteWithHighSlippage] as any)
+
+      const result = await liquidityProviderService.getQuote(
+        walletAddr,
+        mockTokenIn as any,
+        mockTokenOut as any,
+        mockSwapAmount,
+      )
+
+      expect(result).toEqual([])
+      expect(rejectionRepository.create).toHaveBeenCalledWith({
+        rebalanceId: '1',
+        strategy: 'LiFi',
+        reason: RejectionReason.HIGH_SLIPPAGE,
+        tokenIn: expect.any(Object),
+        tokenOut: expect.any(Object),
+        swapAmount: mockSwapAmount,
+        details: expect.objectContaining({
+          slippage: 0.01,
+          maxQuoteSlippage: 0.005,
+        }),
+        walletAddress: walletAddr,
+      })
+    })
+
+    it('should persist PROVIDER_ERROR rejection when strategy throws error', async () => {
+      const mockError = new Error('Provider API failed')
+      jest.spyOn(liFiProviderService, 'getQuote').mockRejectedValue(mockError)
+
+      const result = await liquidityProviderService.getQuote(
+        walletAddr,
+        mockTokenIn as any,
+        mockTokenOut as any,
+        mockSwapAmount,
+      )
+
+      expect(result).toEqual([])
+      expect(rejectionRepository.create).toHaveBeenCalledWith({
+        rebalanceId: '1',
+        strategy: 'LiFi',
+        reason: RejectionReason.PROVIDER_ERROR,
+        tokenIn: expect.any(Object),
+        tokenOut: expect.any(Object),
+        swapAmount: mockSwapAmount,
+        details: expect.objectContaining({
+          error: 'Provider API failed',
+          operation: 'strategy_quote',
+        }),
+        walletAddress: walletAddr,
+      })
+    })
+
+    it('should persist fallback rejection when fallback quote has high slippage', async () => {
+      const mockQuoteWithHighSlippage = {
+        amountIn: 100n,
+        amountOut: 200n,
+        slippage: 0.01, // 1% slippage > 0.5% max
+        tokenIn: mockTokenIn,
+        tokenOut: mockTokenOut,
+      }
+
+      jest
+        .spyOn(liFiProviderService, 'fallback')
+        .mockResolvedValue([mockQuoteWithHighSlippage] as any)
+
+      await expect(
+        liquidityProviderService.fallback(
+          mockTokenIn as any,
+          mockTokenOut as any,
+          mockSwapAmount,
+          '1',
+          walletAddr,
+        ),
+      ).rejects.toThrow('Fallback quote slippage')
+
+      expect(rejectionRepository.create).toHaveBeenCalledWith({
+        rebalanceId: '1',
+        strategy: 'LiFi',
+        reason: RejectionReason.HIGH_SLIPPAGE,
+        tokenIn: expect.any(Object),
+        tokenOut: expect.any(Object),
+        swapAmount: mockSwapAmount,
+        details: expect.objectContaining({
+          slippage: 0.01,
+          maxQuoteSlippage: 0.005,
+          fallback: true,
+        }),
+        walletAddress: walletAddr,
+      })
+    })
+
+    it('should continue operation even if rejection persistence fails', async () => {
+      const mockQuoteWithHighSlippage = {
+        amountIn: 100n,
+        amountOut: 200n,
+        slippage: 0.01, // 1% slippage > 0.5% max
+        tokenIn: mockTokenIn,
+        tokenOut: mockTokenOut,
+        id: '1',
+        strategy: 'LiFi',
+      }
+
+      jest
+        .spyOn(liFiProviderService, 'getQuote')
+        .mockResolvedValue([mockQuoteWithHighSlippage] as any)
+      jest
+        .spyOn(rejectionRepository, 'create')
+        .mockResolvedValue({ error: new Error('Database connection failed') })
+
+      // Should not throw despite persistence failure
+      const result = await liquidityProviderService.getQuote(
+        walletAddr,
+        mockTokenIn as any,
+        mockTokenOut as any,
+        mockSwapAmount,
+      )
+
+      expect(result).toEqual([])
+      expect(rejectionRepository.create).toHaveBeenCalled()
     })
   })
 })

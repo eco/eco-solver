@@ -114,7 +114,6 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
     const getTxReceipt = jest
       .fn<Promise<any>, [number, Hex]>()
       .mockResolvedValue({ status: 'success' })
-
     // iii) execute: destination swap execute call
     const execute = jest.fn<Promise<any>, [string, any]>().mockResolvedValue({ ok: true })
 
