@@ -5,6 +5,7 @@ import {
   getAccount,
   getAssociatedTokenAddress,
   getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
@@ -16,6 +17,7 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -294,48 +296,91 @@ export class SvmReaderService extends BaseChainReader {
     });
 
     try {
-      // First, validate that the target is a supported token address
-      const isTokenSupported = this.solanaConfigService.isTokenSupported(chainId, call.target);
+      // First, validate that the target is the TOKEN_PROGRAM_ID
+      // In Solana, token transfers are made to the TOKEN_PROGRAM_ID, not the token mint address
+      const tokenProgramAddress = AddressNormalizer.normalize(
+        TOKEN_PROGRAM_ID.toBase58() as SvmAddress,
+        ChainType.SVM,
+      );
 
-      span.setAttribute('svm.token_supported', isTokenSupported);
+      span.setAttribute('svm.expected_target', tokenProgramAddress);
+      span.setAttribute('svm.actual_target', call.target);
 
-      if (!isTokenSupported) {
-        throw new Error(`Target ${call.target} is not a supported token address on Solana`);
+      if (call.target !== tokenProgramAddress) {
+        throw new Error(
+          `Invalid Solana token transfer target: expected TOKEN_PROGRAM_ID (${tokenProgramAddress}), got ${call.target}`,
+        );
       }
 
-      // Then, validate the Solana instruction data
-      // TODO: Implement proper Solana instruction validation
-      // For now, we'll perform basic validation that the callData is not empty
-      // and has reasonable length for a Solana instruction
+      // Note: For Solana, we don't validate specific token addresses here because:
+      // 1. All token transfers go through TOKEN_PROGRAM_ID (validated above)
+      // 2. The specific token mint address would be specified in the accounts array of the transaction, not in the call target
+      // 3. Token address validation would need to be done at a different level (transaction accounts validation)
 
-      // Solana instructions have different structure than EVM call data
-      // They use a different encoding format and instruction layout
-
+      // Then, validate the Solana instruction data for token transfer
       if (!call.data || call.data === '0x') {
         throw new Error('Invalid Solana instruction: call data is empty');
       }
 
-      // Remove '0x' prefix for length check
-      const dataLength = call.data.slice(2).length / 2; // Convert hex length to byte length
+      // Remove '0x' prefix and convert to buffer
+      const instructionData = Buffer.from(call.data.slice(2), 'hex');
 
-      // Basic sanity check - Solana instructions should have reasonable length
-      if (dataLength < 4) {
+      // Basic sanity check - Solana token instructions should have reasonable length
+      if (instructionData.length < 1) {
         throw new Error('Invalid Solana instruction: call data too short');
       }
 
-      // For now, we'll accept all non-empty call data as potentially valid
-      // In the future, this could be enhanced to:
-      // 1. Parse Solana instruction format
-      // 2. Validate it's a token program instruction
-      // 3. Ensure it's specifically a transfer instruction
+      // Parse the instruction discriminator (first byte)
+      // Solana SPL Token instruction discriminators:
+      // - Transfer: 3
+      // - TransferChecked: 12
+      const instructionType = instructionData[0];
 
-      span.setAttribute('svm.call_data_length', dataLength);
-      span.setAttribute('svm.validation_result', 'basic_validation_passed');
+      span.setAttribute('svm.instruction_type', instructionType);
+      span.setAttribute('svm.call_data_length', instructionData.length);
+
+      // Validate instruction type
+      const isTransferInstruction = instructionType === 3; // Transfer
+      const isTransferCheckedInstruction = instructionType === 12; // TransferChecked
+      const isValidTokenTransfer = isTransferInstruction || isTransferCheckedInstruction;
+
+      span.setAttributes({
+        'svm.is_transfer': isTransferInstruction,
+        'svm.is_transfer_checked': isTransferCheckedInstruction,
+        'svm.is_valid_token_transfer': isValidTokenTransfer,
+      });
+
+      if (!isValidTokenTransfer) {
+        throw new Error(
+          `Invalid Solana token instruction: expected Transfer (3) or TransferChecked (12), got ${instructionType}`,
+        );
+      }
+
+      // Additional validation based on instruction type
+      if (isTransferInstruction) {
+        // Transfer instruction should have exactly 8 bytes of data (discriminator + amount as u64)
+        if (instructionData.length !== 9) {
+          // 1 byte discriminator + 8 bytes amount
+          throw new Error(
+            `Invalid Transfer instruction: expected 9 bytes, got ${instructionData.length}`,
+          );
+        }
+      } else if (isTransferCheckedInstruction) {
+        // TransferChecked instruction should have exactly 9 bytes of data (discriminator + amount as u64 + decimals as u8)
+        if (instructionData.length !== 10) {
+          // 1 byte discriminator + 8 bytes amount + 1 byte decimals
+          throw new Error(
+            `Invalid TransferChecked instruction: expected 10 bytes, got ${instructionData.length}`,
+          );
+        }
+      }
+
+      span.setAttribute('svm.validation_result', 'token_transfer_validated');
       span.setStatus({ code: api.SpanStatusCode.OK });
 
       this.logger.debug(
-        `Basic Solana instruction validation passed for target ${call.target}. ` +
-          'Consider implementing detailed instruction parsing for better validation.',
+        `Solana token transfer validation passed for target ${call.target}. ` +
+          `Instruction type: ${isTransferInstruction ? 'Transfer' : 'TransferChecked'}`,
       );
 
       return true;
@@ -343,7 +388,7 @@ export class SvmReaderService extends BaseChainReader {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
       throw new Error(
-        `Invalid Solana instruction for target ${call.target}: ${getErrorMessage(error)}`,
+        `Invalid Solana token instruction for target ${call.target}: ${getErrorMessage(error)}`,
       );
     } finally {
       span.end();

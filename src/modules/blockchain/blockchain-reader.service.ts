@@ -52,9 +52,15 @@ export class BlockchainReaderService {
    * @param chainId The chain ID
    * @returns The reader for the chain, or undefined if not supported
    */
-  getReaderForChain(chainId: number | bigint): BaseChainReader | undefined {
+  getReaderForChain(chainId: number | bigint): BaseChainReader {
     // Convert bigint to number for EVM chains
-    return this.readers.get(Number(chainId));
+    const reader = this.readers.get(Number(chainId));
+
+    if (!reader) {
+      throw new Error(`No reader available for chain ${chainId}`);
+    }
+
+    return reader;
   }
 
   /**
@@ -63,12 +69,8 @@ export class BlockchainReaderService {
    * @param address The address to check
    * @returns The balance in native token
    */
-  async getBalance(chainId: number, address: UniversalAddress): Promise<bigint> {
-    const reader = this.getReaderForChain(chainId);
-    if (!reader) {
-      throw new Error(`No reader available for chain ${chainId}`);
-    }
-    return reader.getBalance(address, chainId);
+  getBalance(chainId: number, address: UniversalAddress): Promise<bigint> {
+    return this.getReaderForChain(chainId).getBalance(address, chainId);
   }
 
   /**
@@ -83,11 +85,11 @@ export class BlockchainReaderService {
     tokenAddress: UniversalAddress,
     walletAddress: UniversalAddress,
   ): Promise<bigint> {
-    const reader = this.getReaderForChain(chainId);
-    if (!reader) {
-      throw new Error(`No reader available for chain ${chainId}`);
-    }
-    return reader.getTokenBalance(tokenAddress, walletAddress, Number(chainId));
+    return this.getReaderForChain(chainId).getTokenBalance(
+      tokenAddress,
+      walletAddress,
+      Number(chainId),
+    );
   }
 
   /**
@@ -97,11 +99,7 @@ export class BlockchainReaderService {
    * @returns true if the intent is funded
    */
   async isIntentFunded(chainId: number | bigint, intent: Intent): Promise<boolean> {
-    const reader = this.getReaderForChain(chainId);
-    if (!reader) {
-      throw new Error(`No reader available for chain ${chainId}`);
-    }
-    return reader.isIntentFunded(intent, Number(chainId));
+    return this.getReaderForChain(chainId).isIntentFunded(intent, Number(chainId));
   }
 
   /**
@@ -120,11 +118,13 @@ export class BlockchainReaderService {
     messageData: Hex,
     claimant?: UniversalAddress,
   ): Promise<bigint> {
-    const reader = this.getReaderForChain(chainId);
-    if (!reader) {
-      throw new Error(`No reader available for chain ${chainId}`);
-    }
-    return reader.fetchProverFee(intent, prover, messageData, Number(chainId), claimant!);
+    return this.getReaderForChain(chainId).fetchProverFee(
+      intent,
+      prover,
+      messageData,
+      Number(chainId),
+      claimant!,
+    );
   }
 
   /**
@@ -137,11 +137,7 @@ export class BlockchainReaderService {
     chainId: number | bigint,
     call: Intent['route']['calls'][number],
   ): Promise<boolean> {
-    const reader = this.getReaderForChain(chainId);
-    if (!reader) {
-      throw new Error(`No reader available for chain ${chainId}`);
-    }
-    return reader.validateTokenTransferCall(call, Number(chainId));
+    return this.getReaderForChain(chainId).validateTokenTransferCall(call, Number(chainId));
   }
 
   private initializeReaders() {

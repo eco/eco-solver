@@ -49,7 +49,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
 
   isConfigured(): boolean {
     // Check if essential Solana configuration is present
-    const config = this.configService.get('solana');
+    const config = this.configService.get('svm');
     return !!(config && config.rpcUrl && config.secretKey && config.portalProgramId);
   }
 
