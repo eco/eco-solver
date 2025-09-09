@@ -52,14 +52,6 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     const { chainId, usdc, gatewayWallet, id } = job.data
     const amount = deserialize(job.data.amount) as bigint
 
-    processor.logger.debug({ operationType: 'job_execution' }, 'GatewayTopUp: Starting top-up', {
-      id,
-      chainId,
-      usdc,
-      gatewayWallet,
-      amount: amount.toString(),
-    })
-
     // Build approve + depositFor batch via Kernel
     const approveData = encodeFunctionData({
       abi: erc20Abi,
@@ -141,19 +133,7 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
 
   async onComplete(job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
-
-    processor.logger.log(
-      { operationType: 'job_execution', status: 'completed' },
-      'GatewayTopUpJob: Completed!',
-      {
-        id: job.data.id,
-        groupID,
-        rebalanceJobID,
-        chainId: job.data.chainId,
-        txHash: job.returnvalue,
-      },
-    )
+    const { rebalanceJobID } = jobData
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }

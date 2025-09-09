@@ -177,8 +177,10 @@ describe('utils tests', () => {
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'equivalentNativeGas: Chain not found',
         expect.objectContaining({
-          msg: 'equivalentNativeGas: Chain not found',
+          service: 'intent-utils',
+          operation: 'equivalent_native_gas',
         }),
       )
     })
@@ -193,8 +195,10 @@ describe('utils tests', () => {
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'equivalentNativeGas: Chain not found',
         expect.objectContaining({
-          msg: 'equivalentNativeGas: Chain not found',
+          service: 'intent-utils',
+          operation: 'equivalent_native_gas',
         }),
       )
     })
@@ -209,9 +213,11 @@ describe('utils tests', () => {
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'equivalentNativeGas: Different native currency',
         expect.objectContaining({
-          msg: 'equivalentNativeGas: Different native currency',
-          sameDecimals: false,
+          service: 'intent-utils',
+          operation: 'equivalent_native_gas',
+          same_decimals: false,
         }),
       )
     })
@@ -226,9 +232,11 @@ describe('utils tests', () => {
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'equivalentNativeGas: Different native currency',
         expect.objectContaining({
-          msg: 'equivalentNativeGas: Different native currency',
-          sameSymbol: false,
+          service: 'intent-utils',
+          operation: 'equivalent_native_gas',
+          same_symbol: false,
         }),
       )
     })
@@ -243,8 +251,10 @@ describe('utils tests', () => {
 
       expect(equivalentNativeGas(intent, mockLogger)).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'equivalentNativeGas: Different native currency',
         expect.objectContaining({
-          msg: 'equivalentNativeGas: Different native currency',
+          service: 'intent-utils',
+          operation: 'equivalent_native_gas',
         }),
       )
     })

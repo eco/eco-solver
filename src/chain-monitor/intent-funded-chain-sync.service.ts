@@ -12,6 +12,8 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import { Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
+import { LogOperation } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -52,6 +54,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @param source the source intent to get missing transactions for
    * @returns
    */
+  @LogOperation('get_missing_transactions', GenericOperationLogger)
   async getMissingTxs(source: IntentSource): Promise<IntentFundedLog[]> {
     const client = await this.kernelAccountClientService.getClient(source.chainID)
     const lastRecordedTx = await this.getLastRecordedTx(source)
@@ -121,6 +124,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @param source the source intent to get the last recorded transaction for
    * @returns
    */
+  @LogOperation('get_last_recorded_transaction', GenericOperationLogger)
   async getLastRecordedTx(source: IntentSource): Promise<IntentFundedEventModel | undefined> {
     return this.watchIntentService.getLastRecordedTx(BigInt(source.chainID))
   }

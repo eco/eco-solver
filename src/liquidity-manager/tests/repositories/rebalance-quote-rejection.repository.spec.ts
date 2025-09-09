@@ -106,8 +106,10 @@ describe('RebalanceQuoteRejectionRepository', () => {
       await repository.create(mockRejectionData)
 
       expect(loggerSpy).toHaveBeenCalledWith(
+        'Persisting quote rejection',
         expect.objectContaining({
-          msg: 'Persisting quote rejection',
+          service: 'rebalance-quote-rejection-repository',
+          operation: 'create_rejection',
           rebalanceId: mockRejectionData.rebalanceId,
           strategy: mockRejectionData.strategy,
           reason: mockRejectionData.reason,

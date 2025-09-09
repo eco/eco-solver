@@ -33,13 +33,6 @@ export class AwsConfigService implements OnModuleInit, ConfigSource {
    */
   @LogOperation('config_operation', GenericOperationLogger)
   async initConfigs() {
-    this.logger.debug(
-      {
-        operationType: 'config_operation',
-        status: 'started',
-      },
-      'Initializing AWS configs',
-    )
     let awsCreds = config.get('aws') as any[]
     if (!Array.isArray(awsCreds)) {
       awsCreds = [awsCreds]

@@ -50,33 +50,7 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
   async process(job: FulfillIntentJob, processor: IntentFulfillmentProcessor): Promise<void> {
     if (this.is(job)) {
       const jobData = deserialize(job.data)
-      processor.logger.debug(
-        {
-          operationType: 'intent_fulfillment',
-          status: 'started',
-        },
-        `[START] Fulfilling job`,
-        {
-          jobId: job.id,
-          intentHash: jobData.intentHash,
-          chainId: jobData.chainId,
-        },
-      )
-
       await processor.fulfillIntentService.fulfill(jobData.intentHash)
-
-      processor.logger.debug(
-        {
-          operationType: 'intent_fulfillment',
-          status: 'completed',
-        },
-        `[END] Fulfilling job`,
-        {
-          jobId: job.id,
-          intentHash: jobData.intentHash,
-          chainId: jobData.chainId,
-        },
-      )
     }
   }
 

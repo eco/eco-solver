@@ -18,6 +18,8 @@ import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 import { SigningService } from '../../request-signing/signing.service'
+import { LogOperation } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
@@ -35,6 +37,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     private readonly moduleRef: ModuleRef,
   ) {}
 
+  @LogOperation('module_init', GenericOperationLogger)
   onModuleInit() {
     this.serverConfig = this.ecoConfigService.getServer()
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
@@ -49,23 +52,10 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       this.solverRegistrationConfig.apiOptions,
       this.logger,
     )
-
-    this.logger.debug(`${SolverRegistrationService.name}.onModuleInit()`, {
-      service: 'solver-registration-service',
-      operation: 'module_init',
-      server_config: {
-        url: this.serverConfig.url,
-      },
-      solver_count: Object.keys(this.solversConfig).length,
-    })
   }
 
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
-    this.logger.log(`${SolverRegistrationService.name}.onApplicationBootstrap()`, {
-      service: 'solver-registration-service',
-      operation: 'application_bootstrap',
-    })
-
     await this.registerSolver()
   }
 
@@ -74,6 +64,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     return this.signingService.getHeaders(payload, expiryTime)
   }
 
+  @LogOperation('register_solver', GenericOperationLogger)
   async registerSolver(): Promise<EcoResponse<void>> {
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
@@ -97,16 +88,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
         return { error }
       }
-
-      this.logger.log(
-        `${SolverRegistrationService.name}.registerSolver(): Solver has been registered`,
-        {
-          service: 'solver-registration-service',
-          operation: 'register_solver',
-          response,
-          solver_chains: Object.keys(this.solversConfig),
-        },
-      )
 
       return {}
     } catch (ex) {

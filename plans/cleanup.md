@@ -25,6 +25,7 @@ Remove inline logging at function start/end and replace with log decorator usage
 - ☐ Convert inline logging to decorator-based logging in identified files  
 - ☐ Verify all controller and service methods use proper @LogOperation decorators
 - ☐ Verify that internally caught throws are also getting logged
+- ☐ Fix any tests that break due to logging changes
 
 **Action:** Remove redundant logging, ensure decorators are properly applied
 
@@ -45,6 +46,7 @@ Remove inline logging at function start/end and replace with log decorator usage
 - ☐ Convert inline logging to decorator-based logging in identified files  
 - ☐ Verify all controller and service methods use proper @LogOperation decorators
 - ☐ Verify that internally caught throws are also getting logged
+- ☐ Fix any tests that break due to logging changes
 
 **Action:** Remove redundant logging while preserving business logic logging
 
@@ -68,6 +70,7 @@ Remove inline logging at function start/end and replace with log decorator usage
 - ☐ Convert inline logging to decorator-based logging in identified files  
 - ☐ Verify all controller and service methods use proper @LogOperation decorators
 - ☐ Verify that internally caught throws are also getting logged
+- ☐ Fix any tests that break due to logging changes
 
 **Action:** Remove redundant logging, verify decorator coverage
 
@@ -90,6 +93,7 @@ Remove inline logging at function start/end and replace with log decorator usage
 - ☐ Convert inline logging to decorator-based logging in identified files  
 - ☐ Verify all controller and service methods use proper @LogOperation decorators
 - ☐ Verify that internally caught throws are also getting logged
+- ☐ Fix any tests that break due to logging changes
 
 **Action:** Remove redundant logging, ensure proper decorator usage
 
@@ -114,6 +118,7 @@ Remove inline logging at function start/end and replace with log decorator usage
 - ☐ Convert inline logging to decorator-based logging in identified files  
 - ☐ Verify all controller and service methods use proper @LogOperation decorators
 - ☐ Verify that internally caught throws are also getting logged
+- ☐ Fix any tests that break due to logging changes
 
 **Action:** Remove redundant logging, verify decorator implementation
 
