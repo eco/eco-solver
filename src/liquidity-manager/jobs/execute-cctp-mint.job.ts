@@ -153,16 +153,12 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    */
   async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
     const isFinal = this.isFinalAttempt(job, error)
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { rebalanceJobID } = jobData
 
     const errorMessage = isFinal
       ? 'CCTP: ExecuteCCTPMintJob: FINAL FAILURE'
       : 'CCTP: ExecuteCCTPMintJob: Failed: Retrying...'
-
-    if (isFinal) {
-      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-      const { rebalanceJobID } = jobData
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
-    }
 
     processor.logger.error(
       EcoLogMessage.withErrorAndId({
@@ -174,5 +170,9 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
         },
       }),
     )
+
+    if (isFinal) {
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
   }
 }
