@@ -62,7 +62,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
       removeOnComplete: true,
       delay,
-      attempts: 3,
+      attempts: 10,
       backoff: {
         type: 'exponential',
         delay: 10_000,
@@ -90,8 +90,27 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     job: CheckCCTPAttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
-    const { messageHash } = job.data
-    return processor.cctpProviderService.fetchAttestation(messageHash)
+    const { messageHash, id, destinationChainId, cctpLiFiContext } = job.data
+    const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+
+    if (result.status === 'pending') {
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
+          id,
+          properties: {
+            ...result,
+            messageHash,
+            destinationChainId,
+            isCCTPLiFi: !!cctpLiFiContext,
+          },
+        }),
+      )
+
+      this.delay(job, 30_000)
+    }
+
+    return result
   }
 
   async onComplete(
@@ -119,23 +138,6 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
       }
 
       await ExecuteCCTPMintJobManager.start(processor.queue, executeCCTPMintJobData)
-    } else {
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
-          id: job.data.id,
-          properties: {
-            groupID: job.data.groupID,
-            rebalanceJobID: job.data.rebalanceJobID,
-            ...job.returnvalue,
-            messageHash: job.data.messageHash,
-            destinationChainId: job.data.destinationChainId,
-            isCCTPLiFi: !!job.data.cctpLiFiContext,
-          },
-        }),
-      )
-
-      await CheckCCTPAttestationJobManager.start(processor.queue, job.data, 30_000)
     }
   }
 
