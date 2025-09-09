@@ -77,12 +77,15 @@ describe('WatchFulfillmentService', () => {
           watchContractEvent: mockWatch,
         } as any)
         ecoConfigService.getSolvers.mockReturnValue(inboxRecord)
-        watchFulfillmentService.getSupportedChains = jest.fn().mockReturnValue(supportedChains.map((id) => BigInt(id)))
+        watchFulfillmentService.getSupportedChains = jest
+          .fn()
+          .mockReturnValue(supportedChains.map((id) => BigInt(id)))
         await watchFulfillmentService.onApplicationBootstrap()
         expect(mockWatch).toHaveBeenCalledTimes(2)
 
         for (const [index, s] of inboxes.entries()) {
-          const { address, eventName, abi, strict, onLogs, onError } = mockWatch.mock.calls[index][0]
+          const { address, eventName, abi, strict, onLogs, onError } =
+            mockWatch.mock.calls[index][0]
           expect({
             address,
             eventName,

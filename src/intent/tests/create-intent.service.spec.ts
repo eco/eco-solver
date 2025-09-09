@@ -47,7 +47,7 @@ describe('CreateIntentService', () => {
   let module: TestingModule
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
-  
+
   // Store original IntentDataModel.fromEvent method
   const originalFromEvent = IntentDataModel.fromEvent
 
@@ -94,16 +94,16 @@ describe('CreateIntentService', () => {
     mockDecodeCreateIntentLog.mockClear()
     mockDecodeEventLog.mockClear()
     mockDecodeAbiParameters.mockClear()
-    
+
     // Restore IntentDataModel.fromEvent to original state
     IntentDataModel.fromEvent = originalFromEvent
-    
+
     // Clear all mock implementations and calls
     jest.clearAllMocks()
-    
+
     // Restore all spy mocks
     jest.restoreAllMocks()
-    
+
     // Close the NestJS module and cleanup resources
     if (module) {
       await module.close()
@@ -152,7 +152,7 @@ describe('CreateIntentService', () => {
       intentSourceModel.create = mockCreate
       const mockFindOne = jest.fn().mockResolvedValue(null)
       intentSourceModel.findOne = mockFindOne
-      
+
       await createIntentService.createIntent(mockEvent as any)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `createIntent ${mockEvent.transactionHash}`,
@@ -217,7 +217,7 @@ describe('CreateIntentService', () => {
       intentSourceModel.create = mockCreate
       const mockQueueAdd = jest.fn().mockResolvedValue({})
       queue.add = mockQueueAdd
-      
+
       await createIntentService.createIntent(mockEvent as any)
       expect(mockCreate).toHaveBeenCalledWith({
         event: mockEvent,
@@ -288,6 +288,6 @@ describe('CreateIntentService', () => {
     // Final cleanup to ensure all resources are released
     jest.clearAllTimers()
     jest.useRealTimers()
-    await new Promise(resolve => setImmediate(resolve))
+    await new Promise((resolve) => setImmediate(resolve))
   })
 })

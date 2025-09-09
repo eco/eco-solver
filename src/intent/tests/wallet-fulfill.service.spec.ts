@@ -676,11 +676,7 @@ describe('WalletFulfillService', () => {
           }),
         ]),
         expect.arrayContaining([
-          expect.arrayContaining([
-            pad(model.intent.reward.prover),
-            '0x',
-            zeroAddress,
-          ]),
+          expect.arrayContaining([pad(model.intent.reward.prover), '0x', zeroAddress]),
         ]),
       )
       expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)

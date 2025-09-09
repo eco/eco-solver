@@ -284,16 +284,16 @@ describe('ValidateIntentService', () => {
           portal: '0x1234567890123456789012345678901234567890',
           nativeAmount: BigInt(0),
           tokens: [],
-          calls: []
+          calls: [],
         },
         reward: {
           creator: '0x1234567890123456789012345678901234567890',
           prover: '0x0987654321098765432109876543210987654321',
           deadline: BigInt(Date.now() + 86400000),
           nativeValue: BigInt(0),
-          tokens: []
-        }
-      }
+          tokens: [],
+        },
+      },
     } as any
 
     it('should return false if no intentSource for intent', async () => {

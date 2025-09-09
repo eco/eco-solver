@@ -18,15 +18,15 @@ export class DockerTestUtils {
 
     try {
       // First check if Docker command exists
-      execSync('docker --version', { 
+      execSync('docker --version', {
         stdio: 'pipe',
-        timeout: 5000 
+        timeout: 5000,
       })
 
       // Then check if Docker daemon is running
-      execSync('docker info', { 
+      execSync('docker info', {
         stdio: 'pipe',
-        timeout: 5000 
+        timeout: 5000,
       })
 
       this.dockerAvailable = true
@@ -61,7 +61,7 @@ export class DockerTestUtils {
     if (process.env.SKIP_DOCKER_TESTS === 'true') {
       return 'SKIP_DOCKER_TESTS environment variable is set to true'
     }
-    
+
     if (process.env.CI === 'true') {
       return 'Running in CI environment where Docker may not be available'
     }

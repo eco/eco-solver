@@ -17,6 +17,6 @@ if (!process.env.SKIP_DOCKER_TESTS && process.env.CI === 'true') {
 
 // Add BigInt serialization support for Jest
 // This prevents "Do not know how to serialize a BigInt" errors during test runs
-BigInt.prototype.toJSON = function() {
+BigInt.prototype.toJSON = function () {
   return this.toString()
 }
