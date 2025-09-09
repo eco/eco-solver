@@ -1,4 +1,4 @@
-export class QueueSerializer {
+export class BigintSerializer {
   private static readonly BIGINT_PREFIX = '$$bigint:';
 
   static serialize<T>(data: T): string {

@@ -132,7 +132,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   getClaimant(_chainId: ChainIdentifier): UniversalAddress {
-    const claimant = this.configService.get<string>('solana.claimant');
+    const claimant = this.configService.get<SvmAddress>('solana.claimant');
     if (!claimant) {
       throw new Error('Solana claimant address not configured');
     }

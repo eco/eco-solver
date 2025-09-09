@@ -96,7 +96,7 @@ jest.mock('@/modules/blockchain/evm/utils/events', () => ({
 }));
 
 // Mock QueueSerializer
-jest.mock('@/modules/queue/utils/queue-serializer', () => ({
+jest.mock('@/common/utils/bigint-serializer', () => ({
   QueueSerializer: {
     serialize: jest.fn((_obj) => 'serialized-object'),
   },

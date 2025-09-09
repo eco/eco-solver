@@ -5,15 +5,15 @@ import { Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 import { BlockchainProcessor } from '../blockchain.processor';
 import { BlockchainExecutorService } from '../blockchain-executor.service';
 
-jest.mock('@/modules/queue/utils/queue-serializer');
+jest.mock('@/common/utils/bigint-serializer');
 
 // Helper to serialize objects with BigInt
 const serializeWithBigInt = (obj: any) =>
@@ -83,7 +83,7 @@ describe('BlockchainProcessor', () => {
     processor = module.get<BlockchainProcessor>(BlockchainProcessor);
 
     // Mock QueueSerializer to return the mock data directly
-    (QueueSerializer.deserialize as jest.Mock).mockReturnValue(mockJobData);
+    (BigintSerializer.deserialize as jest.Mock).mockReturnValue(mockJobData);
   });
 
   afterEach(() => {
@@ -127,7 +127,7 @@ describe('BlockchainProcessor', () => {
 
       await processor.process(mockJob);
 
-      expect(QueueSerializer.deserialize).toHaveBeenCalledWith(mockJob.data);
+      expect(BigintSerializer.deserialize).toHaveBeenCalledWith(mockJob.data);
       expect(blockchainService.executeIntent).toHaveBeenCalledWith(mockIntent, 'basic');
     });
 
@@ -137,7 +137,7 @@ describe('BlockchainProcessor', () => {
         data: serializeWithBigInt(jobDataWithoutWallet),
       } as any;
 
-      (QueueSerializer.deserialize as jest.Mock).mockReturnValueOnce(jobDataWithoutWallet);
+      (BigintSerializer.deserialize as jest.Mock).mockReturnValueOnce(jobDataWithoutWallet);
 
       await processor.process(mockJob);
 
@@ -166,7 +166,7 @@ describe('BlockchainProcessor', () => {
       const job3: Job<string> = { data: serializeWithBigInt(jobData3) } as any;
 
       // Mock deserializer to return correct data for each job
-      (QueueSerializer.deserialize as jest.Mock)
+      (BigintSerializer.deserialize as jest.Mock)
         .mockReturnValueOnce(jobData1)
         .mockReturnValueOnce(jobData2)
         .mockReturnValueOnce(jobData3);
@@ -210,7 +210,7 @@ describe('BlockchainProcessor', () => {
       const job3: Job<string> = { data: serializeWithBigInt(jobData3) } as any;
 
       // Mock deserializer to return correct data for each job
-      (QueueSerializer.deserialize as jest.Mock)
+      (BigintSerializer.deserialize as jest.Mock)
         .mockReturnValueOnce(jobData1)
         .mockReturnValueOnce(jobData2)
         .mockReturnValueOnce(jobData3);
@@ -259,7 +259,7 @@ describe('BlockchainProcessor', () => {
         data: serializeWithBigInt(jobDataWithBigInt),
       } as any;
 
-      (QueueSerializer.deserialize as jest.Mock).mockReturnValueOnce(jobDataWithBigInt);
+      (BigintSerializer.deserialize as jest.Mock).mockReturnValueOnce(jobDataWithBigInt);
 
       await processor.process(mockJob);
 

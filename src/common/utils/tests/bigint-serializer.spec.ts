@@ -1,6 +1,6 @@
 import { Intent } from '@/common/interfaces/intent.interface';
 
-import { QueueSerializer } from '../queue-serializer';
+import { BigintSerializer } from '../bigint-serializer';
 
 describe('QueueSerializer', () => {
   describe('serialize and deserialize', () => {
@@ -12,8 +12,8 @@ describe('QueueSerializer', () => {
         blockNumber: BigInt(12345678),
       };
 
-      const serialized = QueueSerializer.serialize(data);
-      const deserialized = QueueSerializer.deserialize<typeof data>(serialized);
+      const serialized = BigintSerializer.serialize(data);
+      const deserialized = BigintSerializer.deserialize<typeof data>(serialized);
 
       expect(deserialized.id).toBe(data.id);
       expect(deserialized.amount).toBe(data.amount);
@@ -29,7 +29,7 @@ describe('QueueSerializer', () => {
         value: BigInt(123456789),
       };
 
-      const serialized = QueueSerializer.serialize(data);
+      const serialized = BigintSerializer.serialize(data);
 
       expect(serialized).toContain('$$bigint:');
       expect(serialized).toBe('{"value":"$$bigint:123456789"}');
@@ -54,8 +54,8 @@ describe('QueueSerializer', () => {
         },
       };
 
-      const serialized = QueueSerializer.serialize(data);
-      const deserialized = QueueSerializer.deserialize<typeof data>(serialized);
+      const serialized = BigintSerializer.serialize(data);
+      const deserialized = BigintSerializer.deserialize<typeof data>(serialized);
 
       // Check nested structure
       expect(deserialized.transaction.value).toBe(data.transaction.value);
@@ -92,8 +92,8 @@ describe('QueueSerializer', () => {
         ],
       };
 
-      const serialized = QueueSerializer.serialize(data);
-      const deserialized = QueueSerializer.deserialize<typeof data>(serialized);
+      const serialized = BigintSerializer.serialize(data);
+      const deserialized = BigintSerializer.deserialize<typeof data>(serialized);
 
       expect(deserialized.values).toHaveLength(3);
       expect(deserialized.values[0]).toBe(BigInt(100));
@@ -146,8 +146,8 @@ describe('QueueSerializer', () => {
       ];
 
       testCases.forEach(({ data, expected }) => {
-        const serialized = QueueSerializer.serialize(data);
-        const deserialized = QueueSerializer.deserialize<typeof data>(serialized);
+        const serialized = BigintSerializer.serialize(data);
+        const deserialized = BigintSerializer.deserialize<typeof data>(serialized);
 
         expect(deserialized).toEqual(expected);
 
@@ -161,7 +161,7 @@ describe('QueueSerializer', () => {
     it('should handle the special prefix correctly in edge cases', () => {
       // Test that strings with the prefix in manually created JSON are treated as BigInt
       const manualJson = '{"value":"$$bigint:123","regularString":"normal text"}';
-      const deserialized = QueueSerializer.deserialize<{ value: bigint; regularString: string }>(
+      const deserialized = BigintSerializer.deserialize<{ value: bigint; regularString: string }>(
         manualJson,
       );
 
@@ -176,7 +176,7 @@ describe('QueueSerializer', () => {
         actualBigInt: BigInt(789),
       };
 
-      const serialized = QueueSerializer.serialize(data);
+      const serialized = BigintSerializer.serialize(data);
       const parsed = JSON.parse(serialized);
 
       // Verify the serialized format
@@ -185,7 +185,7 @@ describe('QueueSerializer', () => {
       expect(parsed.actualBigInt).toBe('$$bigint:789');
 
       // Verify round-trip works correctly
-      const roundTrip = QueueSerializer.deserialize<typeof data>(serialized);
+      const roundTrip = BigintSerializer.deserialize<typeof data>(serialized);
       expect(roundTrip.normalString).toBe(data.normalString);
       expect(roundTrip.stringWithNumbers).toBe(data.stringWithNumbers);
       expect(roundTrip.actualBigInt).toBe(data.actualBigInt);
@@ -230,8 +230,8 @@ describe('QueueSerializer', () => {
         status: 'PENDING',
       };
 
-      const serialized = QueueSerializer.serialize(intentLikeData);
-      const deserialized = QueueSerializer.deserialize(serialized) as Intent;
+      const serialized = BigintSerializer.serialize(intentLikeData);
+      const deserialized = BigintSerializer.deserialize(serialized) as Intent;
 
       // Verify all BigInt values are correctly deserialized
       expect(deserialized.reward.deadline).toBe(intentLikeData.reward.deadline);

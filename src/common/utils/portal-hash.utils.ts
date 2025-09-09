@@ -5,12 +5,12 @@
  * Implements the content-addressable hashing scheme with chain-specific encoding.
  */
 
-import { BN, BorshCoder, Idl } from '@coral-xyz/anchor';
+import { BN, BorshCoder } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { encodeAbiParameters, encodePacked, Hex, keccak256 } from 'viem';
 
-import * as portalIdl from '@/common/abis/portal.json';
 import { toRewardEVMIntent, toRouteEVMIntent } from '@/common/utils/intent-converter';
+import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
 
 import { EVMRewardAbiItem, EVMRouteAbiItem } from '../abis/portal.abi';
 import { Intent } from '../interfaces/intent.interface';
@@ -18,7 +18,7 @@ import { Intent } from '../interfaces/intent.interface';
 import { AddressNormalizer } from './address-normalizer';
 import { ChainType, ChainTypeDetector } from './chain-type-detector';
 
-const svmCoder = new BorshCoder(portalIdl as Idl);
+const svmCoder = new BorshCoder(portalIdl);
 
 export class PortalHashUtils {
   static getIntentHash(intent: Intent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {

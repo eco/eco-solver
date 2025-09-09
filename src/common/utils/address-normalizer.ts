@@ -35,7 +35,7 @@ export class AddressNormalizer {
       case ChainType.TVM:
         return this.normalizeTvm(address as TronAddress);
       case ChainType.SVM:
-        return this.normalizeSvm(address);
+        return this.normalizeSvm(address as SvmAddress);
       default:
         throw new Error(`Unsupported chain type: ${chainType}`);
     }
@@ -109,19 +109,23 @@ export class AddressNormalizer {
     }
   }
 
-  static denormalizeToSvm(address: UniversalAddress): string {
+  static denormalizeToSvm(address: UniversalAddress): SvmAddress {
     try {
       // Remove 0x prefix
-      const hex = address.substring(2);
+      const hex = address.startsWith('0x') ? address.slice(2) : address;
 
       // Convert hex to bytes (Solana addresses are 32 bytes, no unpadding needed)
       const bytes = Buffer.from(hex, 'hex');
+
+      if (bytes.length !== 32) {
+        throw new Error(`Expected 32 bytes, got ${bytes.length}`);
+      }
 
       // Create PublicKey from bytes
       const publicKey = new PublicKey(bytes);
 
       // Return base58 encoded address
-      return publicKey.toBase58();
+      return publicKey.toBase58() as SvmAddress;
     } catch (error) {
       throw new Error(`Failed to denormalize to SVM address: ${getErrorMessage(error)}`);
     }
@@ -171,10 +175,10 @@ export class AddressNormalizer {
     }
   }
 
-  static normalizeSvm(address: string): UniversalAddress {
+  static normalizeSvm(address: SvmAddress | PublicKey): UniversalAddress {
     try {
       // Create PublicKey from the address
-      const publicKey = new PublicKey(address);
+      const publicKey = address instanceof PublicKey ? address : new PublicKey(address);
 
       // Convert to bytes and then to hex
       const bytes = publicKey.toBytes();

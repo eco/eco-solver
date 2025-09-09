@@ -4,6 +4,7 @@ import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@
 import { Queue } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
@@ -16,7 +17,6 @@ import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.servi
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Injectable()
 export class QueueService implements IQueueService, OnApplicationBootstrap, OnModuleDestroy {
@@ -62,7 +62,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       chainId: Number(intent.destination),
     };
 
-    const serializedData = QueueSerializer.serialize(jobData);
+    const serializedData = BigintSerializer.serialize(jobData);
 
     const addJob = async () => {
       // Use maximum retry attempts from config to allow for TEMPORARY error retries
@@ -90,7 +90,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
   }
 
   async addIntentToExecutionQueue(jobData: ExecutionJobData): Promise<void> {
-    const serializedData = QueueSerializer.serialize(jobData);
+    const serializedData = BigintSerializer.serialize(jobData);
     const jobName = `${QueueNames.INTENT_EXECUTION}-chain-${jobData.chainId}`;
 
     const addJob = async () => {
@@ -126,7 +126,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
   async addJob(queueName: string, data: any, options?: any): Promise<void> {
     const queue =
       queueName === QueueNames.INTENT_FULFILLMENT ? this.fulfillmentQueue : this.executionQueue;
-    const serializedData = QueueSerializer.serialize(data);
+    const serializedData = BigintSerializer.serialize(data);
     await queue.add(queueName, serializedData, options);
   }
 

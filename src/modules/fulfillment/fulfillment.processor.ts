@@ -3,6 +3,7 @@ import { Optional } from '@nestjs/common';
 
 import { Job, UnrecoverableError } from 'bullmq';
 
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregated-validation.error';
@@ -12,7 +13,6 @@ import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 
@@ -31,7 +31,7 @@ export class FulfillmentProcessor extends WorkerHost {
   async process(job: Job<string>) {
     if (job.name === 'process-intent') {
       const processFn = async (j: Job<string>) => {
-        const jobData = QueueSerializer.deserialize<FulfillmentJobData>(j.data);
+        const jobData = BigintSerializer.deserialize<FulfillmentJobData>(j.data);
         this.logger.log(
           `Processing intent ${jobData.intent.intentHash} with strategy ${jobData.strategy} (attempt ${j.attemptsMade + 1}/${j.opts.attempts})`,
         );

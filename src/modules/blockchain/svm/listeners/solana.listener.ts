@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
-import { BorshCoder, EventParser, Idl } from '@coral-xyz/anchor';
+import { BorshCoder, EventParser } from '@coral-xyz/anchor';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
 
-import * as portalIdl from '@/common/abis/portal.json';
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -12,6 +11,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { toError } from '@/common/utils/error-handler';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
+import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
 import {
   BlockchainConfigService,
   FulfillmentConfigService,
@@ -37,7 +37,7 @@ export class SolanaListener extends BaseChainListener {
     super();
     this.logger.setContext(SolanaListener.name);
 
-    const coder = new BorshCoder(portalIdl as Idl);
+    const coder = new BorshCoder(portalIdl);
     this.parser = new EventParser(new PublicKey(this.solanaConfigService.portalProgramId), coder);
   }
 
@@ -96,7 +96,7 @@ export class SolanaListener extends BaseChainListener {
     // Decode route based on destination chain type
     const destChainType = ChainTypeDetector.detect(BigInt(destination.toString()));
 
-    const decodedRoute = PortalEncoder.decodeFromChain(Buffer.from(route), destChainType, 'route');
+    const decodedRoute = PortalEncoder.decode(Buffer.from(route), destChainType, 'route');
 
     return {
       intentHash,

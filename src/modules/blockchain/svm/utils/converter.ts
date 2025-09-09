@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { Hex } from 'viem';
 
+import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
 
 export function addressToBytes32(address: string): number[] {
@@ -19,9 +20,13 @@ export function addressToBytes32(address: string): number[] {
 /**
  * Helper to convert 32-byte array to address for SVM
  */
-export function bytes32ToAddress(bytes: number[] | Uint8Array): string {
+export function bytes32ToAddress(bytes: number[] | Uint8Array): SvmAddress {
   const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   // Check if it looks like a Solana public key (32 bytes, non-zero)
   const pubkey = new PublicKey(buffer);
-  return pubkey.toString();
+  return pubkey.toString() as SvmAddress;
+}
+
+export function bufferToBytes32(bytes: Buffer | number[]): Hex {
+  return ('0x' + Buffer.from(bytes).toString('hex')) as Hex;
 }

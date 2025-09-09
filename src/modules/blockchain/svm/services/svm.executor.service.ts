@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { AnchorProvider, BN, Program, setProvider, web3 } from '@coral-xyz/anchor';
+import { AnchorProvider, Program, setProvider, web3 } from '@coral-xyz/anchor';
 import {
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
@@ -28,14 +28,11 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
-import {
-  PortalIdl,
-  RouteInstruction,
-} from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+import { PortalIdl } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
-import { addressToBytes32 } from '@/modules/blockchain/svm/utils/converter';
 import { decodeSplTransferData } from '@/modules/blockchain/svm/utils/decode';
 import { hashIntentSvm } from '@/modules/blockchain/svm/utils/hash';
+import { prepareSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -119,7 +116,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       throw new Error('Wallet not initialized');
     }
     const publicKey = await this.wallet.getAddress();
-    return AddressNormalizer.normalizeSvm(publicKey.toString());
+    return AddressNormalizer.normalizeSvm(publicKey);
   }
 
   async isTransactionConfirmed(txHash: string, _chainId: number): Promise<boolean> {
@@ -228,7 +225,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
     const fulfillArgs: Parameters<typeof this.portalProgram.methods.fulfill>[0] = {
       intentHash: { 0: Array.from(intentHashBuffer) }, // Bytes32 format
-      route: this.prepareRouteData(svmIntent.route),
+      route: prepareSvmRoute(svmIntent.route),
       rewardHash: { 0: Array.from(rewardHashBytes) }, // Bytes32 format
       claimant: { 0: Array.from(claimantBytes32) }, // Bytes32 format
     };
@@ -396,23 +393,6 @@ export class SvmExecutorService extends BaseChainExecutor {
       this.keypair.publicKey,
       Number(amount),
     );
-  }
-
-  private prepareRouteData(route: Intent['route']): RouteInstruction {
-    return {
-      salt: { 0: Array.from(toBuffer(route.salt)) },
-      deadline: new BN(route.deadline.toString()),
-      nativeAmount: new BN('0'),
-      portal: { 0: addressToBytes32(AddressNormalizer.denormalizeToSvm(route.portal)) },
-      tokens: route.tokens.map((t) => ({
-        token: new PublicKey(AddressNormalizer.denormalizeToSvm(t.token)),
-        amount: new BN(t.amount.toString()),
-      })),
-      calls: route.calls.map((c) => ({
-        target: { 0: addressToBytes32(AddressNormalizer.denormalizeToSvm(c.target)) },
-        data: toBuffer(c.data),
-      })),
-    };
   }
 
   private async getTokenAccounts(route: Intent['route']): Promise<web3.AccountMeta[]> {

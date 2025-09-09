@@ -8,6 +8,7 @@ import Redis from 'ioredis';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { BasicWalletFactory } from '@/modules/blockchain/evm/wallets/basic-wallet/basic-wallet.factory';
 import { KernelWalletFactory } from '@/modules/blockchain/evm/wallets/kernel-wallet/kernel-wallet.factory';
@@ -19,7 +20,6 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { QueueModule } from '@/modules/queue/queue.module';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 // Increase Jest timeout for integration tests
 jest.setTimeout(30000);
@@ -168,7 +168,7 @@ describe.skip('Intent Discovery Flow Integration', () => {
       expect(jobs).toHaveLength(1);
 
       const job = jobs[0];
-      const jobData = QueueSerializer.deserialize(job.data);
+      const jobData = BigintSerializer.deserialize(job.data);
       expect(jobData).toHaveProperty('strategy', FULFILLMENT_STRATEGY_NAMES.STANDARD);
       expect(jobData).toHaveProperty('intent');
       // expect(jobData.intentHash).toBe(mockIntent.intentHash);

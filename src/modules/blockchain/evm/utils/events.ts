@@ -27,7 +27,7 @@ export function parseIntentPublish(
 
   // Decode route based on destination chain type - already returns an Intent format
   const destChainType = ChainTypeDetector.detect(log.args.destination);
-  const route = PortalEncoder.decodeFromChain(log.args.route, destChainType, 'route');
+  const route = PortalEncoder.decode(log.args.route, destChainType, 'route');
 
   // Normalize all addresses to UniversalAddress format
   return {

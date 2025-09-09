@@ -3,6 +3,7 @@ import { Inject, OnModuleInit, Optional } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
@@ -10,7 +11,6 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 @Processor(QueueNames.INTENT_EXECUTION, {
   concurrency: 10, // Will be overridden by constructor
@@ -36,7 +36,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
 
   async process(job: Job<string>) {
     const processFn = async (j: Job<string>) => {
-      const jobData = QueueSerializer.deserialize<ExecutionJobData>(j.data);
+      const jobData = BigintSerializer.deserialize<ExecutionJobData>(j.data);
       const { intent, strategy, chainId, walletId } = jobData;
       const chainKey = chainId.toString();
 

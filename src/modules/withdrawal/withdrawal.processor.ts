@@ -3,13 +3,13 @@ import { Inject, OnModuleInit, Optional } from '@nestjs/common';
 
 import { Job, Queue } from 'bullmq';
 
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { QueueSerializer } from '@/modules/queue/utils/queue-serializer';
 
 import { WithdrawalJobData } from './interfaces/withdrawal-job.interface';
 import { WithdrawalService } from './withdrawal.service';
@@ -46,7 +46,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
       }
 
       // Otherwise, it's a regular withdrawal job
-      const jobData = QueueSerializer.deserialize<WithdrawalJobData>(j.data);
+      const jobData = BigintSerializer.deserialize<WithdrawalJobData>(j.data);
       const { chainId, intents, walletId } = jobData;
 
       this.logger.log(`Processing withdrawal for chain ${chainId} with ${intents.length} intents`);
@@ -124,7 +124,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
       // Add all jobs to the queue
       const bulkJobs = jobs.map((job) => ({
         name: `withdraw-chain-${job.chainId}`,
-        data: QueueSerializer.serialize(job.data),
+        data: BigintSerializer.serialize(job.data),
         opts: {
           attempts: 3,
           backoff: {
