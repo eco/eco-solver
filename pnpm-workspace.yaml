@@ -1,2 +1,5 @@
+packages:
+  - "."
+
 patchedDependencies:
   '@eco-foundation/routes-ts@2.8.14': patches/@eco-foundation__routes-ts@2.8.14.patch

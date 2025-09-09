@@ -1,4 +1,5 @@
-import { GenericContainer, StartedTestContainer } from 'testcontainers'
+import { GenericContainer } from 'testcontainers'
+import type { StartedTestContainer } from 'testcontainers'
 import {
   LiquidityManagerJobName,
   LiquidityManagerQueue,

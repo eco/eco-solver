@@ -282,11 +282,8 @@ describe('UtilsIntentService', () => {
   describe('on updateOnFulfillment', () => {
     const fulfillment = {
       args: {
-        _hash: '0x123',
-        _solver: '0x456',
-        _intent: '0x789',
-        _receipt: '0xabc',
-        _result: '0xdef',
+        intentHash: '0x123' as `0x${string}`,
+        claimant: '0x456' as `0x${string}`,
       },
     } as any as FulfillmentLog
     it('should log a warning if no intent exists in the db for the fulfillment hash', async () => {
@@ -294,7 +291,7 @@ describe('UtilsIntentService', () => {
       await utilsIntentService.updateOnFulfillment(fulfillment)
       expect(mockLogWarn).toHaveBeenCalledTimes(1)
       expect(mockLogWarn).toHaveBeenCalledWith({
-        msg: `Intent not found for fulfillment ${fulfillment.args._hash}`,
+        msg: `Intent not found for fulfillment ${fulfillment.args.intentHash}`,
         fulfillment,
       })
     })
@@ -308,7 +305,7 @@ describe('UtilsIntentService', () => {
       await utilsIntentService.updateOnFulfillment(fulfillment)
       expect(intentModel.updateOne).toHaveBeenCalledTimes(1)
       expect(intentModel.updateOne).toHaveBeenCalledWith(
-        { 'intent.hash': fulfillment.args._hash },
+        { 'intent.hash': fulfillment.args.intentHash },
         { ...model, status: 'SOLVED' },
       )
     })

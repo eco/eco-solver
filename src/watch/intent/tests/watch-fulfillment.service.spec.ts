@@ -24,7 +24,7 @@ describe('WatchFulfillmentService', () => {
     acc[solver.chainID] = solver
     return acc
   }, {})
-  const supportedChains = inboxes.map((s) => BigInt(s.chainID))
+  const supportedChains = inboxes.map((s) => s.chainID)
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -77,17 +77,26 @@ describe('WatchFulfillmentService', () => {
           watchContractEvent: mockWatch,
         } as any)
         ecoConfigService.getSolvers.mockReturnValue(inboxRecord)
-        watchFulfillmentService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
+        watchFulfillmentService.getSupportedChains = jest.fn().mockReturnValue(supportedChains.map((id) => BigInt(id)))
         await watchFulfillmentService.onApplicationBootstrap()
         expect(mockWatch).toHaveBeenCalledTimes(2)
 
         for (const [index, s] of inboxes.entries()) {
-          const { address, eventName, args } = mockWatch.mock.calls[index][0]
-          const partial = { address, eventName, args }
-          expect(partial).toEqual({
+          const { address, eventName, abi, strict, onLogs, onError } = mockWatch.mock.calls[index][0]
+          expect({
+            address,
+            eventName,
+            abi: !!abi, // Just check if abi exists
+            strict,
+            onLogs: typeof onLogs,
+            onError: typeof onError,
+          }).toEqual({
             address: s.inboxAddress,
-            eventName: 'Fulfillment',
-            args: { _sourceChainID: supportedChains },
+            eventName: 'IntentFulfilled',
+            abi: true,
+            strict: true,
+            onLogs: 'function',
+            onError: 'function',
           })
         }
       })

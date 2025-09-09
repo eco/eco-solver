@@ -1,3 +1,4 @@
+import { DockerTestUtils } from '@/common/test-utils/docker-test-utils'
 import {
   CheckCCTPAttestationJobManager,
   type CheckCCTPAttestationJobData,
@@ -5,7 +6,8 @@ import {
 
 import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
-import { GenericContainer, StartedTestContainer } from 'testcontainers'
+import { GenericContainer } from 'testcontainers'
+import type { StartedTestContainer } from 'testcontainers'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJobName,
@@ -43,6 +45,18 @@ What’s mocked (by design)
 describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
   jest.setTimeout(60_000)
 
+  // Check Docker availability and conditionally skip
+  let shouldSkipTests: boolean
+  let skipReason: string
+
+  beforeAll(async () => {
+    shouldSkipTests = await DockerTestUtils.shouldSkipDockerTests()
+    if (shouldSkipTests) {
+      skipReason = await DockerTestUtils.getSkipReason()
+      console.warn(`Skipping Docker-dependent E2E tests: ${skipReason}`)
+    }
+  })
+
   let container: StartedTestContainer
   let queueConn: IORedis
   let workerConn: IORedis
@@ -56,6 +70,11 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
   const destSwapDone = new Promise<void>((resolve) => (destSwapCompleted = resolve))
 
   beforeAll(async () => {
+    // Skip setup if Docker is not available
+    if (shouldSkipTests) {
+      return // Skip setup when Docker is not available
+    }
+
     const repoMock = { updateStatus: jest.fn() }
 
     const fakeModuleRef = {
@@ -247,6 +266,11 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
   })
 
   afterAll(async () => {
+    // Skip cleanup if Docker setup was skipped
+    if (shouldSkipTests) {
+      return
+    }
+
     try {
       await worker?.close()
     } catch {}
@@ -268,6 +292,11 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
   })
 
   it('runs the full chain successfully', async () => {
+    if (shouldSkipTests) {
+      console.log(`Skipping test: ${skipReason}`)
+      return
+    }
+
     const initial: CheckCCTPAttestationJobData = {
       destinationChainId: 10,
       messageHash: '0xdead' as Hex,

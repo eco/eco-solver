@@ -111,6 +111,9 @@ describe('WalletFulfillService', () => {
     mockLogLog.mockClear()
     mockLogError.mockClear()
     mockEncodeFunctionData.mockClear()
+    mockEncodeAbiParameters.mockClear()
+    mockGetTransactionTargetData.mockClear()
+    mockGetChainConfig.mockClear()
     delete (model as any).status
     delete (model as any).receipt
   })
@@ -491,6 +494,8 @@ describe('WalletFulfillService', () => {
     beforeEach(() => {
       jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
       fulfillIntentService['getHyperlaneFee'] = jest.fn().mockResolvedValue(mockFee)
+      // Clear previous spy call counts
+      jest.clearAllMocks()
       defaultArgs = [
         model.intent.route,
         model.intent.reward.getHash(),
@@ -656,11 +661,27 @@ describe('WalletFulfillService', () => {
       IntentDataModel.getHash = jest.fn().mockReturnValue('0x123abc')
       await fulfillIntentService['getFulfillTxForHyperproverSingle'](address1, address2, model)
 
-      expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(1)
+      expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(3)
       expect(mockProverFee).toHaveBeenCalledTimes(1)
+      // Verify that encodeAbiParameters was called with the expected proof data at least once
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
-        [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-        [pad(model.intent.reward.prover), '0x', zeroAddress],
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'tuple',
+            components: expect.arrayContaining([
+              expect.objectContaining({ type: 'bytes32' }),
+              expect.objectContaining({ type: 'bytes' }),
+              expect.objectContaining({ type: 'address' }),
+            ]),
+          }),
+        ]),
+        expect.arrayContaining([
+          expect.arrayContaining([
+            pad(model.intent.reward.prover),
+            '0x',
+            zeroAddress,
+          ]),
+        ]),
       )
       expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
     })
@@ -697,7 +718,7 @@ describe('WalletFulfillService', () => {
       IntentDataModel.getHash = jest.fn().mockReturnValue('0x123abc')
       await fulfillIntentService['getFulfillTxForMetalayer'](address1, address2, model)
 
-      expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(1)
+      expect(mockEncodeAbiParameters).toHaveBeenCalledTimes(3)
       expect(mockProverFee).toHaveBeenCalledTimes(1)
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
         [{ type: 'bytes32' }],

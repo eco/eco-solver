@@ -202,7 +202,7 @@ describe('WatchIntentService', () => {
       const analyticsSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
 
       await watchIntentService.addJob(s)([log])
-      expect(spy).toHaveBeenCalledWith(
+      expect(analyticsSpy).toHaveBeenCalledWith(
         err,
         expect.any(String),
         expect.objectContaining({
@@ -219,9 +219,6 @@ describe('WatchIntentService', () => {
           failures: ['queue down'],
         }),
       )
-
-      // Clean up
-      allSettledSpy.mockRestore()
     })
   })
 
