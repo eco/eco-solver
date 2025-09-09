@@ -61,8 +61,7 @@ export class CreateIntentService implements OnModuleInit {
       }),
     )
 
-    const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    const intent = this.getIntentFromIntentCreatedLog(intentWs)
 
     try {
       //check db if the intent is already filled
@@ -144,9 +143,15 @@ export class CreateIntentService implements OnModuleInit {
     }
   }
 
+  private getIntentFromIntentCreatedLog(intentWs: IntentCreatedLog): IntentDataModel {
+    const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
+    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    return intent
+  }
+
   /**
    * Fetch an intent from the db
-   * @param query for fetching the intent
+   * @param hash for fetching the intent
    * @returns the intent or an error
    */
   async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
