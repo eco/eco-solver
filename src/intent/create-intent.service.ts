@@ -1,30 +1,22 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { QUEUES } from '@/common/redis/constants'
-import { JobsOptions, Queue } from 'bullmq'
-import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { getIntentJobId } from '@/common/utils/strings'
 import { decodeAbiParameters, decodeEventLog, Hex } from 'viem'
-import { ValidSmartWalletService } from '@/solver/filters/valid-smart-wallet.service'
-import {
-  CallDataInterface,
-  IntentCreatedLog,
-  RewardTokensInterface,
-  routeStructAbiItem,
-} from '@/contracts'
-import { IntentDataModel } from './schemas/intent-data.schema'
-import { FlagService } from '@/flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
-import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
-import { EcoResponse } from '@/common/eco-response'
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EcoResponse } from '@/common/eco-response'
+import { FlagService } from '@/flags/flags.service'
+import { getIntentJobId } from '@/common/utils/strings'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { IntentCreatedLog, routeStructAbiItem } from '@/contracts'
+import { IntentDataModel } from './schemas/intent-data.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { JobsOptions, Queue } from 'bullmq'
 import { portalAbi } from '@/contracts/v2-abi/Portal'
+import { QUEUES } from '@/common/redis/constants'
+import { ValidSmartWalletService } from '@/solver/filters/valid-smart-wallet.service'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -38,7 +30,7 @@ export class CreateIntentService implements OnModuleInit {
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
-    @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
+    private readonly intentSourceRepository: IntentSourceRepository,
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
     private readonly ecoConfigService: EcoConfigService,
@@ -69,42 +61,11 @@ export class CreateIntentService implements OnModuleInit {
       }),
     )
 
-    const ei = decodeEventLog({
-      abi: portalAbi,
-      eventName: 'IntentPublished',
-      strict: true,
-      topics: intentWs.topics,
-      data: intentWs.data,
-    })
-
-    // route in the event is bytes encoded with a length prefix
-    // skipping the first 32 bytes (length prefix) and decode the actual Route struct
-    const { salt, deadline, portal, nativeAmount, tokens, calls } = decodeAbiParameters(
-      [routeStructAbiItem],
-      ei.args.route,
-    )[0]
-
-    const decodedRoute = {
-      salt,
-      deadline,
-      portal,
-      nativeAmount,
-      tokens,
-      calls,
-    }
-
-    const intent = IntentDataModel.fromEvent(
-      intentWs.sourceChainID,
-      intentWs.logIndex || 0,
-      ei,
-      decodedRoute,
-    )
+    const intent = this.getIntentFromIntentCreatedLog(intentWs)
 
     try {
       //check db if the intent is already filled
-      const model = await this.intentModel.findOne({
-        'intent.hash': intent.hash,
-      })
+      const model = await this.intentSourceRepository.getIntent(intent.hash)
 
       if (model) {
         // Record already exists, do nothing and return
@@ -130,8 +91,8 @@ export class CreateIntentService implements OnModuleInit {
           )
         : true
 
-      //create db record
-      const record = await this.intentModel.create({
+      // Create db record
+      const record = await this.intentSourceRepository.create({
         event: intentWs,
         intent: intent,
         receipt: null,
@@ -180,83 +141,39 @@ export class CreateIntentService implements OnModuleInit {
     }
   }
 
-  async createIntentFromIntentInitiation(
-    quoteID: string,
-    funder: Hex,
-    route: RouteType,
-    reward: QuoteRewardDataModel,
-  ) {
-    try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
-      const intentHash = hashIntent({ route, reward }).intentHash
+  private getIntentFromIntentCreatedLog(intentWs: IntentCreatedLog): IntentDataModel {
+    const ei = decodeEventLog({
+      abi: portalAbi,
+      eventName: 'IntentPublished',
+      strict: true,
+      topics: intentWs.topics,
+      data: intentWs.data,
+    })
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `createIntentFromIntentInitiation`,
-          properties: {
-            intentHash,
-          },
-        }),
-      )
+    // route in the event is bytes encoded with a length prefix
+    // skipping the first 32 bytes (length prefix) and decode the actual Route struct
+    const { salt, deadline, portal, nativeAmount, tokens, calls } = decodeAbiParameters(
+      [routeStructAbiItem],
+      ei.args.route,
+    )[0]
 
-      // Track gasless intent creation attempt with complete objects
-      this.ecoAnalytics.trackGaslessIntentCreationStarted(
-        intentHash,
-        quoteID,
-        funder,
-        route,
-        reward,
-      )
-
-      const intent = new IntentDataModel({
-        quoteID,
-        hash: intentHash,
-        salt,
-        source,
-        destination,
-        inbox,
-        routeTokens: routeTokens as RewardTokensInterface[],
-        calls: calls as CallDataInterface[],
-        creator,
-        prover,
-        deadline,
-        nativeValue,
-        rewardTokens,
-        logIndex: 0,
-        funder,
-      })
-
-      await this.intentModel.create({
-        // event: null,
-        intent,
-        receipt: null,
-        status: 'PENDING',
-      })
-
-      // Track successful gasless intent creation with complete context
-      this.ecoAnalytics.trackGaslessIntentCreated(
-        intentHash,
-        quoteID,
-        funder,
-        intent,
-        route,
-        reward,
-      )
-    } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in createIntentFromIntentInitiation`,
-          properties: {
-            quoteID,
-            error: ex.message,
-          },
-        }),
-      )
-
-      // Track gasless intent creation failure with complete context
-      this.ecoAnalytics.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
+    const decodedRoute = {
+      salt,
+      deadline,
+      portal,
+      nativeAmount,
+      tokens,
+      calls,
     }
+
+    const intent = IntentDataModel.fromEvent(
+      intentWs.sourceChainID,
+      intentWs.logIndex || 0,
+      ei,
+      decodedRoute,
+    )
+
+    return intent
   }
 
   /**
@@ -291,7 +208,7 @@ export class CreateIntentService implements OnModuleInit {
    */
   async fetchIntent(query: object): Promise<EcoResponse<IntentSourceModel>> {
     try {
-      const intent = await this.intentModel.findOne(query)
+      const intent = await this.intentSourceRepository.queryIntent(query)
 
       if (!intent) {
         const error = EcoError.IntentNotFound

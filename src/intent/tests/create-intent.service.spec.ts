@@ -2,20 +2,21 @@ const mockDecodeCreateIntentLog = jest.fn()
 const mockDecodeEventLog = jest.fn()
 const mockDecodeAbiParameters = jest.fn()
 
-import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
-import { Test, TestingModule } from '@nestjs/testing'
-import { getModelToken } from '@nestjs/mongoose'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
-import { Model } from 'mongoose'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
-import { Queue } from 'bullmq'
 import { CreateIntentService } from '../create-intent.service'
-import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
-import { IntentDataModel } from '../schemas/intent-data.schema'
-import { FlagService } from '../../flags/flags.service'
+import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { FlagService } from '../../flags/flags.service'
+import { getModelToken } from '@nestjs/mongoose'
+import { IntentDataModel } from '../schemas/intent-data.schema'
+import { IntentSourceModel } from '../schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { Model } from 'mongoose'
+import { Queue } from 'bullmq'
+import { QUEUES } from '../../common/redis/constants'
+import { Test, TestingModule } from '@nestjs/testing'
+import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
 
 jest.mock('../../contracts', () => {
   return {
@@ -41,8 +42,7 @@ describe('CreateIntentService', () => {
   let createIntentService: CreateIntentService
   let validSmartWalletService: DeepMocked<ValidSmartWalletService>
   let flagService: DeepMocked<FlagService>
-  let ecoConfigService: DeepMocked<EcoConfigService>
-  let intentSourceModel: DeepMocked<Model<IntentSourceModel>>
+  let intentSourceRepository: IntentSourceRepository
   let queue: DeepMocked<Queue>
   let module: TestingModule
   const mockLogDebug = jest.fn()
@@ -55,14 +55,15 @@ describe('CreateIntentService', () => {
     module = await Test.createTestingModule({
       providers: [
         CreateIntentService,
-        { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
-        { provide: FlagService, useValue: createMock<FlagService>() },
-        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        IntentSourceRepository,
         {
           provide: getModelToken(IntentSourceModel.name),
           useValue: createMock<Model<IntentSourceModel>>(),
         },
+        { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
+        { provide: FlagService, useValue: createMock<FlagService>() },
+        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
       ],
       imports: [
         BullModule.registerQueue({
@@ -77,10 +78,9 @@ describe('CreateIntentService', () => {
     module.useLogger(false)
 
     createIntentService = module.get(CreateIntentService)
+    intentSourceRepository = module.get(IntentSourceRepository)
     validSmartWalletService = module.get(ValidSmartWalletService)
     flagService = module.get(FlagService)
-    ecoConfigService = module.get(EcoConfigService)
-    intentSourceModel = module.get(getModelToken(IntentSourceModel.name))
     queue = module.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
 
     createIntentService['logger'].debug = mockLogDebug
@@ -148,10 +148,8 @@ describe('CreateIntentService', () => {
     })
 
     it('should decode the event', async () => {
-      const mockCreate = jest.fn().mockResolvedValue({ intent: mockIntent })
-      intentSourceModel.create = mockCreate
-      const mockFindOne = jest.fn().mockResolvedValue(null)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
 
       await createIntentService.createIntent(mockEvent as any)
       expect(mockLogDebug).toHaveBeenCalledWith({
@@ -164,10 +162,10 @@ describe('CreateIntentService', () => {
     })
 
     it('should return if model has already been created in db', async () => {
-      const mockFindOne = jest.fn().mockResolvedValue({ hash: mockEvent.transactionHash })
-      intentSourceModel.findOne = mockFindOne
+      const mockGetIntent = jest.fn().mockResolvedValue({ hash: mockEvent.transactionHash })
+      intentSourceRepository.getIntent = mockGetIntent
       await createIntentService.createIntent(mockEvent as any)
-      expect(mockFindOne).toHaveBeenCalledWith({ 'intent.hash': mockIntent.hash })
+      expect(mockGetIntent).toHaveBeenCalledWith(mockEvent.args.intentHash)
       expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
         msg: `Record for intent already exists ${mockIntent.hash}`,
         intentHash: mockIntent.hash,
@@ -177,26 +175,22 @@ describe('CreateIntentService', () => {
     })
 
     it('should check if the bendWalletOnly flag is up', async () => {
-      const mockFindOne = jest.fn().mockResolvedValue(null)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
       const mockFlag = jest.spyOn(flagService, 'getFlagValue').mockReturnValue(false)
       const mockValidateSmartWallet = jest.fn().mockResolvedValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
-      const mockCreate = jest.fn().mockResolvedValue({ intent: mockIntent })
-      intentSourceModel.create = mockCreate
       await createIntentService.createIntent(mockEvent as any)
       expect(mockFlag).toHaveBeenCalledWith('bendWalletOnly')
       expect(mockValidateSmartWallet).toHaveBeenCalledTimes(0)
     })
 
     it('should validate the intent is from a bend wallet', async () => {
-      const mockFindOne = jest.fn().mockResolvedValue(null)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
       const mockValidateSmartWallet = jest.fn().mockResolvedValue(true)
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
-      const mockCreate = jest.fn().mockResolvedValue({ intent: mockIntent })
-      intentSourceModel.create = mockCreate
       const mockQueueAdd = jest.fn().mockResolvedValue({})
       queue.add = mockQueueAdd
       await createIntentService.createIntent(mockEvent as any)
@@ -208,28 +202,27 @@ describe('CreateIntentService', () => {
     })
 
     it('should create an intent model in the database', async () => {
-      const mockFindOne = jest.fn().mockResolvedValue(null)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
       const mockValidateSmartWallet = jest.fn().mockResolvedValue(true)
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
-      const mockCreate = jest.fn().mockResolvedValue({ intent: mockIntent })
-      intentSourceModel.create = mockCreate
+      jest.spyOn(intentSourceRepository, 'create').mockResolvedValue({ intent: mockIntent } as any)
+
       const mockQueueAdd = jest.fn().mockResolvedValue({})
       queue.add = mockQueueAdd
 
       await createIntentService.createIntent(mockEvent as any)
-      expect(mockCreate).toHaveBeenCalledWith({
+      expect(intentSourceRepository.create).toHaveBeenCalledWith({
         event: mockEvent,
         intent: mockIntent,
         receipt: null,
         status: 'PENDING',
       })
 
-      mockCreate.mockClear()
       mockValidateSmartWallet.mockResolvedValueOnce(false)
       await createIntentService.createIntent(mockEvent as any)
-      expect(mockCreate).toHaveBeenCalledWith({
+      expect(intentSourceRepository.create).toHaveBeenCalledWith({
         event: mockEvent,
         intent: mockIntent,
         receipt: null,
@@ -238,10 +231,10 @@ describe('CreateIntentService', () => {
     })
 
     it('should not enqueue a job if the intent is not from a bend wallet', async () => {
-      const mockFindOne = jest.fn().mockResolvedValue(null)
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
       const mockQueueAdd = jest.fn().mockResolvedValue({})
-      intentSourceModel.findOne = mockFindOne
-      intentSourceModel.create = jest.fn().mockResolvedValue({ intent: mockIntent })
+      intentSourceRepository.queryIntent = mockQueryIntent
+      jest.spyOn(intentSourceRepository, 'create').mockResolvedValue({ intent: mockIntent } as any)
       queue.add = mockQueueAdd
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = jest.fn().mockResolvedValue(false)
@@ -257,11 +250,11 @@ describe('CreateIntentService', () => {
     })
 
     it('should enqueue a job if the intent is from a bend wallet', async () => {
-      const mockFindOne = jest.fn().mockResolvedValue(null)
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
       const mockQueueAdd = jest.fn().mockResolvedValue({})
-      intentSourceModel.findOne = mockFindOne
-      intentSourceModel.create = jest.fn().mockResolvedValue({ intent: mockIntent })
+      intentSourceRepository.queryIntent = mockQueryIntent
       queue.add = mockQueueAdd
+      jest.spyOn(intentSourceRepository, 'create').mockResolvedValue({ intent: mockIntent } as any)
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = jest.fn().mockResolvedValue(true)
 

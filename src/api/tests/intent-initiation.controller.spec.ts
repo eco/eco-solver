@@ -4,6 +4,7 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -48,7 +49,13 @@ describe('IntentInitiationController', () => {
           useValue: createMock<EcoConfigService>(),
         },
       ])
-      .withMocks([QuoteService, QuoteRepository, KernelAccountClientService, CreateIntentService])
+      .withMocks([
+        IntentSourceRepository,
+        QuoteService,
+        QuoteRepository,
+        KernelAccountClientService,
+        CreateIntentService,
+      ])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)

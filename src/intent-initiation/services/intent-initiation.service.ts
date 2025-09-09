@@ -1,4 +1,3 @@
-import { CreateIntentService } from '@/intent/create-intent.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
@@ -12,6 +11,7 @@ import { GaslessIntentResponseDTO } from '@/intent-initiation/dtos/gasless-inten
 import { getChainConfig } from '@/eco-configs/utils'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { ModuleRef } from '@nestjs/core'
@@ -33,12 +33,12 @@ export class IntentInitiationService implements OnModuleInit {
   private permitProcessor: PermitProcessor
   private permit2Processor: Permit2Processor
   private kernelAccountClientService: KernelAccountClientService
-  private createIntentService: CreateIntentService
   private gaslessIntentdAppIDs: string[]
 
   constructor(
     private readonly permitValidationService: PermitValidationService,
     private readonly ecoConfigService: EcoConfigService,
+    private readonly intentSourceRepository: IntentSourceRepository,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -50,7 +50,6 @@ export class IntentInitiationService implements OnModuleInit {
     this.kernelAccountClientService = this.moduleRef.get(KernelAccountClientService, {
       strict: false,
     })
-    this.createIntentService = this.moduleRef.get(CreateIntentService, { strict: false })
   }
 
   /**
@@ -285,7 +284,8 @@ export class IntentInitiationService implements OnModuleInit {
     const reward = quote!.reward
 
     // Update intent db
-    await this.createIntentService.createIntentFromIntentInitiation(
+    await this.intentSourceRepository.createIntentFromIntentInitiation(
+      '',
       quoteID,
       funder,
       routeWithSalt,

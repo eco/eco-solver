@@ -24,12 +24,12 @@ import { QuotesConfig } from '@/eco-configs/eco-config.types'
 import { zeroAddress } from 'viem'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { Chain, PublicClient, Transport } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { EcoError } from '@/common/errors/eco-error'
 
 jest.mock('@/intent/utils', () => {
   return {
@@ -56,7 +56,6 @@ describe('QuotesService', () => {
   let feeService: DeepMocked<FeeService>
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let quoteModel: DeepMocked<Model<QuoteIntentModel>>
   let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -89,6 +88,7 @@ describe('QuotesService', () => {
         },
         { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        { provide: IntentSourceRepository, useValue: createMock<IntentSourceRepository>() },
       ],
     }).compile()
 
@@ -98,7 +98,6 @@ describe('QuotesService', () => {
     validationService = chainMod.get(ValidationService)
 
     ecoConfigService = chainMod.get(EcoConfigService)
-    quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
     fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     quoteService['logger'].debug = mockLogDebug

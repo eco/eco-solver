@@ -1,5 +1,6 @@
 import { CreateIntentService } from '@/intent/create-intent.service'
 import { createMock } from '@golevelup/ts-jest'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
@@ -9,10 +10,10 @@ import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { getModelToken } from '@nestjs/mongoose'
 import { Hex, TransactionReceipt } from 'viem'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { IntentTestUtils } from '@/intent-initiation/test-utils/intent-test-utils'
 import { InternalQuoteError } from '@/quote/errors'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Logger } from '@nestjs/common'
 import { Permit2Processor } from '@/permit-processing/permit2-processor'
 import { Permit2TxBuilder } from '@/permit-processing/permit2-tx-builder'
 import { PermitProcessor } from '@/permit-processing/permit-processor'
@@ -24,12 +25,9 @@ import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
 import { SignerKmsService } from '@/sign/signer-kms.service'
 import { ValidationService } from '@/intent/validation.sevice'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { EcoAnalyticsService } from '@/analytics'
 import * as viem from 'viem'
 
 jest.spyOn(viem, 'verifyTypedData').mockResolvedValue(true)
-
-const logger = new Logger('IntentInitiationServiceSpec')
 
 let $: EcoTester
 let service: IntentInitiationService
@@ -114,6 +112,7 @@ describe('IntentInitiationService', () => {
         SignerKmsService,
         CreateIntentService,
         EcoAnalyticsService,
+        IntentSourceRepository,
       ])
 
     service = await $.init()
