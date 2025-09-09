@@ -27,7 +27,7 @@ export class RebalanceModel {
   @Prop({ required: true })
   slippage: number
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   strategy: Strategy
 
   @Prop({ required: false })
@@ -61,6 +61,8 @@ export class RebalanceModel {
 export const RebalanceSchema = SchemaFactory.createForClass(RebalanceModel)
 
 // Define indexes
+RebalanceSchema.index({ 'tokenIn.chainId': 1, 'tokenIn.tokenAddress': 1 })
+RebalanceSchema.index({ 'tokenOut.chainId': 1, 'tokenOut.tokenAddress': 1 })
 RebalanceSchema.index({ rebalanceJobID: 1 }, { unique: false })
 RebalanceSchema.index({ wallet: 1 }, { unique: false })
 RebalanceSchema.index({ status: 1 }, { unique: false })
