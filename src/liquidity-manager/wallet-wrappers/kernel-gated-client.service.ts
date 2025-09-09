@@ -29,7 +29,10 @@ export class LmTxGatedKernelAccountClientService {
    */
   async getClient(chainId: number) {
     const client = await this.underlying.getClient(chainId)
-    const wallet: string = client.kernelAccount?.address as string
+    const wallet = client.kernelAccount?.address
+    if (!wallet) {
+      throw new Error('LmTxGatedKernelAccountClientService: No wallet address found on client')
+    }
 
     return new Proxy(client as any, {
       get: (target, prop, receiver) => {
@@ -40,6 +43,28 @@ export class LmTxGatedKernelAccountClientService {
         if (prop === 'sendTransaction') {
           return async (args: any) =>
             this.txQueue.enqueue(wallet, chainId, () => target.sendTransaction(args))
+        }
+        if (prop === 'transport') {
+          const transport = Reflect.get(target, prop, receiver)
+          if (!transport) return transport
+
+          return new Proxy(transport, {
+            get: (tgt, tprop, treceiver) => {
+              if (tprop === 'request') {
+                const requestFn = Reflect.get(tgt, tprop, treceiver)
+                return async (...args: any[]) => {
+                  const payload = args[0]
+                  if (payload && payload.method === 'eth_sendRawTransaction') {
+                    return this.txQueue.enqueue(wallet, chainId, async () =>
+                      Reflect.apply(requestFn, tgt, args),
+                    )
+                  }
+                  return Reflect.apply(requestFn, tgt, args)
+                }
+              }
+              return Reflect.get(tgt, tprop, treceiver)
+            },
+          })
         }
         return Reflect.get(target, prop, receiver)
       },

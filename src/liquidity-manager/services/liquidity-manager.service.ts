@@ -347,7 +347,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     return this.liquidityManagerFlowProducer.add({
       name: 'rebalance-batch',
-      queueName: this.liquidityManagerQueue.name,
+      queueName: LiquidityManagerQueue.flowName,
       children: jobs,
     })
   }
