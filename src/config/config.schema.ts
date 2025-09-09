@@ -44,7 +44,7 @@ export const ConfigSchema = z
     mongodb: MongoDBSchema,
     redis: RedisSchema,
     evm: EvmSchema,
-    solana: SolanaSchema.optional(),
+    svm: SolanaSchema.optional(),
     tvm: TvmSchema.optional(),
     queue: QueueSchema,
     aws: AwsSchema.optional(),

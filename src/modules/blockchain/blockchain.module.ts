@@ -35,7 +35,7 @@ export class BlockchainModule {
     }
 
     // Only import SVM module if solana config exists
-    if (configFactory.solana) {
+    if (configFactory.svm) {
       imports.push(SvmModule);
     }
 

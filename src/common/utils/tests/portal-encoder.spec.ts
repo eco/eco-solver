@@ -183,6 +183,16 @@ describe('PortalEncoder', () => {
 
       expect(data).toStrictEqual(route);
     });
+
+    it('should handle read buffer data input', () => {
+      const data = PortalEncoder.decode(
+        '0000000000000000000000000000000000000000000000000000000068bfc0afcfdcbf6800000000534640ff1a7c9818b72eeb691de7617e2ac87be269834cc5b37fdccec6b0a874000000000000000001000000c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61e8030000000000000100000006ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a90f0000000a0000000ce8030000000000000604',
+        ChainType.SVM,
+        'route',
+      );
+
+      expect(data).toBeTruthy();
+    });
   });
 
   describe('type safety and data validation', () => {

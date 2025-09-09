@@ -53,7 +53,7 @@ export class SvmWalletManagerService {
   ): Promise<UniversalAddress> {
     const wallet = this.createWallet(chainId, walletType);
     const publicKey = await wallet.getAddress();
-    return AddressNormalizer.normalizeSvm(publicKey.toString());
+    return AddressNormalizer.normalizeSvm(publicKey);
   }
 
   /**

@@ -63,6 +63,7 @@
     "@zerodev/sdk": "^5.4.41",
     "axios": "^1.11.0",
     "borsh": "^2.0.0",
+    "bs58": "^6.0.0",
     "bullmq": "^5.7.8",
     "canonicalize": "^2.1.0",
     "class-transformer": "^0.5.1",

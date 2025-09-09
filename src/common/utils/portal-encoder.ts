@@ -279,7 +279,10 @@ export class PortalEncoder {
     data: Buffer | string,
     dataType: Type,
   ): Type extends 'route' ? Intent['route'] : Intent['reward'] {
-    const buffer = typeof data === 'string' ? Buffer.from(data, 'hex') : data;
+    const buffer =
+      typeof data === 'string'
+        ? Buffer.from(data.startsWith('0x') ? data.substring(2) : data, 'hex')
+        : data;
 
     if (dataType === 'route') {
       // Decode route using Borsh

@@ -16,39 +16,35 @@ export class SolanaConfigService implements IBlockchainConfigService {
   constructor(private configService: ConfigService) {}
 
   get chainId(): SolanaConfig['chainId'] {
-    return this.configService.get<number>('solana.chainId')!;
+    return this.configService.get<number>('svm.chainId')!;
   }
 
   get rpcUrl(): SolanaConfig['rpcUrl'] {
-    return this.configService.get<string>('solana.rpcUrl')!;
+    return this.configService.get<string>('svm.rpcUrl')!;
   }
 
   get wsUrl(): SolanaConfig['wsUrl'] {
-    return this.configService.get<string>('solana.wsUrl');
+    return this.configService.get<string>('svm.wsUrl');
   }
 
   get secretKey(): SolanaConfig['secretKey'] {
-    return this.configService.get<string>('solana.secretKey')!;
+    return this.configService.get<string>('svm.secretKey')!;
   }
 
   get fee(): SolanaConfig['fee'] {
-    return this.configService.get<SolanaConfig['fee']>('solana.fee')!;
+    return this.configService.get<SolanaConfig['fee']>('svm.fee')!;
   }
 
   get tokens(): SolanaConfig['tokens'] {
-    return this.configService.get<SolanaConfig['tokens']>('solana.tokens')!;
+    return this.configService.get<SolanaConfig['tokens']>('svm.tokens')!;
   }
 
   get walletAddress(): SolanaConfig['walletAddress'] {
-    return this.configService.get<SvmAddress>('solana.walletAddress');
-  }
-
-  get programId(): SolanaConfig['programId'] {
-    return this.configService.get<SvmAddress>('solana.programId')!;
+    return this.configService.get<SvmAddress>('svm.walletAddress');
   }
 
   get portalProgramId(): SolanaConfig['portalProgramId'] {
-    return this.configService.get<SvmAddress>('solana.portalProgramId')!;
+    return this.configService.get<SvmAddress>('svm.portalProgramId')!;
   }
 
   isConfigured(): boolean {
@@ -75,7 +71,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   isTokenSupported(_chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean {
-    const normalizedAddress = AddressNormalizer.denormalizeToEvm(tokenAddress);
+    const normalizedAddress = AddressNormalizer.denormalizeToSvm(tokenAddress);
     return this.tokens.some(
       (token) => token.address.toLowerCase() === normalizedAddress.toLowerCase(),
     );
@@ -124,7 +120,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
     proverType: TProverType,
   ): UniversalAddress | undefined {
     // Get prover address from configuration
-    const provers = this.configService.get<Record<string, BlockchainAddress>>('solana.provers');
+    const provers = this.configService.get<Record<string, BlockchainAddress>>('svm.provers');
     if (provers && provers[proverType]) {
       return AddressNormalizer.normalize(provers[proverType], ChainType.SVM);
     }
@@ -132,7 +128,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   getClaimant(_chainId: ChainIdentifier): UniversalAddress {
-    const claimant = this.configService.get<SvmAddress>('solana.claimant');
+    const claimant = this.configService.get<SvmAddress>('svm.claimant');
     if (!claimant) {
       throw new Error('Solana claimant address not configured');
     }
@@ -145,6 +141,6 @@ export class SolanaConfigService implements IBlockchainConfigService {
    * @returns Default prover type from configuration or 'hyper' as fallback
    */
   getDefaultProver(_chainId: ChainIdentifier): TProverType {
-    return this.configService.get<TProverType>('solana.defaultProver')!;
+    return this.configService.get<TProverType>('svm.defaultProver')!;
   }
 }

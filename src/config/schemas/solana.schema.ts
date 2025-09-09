@@ -39,7 +39,6 @@ export const SolanaSchema = z.object({
     .optional(),
   secretKey: z.string(), // alias for privateKey
   walletAddress: SvmAddressSchema.optional(),
-  programId: SvmAddressSchema,
   portalProgramId: SvmAddressSchema,
   provers: z.record(z.enum(ProverTypeValues), SvmAddressSchema),
   defaultProver: z.enum(ProverTypeValues),

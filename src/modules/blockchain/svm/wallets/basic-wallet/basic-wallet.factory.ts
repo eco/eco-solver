@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Connection, Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
 
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { SolanaConfigService } from '@/modules/config/services';
@@ -35,9 +36,9 @@ export class BasicWalletFactory {
     }
 
     try {
-      // Parse the secret key - expecting a JSON array format
-      const secretKeyArray = JSON.parse(secretKey);
-      const keypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
+      // Parse the secret key
+      const secretKeyArray = bs58.decode(secretKey);
+      const keypair = Keypair.fromSecretKey(secretKeyArray);
 
       this.logger.log(`Created BasicWallet for address ${keypair.publicKey.toString()}`);
       return new BasicWallet(this.connection, keypair);
