@@ -1,6 +1,7 @@
 {
   "name": "eco-solver",
   "version": "1.5",
+  "packageManager": "pnpm@10.10.0",
   "description": "An implementation filler/solver for the Eco Routes protocol",
   "homepage": "https://github.com/eco/eco-solver#readme",
   "bugs": {
