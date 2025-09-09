@@ -53,7 +53,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return !!(config && config.rpcUrl && config.secretKey && config.portalProgramId);
   }
 
-  getSupportedChainIds(): (number | string)[] {
+  getSupportedChainIds(): number[] {
     // Return Solana network identifiers if configured
     if (!this.isConfigured()) {
       return [];

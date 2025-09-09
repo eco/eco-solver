@@ -52,10 +52,8 @@ export class RouteCallsValidation implements Validation {
         });
 
         try {
-          const isValidTokenTransferCall = await this.blockchainReaderService.validateTokenTransferCall(
-            intent.destination,
-            call,
-          );
+          const isValidTokenTransferCall =
+            await this.blockchainReaderService.validateTokenTransferCall(intent.destination, call);
 
           span.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
 

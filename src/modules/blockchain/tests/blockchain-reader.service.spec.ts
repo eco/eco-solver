@@ -64,8 +64,7 @@ describe('BlockchainReaderService', () => {
       }),
       isChainSupported: jest.fn().mockImplementation((chainId) => {
         const supportedChains = [1, 10, 137, 'solana-mainnet', 'solana-devnet'];
-        const normalizedChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-        return supportedChains.includes(normalizedChainId);
+        return supportedChains.includes(Number(chainId));
       }),
     } as any;
 

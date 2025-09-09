@@ -246,11 +246,13 @@ export class EvmReaderService extends BaseChainReader {
     try {
       // First, validate that the target is a supported token address
       const isTokenSupported = this.evmConfigService.isTokenSupported(Number(chainId), call.target);
-      
+
       span.setAttribute('evm.token_supported', isTokenSupported);
-      
+
       if (!isTokenSupported) {
-        throw new Error(`Target ${call.target} is not a supported token address on chain ${chainId}`);
+        throw new Error(
+          `Target ${call.target} is not a supported token address on chain ${chainId}`,
+        );
       }
 
       // Then, validate that the call data is a valid ERC20 transfer function
@@ -263,11 +265,13 @@ export class EvmReaderService extends BaseChainReader {
 
       // Check if it's a transfer function
       const isTransferCall = fn.functionName === 'transfer';
-      
+
       span.setAttribute('evm.is_transfer_call', isTransferCall);
-      
+
       if (!isTransferCall) {
-        throw new Error(`Invalid ERC20 call: only transfer function is allowed, got ${fn.functionName}`);
+        throw new Error(
+          `Invalid ERC20 call: only transfer function is allowed, got ${fn.functionName}`,
+        );
       }
 
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -275,7 +279,9 @@ export class EvmReaderService extends BaseChainReader {
     } catch (error) {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Invalid ERC20 call for target ${call.target} on chain ${chainId}: ${getErrorMessage(error)}`);
+      throw new Error(
+        `Invalid ERC20 call for target ${call.target} on chain ${chainId}: ${getErrorMessage(error)}`,
+      );
     } finally {
       span.end();
     }

@@ -212,10 +212,7 @@ export class TvmExecutorService extends BaseChainExecutor {
    * @param chainId - The chain ID
    * @returns The wallet address
    */
-  async getWalletAddress(
-    walletType: any,
-    chainId: bigint | number | string,
-  ): Promise<UniversalAddress> {
+  async getWalletAddress(walletType: any, chainId: bigint | number): Promise<UniversalAddress> {
     const chainIdStr = typeof chainId === 'bigint' ? chainId.toString() : chainId;
     return this.walletManager.getWalletAddress(chainIdStr, walletType);
   }
@@ -226,7 +223,7 @@ export class TvmExecutorService extends BaseChainExecutor {
    * @param chainId - The chain ID to query
    * @returns True if transaction is confirmed, false otherwise
    */
-  async isTransactionConfirmed(txHash: string, chainId: number | string): Promise<boolean> {
+  async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
     return TvmTracingUtils.withSpan(
       this.otelService,
       'tvm.executor.isTransactionConfirmed',
@@ -393,14 +390,14 @@ export class TvmExecutorService extends BaseChainExecutor {
    * @param chainId - The chain ID to create client for
    * @returns TronWeb instance
    */
-  private createTronWebClient(chainId: number | string): TronWeb {
+  private createTronWebClient(chainId: number): TronWeb {
     const network = this.tvmConfigService.getChain(chainId);
     return TvmClientUtils.createClient(network);
   }
 
   private async waitForTransaction(
     txId: string,
-    chainId: number | string,
+    chainId: number,
     maxAttempts?: number,
   ): Promise<boolean> {
     const settings = this.tvmConfigService.getTransactionSettings();
@@ -417,14 +414,14 @@ export class TvmExecutorService extends BaseChainExecutor {
     );
   }
 
-  private async waitForTransactions(txIds: string[], chainId: number | string): Promise<void> {
+  private async waitForTransactions(txIds: string[], chainId: number): Promise<void> {
     const settings = this.tvmConfigService.getTransactionSettings();
     const client = this.createTronWebClient(chainId);
 
     return TvmTransactionUtils.waitForTransactions(client, txIds, settings, this.logger);
   }
 
-  private getChainId(chainId: bigint | number | string): number | string {
+  private getChainId(chainId: bigint | number): number {
     if (typeof chainId === 'bigint') {
       return Number(chainId);
     }

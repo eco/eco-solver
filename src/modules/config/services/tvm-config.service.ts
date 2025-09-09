@@ -29,11 +29,11 @@ export class TvmConfigService implements IBlockchainConfigService {
     return Array.from(this._networks.values());
   }
 
-  get supportedChainIds(): (string | number)[] {
+  get supportedChainIds(): number[] {
     return Array.from(this._networks.keys());
   }
 
-  getSupportedChainIds(): (number | string)[] {
+  getSupportedChainIds(): number[] {
     return this.supportedChainIds;
   }
 

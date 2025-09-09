@@ -33,7 +33,7 @@ export class EvmConfigService implements IBlockchainConfigService {
     return this.configService.get<EvmWalletsConfig>('evm.wallets')!;
   }
 
-  getSupportedChainIds(): (number | string)[] {
+  getSupportedChainIds(): number[] {
     return this.supportedChainIds;
   }
 

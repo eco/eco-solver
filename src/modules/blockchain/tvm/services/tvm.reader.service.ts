@@ -37,7 +37,7 @@ export class TvmReaderService extends BaseChainReader {
    * @param chainId - The chain ID to query
    * @returns The balance in SUN (the smallest unit)
    */
-  async getBalance(address: UniversalAddress, chainId: number | string): Promise<bigint> {
+  async getBalance(address: UniversalAddress, chainId: number): Promise<bigint> {
     // Denormalize to TVM address format
     const tvmAddress = AddressNormalizer.denormalize(address, ChainType.TVM);
     const span = this.otelService.startSpan('tvm.reader.getBalance', {
@@ -78,7 +78,7 @@ export class TvmReaderService extends BaseChainReader {
   async getTokenBalance(
     tokenAddress: UniversalAddress,
     walletAddress: UniversalAddress,
-    chainId: number | string,
+    chainId: number,
   ): Promise<bigint> {
     // Denormalize to TVM address format
     const tvmTokenAddress = AddressNormalizer.denormalize(tokenAddress, ChainType.TVM);
@@ -120,7 +120,7 @@ export class TvmReaderService extends BaseChainReader {
     tokenAddress: UniversalAddress,
     ownerAddress: UniversalAddress,
     spenderAddress: UniversalAddress,
-    chainId: number | string,
+    chainId: number,
   ): Promise<bigint> {
     // Denormalize to TVM address format
     const tvmTokenAddress = AddressNormalizer.denormalize(tokenAddress, ChainType.TVM);
@@ -237,7 +237,7 @@ export class TvmReaderService extends BaseChainReader {
     intent: Intent,
     prover: UniversalAddress,
     messageData: Hex,
-    chainId: number | string,
+    chainId: number,
     claimant: UniversalAddress,
   ): Promise<bigint> {
     if (!intent.sourceChainId) {
@@ -292,7 +292,7 @@ export class TvmReaderService extends BaseChainReader {
 
   async validateTokenTransferCall(
     call: Intent['route']['calls'][number],
-    chainId: number | string,
+    chainId: number,
   ): Promise<boolean> {
     const span = this.otelService.startSpan('tvm.reader.validateTokenTransferCall', {
       attributes: {
@@ -306,11 +306,13 @@ export class TvmReaderService extends BaseChainReader {
     try {
       // First, validate that the target is a supported token address
       const isTokenSupported = this.tvmConfigService.isTokenSupported(Number(chainId), call.target);
-      
+
       span.setAttribute('tvm.token_supported', isTokenSupported);
-      
+
       if (!isTokenSupported) {
-        throw new Error(`Target ${call.target} is not a supported token address on chain ${chainId}`);
+        throw new Error(
+          `Target ${call.target} is not a supported token address on chain ${chainId}`,
+        );
       }
 
       // Then, validate that the call data is a valid TRC20 transfer function
@@ -324,11 +326,13 @@ export class TvmReaderService extends BaseChainReader {
 
       // Check if it's a transfer function
       const isTransferCall = fn.functionName === 'transfer';
-      
+
       span.setAttribute('tvm.is_transfer_call', isTransferCall);
-      
+
       if (!isTransferCall) {
-        throw new Error(`Invalid TRC20 call: only transfer function is allowed, got ${fn.functionName}`);
+        throw new Error(
+          `Invalid TRC20 call: only transfer function is allowed, got ${fn.functionName}`,
+        );
       }
 
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -336,7 +340,9 @@ export class TvmReaderService extends BaseChainReader {
     } catch (error) {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Invalid TRC20 call for target ${call.target} on chain ${chainId}: ${getErrorMessage(error)}`);
+      throw new Error(
+        `Invalid TRC20 call for target ${call.target} on chain ${chainId}: ${getErrorMessage(error)}`,
+      );
     } finally {
       span.end();
     }
@@ -347,7 +353,7 @@ export class TvmReaderService extends BaseChainReader {
    * @param chainId - The chain ID to create client for
    * @returns TronWeb instance
    */
-  private createTronWebClient(chainId: number | string): TronWeb {
+  private createTronWebClient(chainId: number): TronWeb {
     const network = this.tvmConfigService.getChain(chainId);
     return TvmClientUtils.createClient(network);
   }

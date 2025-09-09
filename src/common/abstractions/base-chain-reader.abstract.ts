@@ -7,21 +7,21 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 export abstract class BaseChainReader {
   protected abstract readonly logger: SystemLoggerService;
 
-  abstract getBalance(address: UniversalAddress, chainId?: number | string): Promise<bigint>;
+  abstract getBalance(address: UniversalAddress, chainId?: number): Promise<bigint>;
 
   abstract getTokenBalance(
     tokenAddress: UniversalAddress,
     walletAddress: UniversalAddress,
-    chainId: number | string,
+    chainId: number,
   ): Promise<bigint>;
 
-  abstract isIntentFunded(intent: Intent, chainId?: number | string): Promise<boolean>;
+  abstract isIntentFunded(intent: Intent, chainId?: number): Promise<boolean>;
 
   abstract fetchProverFee(
     intent: Intent,
     prover: UniversalAddress,
     messageData: Hex,
-    chainId: number | string,
+    chainId: number,
     claimant: UniversalAddress,
   ): Promise<bigint>;
 
@@ -34,6 +34,6 @@ export abstract class BaseChainReader {
    */
   abstract validateTokenTransferCall(
     call: Intent['route']['calls'][number],
-    chainId: number | string,
+    chainId: number,
   ): Promise<boolean>;
 }

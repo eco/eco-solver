@@ -74,8 +74,8 @@ export class BlockchainConfigService {
   /**
    * Gets all configured chain IDs across all blockchain types
    */
-  getAllConfiguredChains(): (number | string)[] {
-    const chains: (number | string)[] = [];
+  getAllConfiguredChains(): number[] {
+    const chains: number[] = [];
 
     if (this.evmConfig.isConfigured()) {
       chains.push(...this.evmConfig.getSupportedChainIds());

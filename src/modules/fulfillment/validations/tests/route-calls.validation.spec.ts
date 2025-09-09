@@ -59,7 +59,6 @@ describe('RouteCallsValidation', () => {
     });
     const mockContext = createMockValidationContext();
 
-
     describe('no calls scenarios', () => {
       it('should return true when no calls exist', async () => {
         const intentWithNoCalls = createMockIntent({
@@ -135,7 +134,9 @@ describe('RouteCallsValidation', () => {
         });
 
         blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
-          new Error('Target 0x0000000000000000000000005555555555555555555555555555555555555555 is not a supported token address on chain 10'),
+          new Error(
+            'Target 0x0000000000000000000000005555555555555555555555555555555555555555 is not a supported token address on chain 10',
+          ),
         );
 
         await expect(validation.validate(intentWithNonTokenCall, mockContext)).rejects.toThrow(
@@ -185,7 +186,9 @@ describe('RouteCallsValidation', () => {
         });
 
         blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
-          new Error('Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          new Error(
+            'Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
         );
 
         await expect(validation.validate(intentWithTransferFrom, mockContext)).rejects.toThrow(
@@ -233,7 +236,9 @@ describe('RouteCallsValidation', () => {
         });
 
         blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
-          new Error('Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          new Error(
+            'Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
         );
 
         await expect(validation.validate(intentWithInvalidData, mockContext)).rejects.toThrow(
@@ -258,7 +263,9 @@ describe('RouteCallsValidation', () => {
         });
 
         blockchainReaderService.validateTokenTransferCall.mockRejectedValue(
-          new Error('Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607'),
+          new Error(
+            'Invalid ERC20 call data for target 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ),
         );
 
         await expect(validation.validate(intentWithCustomFunction, mockContext)).rejects.toThrow(
@@ -344,7 +351,9 @@ describe('RouteCallsValidation', () => {
         blockchainReaderService.validateTokenTransferCall
           .mockResolvedValueOnce(true)
           .mockRejectedValueOnce(
-            new Error('Target 0x0000000000000000000000006666666666666666666666666666666666666666 is not a supported token address on chain 10'),
+            new Error(
+              'Target 0x0000000000000000000000006666666666666666666666666666666666666666 is not a supported token address on chain 10',
+            ),
           );
 
         await expect(validation.validate(intentWithMixedCalls, mockContext)).rejects.toThrow(

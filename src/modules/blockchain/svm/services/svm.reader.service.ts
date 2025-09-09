@@ -36,7 +36,7 @@ export class SvmReaderService extends BaseChainReader {
     this.connection = new Connection(rpcUrl, 'confirmed');
   }
 
-  async getBalance(address: UniversalAddress, _chainId?: number | string): Promise<bigint> {
+  async getBalance(address: UniversalAddress, _chainId?: number): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
     }
@@ -50,7 +50,7 @@ export class SvmReaderService extends BaseChainReader {
   async getTokenBalance(
     tokenAddress: UniversalAddress,
     walletAddress: UniversalAddress,
-    _chainId: number | string,
+    _chainId: number,
   ): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
@@ -81,7 +81,7 @@ export class SvmReaderService extends BaseChainReader {
     }
   }
 
-  async isIntentFunded(intent: Intent, _chainId?: number | string): Promise<boolean> {
+  async isIntentFunded(intent: Intent, _chainId?: number): Promise<boolean> {
     try {
       // Get source chain info for vault derivation
       if (!intent.sourceChainId) {
@@ -238,7 +238,7 @@ export class SvmReaderService extends BaseChainReader {
     intent: Intent,
     prover: UniversalAddress,
     messageData: Hex,
-    chainId?: number | string,
+    chainId?: number,
     claimant?: UniversalAddress,
   ): Promise<bigint> {
     const span = this.otelService.startSpan('svm.reader.fetchProverFee', {
@@ -282,7 +282,7 @@ export class SvmReaderService extends BaseChainReader {
 
   async validateTokenTransferCall(
     call: Intent['route']['calls'][number],
-    chainId: number | string,
+    chainId: number,
   ): Promise<boolean> {
     const span = this.otelService.startSpan('svm.reader.validateTokenTransferCall', {
       attributes: {
@@ -296,9 +296,9 @@ export class SvmReaderService extends BaseChainReader {
     try {
       // First, validate that the target is a supported token address
       const isTokenSupported = this.solanaConfigService.isTokenSupported(chainId, call.target);
-      
+
       span.setAttribute('svm.token_supported', isTokenSupported);
-      
+
       if (!isTokenSupported) {
         throw new Error(`Target ${call.target} is not a supported token address on Solana`);
       }
@@ -307,17 +307,17 @@ export class SvmReaderService extends BaseChainReader {
       // TODO: Implement proper Solana instruction validation
       // For now, we'll perform basic validation that the callData is not empty
       // and has reasonable length for a Solana instruction
-      
+
       // Solana instructions have different structure than EVM call data
       // They use a different encoding format and instruction layout
-      
+
       if (!call.data || call.data === '0x') {
         throw new Error('Invalid Solana instruction: call data is empty');
       }
 
       // Remove '0x' prefix for length check
       const dataLength = call.data.slice(2).length / 2; // Convert hex length to byte length
-      
+
       // Basic sanity check - Solana instructions should have reasonable length
       if (dataLength < 4) {
         throw new Error('Invalid Solana instruction: call data too short');
@@ -328,21 +328,23 @@ export class SvmReaderService extends BaseChainReader {
       // 1. Parse Solana instruction format
       // 2. Validate it's a token program instruction
       // 3. Ensure it's specifically a transfer instruction
-      
+
       span.setAttribute('svm.call_data_length', dataLength);
       span.setAttribute('svm.validation_result', 'basic_validation_passed');
       span.setStatus({ code: api.SpanStatusCode.OK });
-      
+
       this.logger.debug(
         `Basic Solana instruction validation passed for target ${call.target}. ` +
           'Consider implementing detailed instruction parsing for better validation.',
       );
-      
+
       return true;
     } catch (error) {
       span.recordException(toError(error));
       span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw new Error(`Invalid Solana instruction for target ${call.target}: ${getErrorMessage(error)}`);
+      throw new Error(
+        `Invalid Solana instruction for target ${call.target}: ${getErrorMessage(error)}`,
+      );
     } finally {
       span.end();
     }
