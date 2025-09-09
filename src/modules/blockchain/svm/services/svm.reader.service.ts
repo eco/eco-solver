@@ -2,9 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import {
-  getAccount,
   getAssociatedTokenAddress,
-  getAssociatedTokenAddressSync,
   TOKEN_PROGRAM_ID,
   TokenAccountNotFoundError,
 } from '@solana/spl-token';
@@ -55,10 +53,12 @@ export class SvmReaderService extends BaseChainReader {
     tokenAddress: UniversalAddress,
     walletAddress: UniversalAddress,
     _chainId: number,
+    allowOwnerOffCurve: boolean = false,
   ): Promise<bigint> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
     }
+
     try {
       // Denormalize to Solana address format
       const svmWalletAddress = AddressNormalizer.denormalize(walletAddress, ChainType.SVM);
@@ -67,18 +67,21 @@ export class SvmReaderService extends BaseChainReader {
       const tokenMintPublicKey = new PublicKey(svmTokenAddress);
 
       // Get the associated token address for the wallet
-      const associatedTokenAddress = getAssociatedTokenAddressSync(
+      const associatedTokenAddress = await getAssociatedTokenAddress(
         tokenMintPublicKey,
         walletPublicKey,
+        allowOwnerOffCurve, // Required for PDAs
       );
 
-      // Get the token account info
-      const tokenAccount = await getAccount(this.connection, associatedTokenAddress);
-
-      return BigInt(tokenAccount.amount.toString());
+      // Get the token account balance
+      const tokenBalance = await this.connection.getTokenAccountBalance(associatedTokenAddress);
+      return BigInt(tokenBalance.value.amount);
     } catch (error) {
       // If the associated token account doesn't exist, return 0
-      if (error instanceof TokenAccountNotFoundError) {
+      if (
+        error instanceof TokenAccountNotFoundError ||
+        getErrorMessage(error).includes('could not find account')
+      ) {
         return BigInt(0);
       }
       throw error;
@@ -124,60 +127,66 @@ export class SvmReaderService extends BaseChainReader {
       // Check token balances by directly querying associated token accounts
       if (intent.reward.tokens.length > 0) {
         try {
-          // Check each required reward token individually using associated token accounts
+          // Check each required reward token individually using the getTokenBalance method with retry
           for (const rewardToken of intent.reward.tokens) {
             if (rewardToken.amount > BigInt(0)) {
-              // Denormalize the reward token address to Solana format
-              const svmTokenAddress = AddressNormalizer.denormalize(
-                rewardToken.token,
+              // Get the vault PDA address as a universal address
+              const vaultAddress = AddressNormalizer.normalize(
+                vaultPDA.toBase58() as any,
                 ChainType.SVM,
               );
-              const tokenMintPublicKey = new PublicKey(svmTokenAddress);
 
-              // Get the associated token address for the vault (PDA requires allowOwnerOffCurve)
-              const associatedTokenAddress = await getAssociatedTokenAddress(
-                tokenMintPublicKey,
-                vaultPDA,
-                true, // allowOwnerOffCurve - required for PDAs
+              // Get the token balance with retry mechanism
+              let vaultTokenBalance: bigint | undefined;
+              let lastError;
+              const maxRetries = 5;
+              const retryDelay = 2000; // 2 seconds
+
+              for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                  vaultTokenBalance = await this.getTokenBalance(
+                    rewardToken.token,
+                    vaultAddress,
+                    Number(intent.sourceChainId),
+                    true, // allowOwnerOffCurve - required for PDAs
+                  );
+                  break;
+                } catch (error) {
+                  lastError = error;
+                  this.logger.debug(
+                    `Token balance fetch attempt ${attempt}/${maxRetries} failed: ${getErrorMessage(error)}`,
+                  );
+
+                  if (attempt < maxRetries) {
+                    // Wait before retrying, except on the last attempt
+                    await new Promise((resolve) => setTimeout(resolve, retryDelay));
+                  }
+                }
+              }
+
+              // If all retries failed, throw the last error
+              if (vaultTokenBalance === undefined) {
+                throw lastError;
+              }
+
+              this.logger.debug(
+                `Token ${AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM)} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
               );
 
-              try {
-                // Get the token balance directly
-                // wait 10 seconds
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-                const tokenBalance =
-                  await this.connection.getTokenAccountBalance(associatedTokenAddress);
-                const vaultTokenBalance = BigInt(tokenBalance.value.amount);
-
+              if (vaultTokenBalance < rewardToken.amount) {
                 this.logger.debug(
-                  `Token ${svmTokenAddress} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
+                  `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
                 );
-
-                if (vaultTokenBalance < rewardToken.amount) {
-                  this.logger.debug(
-                    `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
-                  );
-                  return false;
-                }
-              } catch (tokenError) {
-                // If the associated token account doesn't exist, balance is 0
-                if (getErrorMessage(tokenError).includes('could not find account')) {
-                  this.logger.debug(
-                    `Token account for ${svmTokenAddress} not found, balance is 0, required: ${rewardToken.amount}`,
-                  );
-                  return false;
-                } else {
-                  throw tokenError;
-                }
+                return false;
               }
             }
           }
         } catch (error) {
           this.logger.error(
-            `Failed to get token accounts for vault ${vaultPDA.toBase58()}:`,
+            `Failed to get token balances for vault ${vaultPDA.toBase58()}:`,
             toError(error),
           );
-          // If we can't get token accounts, assume no tokens are available
+          // If we can't get token balances, assume no tokens are available
           if (intent.reward.tokens.some((token) => token.amount > BigInt(0))) {
             return false;
           }

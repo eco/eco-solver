@@ -85,14 +85,6 @@ export class SolanaListener extends BaseChainListener {
     // Convert intent hash to hex string
     const intentHash = `0x${Buffer.from(intent_hash[0]).toString('hex')}` as Hex;
 
-    // Print out route data for debugging
-    console.log('Route data from Solana event:', {
-      routeLength: route.length,
-      routeHex: Buffer.from(route).toString('hex'),
-      routeBuffer: Buffer.from(route),
-      destination: destination.toString(),
-    });
-
     // Decode route based on destination chain type
     const destChainType = ChainTypeDetector.detect(BigInt(destination.toString()));
 

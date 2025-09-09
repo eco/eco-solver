@@ -480,6 +480,32 @@ export class KernelWallet extends BaseEvmWallet {
 
       let hash: Hash;
       try {
+        // Encode the function data for logging
+        const encodedFunctionData = encodeFunctionData({
+          abi: ecdsaExecutorAbi,
+          functionName: 'execute',
+          args: [
+            this.kernelAccount.address,
+            execution.mode,
+            execution.callData,
+            nonce,
+            expiration,
+            signature,
+          ],
+        });
+
+        this.logger.debug('Executor transaction details', {
+          executorAddress: this.ecdsaExecutorAddr,
+          kernelAccountAddress: this.kernelAccount.address,
+          executionMode: execution.mode,
+          executionCallData: execution.callData,
+          nonce: nonce.toString(),
+          expiration: expiration.toString(),
+          signature,
+          encodedFunctionData,
+          totalValue: totalValue.toString(),
+        });
+
         // Send transaction using the signer wallet client
         hash = await this.signerWalletClient.writeContract({
           address: this.ecdsaExecutorAddr!,
