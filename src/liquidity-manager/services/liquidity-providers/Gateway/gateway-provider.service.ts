@@ -11,7 +11,6 @@ import { Hex, isAddressEqual, pad, parseUnits, toHex, keccak256 } from 'viem'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
@@ -20,7 +19,8 @@ import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { serialize } from '@/common/utils/serialize'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -116,8 +116,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
   constructor(
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly configService: EcoConfigService,
-    private readonly walletClientService: WalletClientDefaultSignerService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly walletClientService: LmTxGatedWalletClientService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
     private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,

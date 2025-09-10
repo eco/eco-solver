@@ -28,6 +28,10 @@ import { SquidProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import { TxSigningQueueService } from '@/liquidity-manager/wallet-wrappers/tx-signing-queue.service'
+import { LmTxGatedWalletClientService } from '@/liquidity-manager/wallet-wrappers/wallet-gated-client.service'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedKernelAccountClientV2Service } from './wallet-wrappers/kernel-gated-client-v2.service'
 
 @Module({
   imports: [
@@ -49,6 +53,10 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     CheckBalancesProcessor,
     LiquidityManagerProcessor,
     LiquidityProviderService,
+    TxSigningQueueService,
+    LmTxGatedWalletClientService,
+    LmTxGatedKernelAccountClientService,
+    LmTxGatedKernelAccountClientV2Service,
     LiFiProviderService,
     CCTPProviderService,
     WarpRouteProviderService,

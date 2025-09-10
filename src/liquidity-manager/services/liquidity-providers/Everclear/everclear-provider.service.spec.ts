@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EverclearProviderService } from './everclear-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { getQueueToken } from '@nestjs/bullmq'
 import { TokenData } from '@/liquidity-manager/types/types'
@@ -12,6 +11,7 @@ import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.
 
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 // Mock global fetch
 global.fetch = jest.fn()
@@ -19,7 +19,7 @@ global.fetch = jest.fn()
 describe('EverclearProviderService', () => {
   let service: EverclearProviderService
   let configService: DeepMocked<EcoConfigService>
-  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
+  let kernelAccountClientService: DeepMocked<LmTxGatedKernelAccountClientService>
   let mockQueue: any
   let mockStartCheckEverclearIntent: jest.SpyInstance
   let getTokenSymbolSpy: jest.SpyInstance
@@ -70,7 +70,10 @@ describe('EverclearProviderService', () => {
       providers: [
         EverclearProviderService,
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
+        {
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+        },
         { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<any>() },
         {
@@ -82,7 +85,7 @@ describe('EverclearProviderService', () => {
 
     service = module.get<EverclearProviderService>(EverclearProviderService)
     configService = module.get(EcoConfigService)
-    kernelAccountClientService = module.get(KernelAccountClientService)
+    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
     mockQueue = module.get(getQueueToken(LiquidityManagerQueue.queueName))
 
     // Setup default mocks

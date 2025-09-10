@@ -9,7 +9,6 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EverclearConfig } from '@/eco-configs/eco-config.types'
 import { parseUnits } from 'viem'
 import { Hex } from 'viem'
@@ -21,6 +20,7 @@ import { Cacheable } from '@/decorators/cacheable.decorator'
 import { erc20Abi } from 'viem'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
 export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {
@@ -31,7 +31,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly configService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
     private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,

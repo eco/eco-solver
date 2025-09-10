@@ -30,7 +30,6 @@ import {
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenConfig } from '@/balance/types'
 import { removeJobSchedulers } from '@/bullmq/utils/queue'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -38,6 +37,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
+import { LmTxGatedKernelAccountClientService } from '../wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -59,7 +59,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,
     public readonly liquidityProviderManager: LiquidityProviderService,
-    public readonly kernelAccountClientService: KernelAccountClientService,
+    public readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
     public readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rebalanceRepository: RebalanceRepository,
@@ -347,16 +347,25 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     return this.liquidityManagerFlowProducer.add({
       name: 'rebalance-batch',
-      queueName: this.liquidityManagerQueue.name,
+      queueName: LiquidityManagerQueue.flowName,
       children: jobs,
     })
   }
 
   async executeRebalancing(rebalanceData: RebalanceJobData) {
     const { walletAddress, rebalance } = rebalanceData
-    for (const quote of rebalance.quotes) {
-      await this.liquidityProviderManager.execute(walletAddress, deserialize(quote))
+    const results = await Promise.allSettled(
+      rebalance.quotes.map((quote) =>
+        this.liquidityProviderManager.execute(walletAddress, deserialize(quote)),
+      ),
+    )
+
+    const rejected = results.filter((r: any) => r.status === 'rejected')
+    if (rejected.length) {
+      throw new Error(rejected.map((r: any) => r.reason).join(', '))
     }
+
+    return results
   }
 
   async storeRebalancing(walletAddress: string, request: RebalanceRequest) {
