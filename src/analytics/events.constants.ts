@@ -209,6 +209,8 @@ export const LIQUIDITY_MANAGER_EVENTS = {
   // LiFi Provider Errors
   LIFI_CACHE_INIT_ERROR: 'liquidity_lifi_cache_init_error',
   LIFI_CORE_TOKEN_ROUTE_ERROR: 'liquidity_lifi_core_token_route_error',
+  // Quote Rejection Persistence Errors
+  QUOTE_REJECTION_PERSISTENCE_ERROR: 'liquidity_quote_rejection_persistence_error',
 } as const
 
 // ========== HEALTH MODULE EVENTS ==========

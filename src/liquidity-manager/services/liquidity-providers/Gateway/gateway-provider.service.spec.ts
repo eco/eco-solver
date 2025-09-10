@@ -3,19 +3,19 @@ import { getQueueToken } from '@nestjs/bullmq'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { GatewayProviderService } from './gateway-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { Hex } from 'viem'
 import { serialize } from '@/common/utils/serialize'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { createMock } from '@golevelup/ts-jest'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '@/liquidity-manager/wallet-wrappers/wallet-gated-client.service'
 
 describe('GatewayProviderService', () => {
   let service: GatewayProviderService
   let configService: jest.Mocked<EcoConfigService>
-  let walletClient: jest.Mocked<WalletClientDefaultSignerService>
-  let kernelClient: jest.Mocked<KernelAccountClientService>
+  let walletClient: jest.Mocked<LmTxGatedWalletClientService>
+  let kernelClient: jest.Mocked<LmTxGatedKernelAccountClientService>
   let sourceSigner: { signTypedData: jest.Mock }
   let destSigner: { writeContract: jest.Mock }
   let destPublic: { waitForTransactionReceipt: jest.Mock }
@@ -68,14 +68,14 @@ describe('GatewayProviderService', () => {
           },
         },
         {
-          provide: WalletClientDefaultSignerService,
+          provide: LmTxGatedWalletClientService,
           useValue: {
             getAccount: jest.fn(),
             getClient: jest.fn(),
             getPublicClient: jest.fn(),
           },
         },
-        { provide: KernelAccountClientService, useValue: { getClient: jest.fn() } },
+        { provide: LmTxGatedKernelAccountClientService, useValue: { getClient: jest.fn() } },
         { provide: CACHE_MANAGER, useValue: { get: jest.fn(), set: jest.fn() } },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: {} },
       ],
@@ -83,8 +83,8 @@ describe('GatewayProviderService', () => {
 
     service = module.get(GatewayProviderService)
     configService = module.get(EcoConfigService) as any
-    walletClient = module.get(WalletClientDefaultSignerService) as any
-    kernelClient = module.get(KernelAccountClientService) as any
+    walletClient = module.get(LmTxGatedWalletClientService) as any
+    kernelClient = module.get(LmTxGatedKernelAccountClientService) as any
 
     // Gateway config
     configService.getGatewayConfig.mockReturnValue({

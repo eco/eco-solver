@@ -21,10 +21,9 @@ import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 
 /**
  * Processor for handling liquidity manager jobs.
- * Extends the GroupedJobsProcessor to ensure jobs in the same group are not processed concurrently.
  */
 @Injectable()
-@Processor(LiquidityManagerQueue.queueName)
+@Processor(LiquidityManagerQueue.queueName, { concurrency: 10 })
 export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> {
   /**
    * Constructs a new LiquidityManagerProcessor.

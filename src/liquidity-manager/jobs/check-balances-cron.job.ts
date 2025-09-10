@@ -18,6 +18,7 @@ import {
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 
 export interface CheckBalancesCronJobData extends LiquidityManagerQueueDataType {
   wallet: string
@@ -121,10 +122,14 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
     const rebalances: RebalanceRequest[] = []
 
     for (const deficitToken of deficit.items) {
+      // Filter dynamic surplus list to only usable entries (still SURPLUS with diff>0)
+      const usableSurplus = surplus.items.filter(
+        (t) => t?.analysis?.state === TokenState.SURPLUS && (t?.analysis?.diff ?? 0) > 0,
+      )
       const rebalancingQuotes = await processor.liquidityManagerService.getOptimizedRebalancing(
         walletAddress,
         deficitToken,
-        surplus.items,
+        usableSurplus,
       )
 
       if (rebalancingQuotes.length === 0) {
@@ -150,7 +155,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
     if (!rebalances.length) {
       processor.logger.warn(
         EcoLogMessage.fromDefault({
-          message: 'CheckBalancesCronJob: Rebalancing routes available',
+          message: 'CheckBalancesCronJob: No rebalancing routes available',
           properties: { walletAddress },
         }),
       )

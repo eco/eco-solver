@@ -16,12 +16,22 @@ import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { RebalanceModel, RebalanceSchema } from '@/liquidity-manager/schemas/rebalance.schema'
+import {
+  RebalanceQuoteRejectionModel,
+  RebalanceQuoteRejectionSchema,
+} from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
+import { RebalancingHealthRepository } from '@/liquidity-manager/repositories/rebalancing-health.repository'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
+import { TxSigningQueueService } from '@/liquidity-manager/wallet-wrappers/tx-signing-queue.service'
+import { LmTxGatedWalletClientService } from '@/liquidity-manager/wallet-wrappers/wallet-gated-client.service'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedKernelAccountClientV2Service } from './wallet-wrappers/kernel-gated-client-v2.service'
 
 @Module({
   imports: [
@@ -33,13 +43,20 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     CheckBalancesQueue.init(),
     LiquidityManagerQueue.initFlow(),
 
-    MongooseModule.forFeature([{ name: RebalanceModel.name, schema: RebalanceSchema }]),
+    MongooseModule.forFeature([
+      { name: RebalanceModel.name, schema: RebalanceSchema },
+      { name: RebalanceQuoteRejectionModel.name, schema: RebalanceQuoteRejectionSchema },
+    ]),
   ],
   providers: [
     LiquidityManagerService,
     CheckBalancesProcessor,
     LiquidityManagerProcessor,
     LiquidityProviderService,
+    TxSigningQueueService,
+    LmTxGatedWalletClientService,
+    LmTxGatedKernelAccountClientService,
+    LmTxGatedKernelAccountClientV2Service,
     LiFiProviderService,
     CCTPProviderService,
     WarpRouteProviderService,
@@ -51,7 +68,14 @@ import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity
     EverclearProviderService,
     GatewayProviderService,
     RebalanceRepository,
+    RebalanceQuoteRejectionRepository,
+    RebalancingHealthRepository,
   ],
-  exports: [LiquidityManagerService, RebalanceRepository],
+  exports: [
+    LiquidityManagerService,
+    RebalanceRepository,
+    RebalanceQuoteRejectionRepository,
+    RebalancingHealthRepository,
+  ],
 })
 export class LiquidityManagerModule {}

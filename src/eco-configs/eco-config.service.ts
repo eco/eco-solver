@@ -254,6 +254,15 @@ export class EcoConfigService {
     return this.get('liquidityManager')
   }
 
+  /**
+   * Returns Liquidity Manager max quote slippage as basis points string
+   */
+  getLiquidityManagerMaxQuoteSlippageBps(): string {
+    const slippage = this.getLiquidityManager().maxQuoteSlippage
+    const bps = Math.round(slippage * 10_000)
+    return bps.toString()
+  }
+
   getWhitelist(): EcoConfigType['whitelist'] {
     return this.get('whitelist')
   }
