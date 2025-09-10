@@ -113,6 +113,10 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             createIntent.args.hash,
             createIntent.logIndex,
           )
+
+          // Log the processed intent for debugging
+          this.logger.debug({ createIntent })
+
           // Intent job creation context automatically captured by parent operation decorator
 
           try {

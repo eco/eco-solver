@@ -9,8 +9,8 @@ import { CheckSendBatchCronJobManager } from '@/intent-processor/jobs/send-batch
 import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
 import {
   IntentProcessorJobName,
-  IntentProcessorQueue,
   IntentProcessorQueueType,
+  INTENT_PROCESSOR_QUEUE_NAME,
 } from '@/intent-processor/queues/intent-processor.queue'
 import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send-batch.job'
@@ -20,7 +20,7 @@ import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send
  * Extends the GroupedJobsProcessor to ensure jobs in the same group are not processed concurrently.
  */
 @Injectable()
-@Processor(IntentProcessorQueue.queueName, { concurrency: 10 })
+@Processor(INTENT_PROCESSOR_QUEUE_NAME, { concurrency: 10 })
 export class IntentProcessor
   extends GroupedJobsProcessor<IntentProcessorJob>
   implements OnApplicationBootstrap
@@ -34,7 +34,7 @@ export class IntentProcessor
   ]
 
   constructor(
-    @InjectQueue(IntentProcessorQueue.queueName)
+    @InjectQueue(INTENT_PROCESSOR_QUEUE_NAME)
     public readonly queue: IntentProcessorQueueType,
     public readonly intentProcessorService: IntentProcessorService,
   ) {
@@ -50,7 +50,7 @@ export class IntentProcessor
   async process(@LogContext job: IntentProcessorJob) {
     if (await this.avoidConcurrency(job)) {
       // Log business event for job skipping due to concurrency
-      this.businessLogger.logQueueProcessing(IntentProcessorQueue.queueName, 1, 'waiting')
+      this.businessLogger.logQueueProcessing('IntentProcessorQueue', 1, 'waiting')
       return
     }
 

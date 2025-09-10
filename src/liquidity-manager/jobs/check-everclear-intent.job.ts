@@ -12,6 +12,8 @@ import {
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface CheckEverclearIntentJobData extends LiquidityManagerQueueDataType {
   txHash: Hex
@@ -47,8 +49,9 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     return job.name === LiquidityManagerJobName.CHECK_EVERCLEAR_INTENT
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async process(
-    job: CheckEverclearIntentJob,
+    @LogContext job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckEverclearIntentJob['returnvalue']> {
     const { txHash, id } = job.data
@@ -76,8 +79,9 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     }
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onComplete(
-    job: CheckEverclearIntentJob,
+    @LogContext job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -98,16 +102,13 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onFailed(
-    job: CheckEverclearIntentJob,
+    @LogContext job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
-    error: unknown,
+    @LogContext error: unknown,
   ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'Everclear: CheckEverclearIntentJob: FINAL FAILURE'
-      : 'Everclear: CheckEverclearIntentJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -115,14 +116,8 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      errorMessage,
-      error as any,
-      {
-        id: job.data.id,
-        data: job.data,
-      },
-    )
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

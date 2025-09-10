@@ -13,6 +13,7 @@ describe('QuoteController Test', () => {
   let quoteController: QuoteController
   let quoteService: QuoteService
   const mockLogLog = jest.fn()
+  let protoLogSpy: jest.SpyInstance
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
@@ -40,14 +41,17 @@ describe('QuoteController Test', () => {
     quoteController = module.get(QuoteController)
     quoteService = module.get(QuoteService)
 
-    // Mock the structured logger's log method - it expects (context, message, properties)
+    // Mock the controller instance logger (keeps test-local spy) and spy on global Logger
     quoteController['logger'].log = mockLogLog
+    const LoggerClass = require('@nestjs/common').Logger
+    protoLogSpy = jest.spyOn(LoggerClass.prototype, 'log').mockImplementation(() => {})
   })
 
   afterEach(async () => {
     // restore the spy created with spyOn
     jest.restoreAllMocks()
     mockLogLog.mockClear()
+    if (protoLogSpy) protoLogSpy.mockRestore()
   })
 
   it('should be defined', () => {
@@ -125,7 +129,7 @@ describe('QuoteController Test', () => {
       const result = await quoteController.getQuote(quoteRequest)
       expect(result).toEqual(quote)
       expect(quoteService.getQuote).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledTimes(2)
+      expect(protoLogSpy).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -200,7 +204,7 @@ describe('QuoteController Test', () => {
       const result = await quoteController.getReverseQuote(quoteRequest)
       expect(result).toEqual(quote)
       expect(quoteService.getReverseQuote).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledTimes(2)
+      expect(protoLogSpy).toHaveBeenCalledTimes(2)
     })
   })
 })

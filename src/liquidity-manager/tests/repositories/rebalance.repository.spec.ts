@@ -106,11 +106,13 @@ describe('RebalanceRepository', () => {
       await repository.create(mockRebalanceData)
 
       expect(loggerSpy).toHaveBeenCalledWith(
+        'Persisting successful rebalance',
         expect.objectContaining({
-          msg: 'Persisting successful rebalance',
+          service: 'rebalance-repository',
+          operation: 'create_rebalance',
           strategy: mockRebalanceData.strategy,
           wallet: mockRebalanceData.wallet,
-          groupId: mockRebalanceData.groupId,
+          group_id: mockRebalanceData.groupId,
         }),
       )
     })

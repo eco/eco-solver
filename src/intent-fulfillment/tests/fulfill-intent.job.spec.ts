@@ -43,6 +43,7 @@ describe('FulfillIntentJobManager', () => {
         chainId: 1,
       }
       const job = {
+        id: 'test-job-id',
         name: IntentFulfillmentJobName.FULFILL_INTENT,
         data: serialize(jobData),
       } as FulfillIntentJob
@@ -51,6 +52,7 @@ describe('FulfillIntentJobManager', () => {
         fulfill: jest.fn(),
       }
       const mockProcessor = {
+        processorType: 'FULFILL_INTENT',
         fulfillIntentService: mockFulfillIntentService,
         logger: {
           debug: jest.fn(),
@@ -68,7 +70,7 @@ describe('FulfillIntentJobManager', () => {
   })
 
   describe('onFailed', () => {
-    it('should log an error message with job details', () => {
+    it('should handle job failure gracefully with decorator logging', () => {
       const jobData = {
         intentHash: '0x789' as Hex,
         chainId: 1,
@@ -83,21 +85,18 @@ describe('FulfillIntentJobManager', () => {
         error: jest.fn(),
       }
       const mockProcessor = {
+        processorType: 'FULFILL_INTENT',
         logger: mockLogger,
       }
 
       const manager = new FulfillIntentJobManager()
-      manager.onFailed(job, mockProcessor as any, error)
+      // The method should complete without throwing, logging is handled by @LogOperation decorator
+      expect(() => {
+        manager.onFailed(job, mockProcessor as any, error)
+      }).not.toThrow()
 
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        { operationType: 'intent_fulfillment', status: 'failed' }, // metadata
-        'FulfillIntentJobManager: Failed', // message
-        error, // error object
-        expect.objectContaining({
-          job: { id: 'job-123', data: jobData },
-          error: 'Something went wrong',
-        }), // data
-      )
+      // The manual logger should not be called as logging is now handled by the decorator
+      expect(mockLogger.error).not.toHaveBeenCalled()
     })
   })
 })

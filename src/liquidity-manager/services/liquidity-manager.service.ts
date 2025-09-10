@@ -13,8 +13,9 @@ import {
   LiquidityManagerJobName,
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
@@ -39,6 +40,10 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
+import {
+  CheckBalancesQueue,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/queues/check-balances.queue'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {
@@ -51,11 +56,11 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   private readonly tokensPerWallet: Record<string, TokenConfig[]> = {}
 
   constructor(
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
-    @InjectQueue(CheckBalancesQueue.queueName)
+    @InjectQueue(CHECK_BALANCES_QUEUE_NAME)
     private readonly checkBalancesQueue: LiquidityManagerQueueType,
-    @InjectFlowProducer(LiquidityManagerQueue.flowName)
+    @InjectFlowProducer(LIQUIDITY_MANAGER_FLOW_NAME)
     protected liquidityManagerFlowProducer: FlowProducer,
     public readonly balanceService: BalanceService,
     private readonly ecoConfigService: EcoConfigService,

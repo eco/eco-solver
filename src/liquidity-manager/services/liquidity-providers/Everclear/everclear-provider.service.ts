@@ -4,6 +4,7 @@ import { Cache } from 'cache-manager'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -34,7 +35,7 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     private readonly configService: EcoConfigService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly rebalanceRepository: RebalanceRepository,
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(this.queue)

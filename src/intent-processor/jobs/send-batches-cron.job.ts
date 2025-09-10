@@ -6,6 +6,8 @@ import {
   IntentProcessorJob,
   IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export type CheckSendBatchJob = Job<undefined, undefined, IntentProcessorJobName.CHECK_SEND_BATCH>
 
@@ -31,25 +33,21 @@ export class CheckSendBatchCronJobManager extends IntentProcessorJobManager {
     return job.name === IntentProcessorJobName.CHECK_SEND_BATCH
   }
 
-  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
-    processor.logger.log(
-      {
-        operationType: 'cron_job',
-        status: 'started',
-      },
-      `${CheckSendBatchCronJobManager.name}: process`,
-    )
-
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(@LogContext job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
     return processor.intentProcessorService.getNextSendBatch()
   }
 
-  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: unknown) {
-    const errorObj = error instanceof Error ? error : new Error(String(error))
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      `${CheckSendBatchCronJobManager.name}: Failed`,
-      errorObj,
-      { job_name: CheckSendBatchCronJobManager.name, job_id: job.id, job_data: job.data },
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  onFailed(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext job: IntentProcessorJob,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    processor: IntentProcessor,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext error: unknown,
+  ) {
+    // Error details are automatically captured by the decorator
+    // No need to re-throw the error as it's already been processed
   }
 }

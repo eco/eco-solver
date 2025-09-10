@@ -14,6 +14,8 @@ import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface ExecuteCCTPV2MintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
@@ -50,7 +52,11 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     return job.name === LiquidityManagerJobName.EXECUTE_CCTPV2_MINT
   }
 
-  async process(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: ExecuteCCTPV2MintJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<Hex> {
     const { destinationChainId, messageBody, attestation } = job.data
     processor.logger.debug({ operationType: 'job_execution' }, 'CCTPV2: Processing V2 mint job', {
       id: job.data.id,
@@ -76,7 +82,8 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     return txHash as Hex
   }
 
-  async onComplete(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onComplete(@LogContext job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor) {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { groupID, rebalanceJobID } = jobData
 
@@ -95,12 +102,13 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
-  async onFailed(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onFailed(
+    @LogContext job: ExecuteCCTPV2MintJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: unknown,
+  ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'CCTPV2: ExecuteCCTPV2MintJob: FINAL FAILURE'
-      : 'CCTPV2: ExecuteCCTPV2MintJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -108,14 +116,8 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      errorMessage,
-      error as any,
-      {
-        id: job.data.id,
-        data: job.data,
-      },
-    )
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

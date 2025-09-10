@@ -1,3 +1,18 @@
+// Mock the problematic dependencies first
+jest.mock('@/liquidity-manager/processors/eco-protocol-intents.processor', () => ({
+  LiquidityManagerProcessor: class MockLiquidityManagerProcessor {},
+}))
+
+jest.mock('@/liquidity-manager/jobs/execute-cctp-mint.job', () => ({
+  ExecuteCCTPMintJobManager: {
+    start: jest.fn(),
+  },
+}))
+
+jest.mock('@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service', () => ({
+  CCTPProviderService: class MockCCTPProviderService {},
+}))
+
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import {
   CheckCCTPAttestationJob,
@@ -23,6 +38,8 @@ describe('CheckCCTPAttestationJobManager', () => {
 
   beforeEach(async () => {
     liquidityManagerProcessor = createMock<LiquidityManagerProcessor>()
+    // Add processorType required by context extractor
+    ;(liquidityManagerProcessor as any).processorType = 'liquidity-manager-processor'
     checkCCTPAttestationJobManager = new CheckCCTPAttestationJobManager()
 
     ExecuteCCTPMintJobManager.start = jest.fn()

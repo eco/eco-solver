@@ -1,8 +1,8 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { Injectable } from '@nestjs/common'
 import {
-  IntentFulfillmentQueue,
   IntentFulfillmentQueueType,
+  INTENT_FULFILLMENT_QUEUE_NAME,
 } from '@/intent-fulfillment/queues/intent-fulfillment.queue'
 import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 import {
@@ -13,10 +13,10 @@ import { FulfillIntentService } from '@/intent/fulfill-intent.service'
 
 const CONCURRENCY = 10
 @Injectable()
-@Processor(IntentFulfillmentQueue.queueName, { concurrency: CONCURRENCY })
+@Processor(INTENT_FULFILLMENT_QUEUE_NAME, { concurrency: CONCURRENCY })
 export class IntentFulfillmentProcessor extends GroupedJobsProcessor<FulfillIntentJob> {
   constructor(
-    @InjectQueue(IntentFulfillmentQueue.queueName)
+    @InjectQueue(INTENT_FULFILLMENT_QUEUE_NAME)
     public readonly queue: IntentFulfillmentQueueType,
     public readonly fulfillIntentService: FulfillIntentService,
   ) {

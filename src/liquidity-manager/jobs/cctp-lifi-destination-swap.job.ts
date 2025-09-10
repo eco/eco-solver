@@ -13,6 +13,8 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface CCTPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
   messageHash: Hex
@@ -66,8 +68,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   /**
    * Processes the destination swap job with enhanced error logging for recovery
    */
+  @LogOperation('job_execution', GenericOperationLogger)
   async process(
-    job: CCTPLiFiDestinationSwapJob,
+    @LogContext job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CCTPLiFiDestinationSwapJob['returnvalue']> {
     const { destinationChainId, destinationSwapQuote, walletAddress, originalTokenOut, id } =
@@ -244,8 +247,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   /**
    * Handles successful job completion with enhanced logging
    */
+  @LogOperation('job_execution', GenericOperationLogger)
   async onComplete(
-    job: CCTPLiFiDestinationSwapJob,
+    @LogContext job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -272,16 +276,13 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   /**
    * Handles job failures with detailed error logging for recovery purposes
    */
+  @LogOperation('job_execution', GenericOperationLogger)
   async onFailed(
-    job: CCTPLiFiDestinationSwapJob,
+    @LogContext job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
-    error: unknown,
+    @LogContext error: unknown,
   ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE'
-      : 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -289,22 +290,41 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      errorMessage,
-      error as any,
-      {
-        id: job.data.id,
-        jobId: job.data.id,
-        walletAddress: job.data.walletAddress,
-        chainId: job.data.destinationChainId,
-        originalTokenTarget: job.data.originalTokenOut.address,
-        usdcAmount: job.data.destinationSwapQuote.fromAmount,
-        attemptsMade: job.attemptsMade,
-        maxAttempts: job.opts?.attempts || 1,
-        timestamp: new Date().toISOString(),
-        data: job.data,
-      },
-    )
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    // Log final failure details for manual intervention and monitoring
+    try {
+      processor.logger.error(
+        { operationType: 'job_execution', status: 'failed' },
+        'CCTPLiFi: FINAL FAILURE - Destination swap failed',
+        errorObj,
+        {
+          id: job.data.id,
+          walletAddress: job.data.walletAddress,
+          chainId: job.data.destinationChainId,
+          originalTokenTarget: job.data.originalTokenOut?.address,
+          usdcAmount: job.data.destinationSwapQuote?.fromAmount,
+          timestamp: new Date().toISOString(),
+          retryCount: job.data.retryCount || 0,
+          attemptsMade: job.attemptsMade,
+          maxAttempts: job.opts?.attempts || 1,
+        },
+      )
+
+      processor.logger.error(
+        { operationType: 'job_execution', status: 'failed' },
+        'CCTPLiFi: Destination swap execution failed',
+        errorObj,
+        {
+          id: job.data.id,
+          destinationChainId: job.data.destinationChainId,
+          walletAddress: job.data.walletAddress,
+          messageHash: job.data.messageHash,
+        },
+      )
+    } catch (logErr) {
+      // ensure logging failures don't crash the failure handler
+      // swallow any logging errors silently
+    }
   }
 }

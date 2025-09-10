@@ -834,11 +834,74 @@ export const extractValidatorContext: ContextExtractor = (entity: any): Extracte
 }
 
 /**
+ * Extract context from primitive values with optional key name
+ */
+function extractPrimitiveContext(entity: any, keyName?: string): ExtractedContext {
+  if (entity === null || entity === undefined) {
+    return {}
+  }
+
+  const context: ExtractedContext = {}
+
+  // Use custom key name if provided, otherwise use type-based defaults
+  const getFieldName = (defaultName: string) => keyName || defaultName
+
+  switch (typeof entity) {
+    case 'string':
+      // Check for common string patterns
+      if (entity.startsWith('0x') && entity.length === 42) {
+        // Ethereum address
+        context.eco = { [getFieldName('wallet_address')]: entity }
+      } else if (entity.startsWith('0x') && entity.length === 66) {
+        // Transaction hash
+        context.eco = { [getFieldName('transaction_hash')]: entity }
+      } else if (/^\d+$/.test(entity)) {
+        // Numeric string (could be chain ID, amount, etc.)
+        context.metrics = { [getFieldName('numeric_string')]: entity }
+      } else {
+        // Generic string value
+        context.operation = { [getFieldName('string_value')]: entity }
+      }
+      break
+
+    case 'number':
+      // Check for common number patterns
+      if (Number.isInteger(entity) && entity > 0 && entity < 100000) {
+        // Likely a chain ID, interval, or similar identifier
+        context.eco = { [getFieldName('chain_id')]: entity }
+      } else {
+        // Generic number value
+        context.metrics = { [getFieldName('numeric_value')]: entity.toString() }
+      }
+      break
+
+    case 'bigint':
+      context.metrics = { [getFieldName('bigint_value')]: entity.toString() }
+      break
+
+    case 'boolean':
+      context.operation = { [getFieldName('boolean_value')]: entity }
+      break
+
+    default:
+      // For other primitive types, convert to string
+      context.operation = { [getFieldName('value')]: String(entity) }
+      break
+  }
+
+  return context
+}
+
+/**
  * Main context extraction function that tries all extractors
  */
-export async function extractContextFromEntity(entity: any): Promise<ExtractedContext> {
+export async function extractContextFromEntity(
+  entity: any,
+  keyName?: string,
+): Promise<ExtractedContext> {
+  // Handle primitive values
   if (!entity || typeof entity !== 'object') {
-    return {}
+    return extractPrimitiveContext(entity, keyName)
   }
 
   // Try extractors in order of specificity

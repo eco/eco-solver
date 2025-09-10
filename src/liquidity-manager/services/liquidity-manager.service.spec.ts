@@ -3,12 +3,20 @@ import { Model } from 'mongoose'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
+import { mockFlowProducerProviders, mockQueueProviders } from '../../test/utils/mock-queues'
 import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
-import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
+import {
+  LiquidityManagerQueue,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  CheckBalancesQueue,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
@@ -54,18 +62,22 @@ describe('LiquidityManagerService', () => {
             getPendingIncomingByTokenForWallet: jest.fn(),
           },
         },
+        // mock queue/flow providers to satisfy Nest DI in tests (also include the unnamed/default token)
+        ...mockQueueProviders(LIQUIDITY_MANAGER_QUEUE_NAME, CHECK_BALANCES_QUEUE_NAME, 'default'),
+        ...mockFlowProducerProviders(LIQUIDITY_MANAGER_FLOW_NAME, 'default'),
       ],
       imports: [
-        BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
-        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
-        BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
+        BullModule.registerQueue({ name: LIQUIDITY_MANAGER_QUEUE_NAME }),
+        BullModule.registerQueue({ name: CHECK_BALANCES_QUEUE_NAME }),
+        BullModule.registerFlowProducerAsync({ name: LIQUIDITY_MANAGER_FLOW_NAME }),
       ],
     })
-      .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      // keep existing explicit overrides in case other tests rely on ts-jest mocks
+      .overrideProvider(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
+      .overrideProvider(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
+      .overrideProvider(getFlowProducerToken(LIQUIDITY_MANAGER_FLOW_NAME))
       .useValue(createMock<FlowProducer>())
       .compile()
 

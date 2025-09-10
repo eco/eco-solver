@@ -97,8 +97,10 @@ export abstract class WatchEventService<T extends { chainID: number }>
         delete this.unwatch[Number(id)]
       } catch (e) {
         // Unsubscribe error tracked by analytics
-        this.logger.error(`watch-event: unsubscribe chain ${id}`, {
-          error: e?.message || 'Unknown error',
+        this.logger.error({
+          msg: 'watch-event: unsubscribe',
+          error: 'Error: Could not unsubscribe from watch event',
+          errorPassed: e,
         })
 
         // Track unsubscribe error with analytics
@@ -110,6 +112,11 @@ export abstract class WatchEventService<T extends { chainID: number }>
         }
       }
     }
+
+    // Log successful unsubscribe completion
+    this.logger.debug({
+      msg: 'watch-event: unsubscribe',
+    })
   }
 
   /**
@@ -213,11 +220,13 @@ export abstract class WatchEventService<T extends { chainID: number }>
     const results = await Promise.allSettled(logs.map((log) => handleOne(log)))
     const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
     if (failures.length > 0) {
-      // Log processing failures will be tracked by analytics instead of manual logging
-      this.logger.error(`${summaryLabel}: ${failures.length}/${logs.length} jobs failed`, {
-        failed_count: failures.length,
-        total_count: logs.length,
-        summary_label: summaryLabel,
+      // Extract failure reasons for logging
+      const failureMessages = failures.map((f) => f.reason?.message || String(f.reason))
+
+      // Log processing failures in expected format for tests and debugging
+      this.logger.error({
+        msg: `${summaryLabel}: ${failures.length}/${logs.length} jobs failed to be added to queue`,
+        failures: failureMessages,
       })
     }
   }
@@ -232,10 +241,19 @@ export abstract class WatchEventService<T extends { chainID: number }>
       try {
         this.unwatch[chainID]()
         delete this.unwatch[chainID]
+
+        // Log successful unsubscribe
+        this.logger.debug({
+          msg: 'watch-event: unsubscribeFrom',
+          chainID,
+        })
       } catch (e) {
         // Unsubscribe error tracked by analytics
-        this.logger.error(`watch-event: unsubscribeFrom ${chainID}`, {
-          error: e?.message || 'Unknown error',
+        this.logger.error({
+          msg: 'watch-event: unsubscribeFrom',
+          error: `Error: Could not unsubscribe from watch event for chain : ${chainID}`,
+          errorPassed: e,
+          chainID,
         })
 
         // Track unsubscribe error with analytics
@@ -248,8 +266,10 @@ export abstract class WatchEventService<T extends { chainID: number }>
         }
       }
     } else {
-      this.logger.error(`watch event: unsubscribeFrom ${chainID}`, {
-        error: 'No unsubscribe handler found',
+      this.logger.error({
+        msg: 'watch event: unsubscribeFrom',
+        error: `Error: There is no unwatch for chain : ${chainID}`,
+        chainID,
       })
     }
   }

@@ -36,7 +36,6 @@ export class SolveIntentProcessor extends WorkerHost {
   ): Promise<any> {
     const startTime = Date.now()
 
-
     // Track job start
     this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.STARTED, {
       jobName: job.name,
@@ -65,7 +64,6 @@ export class SolveIntentProcessor extends WorkerHost {
           throw new Error(`Unknown job type: ${job.name}`)
       }
 
-
       // Track job completion
       this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.COMPLETED, {
         jobName: job.name,
@@ -77,7 +75,6 @@ export class SolveIntentProcessor extends WorkerHost {
 
       return result
     } catch (error) {
-
       // Track job failure
       this.ecoAnalytics.trackError(ANALYTICS_EVENTS.JOB.FAILED, error, {
         jobName: job.name,
@@ -93,17 +90,16 @@ export class SolveIntentProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   @LogOperation('processor_job_failed', GenericOperationLogger)
-  onJobFailed(@LogContext job: Job<any, any, string>, @LogContext error: Error) {
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onJobFailed(@LogContext job: Job<any, any, string>, @LogContext error: Error) {}
 
   @OnWorkerEvent('stalled')
   @LogOperation('processor_job_stalled', GenericOperationLogger)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onStalled(@LogContext jobId: string, @LogContext prev?: string) {
-  }
+  onStalled(@LogContext jobId: string, @LogContext prev?: string) {}
 
   @OnWorkerEvent('error')
   @LogOperation('processor_error', GenericOperationLogger)
-  onWorkerError(@LogContext error: Error) {
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onWorkerError(@LogContext error: Error) {}
 }

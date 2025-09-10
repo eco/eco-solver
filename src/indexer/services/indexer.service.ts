@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Hex } from 'viem'
 import { IndexerConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -48,10 +48,10 @@ export class IndexerService {
     endpoint: string,
     opts?: RequestInit & { searchParams?: Record<string, string | undefined> },
   ): Promise<Data> {
-    try {
-      const { searchParams, ...fetchOpts } = opts ?? {}
-      const url = new URL(endpoint, this.config.url)
+    const { searchParams, ...fetchOpts } = opts ?? {}
+    const url = new URL(endpoint, this.config.url)
 
+    try {
       if (searchParams) {
         for (const param in searchParams) {
           if (searchParams[param]) {
@@ -67,7 +67,7 @@ export class IndexerService {
         { operationType: 'api_call', status: 'failed' },
         'Indexer: Fetch error',
         error,
-        { endpoint, url: url.toString() }
+        { endpoint, url: url.toString() },
       )
       throw error
     }

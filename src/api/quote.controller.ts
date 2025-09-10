@@ -21,7 +21,9 @@ export class QuoteController {
 
   @Post()
   @LogOperation('quote_generation', QuoteGenerationLogger)
-  async getQuote(@Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
+  async getQuote(
+    @Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<QuoteDataDTO> {
     const startTime = Date.now()
 
     // Track quote request start
@@ -29,7 +31,6 @@ export class QuoteController {
 
     const { response: quote, error } = await this.quoteService.getQuote(quoteIntentDataDTO)
     const processingTime = Date.now() - startTime
-
 
     if (!error) {
       // Track successful quote response
@@ -60,7 +61,9 @@ export class QuoteController {
 
   @Post('/reverse')
   @LogOperation('reverse_quote_generation', QuoteGenerationLogger)
-  async getReverseQuote(@Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
+  async getReverseQuote(
+    @Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<QuoteDataDTO> {
     const startTime = Date.now()
 
     // Track reverse quote request start
@@ -68,7 +71,6 @@ export class QuoteController {
 
     const { response: quote, error } = await this.quoteService.getReverseQuote(quoteIntentDataDTO)
     const processingTime = Date.now() - startTime
-
 
     if (!error) {
       // Track successful reverse quote response

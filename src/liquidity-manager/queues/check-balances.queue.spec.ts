@@ -1,3 +1,14 @@
+// Mock the problematic dependencies first
+jest.mock('@/liquidity-manager/jobs/check-balances-cron.job', () => ({
+  CheckBalancesCronJobManager: {
+    start: jest.fn(),
+  },
+}))
+
+jest.mock('@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service', () => ({
+  CCTPProviderService: class MockCCTPProviderService {},
+}))
+
 import { Queue } from 'bullmq'
 import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'

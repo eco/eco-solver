@@ -118,10 +118,16 @@ describe('RetryInfeasableIntentsService', () => {
     it('should log models retrieved', async () => {
       await infeasableService.retryInfeasableIntents()
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
-      expect(mockLogDebug).toHaveBeenCalledWith({
-        msg: 'retryInfeasableIntents',
-        models: mockModels,
-      })
+      // logger.debug(messageString, contextObject)
+      expect(mockLogDebug).toHaveBeenCalledWith(
+        'retryInfeasableIntents',
+        expect.objectContaining({
+          service: 'retry-infeasable-intents-service',
+          operation: 'retry_infeasable_intents',
+          intent_count: mockModels.length,
+          intent_hashes: mockModels.map((m) => m.intent.hash),
+        }),
+      )
     })
 
     it('should add every model to the queue', async () => {

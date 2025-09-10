@@ -42,6 +42,7 @@ describe('IntentFulfillmentProcessor', () => {
     const intentHash = '0x12345' as Hex
     const jobData = { intentHash, chainId: 1 }
     const mockJob = {
+      id: 'test-job-id',
       name: IntentFulfillmentJobName.FULFILL_INTENT,
       data: serialize(jobData),
     } as FulfillIntentJob
@@ -56,6 +57,7 @@ describe('IntentFulfillmentProcessor', () => {
 
   it('should not process a job with an unknown name', async () => {
     const mockJob = {
+      id: 'test-unknown-job-id',
       name: 'UNKNOWN_JOB',
       data: serialize({}),
     } as any

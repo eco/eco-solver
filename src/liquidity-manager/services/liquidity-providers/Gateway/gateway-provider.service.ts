@@ -16,6 +16,7 @@ import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/k
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
@@ -120,7 +121,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly rebalanceRepository: RebalanceRepository,
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
   ) {
     const cfg = this.configService.getGatewayConfig()

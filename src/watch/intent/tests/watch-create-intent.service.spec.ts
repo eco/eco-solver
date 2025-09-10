@@ -64,6 +64,7 @@ describe('WatchIntentService', () => {
     jest.restoreAllMocks()
     mockLogDebug.mockClear()
     mockLogLog.mockClear()
+    mockLogError.mockClear()
   })
 
   describe('on lifecycle', () => {
@@ -250,6 +251,9 @@ describe('WatchIntentService', () => {
     it('should unsubscribe to every unwatch and catch any throws', async () => {
       const e = new Error('test')
       mockUnwatch1.mockImplementation(() => {
+        throw e
+      })
+      mockUnwatch2.mockImplementation(() => {
         throw e
       })
       await watchIntentService.unsubscribe()

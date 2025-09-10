@@ -15,6 +15,7 @@ import {
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
@@ -39,7 +40,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     private readonly cctpService: CCTPProviderService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rebalanceRepository: RebalanceRepository,

@@ -13,8 +13,8 @@ import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import {
-  LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
@@ -24,7 +24,7 @@ import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
  * Extends the GroupedJobsProcessor to ensure jobs in the same group are not processed concurrently.
  */
 @Injectable()
-@Processor(LiquidityManagerQueue.queueName)
+@Processor(LIQUIDITY_MANAGER_QUEUE_NAME)
 export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> {
   /**
    * Constructs a new LiquidityManagerProcessor.
@@ -33,7 +33,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
    * @param cctpProviderService - The service for CCTP.
    */
   constructor(
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     public readonly queue: LiquidityManagerQueueType,
     public readonly liquidityManagerService: LiquidityManagerService,
     public readonly cctpProviderService: CCTPProviderService,

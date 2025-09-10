@@ -8,6 +8,8 @@ import {
   IntentProcessorJob,
   IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface ProveIntentData {
   hash: Hex
@@ -62,7 +64,8 @@ export class ExecuteSendBatchJobManager extends IntentProcessorJobManager<Execut
     return job.name === IntentProcessorJobName.EXECUTE_SEND_BATCH
   }
 
-  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(@LogContext job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
     if (this.is(job)) {
       return processor.intentProcessorService.executeSendBatch(deserialize(job.data))
     }
@@ -74,12 +77,16 @@ export class ExecuteSendBatchJobManager extends IntentProcessorJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: Error) {
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      `${ExecuteSendBatchJobManager.name}: Failed`,
-      error,
-      { job_name: ExecuteSendBatchJobManager.name, job_id: job.id, job_data: job.data },
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  onFailed(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext job: IntentProcessorJob,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    processor: IntentProcessor,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext error: Error,
+  ) {
+    // Error details are automatically captured by the decorator
+    // No need to re-throw the error as it's already been processed
   }
 }

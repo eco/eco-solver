@@ -1,3 +1,12 @@
+// Mock the problematic dependencies first
+jest.mock('@/liquidity-manager/processors/eco-protocol-intents.processor', () => ({
+  LiquidityManagerProcessor: class MockLiquidityManagerProcessor {},
+}))
+
+jest.mock('@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service', () => ({
+  CCTPProviderService: class MockCCTPProviderService {},
+}))
+
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 
@@ -8,6 +17,7 @@ describe('CheckBalancesCronJobManager.process', () => {
     const processor: any = {
       logger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
       healthLogger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      processorType: 'check-balances-processor', // Required by context extractor
       liquidityManagerService: {
         analyzeTokens: jest
           .fn()
@@ -47,6 +57,7 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
     const processor: any = {
       logger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
       healthLogger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      processorType: 'check-balances-processor', // Required by context extractor
       liquidityManagerService: {
         analyzeTokens: jest.fn().mockResolvedValue({
           items: [],
@@ -164,6 +175,8 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
 
     const processor: any = {
       logger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      healthLogger: { log: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      processorType: 'check-balances-processor', // Required by context extractor
       liquidityManagerService: {
         analyzeTokens: jest.fn().mockResolvedValue({
           items: [],

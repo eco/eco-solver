@@ -18,13 +18,16 @@ export type IntentFulfillmentQueueType = Queue<
   unknown,
   IntentFulfillmentJobName
 >
+
+export const INTENT_FULFILLMENT_QUEUE_NAME = 'IntentFulfillment'
+
 @Injectable()
 export class IntentFulfillmentQueue {
   public static readonly prefix = '{intent-fulfillment}'
-  public static readonly queueName = 'IntentFulfillment'
+  public static readonly queueName = INTENT_FULFILLMENT_QUEUE_NAME
 
   constructor(
-    @InjectQueue(IntentFulfillmentQueue.queueName)
+    @InjectQueue(INTENT_FULFILLMENT_QUEUE_NAME)
     private readonly queue: IntentFulfillmentQueueType,
   ) {}
 

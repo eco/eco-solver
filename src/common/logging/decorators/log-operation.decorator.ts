@@ -6,7 +6,11 @@ import {
   DecoratorOperationContext,
   ExtractedContext,
 } from './types'
-import { getContextParameterIndices } from './log-context.decorator'
+import {
+  getContextParameterIndices,
+  getContextParameterKeys,
+  getContextParameterNames,
+} from './log-context.decorator'
 import { extractContextFromEntity, mergeContexts } from './context-extractors'
 import { BaseStructuredLogger } from '../loggers/base-structured-logger'
 
@@ -108,12 +112,16 @@ async function extractContextFromArgs(
     return {}
   }
 
+  const customKeys = getContextParameterKeys(target, propertyName)
+  const parameterNames = getContextParameterNames(target, propertyName)
   const contexts: ExtractedContext[] = []
 
   for (const index of contextIndices) {
     if (index < args.length) {
       const entity = args[index]
-      const extractedContext = await extractContextFromEntity(entity)
+      // Use custom key if provided, otherwise use parameter name, otherwise use default
+      const keyName = customKeys[index] || parameterNames[index]
+      const extractedContext = await extractContextFromEntity(entity, keyName)
       contexts.push(extractedContext)
     }
   }

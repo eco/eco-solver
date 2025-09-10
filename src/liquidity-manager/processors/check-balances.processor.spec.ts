@@ -1,3 +1,35 @@
+// Mock the problematic dependencies first
+jest.mock('@/liquidity-manager/queues/liquidity-manager.queue', () => ({
+  LiquidityManagerQueue: {
+    queueName: 'test-queue-name',
+  },
+  LiquidityManagerJobName: {
+    CHECK_BALANCES: 'CHECK_BALANCES',
+  },
+}))
+
+jest.mock('@/liquidity-manager/jobs/check-balances-cron.job', () => ({
+  CheckBalancesCronJobManager: jest.fn().mockImplementation(() => ({
+    process: jest.fn(),
+    is: jest.fn().mockImplementation((job) => job.name === 'CHECK_BALANCES'),
+  })),
+}))
+
+jest.mock('@/liquidity-manager/services/liquidity-manager.service', () => ({
+  LiquidityManagerService: class MockLiquidityManagerService {},
+}))
+
+jest.mock('@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service', () => ({
+  CCTPProviderService: class MockCCTPProviderService {},
+}))
+
+jest.mock(
+  '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service',
+  () => ({
+    CCTPV2ProviderService: class MockCCTPV2ProviderService {},
+  }),
+)
+
 import { CheckBalancesProcessor } from '@/liquidity-manager/processors/check-balances.processor'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'

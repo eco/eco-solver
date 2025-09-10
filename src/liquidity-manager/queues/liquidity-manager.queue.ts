@@ -50,10 +50,13 @@ export type LiquidityManagerQueueType = Queue<
   LiquidityManagerJobName
 >
 
+export const LIQUIDITY_MANAGER_QUEUE_NAME = 'LiquidityManagerQueue'
+export const LIQUIDITY_MANAGER_FLOW_NAME = 'flow-liquidity-manager'
+
 export class LiquidityManagerQueue {
   public static readonly prefix = '{liquidity-manager}'
-  public static readonly queueName = LiquidityManagerQueue.name
-  public static readonly flowName = `flow-liquidity-manager`
+  public static readonly queueName = LIQUIDITY_MANAGER_QUEUE_NAME
+  public static readonly flowName = LIQUIDITY_MANAGER_FLOW_NAME
 
   constructor(private readonly queue: LiquidityManagerQueueType) {}
 

@@ -11,7 +11,10 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import * as MulticallUtils from '@/intent-processor/utils/multicall'
-import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
+import {
+  IntentProcessorQueue,
+  INTENT_PROCESSOR_QUEUE_NAME,
+} from '@/intent-processor/queues/intent-processor.queue'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { RouteType } from '@eco-foundation/routes-ts'
@@ -128,7 +131,7 @@ describe('IntentProcessorService', () => {
           },
         },
         {
-          provide: getQueueToken(IntentProcessorQueue.queueName),
+          provide: getQueueToken(INTENT_PROCESSOR_QUEUE_NAME),
           useValue: queue,
         },
       ],

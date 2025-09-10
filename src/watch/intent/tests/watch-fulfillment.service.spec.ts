@@ -119,15 +119,14 @@ describe('WatchFulfillmentService', () => {
       beforeEach(async () => {
         mockQueueAdd = jest.spyOn(queue, 'add')
         await watchFulfillmentService.addJob()([log])
-        expect(mockLogDebug).toHaveBeenCalledTimes(1)
       })
 
       it('should convert all bigints to strings', async () => {
-        expect(mockLogDebug.mock.calls[0][0].fulfillment).toEqual(
-          expect.objectContaining({
-            args: { _hash: log.args._hash.toString(), logIndex: log.args.logIndex.toString() },
-          }),
-        )
+        // Verify that the queue was called with converted bigints
+        expect(mockQueueAdd).toHaveBeenCalledTimes(1)
+        const [jobName, fulfillmentData, jobOptions] = mockQueueAdd.mock.calls[0]
+        expect(fulfillmentData.args._hash).toBe(log.args._hash.toString())
+        expect(fulfillmentData.args.logIndex).toBe(log.args.logIndex.toString())
       })
 
       it('should should enque a job for every intent', async () => {

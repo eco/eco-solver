@@ -26,9 +26,11 @@ export type IntentProcessorQueueType = Queue<
   IntentProcessorJobName
 >
 
+export const INTENT_PROCESSOR_QUEUE_NAME = 'IntentProcessorQueue'
+
 export class IntentProcessorQueue {
   public static readonly prefix = '{intent-processor}'
-  public static readonly queueName = IntentProcessorQueue.name
+  public static readonly queueName = INTENT_PROCESSOR_QUEUE_NAME
 
   constructor(private readonly queue: IntentProcessorQueueType) {}
 
@@ -38,7 +40,7 @@ export class IntentProcessorQueue {
 
   static init() {
     return initBullMQ(
-      { queue: this.queueName, prefix: IntentProcessorQueue.prefix },
+      { queue: INTENT_PROCESSOR_QUEUE_NAME, prefix: IntentProcessorQueue.prefix },
       {
         defaultJobOptions: {
           removeOnFail: true,

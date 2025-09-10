@@ -2,7 +2,7 @@ import { Hex, NonceManagerSource, Prettify, PublicClient } from 'viem'
 import type { Address } from 'abitype'
 import { Model, QueryOptions } from 'mongoose'
 import type { Client } from 'viem/_types/clients/createClient'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { GenericOperationLogger } from '@/common/logging/loggers'
 import { getAtomicNonceKey } from './sign.helper'
@@ -70,7 +70,7 @@ export abstract class AtomicNonceService<T extends { nonce: number }>
             nonce: nonce.nonceNum,
             query,
             updates,
-          }
+          },
         )
         return this.model.findOneAndUpdate(query, updates, options).exec()
       })
@@ -81,7 +81,7 @@ export abstract class AtomicNonceService<T extends { nonce: number }>
         { operationType: 'sync_nonces', status: 'failed' },
         `Error syncing nonces`,
         e,
-        { errorMessage: e instanceof Error ? e.message : String(e) }
+        { errorMessage: e instanceof Error ? e.message : String(e) },
       )
     }
   }

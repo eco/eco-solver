@@ -3,7 +3,11 @@ import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager
 import { GenericContainer } from 'testcontainers'
 import { jest } from '@jest/globals'
 import { Job, Queue } from 'bullmq'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+
+// Define the enum directly to avoid complex import chain
+enum LiquidityManagerJobName {
+  CHECK_BALANCES = 'CHECK_BALANCES',
+}
 
 jest.setTimeout(30000)
 

@@ -17,6 +17,8 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 // Enhanced job data to support CCTPLiFi operations
 export interface CheckCCTPAttestationJobData extends LiquidityManagerQueueDataType {
@@ -85,16 +87,18 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    * @param {LiquidityManagerProcessor} processor - The processor used to handle the business logic and fetch the attestation.
    * @return {Promise<CheckCCTPAttestationJob['returnvalue']>} A promise that resolves with the result of the fetched attestation.
    */
+  @LogOperation('job_execution', GenericOperationLogger)
   async process(
-    job: CheckCCTPAttestationJob,
+    @LogContext job: CheckCCTPAttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
     const { messageHash } = job.data
     return processor.cctpProviderService.fetchAttestation(messageHash)
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onComplete(
-    job: CheckCCTPAttestationJob,
+    @LogContext job: CheckCCTPAttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     if (job.returnvalue.status === 'complete') {
@@ -141,16 +145,13 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
+  @LogOperation('job_execution', GenericOperationLogger)
   async onFailed(
-    job: CheckCCTPAttestationJob,
+    @LogContext job: CheckCCTPAttestationJob,
     processor: LiquidityManagerProcessor,
-    error: unknown,
+    @LogContext error: unknown,
   ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'CCTP: CheckCCTPAttestationJob: FINAL FAILURE'
-      : 'CCTP: CheckCCTPAttestationJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -158,14 +159,8 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      errorMessage,
-      error as any,
-      {
-        id: job.data.id,
-        data: job.data,
-      },
-    )
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

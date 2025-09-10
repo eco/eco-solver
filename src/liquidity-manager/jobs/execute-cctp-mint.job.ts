@@ -14,6 +14,8 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface ExecuteCCTPMintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
@@ -64,7 +66,11 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     return job.name === LiquidityManagerJobName.EXECUTE_CCTP_MINT
   }
 
-  async process(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: ExecuteCCTPMintJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<Hex> {
     processor.logger.debug(
       { operationType: 'job_execution' },
       'CCTP: ExecuteCCTPMintJob: Processing',
@@ -92,7 +98,8 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     return txHash as Hex
   }
 
-  async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onComplete(@LogContext job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
     const { groupID, rebalanceJobID, cctpLiFiContext } = job.data
 
     processor.logger.log(
@@ -149,27 +156,22 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onFailed(
+    @LogContext job: ExecuteCCTPMintJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: unknown,
+  ) {
     const isFinal = this.isFinalAttempt(job, error)
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { rebalanceJobID } = jobData
 
-    const errorMessage = isFinal
-      ? 'CCTP: ExecuteCCTPMintJob: FINAL FAILURE'
-      : 'CCTP: ExecuteCCTPMintJob: Failed: Retrying...'
-
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      errorMessage,
-      error as any,
-      {
-        id: job.data.id,
-        data: job.data,
-      },
-    )
-
     if (isFinal) {
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
+
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

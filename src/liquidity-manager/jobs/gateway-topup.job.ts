@@ -1,4 +1,6 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { gatewayWalletAbi } from '@/liquidity-manager/services/liquidity-providers/Gateway/constants/abis'
 import { Hex, encodeFunctionData, erc20Abi } from 'viem'
 import {
@@ -48,7 +50,11 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     return job.name === LiquidityManagerJobName.GATEWAY_TOP_UP
   }
 
-  async process(job: GatewayTopUpJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: GatewayTopUpJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<Hex> {
     const { chainId, usdc, gatewayWallet, id } = job.data
     const amount = deserialize(job.data.amount) as bigint
 
@@ -131,19 +137,22 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     return txHash
   }
 
-  async onComplete(job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async onComplete(@LogContext job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { rebalanceJobID } = jobData
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
-  async onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onFailed(
+    @LogContext job: GatewayTopUpJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: unknown,
+  ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'Gateway: GatewayTopUpJob: FINAL FAILURE'
-      : 'Gateway: GatewayTopUpJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -151,14 +160,7 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      { operationType: 'job_execution', status: 'failed' },
-      errorMessage,
-      error as any,
-      {
-        id: job.data.id,
-        data: job.data,
-      },
-    )
+    // Error details are automatically captured by the decorator
+    throw error
   }
 }

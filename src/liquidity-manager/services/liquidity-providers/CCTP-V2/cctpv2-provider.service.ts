@@ -8,6 +8,7 @@ import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CheckCCTPV2AttestationJobData } from '@/liquidity-manager/jobs/check-cctpv2-attestation.job'
 import { CCTPV2Config } from '@/eco-configs/eco-config.types'
@@ -34,7 +35,7 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly walletClientService: WalletClientDefaultSignerService,
     private readonly rebalanceRepository: RebalanceRepository,
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)

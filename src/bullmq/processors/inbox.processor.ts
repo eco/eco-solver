@@ -20,7 +20,6 @@ export class InboxProcessor extends WorkerHost {
     @LogContext job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
-
     switch (job.name) {
       case QUEUES.INBOX.jobs.fulfillment:
         return await this.utilsIntentService.updateOnFulfillment(job.data as FulfillmentLog)
@@ -32,16 +31,16 @@ export class InboxProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   @LogOperation('processor_job_failed', GenericOperationLogger)
-  onJobFailed(@LogContext job: Job<any, any, string>, error: Error) {
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onJobFailed(@LogContext job: Job<any, any, string>, error: Error) {}
 
   @OnWorkerEvent('stalled')
   @LogOperation('processor_stalled', GenericOperationLogger)
-  onStalled(@LogContext jobId: string, prev?: string) {
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onStalled(@LogContext jobId: string, prev?: string) {}
 
   @OnWorkerEvent('error')
   @LogOperation('processor_error', GenericOperationLogger)
-  onWorkerError(error: Error) {
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onWorkerError(error: Error) {}
 }

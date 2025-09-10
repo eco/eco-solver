@@ -3,12 +3,20 @@ import { Model } from 'mongoose'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
+import { mockFlowProducerProviders, mockQueueProviders } from '../../test/utils/mock-queues'
 import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
-import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
+import {
+  LiquidityManagerQueue,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  CheckBalancesQueue,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
@@ -54,18 +62,22 @@ describe('LiquidityManagerService', () => {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
         },
+        // provide mock queue/flow providers so tests don't require real Bull connections
+        // include the unnamed/default queue token used by some DI sites
+        ...mockQueueProviders(LIQUIDITY_MANAGER_QUEUE_NAME, CHECK_BALANCES_QUEUE_NAME, 'default'),
+        ...mockFlowProducerProviders(LIQUIDITY_MANAGER_FLOW_NAME, 'default'),
       ],
       imports: [
-        BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
-        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
-        BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
+        BullModule.registerQueue({ name: LIQUIDITY_MANAGER_QUEUE_NAME }),
+        BullModule.registerQueue({ name: CHECK_BALANCES_QUEUE_NAME }),
+        BullModule.registerFlowProducerAsync({ name: LIQUIDITY_MANAGER_FLOW_NAME }),
       ],
     })
-      .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      .overrideProvider(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
+      .overrideProvider(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
+      .overrideProvider(getFlowProducerToken(LIQUIDITY_MANAGER_FLOW_NAME))
       .useValue(createMock<FlowProducer>())
       .compile()
 
@@ -75,11 +87,11 @@ describe('LiquidityManagerService', () => {
     liquidityManagerService = module.get(LiquidityManagerService)
     kernelAccountClientService = module.get(KernelAccountClientService)
     liquidityProviderService = module.get(LiquidityProviderService)
-    queue = module.get(getQueueToken(LiquidityManagerQueue.queueName))
-    checkQueue = module.get(getQueueToken(CheckBalancesQueue.queueName))
+    queue = module.get(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
+    checkQueue = module.get(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
 
     Object.defineProperty(queue, 'name', {
-      value: LiquidityManagerQueue.queueName,
+      value: LIQUIDITY_MANAGER_QUEUE_NAME,
       writable: false,
     })
 

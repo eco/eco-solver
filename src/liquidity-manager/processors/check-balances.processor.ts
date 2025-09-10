@@ -3,12 +3,15 @@ import { Processor } from '@nestjs/bullmq'
 import { BaseProcessor } from '@/common/bullmq/base.processor'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
+import {
+  CheckBalancesQueue,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/queues/check-balances.queue'
 import { HealthOperationLogger } from '@/common/logging/loggers'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 
 @Injectable()
-@Processor(CheckBalancesQueue.queueName, {
+@Processor(CHECK_BALANCES_QUEUE_NAME, {
   concurrency: 1,
   limiter: {
     // Prevent bursts across instances; tune as needed

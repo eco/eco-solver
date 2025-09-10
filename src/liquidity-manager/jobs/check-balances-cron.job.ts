@@ -19,6 +19,8 @@ import {
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface CheckBalancesCronJobData extends LiquidityManagerQueueDataType {
   wallet: string
@@ -81,7 +83,11 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    * @param job - The CheckBalancesCronJob instance to process.
    * @param processor - The LiquidityManagerProcessor instance used for processing.
    */
-  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: LiquidityManagerJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<void> {
     // Cast to CheckBalancesProcessor to access healthLogger
     const checkBalancesProcessor = processor as any as CheckBalancesProcessor
     if (!this.is(job)) {
@@ -197,28 +203,22 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: unknown) {
-    const checkBalancesProcessor = processor as any as CheckBalancesProcessor
-    const durationMs = this.getDurationMs(job)
-    checkBalancesProcessor.healthLogger.error(
-      {
-        healthCheck: 'balance-monitoring',
-        status: 'unhealthy',
-      },
-      'CheckBalancesCronJob: Failed',
-      error as Error,
-      {
-        durationMs,
-        walletAddress: job.data.wallet,
-        queue: job.queueName,
-      },
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  onFailed(
+    @LogContext job: LiquidityManagerJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: unknown,
+  ) {
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 
   /**
    * Hook triggered when a job is completed successfully.
    */
-  onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  onComplete(@LogContext job: LiquidityManagerJob, processor: LiquidityManagerProcessor) {
     const checkBalancesProcessor = processor as any as CheckBalancesProcessor
     const durationMs = this.getDurationMs(job)
     checkBalancesProcessor.healthLogger.log(

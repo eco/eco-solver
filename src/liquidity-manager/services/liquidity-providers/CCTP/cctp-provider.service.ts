@@ -26,6 +26,7 @@ import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
@@ -45,7 +46,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     private readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly rebalanceRepository: RebalanceRepository,
 
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
   ) {
     this.config = this.ecoConfigService.getCCTP()
