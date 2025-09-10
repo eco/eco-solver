@@ -16,6 +16,10 @@ export class IntentSourceRepository {
 
   constructor(@InjectModel(IntentSourceModel.name) private model: Model<IntentSourceModel>) {}
 
+  async create(data: any): Promise<IntentSourceModel> {
+    return this.model.create(data)
+  }
+
   async getIntent(hash: string, projection: object = {}): Promise<IntentSourceModel | null> {
     return this.queryIntent({ 'intent.hash': hash }, projection)
   }

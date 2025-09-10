@@ -1,6 +1,5 @@
 const mockGetTransactionTargetData = jest.fn()
 import { Chain, PublicClient, Transport } from 'viem'
-import { CreateIntentService } from '@/intent/create-intent.service'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -108,10 +107,6 @@ describe('QuotesService', () => {
             findOne: jest.fn(),
             updateOne: jest.fn(),
           },
-        },
-        {
-          provide: CreateIntentService,
-          useValue: createMock<CreateIntentService>(),
         },
         { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
