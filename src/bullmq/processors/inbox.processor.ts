@@ -1,16 +1,16 @@
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { FulfillmentLog } from '@/contracts/inbox'
+import { Injectable, Logger } from '@nestjs/common'
+import { IntentFulfilledService } from '@/intent/intent-fulfilled.service'
+import { Job } from 'bullmq'
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
-import { Injectable, Logger } from '@nestjs/common'
-import { Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { UtilsIntentService } from '@/intent/utils-intent.service'
-import { FulfillmentLog } from '@/contracts/inbox'
 
 @Injectable()
 @Processor(QUEUES.INBOX.queue)
 export class InboxProcessor extends WorkerHost {
   private logger = new Logger(InboxProcessor.name)
-  constructor(private readonly utilsIntentService: UtilsIntentService) {
+  constructor(private readonly intentFulfilledService: IntentFulfilledService) {
     super()
   }
 
@@ -29,7 +29,7 @@ export class InboxProcessor extends WorkerHost {
 
     switch (job.name) {
       case QUEUES.INBOX.jobs.fulfillment:
-        return await this.utilsIntentService.updateOnFulfillment(job.data as FulfillmentLog)
+        return await this.intentFulfilledService.processFulfilled(job.data as FulfillmentLog)
       default:
         this.logger.error(
           EcoLogMessage.fromDefault({

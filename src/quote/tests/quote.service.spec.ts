@@ -6,6 +6,8 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { getModelToken } from '@nestjs/mongoose'
+import { GroupedIntent } from '@/intent-initiation/schemas/grouped-intent.schema'
+import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
 import {
   InfeasibleQuote,
   InsufficientBalance,
@@ -17,6 +19,7 @@ import {
 } from '@/quote/errors'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { Model } from 'mongoose'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
@@ -56,6 +59,7 @@ describe('QuotesService', () => {
   let feeService: DeepMocked<FeeService>
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let quoteModel: DeepMocked<Model<QuoteIntentModel>>
   let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -70,6 +74,8 @@ describe('QuotesService', () => {
         QuoteService,
         QuoteRepository,
         IntentInitiationService,
+        IntentSourceRepository,
+        GroupedIntentRepository,
         PermitValidationService,
         { provide: FeeService, useValue: createMock<FeeService>() },
         { provide: ValidationService, useValue: createMock<ValidationService>() },
@@ -86,9 +92,24 @@ describe('QuotesService', () => {
           provide: getModelToken(QuoteIntentModel.name),
           useValue: createMock<Model<QuoteIntentModel>>(),
         },
+        {
+          provide: getModelToken(GroupedIntent.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
+        },
+        {
+          provide: getModelToken(IntentSourceModel.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            updateOne: jest.fn(),
+          },
+        },
         { provide: FulfillmentEstimateService, useValue: createMock<FulfillmentEstimateService>() },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
-        { provide: IntentSourceRepository, useValue: createMock<IntentSourceRepository>() },
       ],
     }).compile()
 
@@ -98,6 +119,7 @@ describe('QuotesService', () => {
     validationService = chainMod.get(ValidationService)
 
     ecoConfigService = chainMod.get(EcoConfigService)
+    quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
     fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     quoteService['logger'].debug = mockLogDebug
@@ -321,7 +343,6 @@ describe('QuotesService', () => {
       const { error } = await quoteService.generateQuote({ route: {} } as any)
       expect(error).toEqual(InsufficientBalance(ask, totalRewards))
     })
-
     describe('on building quote', () => {
       beforeEach(() => {})
 
