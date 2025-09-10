@@ -71,12 +71,15 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
    * Unsubscribes from all IntentSource contracts. It closes all clients in {@link onModuleDestroy}
    */
   @LogSubOperation('unsubscribe')
-  async unsubscribe() {
+  async unsubscribe(): Promise<void> {
     super.unsubscribe()
   }
 
   @LogSubOperation('subscribe_to_source')
-  async subscribeTo(client: PublicClient, @LogContext source: IntentSource) {
+  async subscribeTo(
+    @LogContext client: PublicClient,
+    @LogContext source: IntentSource,
+  ): Promise<void> {
     this.unwatch[source.chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
@@ -89,11 +92,15 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
-      onLogs: this.addJob(source),
+      onLogs: async (logs) => {
+        const addJobFunction = await this.addJob(source)
+        await addJobFunction(logs)
+      },
     })
   }
 
-  addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
+  @LogSubOperation('process_intent_created_logs')
+  addJob(@LogContext source: IntentSource): (logs: Log[]) => Promise<void> {
     return async (logs: IntentCreatedLog[]) => {
       // Track batch of events detected
       if (logs.length > 0) {

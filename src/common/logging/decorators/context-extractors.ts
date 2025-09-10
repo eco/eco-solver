@@ -1,4 +1,6 @@
 import { ExtractedContext, ContextExtractor, EntityTypeGuards } from './types'
+import { PublicClient } from 'viem'
+import { extractClientInfo } from '@/watch/utils/client-info-extractor'
 
 /**
  * Entity type guards for identifying domain objects
@@ -116,6 +118,21 @@ export const entityTypeGuards: EntityTypeGuards = {
       typeof entity === 'object' &&
       'dAppID' in entity &&
       ('route' in entity || 'reward' in entity)
+    )
+  },
+
+  isPublicClient: (entity: any): boolean => {
+    return (
+      entity &&
+      typeof entity === 'object' &&
+      // Check for viem PublicClient structure (could be real or mock)
+      ('chain' in entity ||
+        'transport' in entity ||
+        // Also check for common mock patterns
+        entity.constructor?.name === 'PublicClient' ||
+        // Check if it has common PublicClient methods
+        'getBlockNumber' in entity ||
+        'watchContractEvent' in entity)
     )
   },
 }
@@ -834,6 +851,107 @@ export const extractValidatorContext: ContextExtractor = (entity: any): Extracte
 }
 
 /**
+ * Context extractor for TransactionTargetData entities
+ * Maps transaction target data to Datadog-optimized structure
+ */
+export const extractTransactionTargetDataContext: ContextExtractor = (
+  entity: any,
+): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for transaction target data identifiers
+  if (!('selector' in entity || 'decodedFunctionData' in entity || 'targetConfig' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      target_address: entity.targetConfig?.address,
+      contract_type: entity.targetConfig?.contractType,
+      function_selector: entity.selector,
+    },
+    metrics: {
+      function_name: entity.decodedFunctionData?.functionName,
+      args_count: entity.decodedFunctionData?.args?.length || 0,
+      decoded_args: entity.decodedFunctionData?.args
+        ?.slice(0, 3)
+        ?.map((arg: any) => (typeof arg === 'bigint' ? arg.toString() : String(arg))),
+    },
+    operation: {
+      contract_type: entity.targetConfig?.contractType || 'unknown',
+      is_erc20: entity.targetConfig?.contractType === 'erc20',
+      is_native: entity.targetConfig?.contractType === 'native',
+    },
+  }
+}
+
+/**
+ * Context extractor for Solver entities
+ * Maps solver configuration to Datadog-optimized structure
+ */
+export const extractSolverContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for solver-specific identifiers
+  if (!('chainID' in entity || 'inboxAddress' in entity || 'targets' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      solver_chain_id: entity.chainID,
+      inbox_address: entity.inboxAddress,
+      solver_type: entity.type || 'standard',
+    },
+    metrics: {
+      targets_count: Object.keys(entity.targets || {}).length,
+      supported_tokens: Object.keys(entity.targets || {}),
+    },
+    operation: {
+      solver_enabled: entity.enabled !== false,
+      execution_type: entity.executionType || 'smart_wallet',
+    },
+  }
+}
+
+/**
+ * Context extractor for CallData entities
+ * Maps call data to Datadog-optimized structure
+ */
+export const extractCallDataContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entity || typeof entity !== 'object') {
+    return {}
+  }
+
+  // Check for call data identifiers
+  if (!('target' in entity || 'data' in entity || 'value' in entity)) {
+    return {}
+  }
+
+  return {
+    eco: {
+      call_target: entity.target,
+      call_value: entity.value?.toString() || '0',
+      has_data: !!(entity.data && entity.data !== '0x'),
+    },
+    metrics: {
+      data_length: entity.data?.length || 0,
+      value_amount: entity.value?.toString() || '0',
+      function_selector: entity.data?.substring(0, 10),
+    },
+    operation: {
+      is_native_transfer: entity.value > 0 && (!entity.data || entity.data === '0x'),
+      is_contract_call: !!(entity.data && entity.data !== '0x'),
+      call_type: entity.data && entity.data !== '0x' ? 'contract_call' : 'native_transfer',
+    },
+  }
+}
+
+/**
  * Extract context from primitive values with optional key name
  */
 function extractPrimitiveContext(entity: any, keyName?: string): ExtractedContext {
@@ -885,7 +1003,12 @@ function extractPrimitiveContext(entity: any, keyName?: string): ExtractedContex
 
     default:
       // For other primitive types, convert to string
-      context.operation = { [getFieldName('value')]: String(entity) }
+      try {
+        context.operation = { [getFieldName('value')]: String(entity) }
+      } catch (error) {
+        // Handle objects that can't be converted to string
+        context.operation = { [getFieldName('value')]: '[Complex Object]' }
+      }
       break
   }
 
@@ -906,6 +1029,7 @@ export async function extractContextFromEntity(
 
   // Try extractors in order of specificity
   const extractors = [
+    extractPublicClientContext, // High priority for blockchain monitoring
     extractRebalanceContext,
     extractRebalanceJobDataContext,
     extractRebalanceRequestContext,
@@ -916,6 +1040,9 @@ export async function extractContextFromEntity(
     extractTokenDataContext,
     extractValidationChecksContext,
     extractGaslessIntentRequestContext,
+    extractTransactionTargetDataContext, // New transaction target data extractor
+    extractSolverContext, // New solver context extractor
+    extractCallDataContext, // New call data context extractor
     extractProviderContext, // New provider context extractor
     extractProcessorContext, // New processor context extractor
     extractHealthContext, // New health context extractor
@@ -939,6 +1066,36 @@ export async function extractContextFromEntity(
 
   // Fallback: extract common fields
   return extractCommonFields(entity)
+}
+
+/**
+ * Context extractor for PublicClient entities
+ * Extracts chainId and sanitized RPC URL for blockchain monitoring
+ */
+export const extractPublicClientContext: ContextExtractor = (entity: any): ExtractedContext => {
+  if (!entityTypeGuards.isPublicClient(entity)) {
+    return {}
+  }
+
+  try {
+    const publicClient = entity as PublicClient
+    const clientInfo = extractClientInfo(publicClient)
+
+    return {
+      eco: {
+        chain_id: clientInfo.chainId,
+        rpc_url: clientInfo.rpcUrl,
+      },
+    }
+  } catch (error) {
+    // Fallback for mock objects or incomplete PublicClient instances
+    return {
+      eco: {
+        chain_id: 'mock',
+        rpc_url: 'mock://test-client',
+      },
+    }
+  }
 }
 
 /**

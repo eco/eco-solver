@@ -141,7 +141,12 @@ export class WalletFulfillService implements IFulfillService {
    * @param target the target ERC20 address
    * @returns
    */
-  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex): Call[] {
+  @LogSubOperation('erc20_handling')
+  handleErc20(
+    @LogContext tt: TransactionTargetData,
+    @LogContext solver: Solver,
+    @LogContext target: Hex,
+  ): Call[] {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
@@ -169,7 +174,11 @@ export class WalletFulfillService implements IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve transaction target data and relevant configurations.
    * @return {Array} An array of generated transactions based on the intent targets. Returns an empty array if no valid transactions are created.
    */
-  private getTransactionsForTargets(model: IntentSourceModel, solver: Solver) {
+  @LogSubOperation('transaction_target_generation')
+  private getTransactionsForTargets(
+    @LogContext model: IntentSourceModel,
+    @LogContext solver: Solver,
+  ) {
     const functionCalls = getFunctionCalls(model.intent.route.calls)
 
     // Create transactions for intent targets
@@ -203,7 +212,11 @@ export class WalletFulfillService implements IFulfillService {
    * @param nativeCalls - The calls that have native value transfers (from getNativeCalls)
    * @returns A Call object that transfers the total native value to the inbox contract
    */
-  private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
+  @LogSubOperation('native_fulfill_calculation')
+  private getNativeFulfill(
+    @LogContext solver: Solver,
+    @LogContext nativeCalls: CallDataInterface[],
+  ): Call {
     return {
       to: solver.inboxAddress,
       value: getNativeFulfill(nativeCalls),
@@ -217,9 +230,10 @@ export class WalletFulfillService implements IFulfillService {
    * @param model
    * @private
    */
+  @LogSubOperation('fulfill_tx_construction')
   private async getFulfillIntentTx(
-    inboxAddress: Hex,
-    model: IntentSourceModel,
+    @LogContext inboxAddress: Hex,
+    @LogContext model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
 
@@ -408,11 +422,12 @@ export class WalletFulfillService implements IFulfillService {
    * @param messageData - The message data to send
    * @return {Promise<bigint>} A promise that resolves to the fee amount
    */
+  @LogSubOperation('prover_fee_calculation')
   private async getProverFee(
-    model: IntentSourceModel,
-    claimant: Hex,
-    proverAddr: Hex,
-    messageData: Hex,
+    @LogContext model: IntentSourceModel,
+    @LogContext claimant: Hex,
+    @LogContext proverAddr: Hex,
+    @LogContext messageData: Hex,
   ): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(
       Number(model.intent.route.destination),

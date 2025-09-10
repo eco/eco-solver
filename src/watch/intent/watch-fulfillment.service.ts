@@ -40,6 +40,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
    * Subscribes to all Inbox constacts for Fulfillment events. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */
+  @LogOperation('fulfillment_watching_subscription', IntentOperationLogger)
   async subscribe(): Promise<void> {
     const subscribeTasks = entries(this.ecoConfigService.getSolvers()).map(async ([, solver]) => {
       const client = await this.publicClientService.getClient(solver.chainID)
@@ -49,7 +50,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   }
 
   @LogSubOperation('unsubscribe')
-  async unsubscribe() {
+  async unsubscribe(): Promise<void> {
     super.unsubscribe()
   }
 
@@ -62,7 +63,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   }
 
   @LogOperation('fulfillment_subscription', IntentOperationLogger)
-  async subscribeTo(client: PublicClient, @LogContext solver: Solver) {
+  async subscribeTo(@LogContext client: PublicClient, @LogContext solver: Solver): Promise<void> {
     const sourceChains = this.getSupportedChains()
     this.unwatch[solver.chainID] = client.watchContractEvent({
       address: solver.inboxAddress,
@@ -73,12 +74,16 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
         // restrict by acceptable chains, chain ids must be bigints
         _sourceChainID: sourceChains,
       },
-      onLogs: this.addJob(solver),
+      onLogs: async (logs) => {
+        const addJobFunction = await this.addJob(solver)
+        await addJobFunction(logs)
+      },
       onError: (error) => this.onError(error, client, solver),
     })
   }
 
-  addJob(solver?: Solver) {
+  @LogSubOperation('process_fulfillment_logs')
+  addJob(@LogContext solver?: Solver) {
     return async (logs: FulfillmentLog[]) => {
       // Track batch of fulfillment events detected
       if (logs.length > 0 && solver) {

@@ -179,7 +179,8 @@ export class CreateIntentService implements OnModuleInit {
    * @param query for fetching the intent
    * @returns the intent or an error
    */
-  async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
+  @LogOperation('intent_hash_lookup', IntentOperationLogger)
+  async getIntentForHash(@LogContext hash: string): Promise<EcoResponse<IntentSourceModel>> {
     try {
       const result = await this.fetchIntent({ 'intent.hash': hash })
 
@@ -204,7 +205,8 @@ export class CreateIntentService implements OnModuleInit {
    * @param query for fetching the intent
    * @returns the intent or an error
    */
-  async fetchIntent(query: object): Promise<EcoResponse<IntentSourceModel>> {
+  @LogOperation('intent_fetch', IntentOperationLogger)
+  async fetchIntent(@LogContext query: object): Promise<EcoResponse<IntentSourceModel>> {
     try {
       const intent = await this.intentModel.findOne(query)
 

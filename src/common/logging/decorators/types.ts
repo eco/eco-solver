@@ -61,6 +61,7 @@ export interface EntityTypeGuards {
   isTokenData: (entity: any) => boolean
   isValidationChecks: (entity: any) => boolean
   isGaslessIntentRequest: (entity: any) => boolean
+  isPublicClient: (entity: any) => boolean
 }
 
 /**

@@ -26,7 +26,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { IntentOperationLogger } from '@/common/logging/loggers'
-import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { LogOperation, LogSubOperation, LogContext } from '@/common/logging/decorators'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
@@ -177,6 +177,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    *
    * @return {TokenConfig[]} Array of supported tokens, each including token details and the corresponding target balance.
    */
+  @LogOperation('supported_tokens_retrieval', IntentOperationLogger)
   getSupportedTokens(): TokenConfig[] {
     return this.balanceService
       .getInboxTokens()
@@ -237,7 +238,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Hex} address - The address of the token to check.
    * @return {boolean} Returns true if the token is supported; otherwise, false.
    */
-  isSupportedToken(chainId: number, address: Hex): boolean {
+  @LogSubOperation('token_support_validation')
+  isSupportedToken(@LogContext chainId: number, @LogContext address: Hex): boolean {
     return this.config.supportedTokens.some(
       (token) => isAddressEqual(token.tokenAddress, address) && token.chainId === chainId,
     )
@@ -260,11 +262,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    *
    * @return {string} The address of the pool as specified in the configuration.
    */
+  @LogSubOperation('pool_address_retrieval')
   getPoolAddress(): Hex {
     return this.config.kernel.address as Hex
   }
 
-  private async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
+  @LogSubOperation('internal_fulfillment')
+  private async _fulfill(@LogContext intentModel: IntentDataModel): Promise<Hex> {
     const { kernel, pkp, actions } = this.config
 
     const publicClient = await this.publicClient.getClient(Number(intentModel.route.destination))
@@ -315,10 +319,11 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     return this.callLitAction(actions.fulfill, publicClient, params)
   }
 
+  @LogSubOperation('lit_action_execution')
   private async callLitAction(
-    ipfsId: string,
-    publicClient: PublicClient,
-    params: LitActionSdkParams['jsParams'],
+    @LogContext ipfsId: string,
+    @LogContext publicClient: PublicClient,
+    @LogContext params: LitActionSdkParams['jsParams'],
   ): Promise<Hex> {
     try {
       const { capacityTokenId, capacityTokenOwnerPk, pkp, litNetwork } = this.config
@@ -431,7 +436,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Hex} data - The data to be evaluated, which is expected to contain encoded function calls.
    * @return {boolean} Returns true if the data is a supported action; otherwise, false.
    */
-  private isSupportedAction(data: Hex): boolean {
+  @LogSubOperation('action_support_validation')
+  private isSupportedAction(@LogContext data: Hex): boolean {
     // Only support `transfer` function calls
     return data.startsWith(getERC20Selector('transfer'))
   }

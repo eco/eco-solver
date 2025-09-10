@@ -314,90 +314,190 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
       throw new Error('@LogSubOperation can only be applied to methods')
     }
 
-    descriptor.value = async function (this: any, ...args: any[]) {
-      const parentOperation = operationStack.current()
-
-      // If no parent operation, just execute normally
-      if (!parentOperation) {
-        return await originalMethod.apply(this, args)
+    // Detect if the original method is async by calling it with empty args and checking result
+    const isAsync = (function (method: (...args: any[]) => any): boolean {
+      // Check if it's declared as async function
+      if (method.constructor.name === 'AsyncFunction') {
+        return true
       }
+      return false
+    })(originalMethod)
 
-      // Check if logging should occur
-      if (!shouldLog(options)) {
-        return await originalMethod.apply(this, args)
-      }
+    if (isAsync) {
+      // Handle async methods
+      descriptor.value = async function (this: any, ...args: any[]) {
+        const parentOperation = operationStack.current()
 
-      // Use DecoratorLogger for sub-operations
-      const logger = new DecoratorLogger(target.constructor.name)
-
-      const operationId = generateOperationId()
-      const startTime = performance.now()
-
-      // Inherit parent context
-      const enhancedContext = {
-        ...parentOperation.context,
-        operation: {
-          ...parentOperation.context.operation,
-          id: operationId,
-          type: subOperationType,
-          parent_id: parentOperation.operationId,
-          level: parentOperation.level + 1,
-          method_name: String(propertyName),
-        },
-      }
-
-      try {
-        // Entry logging for sub-operation
-        if (shouldSample(options, 'debug')) {
-          logger.logMessage(
-            {
-              message: `${subOperationType} started`,
-              ...enhancedContext,
-            },
-            'debug',
-          )
+        // If no parent operation, just execute normally
+        if (!parentOperation) {
+          return await originalMethod.apply(this, args)
         }
 
-        const result = await originalMethod.apply(this, args)
-        const duration = performance.now() - startTime
+        // Check if logging should occur
+        if (!shouldLog(options)) {
+          return await originalMethod.apply(this, args)
+        }
 
-        // Success logging for sub-operation
-        if (shouldSample(options, 'debug')) {
+        // Use DecoratorLogger for sub-operations
+        const logger = new DecoratorLogger(target.constructor.name)
+
+        const operationId = generateOperationId()
+        const startTime = performance.now()
+
+        // Inherit parent context
+        const enhancedContext = {
+          ...parentOperation.context,
+          operation: {
+            ...parentOperation.context.operation,
+            id: operationId,
+            type: subOperationType,
+            parent_id: parentOperation.operationId,
+            level: parentOperation.level + 1,
+            method_name: String(propertyName),
+          },
+        }
+
+        try {
+          // Entry logging for sub-operation
+          if (shouldSample(options, 'debug')) {
+            logger.logMessage(
+              {
+                message: `${subOperationType} started`,
+                ...enhancedContext,
+              },
+              'debug',
+            )
+          }
+
+          const result = await originalMethod.apply(this, args)
+          const duration = performance.now() - startTime
+
+          // Success logging for sub-operation
+          if (shouldSample(options, 'debug')) {
+            logger.logMessage(
+              {
+                message: `${subOperationType} completed`,
+                ...enhancedContext,
+                performance: {
+                  ...enhancedContext.performance,
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
+              },
+              'debug',
+            )
+          }
+
+          return result
+        } catch (error) {
+          const duration = performance.now() - startTime
+
+          // Error logging for sub-operation
           logger.logMessage(
             {
-              message: `${subOperationType} completed`,
+              message: `${subOperationType} failed`,
               ...enhancedContext,
               performance: {
                 ...enhancedContext.performance,
                 duration_ms: Math.round(duration * 100) / 100,
               },
+              error: {
+                type: error instanceof Error ? error.constructor.name : 'UnknownError',
+                message: error instanceof Error ? error.message : String(error),
+              },
             },
-            'debug',
+            'error',
           )
+
+          throw error
+        }
+      }
+    } else {
+      // Handle synchronous methods
+      descriptor.value = function (this: any, ...args: any[]) {
+        const parentOperation = operationStack.current()
+
+        // If no parent operation, just execute normally
+        if (!parentOperation) {
+          return originalMethod.apply(this, args)
         }
 
-        return result
-      } catch (error) {
-        const duration = performance.now() - startTime
+        // Check if logging should occur
+        if (!shouldLog(options)) {
+          return originalMethod.apply(this, args)
+        }
 
-        // Error logging for sub-operation
-        logger.logMessage(
-          {
-            message: `${subOperationType} failed`,
-            ...enhancedContext,
-            performance: {
-              ...enhancedContext.performance,
-              duration_ms: Math.round(duration * 100) / 100,
-            },
-            error: {
-              type: error instanceof Error ? error.constructor.name : 'UnknownError',
-              message: error instanceof Error ? error.message : String(error),
-            },
+        // Use DecoratorLogger for sub-operations
+        const logger = new DecoratorLogger(target.constructor.name)
+
+        const operationId = generateOperationId()
+        const startTime = performance.now()
+
+        // Inherit parent context
+        const enhancedContext = {
+          ...parentOperation.context,
+          operation: {
+            ...parentOperation.context.operation,
+            id: operationId,
+            type: subOperationType,
+            parent_id: parentOperation.operationId,
+            level: parentOperation.level + 1,
+            method_name: String(propertyName),
           },
-          'error',
-        )
+        }
 
-        throw error
+        try {
+          // Entry logging for sub-operation
+          if (shouldSample(options, 'debug')) {
+            logger.logMessage(
+              {
+                message: `${subOperationType} started`,
+                ...enhancedContext,
+              },
+              'debug',
+            )
+          }
+
+          const result = originalMethod.apply(this, args)
+          const duration = performance.now() - startTime
+
+          // Success logging for sub-operation
+          if (shouldSample(options, 'debug')) {
+            logger.logMessage(
+              {
+                message: `${subOperationType} completed`,
+                ...enhancedContext,
+                performance: {
+                  ...enhancedContext.performance,
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
+              },
+              'debug',
+            )
+          }
+
+          return result
+        } catch (error) {
+          const duration = performance.now() - startTime
+
+          // Error logging for sub-operation
+          logger.logMessage(
+            {
+              message: `${subOperationType} failed`,
+              ...enhancedContext,
+              performance: {
+                ...enhancedContext.performance,
+                duration_ms: Math.round(duration * 100) / 100,
+              },
+              error: {
+                type: error instanceof Error ? error.constructor.name : 'UnknownError',
+                message: error instanceof Error ? error.message : String(error),
+              },
+            },
+            'error',
+          )
+
+          throw error
+        }
       }
     }
 

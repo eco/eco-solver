@@ -58,12 +58,15 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    * Unsubscribes from all IntentSource contracts. It closes all clients in {@link onModuleDestroy}
    */
   @LogSubOperation('unsubscribe')
-  async unsubscribe() {
+  async unsubscribe(): Promise<void> {
     super.unsubscribe()
   }
 
   @LogSubOperation('subscribe_to_source')
-  async subscribeTo(client: PublicClient, @LogContext source: IntentSource) {
+  async subscribeTo(
+    @LogContext client: PublicClient,
+    @LogContext source: IntentSource,
+  ): Promise<void> {
     this.unwatch[source.chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
@@ -82,7 +85,8 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           if (logs.length > 0) {
             this.ecoAnalytics.trackWatchIntentFundedEventsDetected(logs.length, source)
           }
-          await this.addJob(source, { doValidation: true })(logs)
+          const addJobFunction = await this.addJob(source, { doValidation: true })
+          await addJobFunction(logs)
         } catch (error) {
           this.logger.error('watch intent-funded onLogs handler error', {
             service: 'watch-intent-funded',
@@ -107,7 +111,11 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
     return !error
   }
 
-  addJob(source: IntentSource, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void> {
+  @LogSubOperation('process_intent_funded_logs')
+  addJob(
+    @LogContext source: IntentSource,
+    opts?: { doValidation?: boolean },
+  ): (logs: Log[]) => Promise<void> {
     return async (logs: IntentFundedLog[]) => {
       await this.processLogsResiliently(
         logs,
@@ -188,7 +196,9 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    * @returns
    */
   @LogSubOperation('get_last_recorded_tx')
-  async getLastRecordedTx(sourceChainID: bigint): Promise<IntentFundedEventModel | undefined> {
+  async getLastRecordedTx(
+    @LogContext sourceChainID: bigint,
+  ): Promise<IntentFundedEventModel | undefined> {
     return this.intentFundedEventRepository.getLastRecordedTx(sourceChainID)
   }
 }

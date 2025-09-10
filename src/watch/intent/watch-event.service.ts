@@ -12,6 +12,8 @@ import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { LogSubOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { logWatchError, createContractErrorContext } from '../utils/error-logger'
 
 /**
  * This service has hooks for subscribing and unsubscribing to a contract event.
@@ -124,7 +126,8 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * - Per-chain in-progress guard prevents overlapping recoveries.
    * - Capped exponential backoff smooths transient RPC failures.
    */
-  async onError(error: any, client: PublicClient, contract: T) {
+  @LogSubOperation('error_recovery')
+  async onError(error: any, @LogContext client: PublicClient, @LogContext contract: T) {
     // reset the filters as they might have expired or we might have been moved to a new node
     // https://support.quicknode.com/hc/en-us/articles/10838914856977-Error-code-32000-message-filter-not-found
 
@@ -138,7 +141,23 @@ export abstract class WatchEventService<T extends { chainID: number }>
 
     this.recoveryInProgress[chainID] = true
 
-    // Error context automatically logged by analytics tracking
+    // Log error with enhanced context including chainId and RPC info
+    logWatchError(
+      error,
+      client,
+      {
+        ...createContractErrorContext(contract),
+        operationName: 'RPC_CONNECTION_RECOVERY',
+        serviceName: this.constructor.name,
+        errorType: 'RPC_ERROR',
+        additionalContext: {
+          ignoredAttempts: this.recoveryIgnoredAttempts[chainID] ?? 0,
+          recoveryAttempts: this.recoveryAttempts[chainID] ?? 0,
+        },
+      },
+      this.logger,
+      this.ecoAnalytics,
+    )
 
     // Track error occurrence if analytics service is available
     if (this.ecoAnalytics) {
@@ -212,6 +231,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Process a batch of logs resiliently, ensuring a single failure does not halt the batch.
    * Logs a concise failure summary when any items fail.
    */
+  @LogSubOperation('process_logs_batch')
   protected async processLogsResiliently<L>(
     logs: L[],
     handleOne: (log: L) => Promise<void>,
@@ -227,7 +247,27 @@ export abstract class WatchEventService<T extends { chainID: number }>
       this.logger.error({
         msg: `${summaryLabel}: ${failures.length}/${logs.length} jobs failed to be added to queue`,
         failures: failureMessages,
+        service: this.constructor.name,
+        operation: 'process_logs_batch',
+        totalLogs: logs.length,
+        failedLogs: failures.length,
+        successRate: (((logs.length - failures.length) / logs.length) * 100).toFixed(2) + '%',
       })
+
+      // Track processing errors with analytics
+      if (this.ecoAnalytics) {
+        this.ecoAnalytics.trackError(
+          'WATCH_LOG_PROCESSING_FAILURES',
+          new Error(`${failures.length}/${logs.length} logs failed processing`),
+          {
+            service: this.constructor.name,
+            summaryLabel,
+            failureCount: failures.length,
+            totalCount: logs.length,
+            failureMessages,
+          },
+        )
+      }
     }
   }
 
@@ -236,7 +276,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * @param chainID the chain id to unsubscribe from
    */
   @LogSubOperation('unsubscribe_from_chain')
-  async unsubscribeFrom(chainID: number) {
+  async unsubscribeFrom(@LogContext chainID: number) {
     if (this.unwatch[chainID]) {
       try {
         this.unwatch[chainID]()

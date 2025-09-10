@@ -159,7 +159,9 @@ describe('WatchIntentService', () => {
 
     beforeEach(async () => {
       mockQueueAdd = jest.spyOn(queue, 'add')
-      await watchIntentService.addJob(s)([log])
+      // Call the decorated method and await the returned function
+      const addJobFunction = await watchIntentService.addJob(s)
+      await addJobFunction([log])
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
     })
     it('should convert all bigints to strings', async () => {
@@ -190,7 +192,9 @@ describe('WatchIntentService', () => {
 
     it('tracks analytics when job is queued successfully', async () => {
       const spy = jest.spyOn(ecoAnalyticsService, 'trackWatchCreateIntentJobQueued')
-      await watchIntentService.addJob(s)([log])
+      // Call the decorated method and await the returned function
+      const addJobFunction = await watchIntentService.addJob(s)
+      await addJobFunction([log])
       expect(spy).toHaveBeenCalledWith(expect.any(Object), expect.any(String), s)
     })
 
@@ -203,7 +207,9 @@ describe('WatchIntentService', () => {
       const allSettledSpy = jest.spyOn(Promise, 'allSettled')
 
       // The method completes successfully despite the queue error being thrown internally
-      await expect(watchIntentService.addJob(s)([log])).resolves.not.toThrow()
+      // Call the decorated method and await the returned function
+      const addJobFunction = await watchIntentService.addJob(s)
+      await expect(addJobFunction([log])).resolves.not.toThrow()
 
       // Verify that Promise.allSettled was used (proves resilient error handling)
       expect(allSettledSpy).toHaveBeenCalled()

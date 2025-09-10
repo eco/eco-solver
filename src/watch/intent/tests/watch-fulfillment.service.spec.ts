@@ -118,7 +118,9 @@ describe('WatchFulfillmentService', () => {
 
       beforeEach(async () => {
         mockQueueAdd = jest.spyOn(queue, 'add')
-        await watchFulfillmentService.addJob()([log])
+        // Call the decorated method and await the returned function
+        const addJobFunction = await watchFulfillmentService.addJob()
+        await addJobFunction([log])
       })
 
       it('should convert all bigints to strings', async () => {

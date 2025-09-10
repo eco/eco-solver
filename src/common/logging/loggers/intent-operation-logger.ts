@@ -494,31 +494,6 @@ export class IntentOperationLogger extends BaseStructuredLogger {
   }
 
   /**
-   * Log LIT action execution results
-   */
-  logLitActionResult(intentHash: string, success: boolean, result?: any, error?: any): void {
-    const context = {
-      eco: {
-        intent_hash: intentHash,
-      },
-      lit_action: {
-        execution_result: success ? 'success' : 'failure',
-        result_data: result,
-        error_details: error?.message,
-      },
-      operation: {
-        business_event: 'lit_action_executed',
-        action_taken: success ? 'process_result' : 'handle_execution_error',
-      },
-    }
-
-    const message = success
-      ? `LIT action executed successfully for intent ${intentHash}`
-      : `LIT action execution failed for intent ${intentHash}: ${error?.message}`
-    this.logMessage(context, success ? 'info' : 'error', message)
-  }
-
-  /**
    * Log intent not found during fulfillment processing
    */
   logFulfillmentProcessingIntentNotFound(intentHash: string, reason: string): void {
@@ -593,5 +568,233 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       ? `Solver resolution successful: ${solver?.id || solver?.name}`
       : `Solver resolution failed: ${reason}`
     this.logMessage(context, resolved ? 'info' : 'warn', message)
+  }
+
+  // ================== NEW BUSINESS EVENT METHODS ==================
+
+  /**
+   * Log transaction target generation results
+   */
+  logTransactionTargetGeneration(intentHash: string, targetCount: number, success: boolean): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      transaction_generation: {
+        target_count: targetCount,
+        generation_result: success ? 'success' : 'failure',
+        generation_stage: 'transaction_target_creation',
+      },
+      operation: {
+        business_event: 'transaction_target_generation',
+        action_taken: success ? 'proceed_with_fulfillment' : 'abort_fulfillment',
+      },
+    }
+
+    this.logMessage(
+      context,
+      success ? 'debug' : 'error',
+      `Transaction target generation ${success ? 'succeeded' : 'failed'}: ${targetCount} targets`,
+    )
+  }
+
+  /**
+   * Log ERC20 token handling results
+   */
+  logErc20TokenHandling(
+    intentHash: string,
+    tokenAddress: string,
+    operation: string,
+    success: boolean,
+  ): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+        token_address: tokenAddress,
+      },
+      erc20_handling: {
+        operation_type: operation,
+        handling_result: success ? 'success' : 'failure',
+        handling_stage: 'erc20_transaction_preparation',
+      },
+      operation: {
+        business_event: 'erc20_token_handling',
+        action_taken: success ? 'create_approval_transaction' : 'skip_token_handling',
+      },
+    }
+
+    this.logMessage(
+      context,
+      success ? 'debug' : 'warn',
+      `ERC20 token handling (${operation}) ${success ? 'succeeded' : 'failed'} for ${tokenAddress}`,
+    )
+  }
+
+  /**
+   * Log native fulfill calculation results
+   */
+  logNativeFulfillCalculation(intentHash: string, totalValue: bigint, callCount: number): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      native_calculation: {
+        total_native_value: totalValue.toString(),
+        native_calls_count: callCount,
+        calculation_stage: 'native_fulfill_preparation',
+      },
+      operation: {
+        business_event: 'native_fulfill_calculated',
+        action_taken: 'prepare_native_transfer',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'debug',
+      `Native fulfill calculation: ${totalValue.toString()} wei from ${callCount} calls`,
+    )
+  }
+
+  /**
+   * Log crowd liquidity pool solvency check
+   */
+  logCrowdLiquidityPoolSolvency(intentHash: string, solvent: boolean, poolAddress: string): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+        pool_address: poolAddress,
+      },
+      pool_solvency: {
+        is_solvent: solvent,
+        solvency_check_stage: 'pool_balance_validation',
+        solvency_reason: solvent ? 'sufficient_pool_balance' : 'insufficient_pool_balance',
+      },
+      operation: {
+        business_event: 'crowd_liquidity_pool_solvency_check',
+        action_taken: solvent ? 'proceed_with_crowd_liquidity' : 'fallback_to_solver',
+      },
+    }
+
+    this.logMessage(
+      context,
+      solvent ? 'debug' : 'warn',
+      `Crowd liquidity pool solvency: ${solvent ? 'solvent' : 'insolvent'}`,
+    )
+  }
+
+  /**
+   * Log LIT action execution result (enhanced version)
+   */
+  logLitActionResult(actionId: string, success: boolean, response: string, context?: object): void {
+    const logContext = {
+      lit_action: {
+        action_id: actionId,
+        execution_result: success ? 'success' : 'failure',
+        response_data: response,
+        execution_stage: 'lit_protocol_execution',
+      },
+      operation: {
+        business_event: 'lit_action_executed',
+        action_taken: success ? 'process_transaction_response' : 'handle_lit_action_error',
+      },
+      ...context,
+    }
+
+    this.logMessage(
+      logContext,
+      success ? 'info' : 'error',
+      `LIT action ${actionId} ${success ? 'executed successfully' : 'failed'}: ${response}`,
+    )
+  }
+
+  /**
+   * Log token support validation results
+   */
+  logTokenSupportValidation(tokenAddress: string, chainId: number, supported: boolean): void {
+    const context = {
+      eco: {
+        token_address: tokenAddress,
+        chain_id: chainId,
+      },
+      token_validation: {
+        is_supported: supported,
+        validation_stage: 'token_support_check',
+        validation_reason: supported ? 'token_in_supported_list' : 'token_not_in_supported_list',
+      },
+      operation: {
+        business_event: 'token_support_validation',
+        action_taken: supported ? 'proceed_with_token' : 'reject_token',
+      },
+    }
+
+    this.logMessage(
+      context,
+      supported ? 'debug' : 'warn',
+      `Token support validation: ${tokenAddress} on chain ${chainId} is ${supported ? 'supported' : 'not supported'}`,
+    )
+  }
+
+  /**
+   * Log prover fee calculation results
+   */
+  logProverFeeCalculation(
+    intentHash: string,
+    proverAddr: string,
+    fee: bigint,
+    success: boolean,
+  ): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+        prover_address: proverAddr,
+      },
+      prover_fee: {
+        calculated_fee: fee.toString(),
+        calculation_result: success ? 'success' : 'failure',
+        calculation_stage: 'prover_fee_estimation',
+      },
+      operation: {
+        business_event: 'prover_fee_calculated',
+        action_taken: success ? 'use_calculated_fee' : 'fallback_fee_estimation',
+      },
+    }
+
+    this.logMessage(
+      context,
+      success ? 'debug' : 'error',
+      `Prover fee calculation ${success ? 'succeeded' : 'failed'}: ${fee.toString()} wei`,
+    )
+  }
+
+  /**
+   * Log fulfillment method selection
+   */
+  logFulfillmentMethodSelection(
+    intentHash: string,
+    method: 'wallet' | 'crowd-liquidity',
+    reason?: string,
+  ): void {
+    const context = {
+      eco: {
+        intent_hash: intentHash,
+      },
+      fulfillment_method: {
+        selected_method: method,
+        selection_reason: reason || 'default_selection',
+        selection_stage: 'fulfillment_orchestration',
+      },
+      operation: {
+        business_event: 'fulfillment_method_selected',
+        action_taken:
+          method === 'crowd-liquidity' ? 'execute_crowd_liquidity' : 'execute_wallet_fulfillment',
+      },
+    }
+
+    this.logMessage(
+      context,
+      'info',
+      `Fulfillment method selected: ${method}${reason ? ` (${reason})` : ''}`,
+    )
   }
 }

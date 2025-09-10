@@ -58,7 +58,8 @@ export class UtilsIntentService {
    * @param intentModel the model factory to use
    * @param model the new model data
    */
-  async updateIntentModel(model: IntentSourceModel) {
+  @LogOperation('intent_model_update', IntentOperationLogger)
+  async updateIntentModel(@LogContext model: IntentSourceModel) {
     return await this.intentModel.updateOne({ 'intent.hash': model.intent.hash }, model)
   }
 
