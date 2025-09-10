@@ -39,10 +39,6 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return this.configService.get<SolanaConfig['tokens']>('svm.tokens')!;
   }
 
-  get walletAddress(): SolanaConfig['walletAddress'] {
-    return this.configService.get<SvmAddress>('svm.walletAddress');
-  }
-
   get portalProgramId(): SolanaConfig['portalProgramId'] {
     return this.configService.get<SvmAddress>('svm.portalProgramId')!;
   }
@@ -67,7 +63,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
     if (!portalId) {
       throw new Error('Solana portal program ID not configured');
     }
-    return AddressNormalizer.normalize(portalId as any, ChainType.SVM);
+    return AddressNormalizer.normalizeSvm(portalId);
   }
 
   isTokenSupported(_chainId: ChainIdentifier, tokenAddress: UniversalAddress): boolean {

@@ -38,7 +38,6 @@ export const SolanaSchema = z.object({
     .regex(/^wss?:/)
     .optional(),
   secretKey: z.string(), // alias for privateKey
-  walletAddress: SvmAddressSchema.optional(),
   portalProgramId: SvmAddressSchema,
   provers: z.record(z.enum(ProverTypeValues), SvmAddressSchema),
   defaultProver: z.enum(ProverTypeValues),

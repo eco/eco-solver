@@ -7,7 +7,7 @@ import { IdlTypes } from '@coral-xyz/anchor';
  * IDL can be found at `target/idl/portal.json`.
  */
 export type PortalIdl = {
-  address: '52gVFYqekRiSUxWwCKPNKw9LhBsVxbZiLSnGVsTBGh5F';
+  address: '5nCJDkRg8mhj9XHkjuFoR6Mcs6VcDZVsCbZ7pTJhRFEF';
   metadata: {
     name: 'portal';
     version: '0.1.0';

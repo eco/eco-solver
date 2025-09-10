@@ -11,10 +11,7 @@ export function addressToBytes32(address: string): number[] {
   }
   // For Solana base58 addresses, decode and pad/truncate to 32 bytes
   const publicKey = new PublicKey(address);
-  const bytes = publicKey.toBytes();
-  const result = new Uint8Array(32);
-  result.set(bytes.slice(0, 32));
-  return Array.from(result);
+  return Array.from(publicKey.toBytes());
 }
 
 /**
@@ -27,6 +24,6 @@ export function bytes32ToAddress(bytes: number[] | Uint8Array): SvmAddress {
   return pubkey.toString() as SvmAddress;
 }
 
-export function bufferToBytes32(bytes: Buffer | number[]): Hex {
+export function bufferToBytes(bytes: Buffer | number[]): Hex {
   return ('0x' + Buffer.from(bytes).toString('hex')) as Hex;
 }

@@ -18,13 +18,13 @@ export function toEVMIntent(intent: Intent): EVMIntent {
     intentHash: intent.intentHash,
     destination: intent.destination,
     sourceChainId: intent.sourceChainId,
-    route: toRouteEVMIntent(intent.route),
-    reward: toRewardEVMIntent(intent.reward),
+    route: toEvmRoute(intent.route),
+    reward: toEvmReward(intent.reward),
     status: intent.status,
   };
 }
 
-export function toRewardEVMIntent(reward: Intent['reward']): EVMIntent['reward'] {
+export function toEvmReward(reward: Intent['reward']): EVMIntent['reward'] {
   return {
     deadline: reward.deadline,
     creator: AddressNormalizer.denormalizeToEvm(reward.creator),
@@ -37,7 +37,7 @@ export function toRewardEVMIntent(reward: Intent['reward']): EVMIntent['reward']
   };
 }
 
-export function toRouteEVMIntent(route: Intent['route']): EVMIntent['route'] {
+export function toEvmRoute(route: Intent['route']): EVMIntent['route'] {
   return {
     salt: route.salt,
     deadline: route.deadline,

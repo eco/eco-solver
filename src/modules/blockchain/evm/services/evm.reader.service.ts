@@ -11,7 +11,7 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
-import { toRewardEVMIntent } from '@/common/utils/intent-converter';
+import { toEvmReward } from '@/common/utils/intent-converter';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -117,14 +117,13 @@ export class EvmReaderService extends BaseChainReader {
       const client = this.transportService.getPublicClient(chainId);
 
       const destinationChainType = ChainTypeDetector.detect(intent.destination);
-      const routeEncodedBuffer = PortalEncoder.encode(intent.route, destinationChainType);
-      const routeEncoded = '0x' + routeEncodedBuffer.toString('hex');
+      const routeEncoded = PortalEncoder.encode(intent.route, destinationChainType);
 
       const isFunded = await client.readContract({
         address: portalAddress,
         abi: portalAbi,
         functionName: 'isIntentFunded',
-        args: [intent.destination, routeEncoded as Hex, toRewardEVMIntent(intent.reward)],
+        args: [intent.destination, routeEncoded, toEvmReward(intent.reward)],
       });
 
       span.setAttributes({

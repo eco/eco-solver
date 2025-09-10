@@ -61,8 +61,8 @@ export class SvmReaderService extends BaseChainReader {
 
     try {
       // Denormalize to Solana address format
-      const svmWalletAddress = AddressNormalizer.denormalize(walletAddress, ChainType.SVM);
-      const svmTokenAddress = AddressNormalizer.denormalize(tokenAddress, ChainType.SVM);
+      const svmWalletAddress = AddressNormalizer.denormalizeToSvm(walletAddress);
+      const svmTokenAddress = AddressNormalizer.denormalizeToSvm(tokenAddress);
       const walletPublicKey = new PublicKey(svmWalletAddress);
       const tokenMintPublicKey = new PublicKey(svmTokenAddress);
 
@@ -90,11 +90,6 @@ export class SvmReaderService extends BaseChainReader {
 
   async isIntentFunded(intent: Intent, _chainId?: number): Promise<boolean> {
     try {
-      // Get source chain info for vault derivation
-      if (!intent.sourceChainId) {
-        throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
-      }
-
       // Short circuit: if reward tokens array is empty and nativeAmount is 0, consider it funded
       if (intent.reward.tokens.length === 0 && intent.reward.nativeAmount === BigInt(0)) {
         this.logger.debug(
@@ -131,43 +126,14 @@ export class SvmReaderService extends BaseChainReader {
           for (const rewardToken of intent.reward.tokens) {
             if (rewardToken.amount > BigInt(0)) {
               // Get the vault PDA address as a universal address
-              const vaultAddress = AddressNormalizer.normalize(
-                vaultPDA.toBase58() as any,
-                ChainType.SVM,
+              const vaultAddress = AddressNormalizer.normalizeSvm(vaultPDA);
+
+              const vaultTokenBalance = await this.getTokenBalance(
+                rewardToken.token,
+                vaultAddress,
+                Number(intent.sourceChainId),
+                true, // allowOwnerOffCurve - required for PDAs
               );
-
-              // Get the token balance with retry mechanism
-              let vaultTokenBalance: bigint | undefined;
-              let lastError;
-              const maxRetries = 5;
-              const retryDelay = 2000; // 2 seconds
-
-              for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                  vaultTokenBalance = await this.getTokenBalance(
-                    rewardToken.token,
-                    vaultAddress,
-                    Number(intent.sourceChainId),
-                    true, // allowOwnerOffCurve - required for PDAs
-                  );
-                  break;
-                } catch (error) {
-                  lastError = error;
-                  this.logger.debug(
-                    `Token balance fetch attempt ${attempt}/${maxRetries} failed: ${getErrorMessage(error)}`,
-                  );
-
-                  if (attempt < maxRetries) {
-                    // Wait before retrying, except on the last attempt
-                    await new Promise((resolve) => setTimeout(resolve, retryDelay));
-                  }
-                }
-              }
-
-              // If all retries failed, throw the last error
-              if (vaultTokenBalance === undefined) {
-                throw lastError;
-              }
 
               this.logger.debug(
                 `Token ${AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM)} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
