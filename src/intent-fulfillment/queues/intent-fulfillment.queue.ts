@@ -3,6 +3,8 @@ import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { Hex } from 'viem/_types/types/misc'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export enum IntentFulfillmentJobName {
   FULFILL_INTENT = 'FULFILL_INTENT',
@@ -47,7 +49,8 @@ export class IntentFulfillmentQueue {
     )
   }
 
-  addFulfillIntentJob(jobData: any) {
+  @LogOperation('add_fulfill_intent_job', GenericOperationLogger)
+  addFulfillIntentJob(@LogContext jobData: any) {
     return this.queue.add(IntentFulfillmentJobName.FULFILL_INTENT, jobData)
   }
 }

@@ -1,4 +1,6 @@
 import { Queue } from 'bullmq'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { GatewayTopUpJobData, GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
 import {
@@ -82,31 +84,38 @@ export class LiquidityManagerQueue {
 
   // Note: CHECK_BALANCES cron has been moved to a dedicated queue/processor.
 
-  startCCTPAttestationCheck(data: CheckCCTPAttestationJob['data']): Promise<void> {
+  @LogOperation('start_cctp_attestation_check', LiquidityManagerLogger)
+  startCCTPAttestationCheck(@LogContext data: CheckCCTPAttestationJob['data']): Promise<void> {
     return CheckCCTPAttestationJobManager.start(this.queue, data)
   }
 
-  startCCTPLiFiDestinationSwap(data: CCTPLiFiDestinationSwapJobData): Promise<void> {
+  @LogOperation('start_cctp_lifi_destination_swap', LiquidityManagerLogger)
+  startCCTPLiFiDestinationSwap(@LogContext data: CCTPLiFiDestinationSwapJobData): Promise<void> {
     return CCTPLiFiDestinationSwapJobManager.start(this.queue, data)
   }
 
-  startExecuteCCTPMint(data: ExecuteCCTPMintJob['data']): Promise<void> {
+  @LogOperation('start_execute_cctp_mint', LiquidityManagerLogger)
+  startExecuteCCTPMint(@LogContext data: ExecuteCCTPMintJob['data']): Promise<void> {
     return ExecuteCCTPMintJobManager.start(this.queue, data)
   }
 
-  startCCTPV2AttestationCheck(data: CheckCCTPV2AttestationJobData): Promise<void> {
+  @LogOperation('start_cctpv2_attestation_check', LiquidityManagerLogger)
+  startCCTPV2AttestationCheck(@LogContext data: CheckCCTPV2AttestationJobData): Promise<void> {
     return CheckCCTPV2AttestationJobManager.start(this.queue, data)
   }
 
-  startExecuteCCTPV2Mint(data: ExecuteCCTPV2MintJob['data']): Promise<void> {
+  @LogOperation('start_execute_cctpv2_mint', LiquidityManagerLogger)
+  startExecuteCCTPV2Mint(@LogContext data: ExecuteCCTPV2MintJob['data']): Promise<void> {
     return ExecuteCCTPV2MintJobManager.start(this.queue, data)
   }
 
-  startCheckEverclearIntent(data: CheckEverclearIntentJobData): Promise<void> {
+  @LogOperation('start_check_everclear_intent', LiquidityManagerLogger)
+  startCheckEverclearIntent(@LogContext data: CheckEverclearIntentJobData): Promise<void> {
     return CheckEverclearIntentJobManager.start(this.queue, data)
   }
 
-  startGatewayTopUp(data: GatewayTopUpJobData): Promise<void> {
+  @LogOperation('start_gateway_top_up', LiquidityManagerLogger)
+  startGatewayTopUp(@LogContext data: GatewayTopUpJobData): Promise<void> {
     return GatewayTopUpJobManager.start(this.queue, data)
   }
 }

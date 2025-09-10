@@ -1,5 +1,7 @@
 import { Queue } from 'bullmq'
 import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
 import {
   ExecuteWithdrawsJobData,
@@ -50,20 +52,24 @@ export class IntentProcessorQueue {
     )
   }
 
-  startWithdrawalsCronJobs(interval: number) {
+  @LogOperation('start_withdrawals_cron_jobs', GenericOperationLogger)
+  startWithdrawalsCronJobs(@LogContext interval: number) {
     return CheckWithdrawalsCronJobManager.start(this.queue, interval)
   }
 
-  startSendBatchCronJobs(interval: number) {
+  @LogOperation('start_send_batch_cron_jobs', GenericOperationLogger)
+  startSendBatchCronJobs(@LogContext interval: number) {
     return CheckSendBatchCronJobManager.start(this.queue, interval)
   }
 
-  addExecuteWithdrawalsJobs(jobsData: ExecuteWithdrawsJobData[]) {
+  @LogOperation('add_execute_withdrawals_jobs', GenericOperationLogger)
+  addExecuteWithdrawalsJobs(@LogContext jobsData: ExecuteWithdrawsJobData[]) {
     const jobs = jobsData.map((data) => ExecuteWithdrawsJobManager.createJob(data))
     return this.queue.addBulk(jobs)
   }
 
-  addExecuteSendBatchJobs(jobsData: ExecuteSendBatchJobData[]) {
+  @LogOperation('add_execute_send_batch_jobs', GenericOperationLogger)
+  addExecuteSendBatchJobs(@LogContext jobsData: ExecuteSendBatchJobData[]) {
     const jobs = jobsData.map((data) => ExecuteSendBatchJobManager.createJob(data))
     return this.queue.addBulk(jobs)
   }
