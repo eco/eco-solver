@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import * as crypto from 'crypto'
+import { EventEmitter } from 'events'
 
 export interface TronEnergyProvider {
   name: string
@@ -11,8 +12,6 @@ export interface TronEnergyProvider {
 export interface RentEnergyParams {
   receiverAddress: string
   amount: number
-  resourceType?: 'ENERGY' | 'BANDWIDTH'
-  period?: number
 }
 
 export interface RentEnergyResponse {
@@ -163,7 +162,7 @@ class CatfeeProvider implements TronEnergyProvider {
   public name = 'Catfee'
   private client: AxiosInstance
 
-  constructor(private apiKey: string, private apiSecret: string, private baseUrl: string = 'https://api.catfee.io') {
+  constructor(private apiKey: string, private apiSecret: string, private parent?: TronEnergyRental, private baseUrl: string = 'https://api.catfee.io') {
     this.client = axios.create({
       baseURL: this.baseUrl,
     })
@@ -220,10 +219,43 @@ class CatfeeProvider implements TronEnergyProvider {
         throw new Error(response.data.msg || 'Order creation failed')
       }
 
-      // Check balance after rental
+      // Check balance after rental and auto-topup if needed
       const balanceCheck = await this.getAccountBalance()
       if (balanceCheck.success && balanceCheck.balance < 10) {
         console.warn(`⚠️  Catfee account balance is low: ${balanceCheck.balance} TRX (below 10 TRX threshold)`)
+        
+        if (this.parent) {
+          const topupAmount = parseFloat(process.env.TOPUP_AMOUNT || '10')
+          console.log(`🔄 Automatically topping up ${topupAmount} TRX to catfee account`)
+          
+          // Get user's TRX balance before transfer
+          const userBalanceBefore = await this.parent['getUserTrxBalance']()
+          
+          // Attempt to top up
+          const topupResult = await this.parent.topUpCatfee(topupAmount)
+          
+          if (topupResult.success) {
+            console.log(`✅ Successfully topped up ${topupAmount} TRX to catfee account`)
+            
+            // Check user's balance after transfer
+            const userBalanceAfter = await this.parent['getUserTrxBalance']()
+            const balanceDrop = userBalanceBefore - userBalanceAfter
+            
+            // Emit event if user's balance dropped by the expected amount
+            if (balanceDrop >= topupAmount - 0.1) { // Allow small tolerance for transaction fees
+              this.parent.emit('balanceDeducted', {
+                amount: balanceDrop,
+                userBalanceBefore,
+                userBalanceAfter,
+                purpose: 'catfee_topup',
+                txHash: topupResult.txHash
+              })
+              console.log(`📢 Emitted balanceDeducted event: user balance dropped by ${balanceDrop} TRX`)
+            }
+          } else {
+            console.error(`❌ Failed to top up catfee account: ${topupResult.error}`)
+          }
+        }
       }
 
       return {
@@ -278,7 +310,7 @@ class CatfeeProvider implements TronEnergyProvider {
   }
 }
 
-export class TronEnergyRental {
+export class TronEnergyRental extends EventEmitter {
   private providers: TronEnergyProvider[] = []
   private tronWeb: any
 
@@ -289,12 +321,13 @@ export class TronEnergyRental {
     nettsRealIp?: string,
     catfeeApiSecret?: string,
   ) {
+    super()
     // Prioritize catfee (more reliable) over netts
     if (catfeeApiKey) {
       if (!catfeeApiSecret) {
         throw new Error('CatfeeProvider requires both API key and API secret')
       }
-      this.providers.push(new CatfeeProvider(catfeeApiKey, catfeeApiSecret))
+      this.providers.push(new CatfeeProvider(catfeeApiKey, catfeeApiSecret, this))
     }
     
     if (nettsApiKey) {
@@ -347,8 +380,6 @@ export class TronEnergyRental {
   async rentEnergyIfNeeded(params: {
     receiverAddress: string
     requiredEnergy: number
-    resourceType?: 'ENERGY' | 'BANDWIDTH'
-    period?: number
   }): Promise<RentEnergyResponse> {
     const currentBalance = await this.getEnergyBalance(params.receiverAddress)
     const energyNeeded = Math.max(0, params.requiredEnergy - currentBalance)
@@ -363,8 +394,6 @@ export class TronEnergyRental {
     return this.rentEnergy({
       receiverAddress: params.receiverAddress,
       amount: energyNeeded,
-      resourceType: params.resourceType,
-      period: params.period,
     })
   }
 
@@ -605,6 +634,20 @@ export class TronEnergyRental {
       return trxCost * trxPrice.usdtPrice
     } catch (error) {
       console.error('USDT cost estimation failed:', error)
+      return 0
+    }
+  }
+
+  private async getUserTrxBalance(): Promise<number> {
+    if (!this.tronWeb) {
+      return 0
+    }
+
+    try {
+      const balance = await this.tronWeb.trx.getBalance()
+      return this.tronWeb.fromSun(balance)
+    } catch (error) {
+      console.error('Failed to get user TRX balance:', error)
       return 0
     }
   }

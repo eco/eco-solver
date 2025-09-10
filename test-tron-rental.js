@@ -1,15 +1,18 @@
+require('dotenv').config();
 const axios = require('axios');
 const crypto = require('crypto');
+const { EventEmitter } = require('events');
 
 // Mock TronEnergyRental class with the actual service logic
-class TronEnergyRental {
+class TronEnergyRental extends EventEmitter {
   constructor(nettsApiKey, catfeeApiKey, tronWebInstance, nettsRealIp, catfeeApiSecret) {
+    super();
     this.providers = [];
     this.tronWeb = tronWebInstance;
 
     // Add catfee first (prioritized)
     if (catfeeApiKey && catfeeApiSecret) {
-      this.providers.push(new CatfeeProvider(catfeeApiKey, catfeeApiSecret));
+      this.providers.push(new CatfeeProvider(catfeeApiKey, catfeeApiSecret, this));
     }
 
     // // Add netts second (fallback)
@@ -66,12 +69,18 @@ class TronEnergyRental {
       txHash: '0x' + crypto.randomBytes(32).toString('hex')
     };
   }
+
+  async getUserTrxBalance() {
+    // Mock user has 50 TRX initially
+    return 50;
+  }
 }
 
 class CatfeeProvider {
-  constructor(apiKey, apiSecret) {
+  constructor(apiKey, apiSecret, parent) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
+    this.parent = parent;
     this.name = 'Catfee';
   }
 
@@ -102,7 +111,7 @@ class CatfeeProvider {
       }
 
       return {
-        balance: response.data.data?.balance / 1000000 || 0, // Convert SUN to TRX
+        balance: 5, // Force low balance for testing auto-topup
         success: true,
       };
     } catch (error) {
@@ -127,10 +136,43 @@ class CatfeeProvider {
         throw new Error(response.data.msg || 'Order creation failed');
       }
 
-      // Check balance after rental (simulate the service logic)
+      // Check balance after rental and auto-topup if needed (simulate the service logic)
       const balanceCheck = await this.getAccountBalance();
       if (balanceCheck.success && balanceCheck.balance < 10) {
         console.warn(`⚠️  Catfee account balance is low: ${balanceCheck.balance} TRX (below 10 TRX threshold)`);
+        
+        if (this.parent) {
+          const topupAmount = parseFloat(process.env.TOPUP_AMOUNT || '10');
+          console.log(`🔄 Automatically topping up ${topupAmount} TRX to catfee account`);
+          
+          // Get user's TRX balance before transfer
+          const userBalanceBefore = await this.parent.getUserTrxBalance();
+          
+          // Attempt to top up
+          const topupResult = await this.parent.topUpCatfee(topupAmount);
+          
+          if (topupResult.success) {
+            console.log(`✅ Successfully topped up ${topupAmount} TRX to catfee account`);
+            
+            // Check user's balance after transfer (simulate reduction)
+            const userBalanceAfter = userBalanceBefore - topupAmount - 0.05; // Simulate fee
+            const balanceDrop = userBalanceBefore - userBalanceAfter;
+            
+            // Emit event if user's balance dropped by the expected amount
+            if (balanceDrop >= topupAmount - 0.1) { // Allow small tolerance for transaction fees
+              this.parent.emit('balanceDeducted', {
+                amount: balanceDrop,
+                userBalanceBefore,
+                userBalanceAfter,
+                purpose: 'catfee_topup',
+                txHash: topupResult.txHash
+              });
+              console.log(`📢 Emitted balanceDeducted event: user balance dropped by ${balanceDrop} TRX`);
+            }
+          } else {
+            console.error(`❌ Failed to top up catfee account: ${topupResult.error}`);
+          }
+        }
       }
 
       return {
@@ -170,10 +212,8 @@ class CatfeeProvider {
 async function testTronRental() {
   console.log('🚀 Testing Tron Energy Rental Service...\n');
 
-  // Load environment variables manually
-  process.env.CATFEE_API_KEY = '180c07ee-676d-41ad-af0d-432def78c9b3';
-  process.env.CATFEE_API_SECRET = 'c98082cad1d209341bd732d3ba55520e';
-  process.env.CATFEE_DEPOSIT_ADDRESS = 'TJn6nkaQAMoLSNeMcQXkQbrUqTwJFH6sLY';
+  // Set test-specific topup amount
+  process.env.TOPUP_AMOUNT = '15';
 
   const energyRental = new TronEnergyRental(
     // process.env.NETTS_API_KEY,
@@ -184,6 +224,11 @@ async function testTronRental() {
     null,
     process.env.CATFEE_API_SECRET
   );
+
+  // Listen for balance deduction events
+  energyRental.on('balanceDeducted', (data) => {
+    console.log('🎯 Balance Deduction Event Received:', data);
+  });
 
   // Test 1: Check current balance
   console.log('📋 Test 1: Check Catfee Account Balance');
