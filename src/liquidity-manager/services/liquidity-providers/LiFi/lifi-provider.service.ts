@@ -18,7 +18,6 @@ import {
   LiFiAssetCacheManager,
   CacheStatus,
 } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
@@ -27,6 +26,7 @@ import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
 export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
@@ -37,7 +37,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
-    private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientV2Service,
     private readonly rebalanceRepository: RebalanceRepository,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
@@ -104,7 +104,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
-    const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
+    const { swapSlippage, maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
 
     // Validate tokens and chains before making API call
     const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
@@ -134,14 +134,14 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toAddress: this.walletAddress,
       toChainId: tokenOut.chainId,
       toTokenAddress: tokenOut.config.address,
-    }
-
-    if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
-      routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
+      options: {
+        slippage: tokenIn.chainId === tokenOut.chainId ? swapSlippage : maxQuoteSlippage,
+      },
     }
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withId({
+        id,
         message: 'LiFi route request',
         properties: { route: routesRequest },
       }),
@@ -190,11 +190,25 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
         throw error
       }
 
-      await this._execute(quote)
+      const result = await this._execute(quote)
+      this.logger.debug(
+        EcoLogMessage.withId({
+          id: quote.id,
+          message: 'LiFi: Execution result',
+          properties: { result },
+        }),
+      )
       if (quote.rebalanceJobID) {
         await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
       }
     } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withErrorAndId({
+          id: quote.id,
+          message: 'LiFi: Execution error',
+          error,
+        }),
+      )
       try {
         if (quote.rebalanceJobID) {
           await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)

@@ -47,12 +47,11 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
   static async start(queue: Queue, data: CCTPLiFiDestinationSwapJobData, delay = 0): Promise<void> {
     await queue.add(LiquidityManagerJobName.CCTP_LIFI_DESTINATION_SWAP, data, {
       removeOnComplete: true,
-      removeOnFail: false, // Keep failed jobs for debugging - helps with stranded USDC recovery
       delay,
       attempts: 3,
       backoff: {
         type: 'exponential',
-        delay: 15_000, // 15 seconds base delay
+        delay: 2_000, // 2 second base delay
       },
     })
   }
@@ -295,6 +294,14 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         id: job.data.id,
         error: error as any,
         properties: {
+          jobId: job.data.id,
+          walletAddress: job.data.walletAddress,
+          chainId: job.data.destinationChainId,
+          originalTokenTarget: job.data.originalTokenOut.address,
+          usdcAmount: job.data.destinationSwapQuote.fromAmount,
+          attemptsMade: job.attemptsMade,
+          maxAttempts: job.opts?.attempts || 1,
+          timestamp: new Date().toISOString(),
           data: job.data,
         },
       }),

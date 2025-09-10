@@ -3,7 +3,6 @@ import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
@@ -13,11 +12,12 @@ import { CheckCCTPV2AttestationJobData } from '@/liquidity-manager/jobs/check-cc
 import { CCTPV2Config } from '@/eco-configs/eco-config.types'
 import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitter'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
@@ -30,8 +30,8 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly walletClientService: LmTxGatedWalletClientService,
     private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
