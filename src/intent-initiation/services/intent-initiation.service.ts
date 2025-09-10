@@ -314,7 +314,7 @@ export class IntentInitiationService implements OnModuleInit {
       }),
     )
 
-    await this._processFulfilled(fulfillmentLog.args._hash)
+    await this._processFulfilled(fulfillmentLog.args.intentHash)
   }
 
   async _processFulfilled(hash: string) {

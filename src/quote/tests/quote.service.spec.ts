@@ -59,7 +59,6 @@ describe('QuotesService', () => {
   let feeService: DeepMocked<FeeService>
   let validationService: DeepMocked<ValidationService>
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let quoteModel: DeepMocked<Model<QuoteIntentModel>>
   let fulfillmentEstimateService: DeepMocked<FulfillmentEstimateService>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -119,7 +118,6 @@ describe('QuotesService', () => {
     validationService = chainMod.get(ValidationService)
 
     ecoConfigService = chainMod.get(EcoConfigService)
-    quoteModel = chainMod.get(getModelToken(QuoteIntentModel.name))
     fulfillmentEstimateService = chainMod.get(FulfillmentEstimateService)
 
     quoteService['logger'].debug = mockLogDebug
