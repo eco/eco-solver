@@ -54,7 +54,7 @@
     "@eco-foundation/routes-ts": "^2.8.14",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
-    "@lifi/sdk": "^3.6.6",
+    "@lifi/sdk": "^3.12.1",
     "@lit-protocol/auth-helpers": "^7.0.4",
     "@lit-protocol/constants": "^7.0.4",
     "@lit-protocol/lit-node-client": "^7.0.4",
@@ -69,7 +69,7 @@
     "@nestjs/platform-express": "^11.0.11",
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/terminus": "^10.2.3",
-    "@reservoir0x/relay-sdk": "^2.0.1",
+    "@reservoir0x/relay-sdk": "^2.4.0",
     "@rhinestone/module-sdk": "^0.2.7",
     "@shelf/jest-mongodb": "^4.1.7",
     "@zerodev/ecdsa-validator": "^5.4.9",
@@ -99,7 +99,7 @@
     "rxjs": "^7.8.1",
     "table": "^6.8.2",
     "uuid": "^11.0.5",
-    "viem": "^2.31.7"
+    "viem": "^2.37.3"
   },
   "devDependencies": {
     "@golevelup/ts-jest": "^0.5.0",
