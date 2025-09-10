@@ -148,9 +148,6 @@ describe('CreateIntentService', () => {
     })
 
     it('should decode the event', async () => {
-      const mockQueryIntent = jest.fn().mockResolvedValue(null)
-      intentSourceRepository.queryIntent = mockQueryIntent
-
       await createIntentService.createIntent(mockEvent as any)
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: `createIntent ${mockEvent.transactionHash}`,

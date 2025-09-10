@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Model } from 'mongoose'
-import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
+import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { RewardTokensInterface, CallDataInterface } from '@/contracts'
 import { RouteType, hashIntent } from '@eco-foundation/routes-ts'
 
@@ -21,11 +21,7 @@ export class IntentSourceRepository {
   ) {}
 
   async create(data: any): Promise<IntentSourceModel> {
-    const newInstance = new this.model(data)
-    await newInstance.save()
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _id, ...rest } = newInstance.toObject({ versionKey: false })
-    return rest as IntentSourceModel
+    return this.model.create(data)
   }
 
   async getIntent(hash: string, projection: object = {}): Promise<IntentSourceModel | null> {
@@ -44,11 +40,12 @@ export class IntentSourceRepository {
     quoteID: string,
     funder: Hex,
     route: RouteType,
-    reward: QuoteRewardDataModel,
+    reward: QuoteRewardDataType,
   ) {
     try {
       const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
-      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
+      const { creator, prover, deadline, nativeValue } = reward
+      const rewardTokens = reward.tokens as RewardTokensInterface[]
       const intentHash = hashIntent({ route, reward }).intentHash
 
       this.logger.debug(

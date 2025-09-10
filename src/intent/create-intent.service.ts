@@ -64,7 +64,7 @@ export class CreateIntentService implements OnModuleInit {
     const intent = this.getIntentFromIntentCreatedLog(intentWs)
 
     try {
-      //check db if the intent is already filled
+      // Check db if the intent is already filled
       const model = await this.intentSourceRepository.getIntent(intent.hash)
 
       if (model) {
