@@ -42,7 +42,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
   ): Promise<void> {
     try {
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
-        removeOnComplete: true,
+        removeOnFail: false,
         delay,
         attempts: 10,
         backoff: {
