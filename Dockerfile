@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@9.11.0 --activate
 
@@ -24,6 +27,9 @@ RUN pnpm run build
 
 # Production stage
 FROM node:20-alpine
+
+# Install build dependencies for native modules (needed for production dependencies)
+RUN apk add --no-cache python3 make g++
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
