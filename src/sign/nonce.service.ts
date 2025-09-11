@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Nonce } from './schemas/nonce.schema'
@@ -12,6 +12,7 @@ import { createPublicClient, extractChain, Hex, sha256 } from 'viem'
 import { SignerService } from './signer.service'
 import { getTransport } from '../common/chains/transport'
 import { ChainsSupported } from '../common/chains/supported'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * TODO this class needs to be assigned to an EAO, a userOp gets its nonce throught the alchemy sdk
@@ -19,7 +20,7 @@ import { ChainsSupported } from '../common/chains/supported'
  */
 @Injectable()
 export class NonceService extends AtomicNonceService<Nonce> implements OnApplicationBootstrap {
-  protected logger = new Logger(NonceService.name)
+  protected logger = new GenericOperationLogger('NonceService')
   private intentJobConfig: JobsOptions
 
   constructor(

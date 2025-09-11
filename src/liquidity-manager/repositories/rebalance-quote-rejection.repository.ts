@@ -1,5 +1,6 @@
 import { EcoResponse } from '@/common/eco-response'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import {
@@ -48,7 +49,7 @@ export interface CreateRejectionData {
  */
 @Injectable()
 export class RebalanceQuoteRejectionRepository {
-  private logger = new Logger(RebalanceQuoteRejectionRepository.name)
+  private logger = new LiquidityManagerLogger('RebalanceQuoteRejectionRepository')
 
   constructor(
     @InjectModel(RebalanceQuoteRejectionModel.name)
@@ -68,36 +69,52 @@ export class RebalanceQuoteRejectionRepository {
     rejectionData: CreateRejectionData,
   ): Promise<EcoResponse<RebalanceQuoteRejectionModel>> {
     try {
-      this.logger.log('Persisting quote rejection', {
-        service: 'rebalance-quote-rejection-repository',
-        operation: 'create_rejection',
-        rebalanceId: rejectionData.rebalanceId,
-        strategy: rejectionData.strategy,
-        reason: rejectionData.reason,
-        tokenInChain: rejectionData.tokenIn.chainId,
-        tokenOutChain: rejectionData.tokenOut.chainId,
-      })
+      this.logger.log(
+        {
+          rebalanceId: rejectionData.rebalanceId,
+          walletAddress: rejectionData.walletAddress || 'system',
+          strategy: rejectionData.strategy,
+          sourceChainId: rejectionData.tokenIn.chainId,
+          destinationChainId: rejectionData.tokenOut.chainId,
+        },
+        'Persisting quote rejection',
+        {
+          reason: rejectionData.reason,
+          tokenInChain: rejectionData.tokenIn.chainId,
+          tokenOutChain: rejectionData.tokenOut.chainId,
+        },
+      )
 
       const rejectionModel = await this.model.create(rejectionData)
 
-      this.logger.log('Quote rejection persisted successfully', {
-        service: 'rebalance-quote-rejection-repository',
-        operation: 'create_rejection',
-        rejectionId: rejectionModel._id,
-        rebalanceId: rejectionData.rebalanceId,
-      })
+      this.logger.log(
+        {
+          rebalanceId: rejectionData.rebalanceId,
+          walletAddress: rejectionData.walletAddress || 'system',
+          strategy: rejectionData.strategy,
+        },
+        'Quote rejection persisted successfully',
+        {
+          rejectionId: rejectionModel._id,
+        },
+      )
 
       return { response: rejectionModel }
     } catch (error) {
       // Non-blocking: log error but don't throw to avoid breaking quote operations
-      this.logger.error('Failed to persist quote rejection - continuing with quote operation', {
-        service: 'rebalance-quote-rejection-repository',
-        operation: 'create_rejection',
-        rebalanceId: rejectionData.rebalanceId,
-        strategy: rejectionData.strategy,
-        reason: rejectionData.reason,
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: rejectionData.rebalanceId,
+          walletAddress: rejectionData.walletAddress || 'system',
+          strategy: rejectionData.strategy,
+        },
+        'Failed to persist quote rejection - continuing with quote operation',
+        error,
+        {
+          reason: rejectionData.reason,
+          errorMessage: error.message,
+        },
+      )
 
       return { error }
     }
@@ -119,11 +136,19 @@ export class RebalanceQuoteRejectionRepository {
       })
       return count > 0
     } catch (error) {
-      this.logger.error('Failed to check rejections in last hour', {
-        service: 'rebalance-quote-rejection-repository',
-        operation: 'check_recent_rejections',
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to check rejections in last hour',
+        error,
+        {
+          operation: 'check_recent_rejections',
+          errorMessage: error.message,
+        },
+      )
       return false
     }
   }
@@ -144,12 +169,20 @@ export class RebalanceQuoteRejectionRepository {
         createdAt: { $gte: timeAgo },
       })
     } catch (error) {
-      this.logger.error('Failed to get recent rejection count', {
-        service: 'rebalance-quote-rejection-repository',
-        operation: 'get_rejection_count',
-        timeRangeMinutes,
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to get recent rejection count',
+        error,
+        {
+          operation: 'get_rejection_count',
+          timeRangeMinutes,
+          errorMessage: error.message,
+        },
+      )
       return 0
     }
   }

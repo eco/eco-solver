@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { RebalanceRepository } from './rebalance.repository'
 import { RebalanceQuoteRejectionRepository } from './rebalance-quote-rejection.repository'
 
@@ -60,7 +61,7 @@ export interface HealthMetrics {
  */
 @Injectable()
 export class RebalancingHealthRepository {
-  private logger = new Logger(RebalancingHealthRepository.name)
+  private logger = new HealthOperationLogger('RebalancingHealthRepository')
 
   constructor(
     private readonly rebalanceRepository: RebalanceRepository,
@@ -77,10 +78,12 @@ export class RebalancingHealthRepository {
    */
   async checkRebalancingHealth(): Promise<HealthStatus> {
     try {
-      this.logger.log('Checking rebalancing health status', {
-        service: 'rebalancing-health-repository',
-        operation: 'check_health_status',
-      })
+      this.logger.log(
+        {
+          healthCheck: 'rebalancing-system',
+        },
+        'Checking rebalancing health status',
+      )
 
       const [hasRejections, hasSuccesses, rejectionCount, successCount] = await Promise.all([
         this.rejectionRepository.hasRejectionsInLastHour(),
@@ -106,19 +109,35 @@ export class RebalancingHealthRepository {
         healthReason,
       }
 
-      this.logger.log('Rebalancing health status calculated', {
-        service: 'rebalancing-health-repository',
-        operation: 'check_health_status',
-        ...healthStatus,
-      })
+      this.logger.log(
+        {
+          healthCheck: 'rebalancing-system',
+          status: healthStatus.isHealthy ? 'healthy' : 'unhealthy',
+        },
+        'Rebalancing health status calculated',
+        {
+          isHealthy: healthStatus.isHealthy,
+          successCount: healthStatus.successCount,
+          rejectionCount: healthStatus.rejectionCount,
+          lastHourHasRejections: healthStatus.lastHourHasRejections,
+          lastHourHasSuccesses: healthStatus.lastHourHasSuccesses,
+          healthReason: healthStatus.healthReason,
+        },
+      )
 
       return healthStatus
     } catch (error) {
-      this.logger.error('Failed to check rebalancing health', {
-        service: 'rebalancing-health-repository',
-        operation: 'check_health_status',
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          healthCheck: 'rebalancing-system',
+          status: 'unhealthy',
+        },
+        'Failed to check rebalancing health',
+        error,
+        {
+          errorMessage: error.message,
+        },
+      )
 
       return {
         isHealthy: false,
@@ -165,11 +184,15 @@ export class RebalancingHealthRepository {
    */
   async getHealthMetrics(timeRangeMinutes: number = 60): Promise<HealthMetrics> {
     try {
-      this.logger.log('Getting health metrics', {
-        service: 'rebalancing-health-repository',
-        operation: 'get_health_metrics',
-        timeRangeMinutes,
-      })
+      this.logger.log(
+        {
+          healthCheck: 'rebalancing-metrics',
+        },
+        'Getting health metrics',
+        {
+          timeRangeMinutes,
+        },
+      )
 
       const [successCount, rejectionCount] = await Promise.all([
         this.rebalanceRepository.getRecentSuccessCount(timeRangeMinutes),
@@ -200,20 +223,36 @@ export class RebalancingHealthRepository {
         healthReason,
       }
 
-      this.logger.log('Health metrics calculated', {
-        service: 'rebalancing-health-repository',
-        operation: 'get_health_metrics',
-        ...metrics,
-      })
+      this.logger.log(
+        {
+          healthCheck: 'rebalancing-metrics',
+          status: metrics.isHealthy ? 'healthy' : 'unhealthy',
+        },
+        'Health metrics calculated',
+        {
+          timeRangeMinutes: metrics.timeRangeMinutes,
+          successCount: metrics.successCount,
+          rejectionCount: metrics.rejectionCount,
+          successRate: metrics.successRate,
+          isHealthy: metrics.isHealthy,
+          healthReason: metrics.healthReason,
+        },
+      )
 
       return metrics
     } catch (error) {
-      this.logger.error('Failed to get health metrics', {
-        service: 'rebalancing-health-repository',
-        operation: 'get_health_metrics',
-        timeRangeMinutes,
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          healthCheck: 'rebalancing-metrics',
+          status: 'unhealthy',
+        },
+        'Failed to get health metrics',
+        error,
+        {
+          timeRangeMinutes,
+          errorMessage: error.message,
+        },
+      )
 
       return {
         timeRangeMinutes,

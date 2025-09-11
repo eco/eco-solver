@@ -13,9 +13,7 @@ import {
   LiquidityManagerQueueDataType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
-import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 export interface RebalanceJobData extends LiquidityManagerQueueDataType {
   network: string
@@ -26,9 +24,6 @@ export interface RebalanceJobData extends LiquidityManagerQueueDataType {
 export type RebalanceJob = LiquidityManagerJob<LiquidityManagerJobName.REBALANCE, RebalanceJobData>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
-  @AutoInject(RebalanceRepository)
-  private rebalanceRepository: RebalanceRepository
-
   static createJob(
     walletAddress: string,
     rebalance: RebalanceRequest,

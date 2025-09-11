@@ -1,5 +1,6 @@
 import { EcoResponse } from '@/common/eco-response'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
@@ -51,7 +52,7 @@ export interface CreateRebalanceData {
  */
 @Injectable()
 export class RebalanceRepository {
-  private logger = new Logger(RebalanceRepository.name)
+  private logger = new LiquidityManagerLogger('RebalanceRepository')
 
   constructor(
     @InjectModel(RebalanceModel.name)
@@ -88,33 +89,48 @@ export class RebalanceRepository {
     const rebalanceData = input as CreateRebalanceData
 
     try {
-      this.logger.log('Persisting successful rebalance', {
-        service: 'rebalance-repository',
-        operation: 'create_rebalance',
-        strategy: rebalanceData.strategy,
-        wallet: rebalanceData.wallet,
-        token_in_chain: rebalanceData.tokenIn.chainId,
-        token_out_chain: rebalanceData.tokenOut.chainId,
-        group_id: rebalanceData.groupId,
-      })
+      this.logger.log(
+        {
+          rebalanceId: 'pending',
+          walletAddress: rebalanceData.wallet || 'system',
+          strategy: rebalanceData.strategy,
+          sourceChainId: rebalanceData.tokenIn.chainId,
+          destinationChainId: rebalanceData.tokenOut.chainId,
+          groupId: rebalanceData.groupId,
+        },
+        'Persisting successful rebalance',
+        {
+          token_in_chain: rebalanceData.tokenIn.chainId,
+          token_out_chain: rebalanceData.tokenOut.chainId,
+        },
+      )
 
       const rebalanceModel = await this.model.create(rebalanceData)
 
-      this.logger.log('Successful rebalance persisted', {
-        service: 'rebalance-repository',
-        operation: 'create_rebalance',
-        rebalance_id: rebalanceModel._id,
-        strategy: rebalanceData.strategy,
-        group_id: rebalanceData.groupId,
-      })
+      this.logger.log(
+        {
+          rebalanceId: rebalanceModel._id.toString(),
+          walletAddress: rebalanceData.wallet || 'system',
+          strategy: rebalanceData.strategy,
+          groupId: rebalanceData.groupId,
+        },
+        'Successful rebalance persisted',
+      )
 
       return { response: rebalanceModel }
     } catch (error) {
-      this.logger.error('Failed to persist successful rebalance', {
-        service: 'rebalance-repository',
-        operation: 'create_rebalance',
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: 'failed',
+          walletAddress: 'system',
+          strategy: 'unknown',
+        },
+        'Failed to persist successful rebalance',
+        error,
+        {
+          errorMessage: error.message,
+        },
+      )
 
       return { error }
     }
@@ -148,13 +164,18 @@ export class RebalanceRepository {
     const results: RebalanceModel[] = []
     const errors: any[] = []
 
-    this.logger.log('Creating batch rebalances', {
-      service: 'rebalance-repository',
-      operation: 'create_batch',
-      wallet: walletAddress,
-      group_id: batchGroupId,
-      quotes_count: quotes.length,
-    })
+    this.logger.log(
+      {
+        rebalanceId: batchGroupId,
+        walletAddress: walletAddress,
+        strategy: 'batch',
+        groupId: batchGroupId,
+      },
+      'Creating batch rebalances',
+      {
+        quotes_count: quotes.length,
+      },
+    )
 
     for (const quote of quotes) {
       const rebalanceData: CreateRebalanceData = {
@@ -178,29 +199,40 @@ export class RebalanceRepository {
     }
 
     if (errors.length > 0) {
-      this.logger.error('Failed to store rebalancing batch', {
-        service: 'rebalance-repository',
-        operation: 'create_batch',
-        wallet: walletAddress,
-        group_id: batchGroupId,
-        quotes_count: quotes.length,
-        success_count: results.length,
-        error_count: errors.length,
-        first_error: errors[0]?.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: batchGroupId,
+          walletAddress: walletAddress,
+          strategy: 'batch',
+          groupId: batchGroupId,
+        },
+        'Failed to store rebalancing batch',
+        undefined,
+        {
+          quotes_count: quotes.length,
+          success_count: results.length,
+          error_count: errors.length,
+          first_error: errors[0]?.message,
+        },
+      )
 
       return {
         error: new Error(`${errors.length} out of ${quotes.length} rebalances failed to persist`),
       }
     }
 
-    this.logger.log('Rebalancing batch stored successfully', {
-      service: 'rebalance-repository',
-      operation: 'create_batch',
-      wallet: walletAddress,
-      group_id: batchGroupId,
-      stored_count: results.length,
-    })
+    this.logger.log(
+      {
+        rebalanceId: batchGroupId,
+        walletAddress: walletAddress,
+        strategy: 'batch',
+        groupId: batchGroupId,
+      },
+      'Rebalancing batch stored successfully',
+      {
+        stored_count: results.length,
+      },
+    )
 
     return { response: results }
   }
@@ -319,11 +351,18 @@ export class RebalanceRepository {
       })
       return count > 0
     } catch (error) {
-      this.logger.error('Failed to check successful rebalances in last hour', {
-        service: 'rebalance-repository',
-        operation: 'has_successful_rebalances_in_last_hour',
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to check successful rebalances in last hour',
+        error,
+        {
+          errorMessage: error.message,
+        },
+      )
       return false
     }
   }
@@ -344,12 +383,19 @@ export class RebalanceRepository {
         createdAt: { $gte: timeAgo },
       })
     } catch (error) {
-      this.logger.error('Failed to get recent success count', {
-        service: 'rebalance-repository',
-        operation: 'get_recent_success_count',
-        time_range_minutes: timeRangeMinutes,
-        error: error.message,
-      })
+      this.logger.error(
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to get recent success count',
+        error,
+        {
+          time_range_minutes: timeRangeMinutes,
+          errorMessage: error.message,
+        },
+      )
       return 0
     }
   }

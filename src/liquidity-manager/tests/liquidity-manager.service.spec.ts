@@ -21,17 +21,17 @@ import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
   let liquidityProviderService: LiquidityProviderService
   let crowdLiquidityService: CrowdLiquidityService
-  let kernelAccountClientService: KernelAccountClientService
+  let kernelAccountClientService: LmTxGatedKernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -45,7 +45,10 @@ describe('LiquidityManagerService', () => {
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
-        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
+        {
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+        },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         {
           provide: EcoAnalyticsService,
@@ -85,7 +88,7 @@ describe('LiquidityManagerService', () => {
     ecoConfigService = module.get(EcoConfigService)
     crowdLiquidityService = module.get(CrowdLiquidityService)
     liquidityManagerService = module.get(LiquidityManagerService)
-    kernelAccountClientService = module.get(KernelAccountClientService)
+    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
     liquidityProviderService = module.get(LiquidityProviderService)
     queue = module.get(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
     checkQueue = module.get(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
