@@ -417,6 +417,27 @@ export class KernelWallet extends BaseEvmWallet {
         totalValue: totalValue.toString(),
       });
 
+      // check kernel account balance before execution
+      const kernelBalance = await this.publicClient.getBalance({
+        address: this.kernelAccount.address,
+      });
+      
+      this.logger.debug('Kernel account balance check', {
+        kernelAddress: this.kernelAccount.address,
+        balance: kernelBalance.toString(),
+        requiredValue: totalValue.toString(),
+        sufficient: kernelBalance >= totalValue,
+      });
+
+      if (kernelBalance < totalValue) {
+        throw new Error(
+          `Kernel account has insufficient ETH balance. ` +
+          `Required: ${totalValue.toString()} wei, ` +
+          `Available: ${kernelBalance.toString()} wei. ` +
+          `Please fund the Kernel account at ${this.kernelAccount.address} with at least ${(totalValue - kernelBalance).toString()} wei additional ETH.`
+        );
+      }
+
       const execution = encodeKernelExecuteParams(calls);
 
       if (!this.ecdsaExecutorAddr) {
