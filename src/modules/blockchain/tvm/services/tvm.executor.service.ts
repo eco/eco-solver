@@ -47,13 +47,16 @@ export class TvmExecutorService extends BaseChainExecutor {
    * @param walletId - Optional wallet type to use for execution
    * @returns Execution result with success status and transaction hash if successful
    */
-  async fulfill(intent: Intent, walletId?: TvmWalletType): Promise<ExecutionResult> {
+  async fulfill(
+    intent: Intent,
+    walletId: TvmWalletType = this.tvmConfigService.defaultWallet,
+  ): Promise<ExecutionResult> {
     return TvmTracingUtils.withSpan(
       this.otelService,
       'tvm.executor.fulfill',
       {
         ...TvmTracingUtils.createIntentAttributes(intent),
-        wallet_type: walletId || 'basic',
+        wallet_type: walletId,
         operation: 'fulfill',
       },
       async (span) => {
@@ -63,8 +66,7 @@ export class TvmExecutorService extends BaseChainExecutor {
           const sourceChainId = this.getChainId(intent.sourceChainId);
 
           // Get wallet
-          const walletType = walletId || 'basic';
-          const wallet = this.walletManager.createWallet(destinationChainId, walletType);
+          const wallet = this.walletManager.createWallet(destinationChainId, walletId);
           const walletAddress = await wallet.getAddress();
 
           // Get claimant from source chain configuration
@@ -280,14 +282,14 @@ export class TvmExecutorService extends BaseChainExecutor {
   async executeBatchWithdraw(
     chainId: bigint,
     withdrawalData: BatchWithdrawData,
-    walletId?: string,
+    walletId: string = this.tvmConfigService.defaultWallet,
   ): Promise<string> {
     return TvmTracingUtils.withSpan(
       this.otelService,
       'tvm.executor.batchWithdraw',
       {
         chainId: chainId.toString(),
-        wallet_type: walletId || 'basic',
+        wallet_type: walletId,
         intent_count: withdrawalData.destinations.length,
         operation: 'batchWithdraw',
       },
@@ -296,7 +298,7 @@ export class TvmExecutorService extends BaseChainExecutor {
           const chainIdNum = this.getChainId(chainId);
 
           // Get the wallet for this chain
-          const walletType = (walletId as TvmWalletType) || 'basic';
+          const walletType = walletId as TvmWalletType;
           const wallet = this.walletManager.createWallet(chainIdNum, walletType);
           const walletAddress = await wallet.getAddress();
 

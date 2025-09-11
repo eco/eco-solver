@@ -25,7 +25,7 @@ export class TvmWalletManagerService {
    * @returns A wallet instance
    * @throws Error if wallet type is not supported
    */
-  createWallet(chainId: number | string, walletType: TvmWalletType = 'basic'): ITvmWallet {
+  createWallet(chainId: number | string, walletType: TvmWalletType): ITvmWallet {
     this.logger.log(`Creating TVM wallet of type ${walletType} for chain ${chainId}`);
 
     switch (walletType) {

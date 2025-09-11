@@ -11,6 +11,7 @@ import {
   TvmWalletsConfig,
 } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
+import { TvmWalletType } from '@/modules/blockchain/tvm/services';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
@@ -33,12 +34,17 @@ export class TvmConfigService implements IBlockchainConfigService {
     return Array.from(this._networks.keys());
   }
 
-  getSupportedChainIds(): number[] {
-    return this.supportedChainIds;
-  }
-
   get wallets(): TvmWalletsConfig {
     return this.configService.get<TvmWalletsConfig>('tvm.wallets')!;
+  }
+
+  get defaultWallet(): TvmWalletType {
+    // TODO: Move to TvmConfig
+    return 'basic';
+  }
+
+  getSupportedChainIds(): number[] {
+    return this.supportedChainIds;
   }
 
   getBasicWalletConfig() {

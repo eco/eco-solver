@@ -214,12 +214,12 @@ export class EvmExecutorService extends BaseChainExecutor {
   async executeBatchWithdraw(
     chainId: bigint,
     withdrawalData: BatchWithdrawData,
-    walletId?: string,
+    walletId = this.evmConfigService.defaultWallet,
   ): Promise<string> {
     const span = this.otelService.startSpan('evm.executor.batchWithdraw', {
       attributes: {
         'evm.chain_id': chainId.toString(),
-        'evm.wallet_type': walletId || 'basic',
+        'evm.wallet_type': walletId,
         'evm.intent_count': withdrawalData.destinations.length,
         'evm.operation': 'batchWithdraw',
       },
@@ -229,7 +229,7 @@ export class EvmExecutorService extends BaseChainExecutor {
       const chainIdNum = Number(chainId);
 
       // Get the wallet for this chain
-      const walletType = (walletId as WalletType) || 'basic';
+      const walletType = walletId as WalletType;
       const wallet = this.walletManager.getWallet(walletType, chainIdNum);
       const walletAddress = await wallet.getAddress();
 

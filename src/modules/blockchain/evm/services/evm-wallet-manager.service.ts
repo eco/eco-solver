@@ -17,7 +17,6 @@ export type WalletType = 'basic' | 'kernel';
 export class EvmWalletManager implements OnModuleInit {
   // Map of chainId -> walletType -> wallet
   private wallets: Map<number, Map<WalletType, IEvmWallet>> = new Map();
-  private defaultWalletType: WalletType = 'basic';
   private readonly walletFactories: IWalletFactory[];
 
   constructor(
@@ -64,9 +63,7 @@ export class EvmWalletManager implements OnModuleInit {
     }
   }
 
-  getWallet(walletType: WalletType | undefined, chainId: number): IEvmWallet {
-    const type = walletType || this.defaultWalletType;
-
+  getWallet(type: WalletType, chainId: number): IEvmWallet {
     const chainWallets = this.wallets.get(chainId);
     if (!chainWallets) {
       throw new Error(`No wallets configured for chain ${chainId}`);
