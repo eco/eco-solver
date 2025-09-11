@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AnchorProvider, Program, setProvider } from '@coral-xyz/anchor';
+import * as api from '@opentelemetry/api';
 import { ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
 
 import {
@@ -27,6 +28,7 @@ import { toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { SvmWalletManagerService, SvmWalletType } from './svm-wallet-manager.service';
 
@@ -42,6 +44,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     private blockchainConfigService: BlockchainConfigService,
     private readonly logger: SystemLoggerService,
     private walletManager: SvmWalletManagerService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     super();
     this.logger.setContext(SvmExecutorService.name);
@@ -50,8 +53,26 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.executor.fulfill', {
+        attributes: {
+          'svm.intent_id': intent.intentHash,
+          'svm.source_chain': intent.sourceChainId?.toString(),
+          'svm.destination_chain': intent.destination.toString(),
+          'svm.operation': 'fulfill',
+          'svm.wallet_id': _walletId || 'default',
+        },
+      });
+
     if (!this.portalProgram || !this.wallet) {
-      throw new Error('Portal program not initialized');
+      const error = new Error('Portal program not initialized');
+      if (!activeSpan) {
+        span.recordException(error);
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
+      throw error;
     }
 
     try {
@@ -61,11 +82,16 @@ export class SvmExecutorService extends BaseChainExecutor {
         units: 600_000,
       });
 
+      const walletAddress = await this.wallet.getAddress();
+      span.setAttribute('svm.wallet_address', walletAddress.toString());
+
       const transferInstructions = await buildTokenTransferInstructions(
         intent,
         this.connection,
-        await this.wallet.getAddress(),
+        walletAddress,
       );
+
+      span.setAttribute('svm.transfer_instruction_count', transferInstructions.length);
 
       // Generate the fulfillment instruction for the Portal program
       const fulfillIx = await this.generateFulfillIx(intent);
@@ -75,12 +101,25 @@ export class SvmExecutorService extends BaseChainExecutor {
         .add(...transferInstructions)
         .add(fulfillIx);
 
+      span.addEvent('svm.transaction.submitting', {
+        instruction_count: 1 + transferInstructions.length + 1, // compute budget + transfers + fulfill
+        compute_unit_limit: 600_000,
+      });
+
       const signature = await this.wallet.sendTransaction(transaction, {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
       });
 
+      span.setAttribute('svm.transaction_signature', signature);
+      span.addEvent('svm.transaction.submitted');
+
       this.logger.log(`Intent ${intent.intentHash} fulfilled with signature: ${signature}`);
+
+      span.addEvent('svm.transaction.confirmed');
+      if (!activeSpan) {
+        span.setStatus({ code: api.SpanStatusCode.OK });
+      }
 
       return {
         success: true,
@@ -88,10 +127,18 @@ export class SvmExecutorService extends BaseChainExecutor {
       };
     } catch (error) {
       this.logger.error('Solana execution error:', toError(error));
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
       return {
         success: false,
         error: getErrorMessage(error),
       };
+    } finally {
+      if (!activeSpan) {
+        span.end();
+      }
     }
   }
 
@@ -132,9 +179,25 @@ export class SvmExecutorService extends BaseChainExecutor {
     _withdrawalData: any,
     _walletId?: string,
   ): Promise<string> {
-    this.logger.warn('Batch withdrawal not yet implemented for Solana');
-    // TODO: Implement Solana batch withdrawal when Portal contract supports it
-    throw new Error('Batch withdrawal not yet implemented for Solana');
+    const span = this.otelService.startSpan('svm.executor.batchWithdraw', {
+      attributes: {
+        'svm.chain_id': _chainId.toString(),
+        'svm.wallet_id': _walletId || 'default',
+        'svm.operation': 'batchWithdraw',
+        'svm.status': 'not_implemented',
+      },
+    });
+
+    try {
+      this.logger.warn('Batch withdrawal not yet implemented for Solana');
+      // TODO: Implement Solana batch withdrawal when Portal contract supports it
+      const error = new Error('Batch withdrawal not yet implemented for Solana');
+      span.recordException(error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   private async generateFulfillIx(intent: Intent) {
@@ -162,11 +225,11 @@ export class SvmExecutorService extends BaseChainExecutor {
       },
     };
 
-    const hashes = PortalHashUtils.getIntentHash(svmIntent);
+    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(svmIntent);
 
     // Calculate hashes
-    const intentHashBuffer = toBuffer(hashes.intentHash);
-    const rewardHashBytes = toBuffer(hashes.rewardHash);
+    const intentHashBuffer = toBuffer(intentHash);
+    const rewardHashBytes = toBuffer(rewardHash);
 
     // Get claimant from configuration
     const configuredClaimant = this.blockchainConfigService.getClaimant(intent.sourceChainId);

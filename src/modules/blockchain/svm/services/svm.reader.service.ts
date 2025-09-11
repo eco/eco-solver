@@ -39,14 +39,44 @@ export class SvmReaderService extends BaseChainReader {
   }
 
   async getBalance(address: UniversalAddress, _chainId?: number): Promise<bigint> {
-    if (!this.connection) {
-      throw new Error('Solana connection not initialized');
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.reader.getBalance', {
+        attributes: {
+          'svm.address': address,
+          'svm.chain_id': _chainId?.toString() || 'solana',
+          'svm.operation': 'getBalance',
+        },
+      });
+
+    try {
+      if (!this.connection) {
+        throw new Error('Solana connection not initialized');
+      }
+
+      // Denormalize to Solana address format
+      const svmAddress = AddressNormalizer.denormalize(address, ChainType.SVM);
+      const publicKey = new PublicKey(svmAddress);
+
+      span.setAttribute('svm.native_address', svmAddress);
+
+      const balance = await this.connection.getBalance(publicKey);
+      const balanceBigInt = BigInt(balance);
+
+      span.setAttribute('svm.balance', balanceBigInt.toString());
+      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+
+      return balanceBigInt;
+    } catch (error) {
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
+      throw error;
+    } finally {
+      if (!activeSpan) span.end();
     }
-    // Denormalize to Solana address format
-    const svmAddress = AddressNormalizer.denormalize(address, ChainType.SVM);
-    const publicKey = new PublicKey(svmAddress);
-    const balance = await this.connection.getBalance(publicKey);
-    return BigInt(balance);
   }
 
   async getTokenBalance(
@@ -55,8 +85,26 @@ export class SvmReaderService extends BaseChainReader {
     _chainId: number,
     allowOwnerOffCurve: boolean = false,
   ): Promise<bigint> {
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.reader.getTokenBalance', {
+        attributes: {
+          'svm.token_address': tokenAddress,
+          'svm.wallet_address': walletAddress,
+          'svm.chain_id': _chainId.toString(),
+          'svm.allow_owner_off_curve': allowOwnerOffCurve,
+          'svm.operation': 'getTokenBalance',
+        },
+      });
+
     if (!this.connection) {
-      throw new Error('Solana connection not initialized');
+      const error = new Error('Solana connection not initialized');
+      if (!activeSpan) {
+        span.recordException(error);
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
+      throw error;
     }
 
     try {
@@ -75,26 +123,58 @@ export class SvmReaderService extends BaseChainReader {
 
       // Get the token account balance
       const tokenBalance = await this.connection.getTokenAccountBalance(associatedTokenAddress);
-      return BigInt(tokenBalance.value.amount);
+      const balanceBigInt = BigInt(tokenBalance.value.amount);
+
+      span.setAttributes({
+        'svm.associated_token_address': associatedTokenAddress.toString(),
+        'svm.token_balance': balanceBigInt.toString(),
+      });
+
+      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+      return balanceBigInt;
     } catch (error) {
       // If the associated token account doesn't exist, return 0
       if (
         error instanceof TokenAccountNotFoundError ||
         getErrorMessage(error).includes('could not find account')
       ) {
+        span.setAttribute('svm.account_not_found', true);
+        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
         return BigInt(0);
       }
+
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
       throw error;
+    } finally {
+      if (!activeSpan) span.end();
     }
   }
 
   async isIntentFunded(intent: Intent, _chainId?: number): Promise<boolean> {
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.reader.isIntentFunded', {
+        attributes: {
+          'svm.intent_id': intent.intentHash,
+          'svm.chain_id': _chainId?.toString() || 'solana',
+          'svm.operation': 'isIntentFunded',
+          'svm.native_amount': intent.reward.nativeAmount.toString(),
+          'svm.token_count': intent.reward.tokens.length,
+        },
+      });
+
     try {
       // Short circuit: if reward tokens array is empty and nativeAmount is 0, consider it funded
       if (intent.reward.tokens.length === 0 && intent.reward.nativeAmount === BigInt(0)) {
         this.logger.debug(
           `Intent ${intent.intentHash} has no reward requirements, considering it funded`,
         );
+        span.setAttribute('svm.funding_status', 'no_requirements');
+        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
         return true;
       }
 
@@ -115,6 +195,12 @@ export class SvmReaderService extends BaseChainReader {
           this.logger.debug(
             `Intent ${intent.intentHash} requires ${intent.reward.nativeAmount} lamports but vault only has ${vaultNativeBalance}`,
           );
+          span.setAttributes({
+            'svm.funding_status': 'insufficient_native',
+            'svm.required_native': intent.reward.nativeAmount.toString(),
+            'svm.actual_native': vaultNativeBalance.toString(),
+          });
+          if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
           return false;
         }
       }
@@ -143,6 +229,13 @@ export class SvmReaderService extends BaseChainReader {
                 this.logger.debug(
                   `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
                 );
+                span.setAttributes({
+                  'svm.funding_status': 'insufficient_token',
+                  'svm.token_address': rewardToken.token,
+                  'svm.required_amount': rewardToken.amount.toString(),
+                  'svm.actual_amount': vaultTokenBalance.toString(),
+                });
+                if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
                 return false;
               }
             }
@@ -154,25 +247,63 @@ export class SvmReaderService extends BaseChainReader {
           );
           // If we can't get token balances, assume no tokens are available
           if (intent.reward.tokens.some((token) => token.amount > BigInt(0))) {
+            span.setAttributes({
+              'svm.funding_status': 'token_balance_error',
+              'svm.error_message': 'Could not retrieve token balances',
+            });
+            if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
             return false;
           }
         }
       }
 
       this.logger.debug(`Intent ${intent.intentHash} is fully funded`);
+      span.setAttribute('svm.funding_status', 'funded');
+      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
       this.logger.error(`Failed to check intent funding for ${intent.intentHash}:`, toError(error));
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
       throw new Error(`Failed to check intent funding: ${getErrorMessage(error)}`);
+    } finally {
+      if (!activeSpan) span.end();
     }
   }
 
   async getBlockHeight(): Promise<bigint> {
-    if (!this.connection) {
-      throw new Error('Solana connection not initialized');
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.reader.getBlockHeight', {
+        attributes: {
+          'svm.operation': 'getBlockHeight',
+        },
+      });
+
+    try {
+      if (!this.connection) {
+        throw new Error('Solana connection not initialized');
+      }
+
+      const blockHeight = await this.connection.getBlockHeight();
+      const blockHeightBigInt = BigInt(blockHeight);
+
+      span.setAttribute('svm.block_height', blockHeightBigInt.toString());
+      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+
+      return blockHeightBigInt;
+    } catch (error) {
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
+      throw error;
+    } finally {
+      if (!activeSpan) span.end();
     }
-    const blockHeight = await this.connection.getBlockHeight();
-    return BigInt(blockHeight);
   }
 
   async getAccountInfo(address: string): Promise<any> {
@@ -193,8 +324,36 @@ export class SvmReaderService extends BaseChainReader {
   }
 
   async isTransactionConfirmed(signature: string): Promise<boolean> {
-    const signatureStatus = await this.connection.getSignatureStatus(signature);
-    return signatureStatus?.value?.confirmationStatus === 'finalized';
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.reader.isTransactionConfirmed', {
+        attributes: {
+          'svm.signature': signature,
+          'svm.operation': 'isTransactionConfirmed',
+        },
+      });
+
+    try {
+      const signatureStatus = await this.connection.getSignatureStatus(signature);
+      const isConfirmed = signatureStatus?.value?.confirmationStatus === 'finalized';
+
+      span.setAttributes({
+        'svm.confirmation_status': signatureStatus?.value?.confirmationStatus || 'unknown',
+        'svm.is_confirmed': isConfirmed,
+      });
+
+      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+      return isConfirmed;
+    } catch (error) {
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
+      throw error;
+    } finally {
+      if (!activeSpan) span.end();
+    }
   }
 
   /**

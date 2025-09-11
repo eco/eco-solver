@@ -51,6 +51,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         this.solanaConfigService,
         this.eventsService,
         listenerLogger,
+        this.otelService,
       );
 
       await listener.start();

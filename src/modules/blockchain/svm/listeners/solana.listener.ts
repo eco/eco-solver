@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { BorshCoder, EventParser } from '@coral-xyz/anchor';
+import * as api from '@opentelemetry/api';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
 
 // Route type now comes from intent.interface.ts
@@ -16,6 +17,7 @@ import { SvmEventParser } from '@/modules/blockchain/svm/utils/svm-event-parser'
 import { SolanaConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 @Injectable()
 export class SolanaListener extends BaseChainListener {
@@ -28,6 +30,7 @@ export class SolanaListener extends BaseChainListener {
     private solanaConfigService: SolanaConfigService,
     private eventsService: EventsService,
     private readonly logger: SystemLoggerService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     super();
     this.logger.setContext(SolanaListener.name);
@@ -74,6 +77,15 @@ export class SolanaListener extends BaseChainListener {
   private async handleProgramLogs(logs: Logs): Promise<void> {
     try {
       for (const ev of this.parser.parseLogs(logs.logs)) {
+        const span = this.otelService.startSpan('svm.listener.processEvent', {
+          attributes: {
+            'svm.chain_id': this.solanaConfigService.chainId.toString(),
+            'svm.event_name': ev.name,
+            'portal.program_id': this.programId.toString(),
+            'svm.signature': logs.signature || 'unknown',
+          },
+        });
+
         try {
           switch (ev.name) {
             case 'IntentPublished':
@@ -82,7 +94,21 @@ export class SolanaListener extends BaseChainListener {
                 logs,
                 this.solanaConfigService.chainId,
               );
-              this.eventsService.emit('intent.discovered', { intent });
+
+              span.setAttributes({
+                'svm.intent_id': intent.intentHash,
+                'svm.source_chain': intent.sourceChainId?.toString(),
+                'svm.destination_chain': intent.destination.toString(),
+                'svm.creator': intent.reward.creator,
+                'svm.prover': intent.reward.prover,
+              });
+
+              // Emit the event within the span context to propagate trace context
+              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+                this.eventsService.emit('intent.discovered', { intent });
+              });
+
+              span.addEvent('intent.emitted');
               break;
 
             case 'IntentFulfilled':
@@ -91,7 +117,18 @@ export class SolanaListener extends BaseChainListener {
                 logs,
                 this.solanaConfigService.chainId,
               );
-              this.eventsService.emit('intent.fulfilled', fulfilledEvent);
+
+              span.setAttributes({
+                'svm.intent_hash': fulfilledEvent.intentHash,
+                'svm.claimant': fulfilledEvent.claimant || 'unknown',
+              });
+
+              // Emit the event within the span context to propagate trace context
+              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+                this.eventsService.emit('intent.fulfilled', fulfilledEvent);
+              });
+
+              span.addEvent('intent.fulfilled.emitted');
               break;
 
             case 'IntentWithdrawn':
@@ -100,14 +137,32 @@ export class SolanaListener extends BaseChainListener {
                 logs,
                 this.solanaConfigService.chainId,
               );
-              this.eventsService.emit('intent.withdrawn', withdrawnEvent);
+
+              span.setAttributes({
+                'svm.intent_hash': withdrawnEvent.intentHash,
+                'svm.claimant': withdrawnEvent.claimant || 'unknown',
+              });
+
+              // Emit the event within the span context to propagate trace context
+              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+                this.eventsService.emit('intent.withdrawn', withdrawnEvent);
+              });
+
+              span.addEvent('intent.withdrawn.emitted');
               break;
 
             default:
               this.logger.debug(`Unknown event type: ${ev.name}`, ev);
+              span.setAttribute('svm.unknown_event', true);
           }
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (eventError) {
           this.logger.error(`Error processing ${ev.name} event:`, toError(eventError));
+          span.recordException(toError(eventError));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+        } finally {
+          span.end();
         }
       }
     } catch (error) {

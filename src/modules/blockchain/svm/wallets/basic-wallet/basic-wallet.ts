@@ -1,3 +1,4 @@
+import * as api from '@opentelemetry/api';
 import {
   Connection,
   Keypair,
@@ -8,7 +9,8 @@ import {
 } from '@solana/web3.js';
 
 import { ISvmWallet, SvmTransactionOptions } from '@/common/interfaces/svm-wallet.interface';
-import { getErrorMessage } from '@/common/utils/error-handler';
+import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 /**
  * Basic wallet implementation for SVM using a Keypair
@@ -16,10 +18,12 @@ import { getErrorMessage } from '@/common/utils/error-handler';
 export class BasicWallet implements ISvmWallet {
   readonly connection: Connection;
   private readonly keypair: Keypair;
+  private readonly otelService: OpenTelemetryService;
 
-  constructor(connection: Connection, keypair: Keypair) {
+  constructor(connection: Connection, keypair: Keypair, otelService: OpenTelemetryService) {
     this.connection = connection;
     this.keypair = keypair;
+    this.otelService = otelService;
   }
 
   async getAddress(): Promise<PublicKey> {
@@ -33,21 +37,61 @@ export class BasicWallet implements ISvmWallet {
   async signTransaction(
     transaction: Transaction | VersionedTransaction,
   ): Promise<Transaction | VersionedTransaction> {
-    if (transaction instanceof Transaction) {
-      transaction.sign(this.keypair);
-    } else {
-      // For versioned transactions
-      transaction.sign([this.keypair]);
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.wallet.signTransaction', {
+        attributes: {
+          'svm.wallet_address': this.keypair.publicKey.toString(),
+          'svm.transaction_type': transaction instanceof Transaction ? 'legacy' : 'versioned',
+          'svm.operation': 'signTransaction',
+        },
+      });
+
+    try {
+      if (transaction instanceof Transaction) {
+        transaction.sign(this.keypair);
+        span.addEvent('svm.transaction.signed_legacy');
+      } else {
+        // For versioned transactions
+        transaction.sign([this.keypair]);
+        span.addEvent('svm.transaction.signed_versioned');
+      }
+
+      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+      return transaction;
+    } catch (error) {
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
+      throw error;
+    } finally {
+      if (!activeSpan) span.end();
     }
-    return transaction;
   }
 
   async sendTransaction(
     transaction: Transaction | VersionedTransaction,
     options?: SvmTransactionOptions,
   ): Promise<string> {
+    const activeSpan = api.trace.getActiveSpan();
+    const span =
+      activeSpan ||
+      this.otelService.startSpan('svm.wallet.sendTransaction', {
+        attributes: {
+          'svm.wallet_address': this.keypair.publicKey.toString(),
+          'svm.transaction_type': transaction instanceof Transaction ? 'legacy' : 'versioned',
+          'svm.operation': 'sendTransaction',
+          'svm.commitment': options?.commitment || 'confirmed',
+          'svm.skip_preflight': options?.skipPreflight || false,
+        },
+      });
+
     try {
       if (transaction instanceof Transaction) {
+        span.addEvent('svm.transaction.submitting_legacy');
+
         // For legacy transactions, use sendAndConfirmTransaction
         const signature = await sendAndConfirmTransaction(
           this.connection,
@@ -60,8 +104,15 @@ export class BasicWallet implements ISvmWallet {
             maxRetries: options?.maxRetries,
           },
         );
+
+        span.setAttribute('svm.transaction_signature', signature);
+        span.addEvent('svm.transaction.confirmed');
+        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+
         return signature;
       } else {
+        span.addEvent('svm.transaction.submitting_versioned');
+
         // For versioned transactions
         transaction.sign([this.keypair]);
         const signature = await this.connection.sendTransaction(transaction, {
@@ -70,15 +121,28 @@ export class BasicWallet implements ISvmWallet {
           maxRetries: options?.maxRetries,
         });
 
+        span.setAttribute('svm.transaction_signature', signature);
+        span.addEvent('svm.transaction.submitted');
+
         // Wait for confirmation if not skipping
         if (!options?.skipPreflight) {
           await this.connection.confirmTransaction(signature, options?.commitment || 'confirmed');
+          span.addEvent('svm.transaction.confirmed');
         }
 
+        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
         return signature;
       }
     } catch (error) {
+      if (!activeSpan) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+      }
       throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
+    } finally {
+      if (!activeSpan) {
+        span.end();
+      }
     }
   }
 

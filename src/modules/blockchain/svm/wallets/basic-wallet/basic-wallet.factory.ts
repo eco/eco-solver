@@ -6,6 +6,7 @@ import bs58 from 'bs58';
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BasicWallet } from './basic-wallet';
 
@@ -19,6 +20,7 @@ export class BasicWalletFactory {
   constructor(
     private readonly solanaConfigService: SolanaConfigService,
     private readonly logger: SystemLoggerService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(BasicWalletFactory.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
@@ -41,7 +43,7 @@ export class BasicWalletFactory {
       const keypair = Keypair.fromSecretKey(secretKeyArray);
 
       this.logger.log(`Created BasicWallet for address ${keypair.publicKey.toString()}`);
-      return new BasicWallet(this.connection, keypair);
+      return new BasicWallet(this.connection, keypair, this.otelService);
     } catch (error) {
       throw new Error(
         `Failed to create BasicWallet: ${error instanceof Error ? error.message : 'Unknown error'}`,
