@@ -24,8 +24,8 @@ import { ExecuteWithdrawsJobData } from '@/intent-processor/jobs/execute-withdra
 import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
-  INTENT_PROCESSOR_QUEUE_NAME,
 } from '@/intent-processor/queues/intent-processor.queue'
+import { QUEUES } from '@/common/redis/constants'
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
 import { Multicall3Abi } from '@/contracts/Multicall3'
 import { getMulticall } from '@/intent-processor/utils/multicall'
@@ -43,7 +43,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   private readonly intentProcessorQueue: IntentProcessorQueue
 
   constructor(
-    @InjectQueue(INTENT_PROCESSOR_QUEUE_NAME)
+    @InjectQueue(QUEUES.INTENT_PROCESSOR.queue)
     queue: IntentProcessorQueueType,
     private readonly ecoConfigService: EcoConfigService,
     private readonly indexerService: IndexerService,

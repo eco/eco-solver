@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Inject, forwardRef } from '@nestjs/common'
 import * as _ from 'lodash'
 import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { LogOperation, LogContext } from '@/common/logging/decorators'
@@ -38,6 +38,7 @@ export class LiquidityProviderService {
     protected readonly warpRouteProviderService: WarpRouteProviderService,
     protected readonly relayProviderService: RelayProviderService,
     protected readonly stargateProviderService: StargateProviderService,
+    @Inject(forwardRef(() => CCTPLiFiProviderService))
     protected readonly cctpLiFiProviderService: CCTPLiFiProviderService,
     protected readonly squidProviderService: SquidProviderService,
     protected readonly cctpv2ProviderService: CCTPV2ProviderService,

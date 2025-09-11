@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { BullModule } from '@nestjs/bullmq'
 import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { GenericOperationLogger } from '@/common/logging/loggers'
 import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
@@ -41,15 +41,13 @@ export class IntentProcessorQueue {
   }
 
   static init() {
-    return initBullMQ(
-      { queue: INTENT_PROCESSOR_QUEUE_NAME, prefix: IntentProcessorQueue.prefix },
-      {
-        defaultJobOptions: {
-          removeOnFail: true,
-          removeOnComplete: true,
-        },
+    return BullModule.registerQueue({
+      name: this.queueName,
+      defaultJobOptions: {
+        removeOnFail: true,
+        removeOnComplete: true,
       },
-    )
+    })
   }
 
   @LogOperation('start_withdrawals_cron_jobs', GenericOperationLogger)

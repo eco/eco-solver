@@ -7,8 +7,8 @@ import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { CheckCCTPV2AttestationJobData } from '@/liquidity-manager/jobs/check-cctpv2-attestation.job'
 import { CCTPV2Config } from '@/eco-configs/eco-config.types'
 import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'

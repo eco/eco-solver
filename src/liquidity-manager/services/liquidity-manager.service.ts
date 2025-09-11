@@ -13,9 +13,12 @@ import {
   LiquidityManagerJobName,
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
   LIQUIDITY_MANAGER_QUEUE_NAME,
   LIQUIDITY_MANAGER_FLOW_NAME,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/constants/queue.constants'
 import { RebalanceJobData, RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { deserialize } from '@/common/utils/serialize'
@@ -40,10 +43,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoDbEntity } from '@/common/db/eco-db-entity.enum'
-import {
-  CheckBalancesQueue,
-  CHECK_BALANCES_QUEUE_NAME,
-} from '@/liquidity-manager/queues/check-balances.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 
 @Injectable()
 export class LiquidityManagerService implements OnApplicationBootstrap {

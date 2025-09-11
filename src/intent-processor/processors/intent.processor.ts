@@ -10,8 +10,8 @@ import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw
 import {
   IntentProcessorJobName,
   IntentProcessorQueueType,
-  INTENT_PROCESSOR_QUEUE_NAME,
 } from '@/intent-processor/queues/intent-processor.queue'
+import { QUEUES } from '@/common/redis/constants'
 import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send-batch.job'
 
@@ -20,7 +20,7 @@ import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send
  * Extends the GroupedJobsProcessor to ensure jobs in the same group are not processed concurrently.
  */
 @Injectable()
-@Processor(INTENT_PROCESSOR_QUEUE_NAME, { concurrency: 10 })
+@Processor(QUEUES.INTENT_PROCESSOR.queue, { concurrency: 10 })
 export class IntentProcessor
   extends GroupedJobsProcessor<IntentProcessorJob>
   implements OnApplicationBootstrap
@@ -34,7 +34,7 @@ export class IntentProcessor
   ]
 
   constructor(
-    @InjectQueue(INTENT_PROCESSOR_QUEUE_NAME)
+    @InjectQueue(QUEUES.INTENT_PROCESSOR.queue)
     public readonly queue: IntentProcessorQueueType,
     public readonly intentProcessorService: IntentProcessorService,
   ) {

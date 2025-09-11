@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { BullModule } from '@nestjs/bullmq'
 import { Hex } from 'viem/_types/types/misc'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
@@ -38,15 +38,13 @@ export class IntentFulfillmentQueue {
   }
 
   static init() {
-    return initBullMQ(
-      { queue: this.queueName, prefix: IntentFulfillmentQueue.prefix },
-      {
-        defaultJobOptions: {
-          removeOnFail: true,
-          removeOnComplete: true,
-        },
+    return BullModule.registerQueue({
+      name: this.queueName,
+      defaultJobOptions: {
+        removeOnFail: true,
+        removeOnComplete: true,
       },
-    )
+    })
   }
 
   @LogOperation('add_fulfill_intent_job', GenericOperationLogger)

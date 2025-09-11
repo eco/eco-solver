@@ -42,6 +42,16 @@ export const QUEUES: Record<any, QueueInterface> = {
     prefix: '{solver}',
     jobs: {},
   },
+  INTENT_PROCESSOR: {
+    queue: 'IntentProcessorQueue',
+    prefix: '{intent-processor}',
+    jobs: {
+      CHECK_WITHDRAWS: 'CHECK_WITHDRAWS',
+      CHECK_SEND_BATCH: 'CHECK_SEND_BATCH',
+      EXECUTE_WITHDRAWS: 'EXECUTE_WITHDRAWS',
+      EXECUTE_SEND_BATCH: 'EXECUTE_SEND_BATCH',
+    },
+  },
 }
 
 export interface QueueMetadata {

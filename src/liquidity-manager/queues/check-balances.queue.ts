@@ -1,10 +1,10 @@
 import { Queue } from 'bullmq'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { BullModule } from '@nestjs/bullmq'
 import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
 import { LogContext, LogOperation } from '@/common/logging'
 
-export const CHECK_BALANCES_QUEUE_NAME = 'CheckBalancesQueue'
+import { CHECK_BALANCES_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 
 export class CheckBalancesQueue {
   public static readonly prefix = '{check-balances}'
@@ -14,15 +14,13 @@ export class CheckBalancesQueue {
   constructor(private readonly queue: Queue) {}
 
   static init() {
-    return initBullMQ(
-      { queue: this.queueName, prefix: this.prefix },
-      {
-        defaultJobOptions: {
-          removeOnFail: true,
-          removeOnComplete: true,
-        },
+    return BullModule.registerQueue({
+      name: this.queueName,
+      defaultJobOptions: {
+        removeOnFail: true,
+        removeOnComplete: true,
       },
-    )
+    })
   }
 
   get name() {

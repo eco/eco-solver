@@ -15,8 +15,8 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'

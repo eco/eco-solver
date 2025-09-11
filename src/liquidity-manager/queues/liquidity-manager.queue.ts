@@ -2,7 +2,7 @@ import { Queue } from 'bullmq'
 import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { GatewayTopUpJobData, GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
-import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
+import { BullModule } from '@nestjs/bullmq'
 import {
   CheckCCTPAttestationJob,
   CheckCCTPAttestationJobManager,
@@ -52,8 +52,10 @@ export type LiquidityManagerQueueType = Queue<
   LiquidityManagerJobName
 >
 
-export const LIQUIDITY_MANAGER_QUEUE_NAME = 'LiquidityManagerQueue'
-export const LIQUIDITY_MANAGER_FLOW_NAME = 'flow-liquidity-manager'
+import {
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
+} from '@/liquidity-manager/constants/queue.constants'
 
 export class LiquidityManagerQueue {
   public static readonly prefix = '{liquidity-manager}'
@@ -67,19 +69,17 @@ export class LiquidityManagerQueue {
   }
 
   static init() {
-    return initBullMQ(
-      { queue: this.queueName, prefix: LiquidityManagerQueue.prefix },
-      {
-        defaultJobOptions: {
-          removeOnFail: true,
-          removeOnComplete: true,
-        },
+    return BullModule.registerQueue({
+      name: this.queueName,
+      defaultJobOptions: {
+        removeOnFail: true,
+        removeOnComplete: true,
       },
-    )
+    })
   }
 
   static initFlow() {
-    return initFlowBullMQ({ queue: this.flowName, prefix: LiquidityManagerQueue.prefix })
+    return BullModule.registerFlowProducer({ name: this.flowName })
   }
 
   // Note: CHECK_BALANCES cron has been moved to a dedicated queue/processor.

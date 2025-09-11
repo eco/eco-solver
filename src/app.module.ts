@@ -1,6 +1,7 @@
 import { Logger, Module } from '@nestjs/common'
 import { LoggerModule } from 'nestjs-pino'
 import { MongooseModule } from '@nestjs/mongoose'
+import { BullModule } from '@nestjs/bullmq'
 import { LiquidityManagerModule } from '@/liquidity-manager/liquidity-manager.module'
 import { ApiModule } from '@/api/api.module'
 import { WatchModule } from '@/watch/watch.module'
@@ -18,6 +19,7 @@ import { IntentModule } from '@/intent/intent.module'
 import { SignModule } from '@/sign/sign.module'
 import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { RedisConnectionUtils } from '@/common/redis/redis-connection-utils'
 import { AnalyticsModule } from '@/analytics/analytics.module'
 import { getCurrentEnvironment } from '@/analytics/utils'
 import { ProverModule } from '@/prover/prover.module'
@@ -30,6 +32,20 @@ import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment
 @Module({
   imports: [
     ApiModule,
+    BullModule.forRootAsync({
+      inject: [EcoConfigService],
+      useFactory: (configService: EcoConfigService) => {
+        const redisConfig = configService.getRedis()
+
+        return {
+          connection: RedisConnectionUtils.getRedisConnection(redisConfig),
+          defaultJobOptions: {
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        }
+      },
+    }),
     AnalyticsModule.withAsyncConfig({
       useFactory: async (configService: EcoConfigService) => {
         const analyticsConfig = configService.getAnalyticsConfig()

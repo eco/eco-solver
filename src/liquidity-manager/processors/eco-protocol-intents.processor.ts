@@ -12,10 +12,8 @@ import { GatewayTopUpJobManager } from '../jobs/gateway-topup.job'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import {
-  LiquidityManagerQueueType,
-  LIQUIDITY_MANAGER_QUEUE_NAME,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerQueueType } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 

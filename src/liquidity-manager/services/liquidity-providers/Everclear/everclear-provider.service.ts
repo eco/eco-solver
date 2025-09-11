@@ -4,8 +4,8 @@ import { Cache } from 'cache-manager'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
-  LIQUIDITY_MANAGER_QUEUE_NAME,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
