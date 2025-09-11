@@ -13,20 +13,91 @@ import { PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { portalAbi } from '@/contracts/v2-abi/Portal'
+import { web3 } from '@coral-xyz/anchor'
 
 // Load environment variables from .env file
 dotenv.config()
+
+const deadlineWindow = 7200 // 2 hours
+
+console.log('Publishing Optimism to Solana Intent...')
+
+// Set up Optimism client
+const optimismRpcUrl = process.env.OPTIMISM_RPC_URL
+
+const publicClient = createPublicClient({
+  chain: optimism,
+  transport: http(optimismRpcUrl),
+})
+
+// Load private key from environment
+const privateKeyEnv = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY
+if (!privateKeyEnv) {
+  throw new Error('OPTIMISM_PRIVATE_KEY environment variable not found')
+}
+
+const account = privateKeyToAccount(privateKeyEnv as `0x${string}`)
+const walletClient = createWalletClient({
+  account,
+  chain: optimism,
+  transport: http(optimismRpcUrl),
+})
+
+console.log(`Using account: ${account.address}`)
+
+// Create sample route and intent data
+const now = Math.floor(Date.now() / 1000)
+
+// Generate salt as 32-byte hex string directly from timestamp
+const salt = `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`
+
+// Get portal addresses
+const optimismPortalAddress = getChainConfig(10).Inbox
+const solanaPortalAddress: PublicKey = getChainConfig(1399811149).Inbox as PublicKey
 
 interface TokenAmount {
   token: string
   amount: number
 }
 
-const deadlineWindow = 7200 // 2 hours
+// Sample token amounts for the route (what user wants to swap on Solana)
+const routeTokens: TokenAmount[] = [
+  {
+    token: config.intentSources[0].tokens[0], // USDC on Solana
+    amount: 1_000, // 0.001 USDC (6 decimals)
+  },
+]
+
+// Create reward tokens (what user pays on Optimism)
+const rewardTokens: TokenAmount[] = [
+  {
+    token: config.intentSources[1].tokens[0], // USDC on Optimism
+    amount: 36_000, // 0.0355 USDC reward (6 decimals) - includes solver fee
+  },
+]
+
+// Create the reward (EVM format for Optimism)
+const reward: RewardType<VmType.EVM> = {
+  vm: VmType.EVM,
+  deadline: BigInt(now + deadlineWindow), // 2 hours from now
+  creator: account.address,
+  prover: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C', // Placeholder - needs actual EVM prover
+  nativeAmount: 0n,
+  tokens: rewardTokens.map((token) => ({
+    token: token.token as Address,
+    amount: BigInt(token.amount),
+  })),
+}
 
 // Parse command line arguments
-const args = process.argv.slice(2)
-const shouldFund = args.includes('--fund') && args[args.indexOf('--fund') + 1] === 'yes'
+// const args = process.argv.slice(2)
+// const shouldFund = args.includes('--fund') && args[args.indexOf('--fund') + 1] === 'yes'
+const shouldFund = true
+
+// Create Solana SPL token transfer instruction
+const tokenMint = new PublicKey(routeTokens[0].token) // USDC on Solana
+const recipientAddress = new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh') // Destination wallet
+const transferAmount = BigInt(1000)
 
 function encodeTransferCheckedData(amount: bigint | number, decimals: number): Buffer {
   const buf = Buffer.alloc(1 + 8 + 1)
@@ -36,82 +107,17 @@ function encodeTransferCheckedData(amount: bigint | number, decimals: number): B
   return buf
 }
 
-async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
-  console.log('Publishing Optimism to Solana Intent...')
-
-  // Set up Optimism client
-  const optimismRpcUrl = process.env.OPTIMISM_RPC_URL
-
-  const publicClient = createPublicClient({
-    chain: optimism,
-    transport: http(optimismRpcUrl),
-  })
-
-  // Load private key from environment
-  const privateKeyEnv = process.env.EVM_PRIVATE_KEY || process.env.PRIVATE_KEY
-  if (!privateKeyEnv) {
-    throw new Error('OPTIMISM_PRIVATE_KEY environment variable not found')
-  }
-
-  const account = privateKeyToAccount(privateKeyEnv as `0x${string}`)
-  const walletClient = createWalletClient({
-    account,
-    chain: optimism,
-    transport: http(optimismRpcUrl),
-  })
-
-  console.log(`Using account: ${account.address}`)
-
-  // Create sample route and intent data
-  const now = Math.floor(Date.now() / 1000)
-
-  // Generate salt as 32-byte hex string directly from timestamp
-  const salt = `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`
-
-  // Get portal addresses
-  const optimismPortalAddress = getChainConfig(10).Inbox
-  const solanaPortalAddress: PublicKey = getChainConfig(1399811149).Inbox as PublicKey
-
-  // Sample token amounts for the route (what user wants to swap on Solana)
-  const routeTokens: TokenAmount[] = [
-    {
-      token: config.intentSources[0].tokens[0], // USDC on Solana
-      amount: 1_000, // 0.001 USDC (6 decimals)
-    },
-  ]
-
-  // Create reward tokens (what user pays on Optimism)
-  const rewardTokens: TokenAmount[] = [
-    {
-      token: config.intentSources[1].tokens[0], // USDC on Optimism
-      amount: 36_000, // 0.0355 USDC reward (6 decimals) - includes solver fee
-    },
-  ]
-
-  // Create the reward (EVM format for Optimism)
-  const reward: RewardType<VmType.EVM> = {
-    vm: VmType.EVM,
-    deadline: BigInt(now + deadlineWindow), // 2 hours from now
-    creator: account.address,
-    prover: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C', // Placeholder - needs actual EVM prover
-    nativeAmount: 0n,
-    tokens: rewardTokens.map((token) => ({
-      token: token.token as Address,
-      amount: BigInt(token.amount),
-    })),
-  }
-
-  // Create Solana SPL token transfer instruction
-  const tokenMintAddress = new PublicKey(routeTokens[0].token) // USDC on Solana
-  const recipientAddress = new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh') // Destination wallet
-  const transferAmount = BigInt(1000)
-
+async function getSolanaTransferCall() {
   // Create SPL token transfer call exactly as in the integration test
   // The integration test uses: spl_token_2022::instruction::transfer_checked()
 
   // Get the executor and recipient ATAs for the call
-  const executorAta = await getAssociatedTokenAddress(tokenMintAddress, solanaPortalAddress, true)
-  const recipientAta = await getAssociatedTokenAddress(tokenMintAddress, recipientAddress)
+  const executorAta = await getAssociatedTokenAddress(tokenMint, solanaPortalAddress, true)
+  const recipientAta = await getAssociatedTokenAddress(tokenMint, recipientAddress)
+
+  // Get executor PDA for call accounts
+  const EXECUTOR_SEED = Buffer.from('executor')
+  const [executorPda] = web3.PublicKey.findProgramAddressSync([EXECUTOR_SEED], solanaPortalAddress)
 
   // Create the actual SPL token transfer_checked instruction
   // This matches exactly what the integration test does
@@ -123,20 +129,18 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
   const transferCheckedInstructionData = encodeTransferCheckedData(transferAmount, 6)
 
-  const transferCheckedInstruction = {
-    data: transferCheckedInstructionData,
-  }
+  const accounts = [
+    { pubkey: executorAta, isSigner: false, isWritable: true }, // executor_ata (source)
+    { pubkey: tokenMint, isSigner: false, isWritable: false }, // token mint
+    { pubkey: recipientAta, isSigner: false, isWritable: true }, // recipient_ata (destination)
+    { pubkey: executorPda, isSigner: false, isWritable: false }, // executor authority
+  ]
 
-  console.log('MADDEN: Real SPL instruction data:', transferCheckedInstruction.data.toString('hex'))
-  console.log('MADDEN: Real SPL instruction length:', transferCheckedInstruction.data.length)
-
-  // Create Calldata struct exactly as in integration test
+  // Create the Calldata struct exactly as in the integration test
   const calldata = {
-    data: Array.from(transferCheckedInstruction.data), // Use the actual instruction data
-    account_count: 4, // 4 accounts as per integration test
+    data: Array.from(transferCheckedInstructionData), // Use the actual instruction data
+    account_count: accounts.length, // 4 accounts as per integration test
   }
-
-  console.log('MADDEN: Calldata struct:', calldata)
 
   // Serialize the Calldata struct using Borsh format
   // Based on Rust struct: { data: Vec<u8>, account_count: u8 }
@@ -158,17 +162,36 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
 
   console.log('MADDEN: Serialized calldata bytes:', calldataBytes.toString('hex'))
 
-  const solanaTransferCall = {
+  const accountsLengthBuffer = Buffer.alloc(4)
+  accountsLengthBuffer.writeUInt32LE(accounts.length, 0)
+
+  const accountsBuffer = accounts.map((acc) => {
+    // SerializableAccountMeta: { pubkey: [u8; 32], is_signer: bool, is_writable: bool }
+    const pubkeyBytes = Buffer.from(acc.pubkey.toBytes())
+    const isSignerByte = Buffer.from([acc.isSigner ? 1 : 0])
+    const isWritableByte = Buffer.from([acc.isWritable ? 1 : 0])
+    return Buffer.concat([pubkeyBytes, isSignerByte, isWritableByte])
+  })
+  const accountsData = Buffer.concat(accountsBuffer)
+
+  const serializedCalldata = Buffer.concat([calldataBytes, accountsLengthBuffer, accountsData])
+
+  return {
     target: TOKEN_PROGRAM_ID, // SPL Token program
-    data: `0x${calldataBytes.toString('hex')}` as `0x${string}`,
+    data: `0x${serializedCalldata.toString('hex')}` as `0x${string}`,
     value: 0n, // No SOL value for SPL token transfers
   }
+}
+
+async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
+  const solanaTransferCall = await getSolanaTransferCall()
 
   const route: RouteType<VmType.SVM> = {
     vm: VmType.SVM,
     salt: salt,
     deadline: BigInt(now + deadlineWindow), // 2 hours from now
     portal: solanaPortalAddress,
+    nativeAmount: 0n,
     tokens: routeTokens.map((token) => ({
       token: new PublicKey(token.token),
       amount: BigInt(token.amount),
@@ -198,7 +221,7 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
   console.log(`Route token amount: ${Number(route.tokens[0].amount) / 1e6} USDC`)
   console.log(`Reward token amount: ${Number(reward.tokens[0].amount) / 1e6} USDC`)
   console.log(`\nSolana Transfer Call:`)
-  console.log(`  Token: ${tokenMintAddress.toBase58()}`)
+  console.log(`  Token: ${tokenMint.toBase58()}`)
   console.log(`  Recipient: ${recipientAddress.toBase58()}`)
   console.log(`  Amount: ${Number(transferAmount) / 1e6} USDC`)
   console.log(`  Instruction Data: ${solanaTransferCall.data}`)
