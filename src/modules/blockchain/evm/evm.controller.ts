@@ -1,7 +1,7 @@
 import { Body, Controller, Param, Post } from '@nestjs/common';
 
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
-import { parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
+import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 import { EventsService } from '@/modules/events/events.service';
 
 @Controller('evm')
@@ -11,7 +11,10 @@ export class EVMController {
   @Post(':chainID')
   async processIntent(@Param('chainID') chainID: string, @Body() intent: object) {
     const log = JSON.stringify(intent);
-    const _intent = parseIntentPublish(BigInt(chainID), BigintSerializer.deserialize(log));
+    const _intent = EvmEventParser.parseIntentPublish(
+      BigInt(chainID),
+      BigintSerializer.deserialize(log),
+    );
     this.eventsService.emit('intent.discovered', { intent: _intent, strategy: 'standard' });
   }
 }

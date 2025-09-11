@@ -1,5 +1,9 @@
+import {
+  IntentFulfilledEvent,
+  IntentProvenEvent,
+  IntentWithdrawnEvent,
+} from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
@@ -18,38 +22,17 @@ export interface EventMap {
   /**
    * Emitted when an intent is successfully fulfilled on the destination chain
    */
-  'intent.fulfilled': {
-    intentHash: string;
-    claimant: UniversalAddress;
-    txHash: string;
-    blockNumber: bigint;
-    timestamp: Date;
-    chainId: bigint;
-  };
+  'intent.fulfilled': IntentFulfilledEvent;
 
   /**
    * Emitted when an intent is proven on the source chain
    */
-  'intent.proven': {
-    intentHash: string;
-    claimant: UniversalAddress;
-    txHash: string;
-    blockNumber: bigint;
-    timestamp: Date;
-    chainId: bigint;
-  };
+  'intent.proven': IntentProvenEvent;
 
   /**
    * Emitted when an intent is withdrawn on the source chain
    */
-  'intent.withdrawn': {
-    intentHash: string;
-    claimant: UniversalAddress;
-    txHash: string;
-    blockNumber: bigint;
-    timestamp: Date;
-    chainId: bigint;
-  };
+  'intent.withdrawn': IntentWithdrawnEvent;
 }
 
 /**

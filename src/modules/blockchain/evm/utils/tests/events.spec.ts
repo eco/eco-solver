@@ -1,6 +1,6 @@
-import { parseIntentFulfilled, parseIntentPublish } from '../events';
-
 // Mock the dependencies
+import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
+
 jest.mock('viem', () => ({
   getAbiItem: jest.fn(() => ({
     inputs: [
@@ -90,7 +90,7 @@ describe('Event Parsing', () => {
       };
 
       const sourceChainId = 1n;
-      const intent = parseIntentPublish(sourceChainId, mockLog);
+      const intent = EvmEventParser.parseIntentPublish(sourceChainId, mockLog);
 
       expect(intent).toBeDefined();
       expect(intent.intentHash).toBe(
@@ -119,7 +119,7 @@ describe('Event Parsing', () => {
       };
 
       const chainId = 1n;
-      const event = parseIntentFulfilled(chainId, mockLog);
+      const event = EvmEventParser.parseIntentFulfilled(chainId, mockLog);
 
       expect(event).toBeDefined();
       expect(event.intentHash).toBe(
@@ -145,7 +145,7 @@ describe('Event Parsing', () => {
       };
 
       const chainId = 10n;
-      const event = parseIntentFulfilled(chainId, mockLog);
+      const event = EvmEventParser.parseIntentFulfilled(chainId, mockLog);
 
       expect(event.intentHash).toBe(
         '0xabcdef0000000000000000000000000000000000000000000000000000000001',

@@ -5,12 +5,10 @@ import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi'
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
-import { parseIntentFulfilled, parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
+import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -60,7 +58,7 @@ export class ChainListener extends BaseChainListener {
         logs.forEach((log) => {
           const span = this.otelService.startSpan('evm.listener.processIntentEvent', {
             attributes: {
-              'evm.chain_id': this.config.chainId,
+              'evm.chain_id': evmConfig.chainId,
               'evm.event_name': 'IntentPublished',
               'portal.address': portalAddress,
               'evm.block_number': log.blockNumber?.toString(),
@@ -69,7 +67,7 @@ export class ChainListener extends BaseChainListener {
           });
 
           try {
-            const intent = parseIntentPublish(BigInt(evmConfig.chainId), log);
+            const intent = EvmEventParser.parseIntentPublish(BigInt(evmConfig.chainId), log);
             // Add the transaction hash to the intent
             intent.publishTxHash = log.transactionHash;
 
@@ -121,24 +119,16 @@ export class ChainListener extends BaseChainListener {
           });
 
           try {
-            const event = parseIntentFulfilled(BigInt(evmConfig.chainId), log);
-            const claimant = event.claimant as UniversalAddress;
+            const event = EvmEventParser.parseIntentFulfilled(BigInt(evmConfig.chainId), log);
 
             span.setAttributes({
               'evm.intent_hash': event.intentHash,
-              'evm.claimant': claimant,
+              'evm.claimant': event.claimant,
             });
 
             // Emit the event within the span context to propagate trace context
             api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventsService.emit('intent.fulfilled', {
-                intentHash: event.intentHash,
-                claimant,
-                txHash: log.transactionHash,
-                blockNumber: log.blockNumber,
-                timestamp: new Date(),
-                chainId: BigInt(evmConfig.chainId),
-              });
+              this.eventsService.emit('intent.fulfilled', event);
             });
 
             span.addEvent('intent.fulfilled.emitted');
@@ -159,40 +149,35 @@ export class ChainListener extends BaseChainListener {
 
     // Watch for IntentProven events from all configured prover contracts
     const network = this.evmConfigService.getChain(evmConfig.chainId);
-    const provers = network.provers || {};
+    const provers = network.provers;
 
     for (const [proverType, proverAddress] of Object.entries(provers)) {
       if (!proverAddress) continue;
 
-      const denormalizedProverAddress = AddressNormalizer.denormalizeToEvm(
-        proverAddress as UniversalAddress,
-      );
-
       this.logger.log(
-        `Listening for IntentProven events from ${proverType} prover at address: ${denormalizedProverAddress}`,
+        `Listening for IntentProven events from ${proverType} prover at address: ${proverAddress}`,
       );
 
       const unsubscribe = publicClient.watchContractEvent({
         abi: messageBridgeProverAbi,
+        address: proverAddress,
         eventName: 'IntentProven',
-        address: denormalizedProverAddress,
-        strict: true,
         onLogs: (logs) => {
           logs.forEach((log) => {
             const span = this.otelService.startSpan('evm.listener.processIntentProvenEvent', {
               attributes: {
-                'evm.chain_id': this.config.chainId,
+                'evm.chain_id': evmConfig.chainId,
                 'evm.event_name': 'IntentProven',
                 'prover.type': proverType,
-                'prover.address': denormalizedProverAddress,
+                'prover.address': proverAddress,
                 'evm.block_number': log.blockNumber?.toString(),
                 'evm.transaction_hash': log.transactionHash,
               },
             });
 
             try {
-              const intentHash = log.args.intentHash;
-              const claimant = log.args.claimant as UniversalAddress;
+              const event = EvmEventParser.parseIntentProven(evmConfig.chainId, log);
+              const { intentHash, claimant } = event;
 
               span.setAttributes({
                 'evm.intent_hash': intentHash,
@@ -201,14 +186,7 @@ export class ChainListener extends BaseChainListener {
 
               // Emit the event within the span context to propagate trace context
               api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-                this.eventsService.emit('intent.proven', {
-                  intentHash,
-                  claimant,
-                  txHash: log.transactionHash,
-                  blockNumber: log.blockNumber,
-                  timestamp: new Date(),
-                  chainId: BigInt(evmConfig.chainId),
-                });
+                this.eventsService.emit('intent.proven', event);
               });
 
               this.logger.log(
@@ -229,9 +207,10 @@ export class ChainListener extends BaseChainListener {
             }
           });
         },
+        strict: true,
       });
 
-      this.proverUnsubscribers.set(`${proverType}-${denormalizedProverAddress}`, unsubscribe);
+      this.proverUnsubscribers.set(`${proverType}-${proverAddress}`, unsubscribe);
     }
 
     // Watch for IntentWithdrawn events
@@ -247,30 +226,22 @@ export class ChainListener extends BaseChainListener {
               'evm.chain_id': this.config.chainId,
               'evm.event_name': 'IntentWithdrawn',
               'portal.address': portalAddress,
-              'evm.block_number': log.blockNumber?.toString(),
+              'evm.block_number': log.blockNumber.toString(),
               'evm.transaction_hash': log.transactionHash,
             },
           });
 
           try {
-            const intentHash = log.args.intentHash;
-            const claimant = AddressNormalizer.normalize(log.args.claimant, ChainType.EVM);
+            const event = EvmEventParser.parseIntentWithdrawn(evmConfig.chainId, log);
 
             span.setAttributes({
-              'evm.intent_hash': intentHash,
-              'evm.claimant': claimant,
+              'evm.intent_hash': event.intentHash,
+              'evm.claimant': event.claimant,
             });
 
             // Emit the event within the span context to propagate trace context
             api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventsService.emit('intent.withdrawn', {
-                intentHash,
-                claimant,
-                txHash: log.transactionHash,
-                blockNumber: log.blockNumber,
-                timestamp: new Date(),
-                chainId: BigInt(evmConfig.chainId),
-              });
+              this.eventsService.emit('intent.withdrawn', event);
             });
 
             span.addEvent('intent.withdrawn.emitted');

@@ -30,7 +30,7 @@ export class IntentFulfilledHandler {
           'intent.hash': event.intentHash,
           'intent.claimant': event.claimant,
           'intent.chain_id': event.chainId.toString(),
-          'intent.tx_hash': event.transactionHash,
+          'intent.transaction_hash': event.transactionHash,
           'intent.block_number': event.blockNumber?.toString(),
         },
       });

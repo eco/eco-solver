@@ -1,7 +1,7 @@
-import { parseTvmIntentFulfilled, parseTvmIntentPublished } from '../events.utils';
-
 // Mock TvmUtilsService
-jest.mock('@/modules/blockchain/tvm/services/tvm-utils.service', () => ({
+import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
+
+jest.mock('@/modules/blockchain/tvm/utils/tvm-utils', () => ({
   TvmUtilsService: {
     fromHex: jest.fn((hex) => `0x${hex}`),
   },
@@ -21,7 +21,7 @@ describe('TVM Event Utils', () => {
       };
 
       const chainId = 1000n; // TVM chain ID
-      const result = parseTvmIntentFulfilled(chainId, mockEvent);
+      const result = TvmEventParser.parseTvmIntentFulfilled(chainId, mockEvent);
 
       expect(result).toEqual({
         intentHash: '0x1234567890abcdef',
@@ -43,7 +43,7 @@ describe('TVM Event Utils', () => {
       };
 
       const chainId = 2000n;
-      const result = parseTvmIntentFulfilled(chainId, mockEvent);
+      const result = TvmEventParser.parseTvmIntentFulfilled(chainId, mockEvent);
 
       expect(result).toEqual({
         intentHash: '0xaaaaaa',
@@ -52,58 +52,6 @@ describe('TVM Event Utils', () => {
         transactionHash: 'xyz789',
         blockNumber: undefined,
       });
-    });
-  });
-
-  describe('parseTvmIntentPublished', () => {
-    it('should parse IntentPublished event correctly', () => {
-      const mockEvent: any = {
-        event_name: 'IntentPublished',
-        result: {
-          hash: '0x999888777',
-          destination: '1',
-          creator: 'creator_hex',
-          prover: 'prover_hex',
-          rewardDeadline: '1234567890',
-          nativeAmount: '1000000000000000000',
-          rewardTokens: [{ token: 'token_hex', amount: '5000' }],
-          route: 'route_data_hex',
-        },
-      };
-
-      const result = parseTvmIntentPublished(mockEvent);
-
-      expect(result).toEqual({
-        intentHash: '0x999888777',
-        destination: 1n,
-        creator: '0xcreator_hex',
-        prover: '0xprover_hex',
-        rewardDeadline: 1234567890n,
-        rewardNativeAmount: 1000000000000000000n,
-        rewardTokens: [{ token: '0xtoken_hex', amount: 5000n }],
-        route: 'route_data_hex',
-      });
-    });
-
-    it('should handle empty reward tokens', () => {
-      const mockEvent: any = {
-        event_name: 'IntentPublished',
-        result: {
-          hash: '0x111222333',
-          destination: '10',
-          creator: 'addr1',
-          prover: 'addr2',
-          rewardDeadline: '9999999999',
-          nativeAmount: '0',
-          rewardTokens: undefined,
-          route: 'empty_route',
-        },
-      };
-
-      const result = parseTvmIntentPublished(mockEvent);
-
-      expect(result.rewardTokens).toEqual([]);
-      expect(result.rewardNativeAmount).toBe(0n);
     });
   });
 });

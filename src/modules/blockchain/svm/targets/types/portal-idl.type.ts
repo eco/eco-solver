@@ -1,5 +1,7 @@
 import { IdlTypes } from '@coral-xyz/anchor';
 
+import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
+
 /**
  * Program IDL in camelCase format in order to be used in JS/TS.
  *
@@ -851,3 +853,7 @@ export type PortalIdl = {
 
 export type RouteInstruction = IdlTypes<PortalIdl>['route'];
 export type RewardInstruction = IdlTypes<PortalIdl>['reward'];
+
+export type IntentPublishedInstruction = Snakify<IdlTypes<PortalIdl>['intentPublished']>;
+export type IntentFulfilledInstruction = Snakify<IdlTypes<PortalIdl>['intentFulfilled']>;
+export type IntentWithdrawnInstruction = Snakify<IdlTypes<PortalIdl>['intentWithdrawn']>;

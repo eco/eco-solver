@@ -130,20 +130,6 @@ export class WithdrawalService {
         `Successfully executed withdrawal for ${intents.length} intents on chain ${chainId}. TxHash: ${txHash}`,
       );
 
-      // Update intents with withdrawal event data
-      // Note: The actual event data will be updated when we receive the IntentWithdrawn event
-      // This is just to mark that we've initiated the withdrawal
-      const timestamp = new Date();
-      for (const intent of intents) {
-        await this.intentsService.updateWithdrawnEvent(intent.intentHash, {
-          claimant: intent.reward.creator, // Assuming creator is the claimant for withdrawals
-          txHash,
-          blockNumber: 0n, // Will be updated when event is received
-          timestamp,
-          chainId,
-        });
-      }
-
       span?.setStatus({ code: 1 });
       return txHash;
     } catch (error) {

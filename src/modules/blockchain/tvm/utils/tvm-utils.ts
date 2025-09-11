@@ -1,5 +1,3 @@
-import { Injectable } from '@nestjs/common';
-
 import { TronWeb } from 'tronweb';
 
 import { EvmAddress } from '@/modules/blockchain/evm/types/address';
@@ -8,8 +6,7 @@ import { TronAddress } from '@/modules/blockchain/tvm/types';
 /**
  * Utility service for TVM-specific operations like address conversions
  */
-@Injectable()
-export class TvmUtilsService {
+export class TvmUtils {
   /**
    * Converts a Tron address to hex format (without 0x prefix)
    * @param address - Tron address in base58 format or already in hex
@@ -36,6 +33,6 @@ export class TvmUtilsService {
   }
 
   static fromEvm(evmAddr: EvmAddress): TronAddress {
-    return TvmUtilsService.fromHex('0x41' + evmAddr.substring(2));
+    return TvmUtils.fromHex('0x41' + evmAddr.substring(2));
   }
 }

@@ -1,39 +1,16 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { UniversalAddress } from '@/common/types/universal-address.type';
+import {
+  IntentFulfilledEvent,
+  IntentProvenEvent,
+  IntentWithdrawnEvent,
+} from '@/common/interfaces/events.interface';
 import { toError } from '@/common/utils/error-handler';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { IntentsService } from './intents.service';
-
-interface IntentFulfilledEvent {
-  intentHash: string;
-  claimant: UniversalAddress;
-  txHash: string;
-  blockNumber: bigint;
-  timestamp: Date;
-  chainId: bigint;
-}
-
-interface IntentProvenEvent {
-  intentHash: string;
-  claimant: UniversalAddress;
-  txHash: string;
-  blockNumber: bigint;
-  timestamp: Date;
-  chainId: bigint;
-}
-
-interface IntentWithdrawnEvent {
-  intentHash: string;
-  claimant: UniversalAddress;
-  txHash: string;
-  blockNumber: bigint;
-  timestamp: Date;
-  chainId: bigint;
-}
 
 @Injectable()
 export class IntentsEventsHandler implements OnModuleInit {
@@ -73,7 +50,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       attributes: {
         'intent.hash': event.intentHash,
         'event.chain_id': event.chainId.toString(),
-        'event.tx_hash': event.txHash,
+        'event.transaction_hash': event.transactionHash,
         'event.claimant': event.claimant,
       },
     });
@@ -82,13 +59,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       this.logger.log(`Processing IntentFulfilled event for intent ${event.intentHash}`);
 
       // Update the intent with fulfilled event data
-      const updatedIntent = await this.intentsService.updateFulfilledEvent(event.intentHash, {
-        claimant: event.claimant,
-        txHash: event.txHash,
-        blockNumber: event.blockNumber,
-        timestamp: event.timestamp,
-        chainId: event.chainId,
-      });
+      const updatedIntent = await this.intentsService.updateFulfilledEvent(event);
 
       if (updatedIntent) {
         this.logger.log(
@@ -122,7 +93,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       attributes: {
         'intent.hash': event.intentHash,
         'event.chain_id': event.chainId.toString(),
-        'event.tx_hash': event.txHash,
+        'event.transaction_hash': event.transactionHash,
         'event.claimant': event.claimant,
       },
     });
@@ -131,13 +102,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       this.logger.log(`Processing IntentProven event for intent ${event.intentHash}`);
 
       // Update the intent with proven event data
-      const updatedIntent = await this.intentsService.updateProvenEvent(event.intentHash, {
-        claimant: event.claimant,
-        txHash: event.txHash,
-        blockNumber: event.blockNumber,
-        timestamp: event.timestamp,
-        chainId: event.chainId,
-      });
+      const updatedIntent = await this.intentsService.updateProvenEvent(event);
 
       if (updatedIntent) {
         this.logger.log(`Successfully updated intent ${event.intentHash} with proven event data`);
@@ -169,7 +134,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       attributes: {
         'intent.hash': event.intentHash,
         'event.chain_id': event.chainId.toString(),
-        'event.tx_hash': event.txHash,
+        'event.transaction_hash': event.transactionHash,
         'event.claimant': event.claimant,
       },
     });
@@ -178,13 +143,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       this.logger.log(`Processing IntentWithdrawn event for intent ${event.intentHash}`);
 
       // Update the intent with withdrawn event data
-      const updatedIntent = await this.intentsService.updateWithdrawnEvent(event.intentHash, {
-        claimant: event.claimant,
-        txHash: event.txHash,
-        blockNumber: event.blockNumber,
-        timestamp: event.timestamp,
-        chainId: event.chainId,
-      });
+      const updatedIntent = await this.intentsService.updateWithdrawnEvent(event);
 
       if (updatedIntent) {
         this.logger.log(

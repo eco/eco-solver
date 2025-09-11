@@ -5,8 +5,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
-import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
+import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -118,7 +118,6 @@ describe('TronListener Integration - Real Blockchain Events', () => {
 
     module = await Test.createTestingModule({
       providers: [
-        TvmUtilsService,
         {
           provide: SystemLoggerService,
           useValue: mockLogger,
@@ -290,7 +289,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     // Fetch events directly using TronWeb API
     try {
       const hexPortalAddress = realTvmConfig.contracts.portal.startsWith('T')
-        ? TvmUtilsService.toHex(realTvmConfig.contracts.portal)
+        ? TvmUtils.toHex(realTvmConfig.contracts.portal)
         : realTvmConfig.contracts.portal;
 
       console.log(`Fetching events for contract: ${hexPortalAddress}`);

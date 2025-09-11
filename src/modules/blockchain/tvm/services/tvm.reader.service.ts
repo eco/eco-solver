@@ -18,8 +18,6 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 
 import { TvmClientUtils, TvmErrorHandler } from '../utils';
 
-import { TvmUtilsService } from './tvm-utils.service';
-
 @Injectable()
 export class TvmReaderService extends BaseChainReader {
   constructor(
@@ -43,7 +41,7 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.getBalance', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.address': address,
+        'tvm.address': tvmAddress,
         'tvm.operation': 'getBalance',
       },
     });
@@ -53,13 +51,7 @@ export class TvmReaderService extends BaseChainReader {
         async () => {
           const client = this.createTronWebClient(chainId);
 
-          // Convert base58 address to hex if needed
-          const hexAddress = tvmAddress.startsWith('T')
-            ? TvmUtilsService.toHex(tvmAddress)
-            : tvmAddress;
-
-          // Get balance in SUN (1 TRX = 1,000,000 SUN)
-          const balance = await client.trx.getBalance(hexAddress);
+          const balance = await client.trx.getBalance(tvmAddress);
           const balanceBigInt = BigInt(balance);
 
           span.setAttribute('tvm.balance', balanceBigInt.toString());

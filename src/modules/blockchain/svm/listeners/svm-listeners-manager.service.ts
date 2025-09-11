@@ -4,11 +4,7 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
-import {
-  BlockchainConfigService,
-  FulfillmentConfigService,
-  SolanaConfigService,
-} from '@/modules/config/services';
+import { SolanaConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -22,10 +18,8 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   constructor(
     private solanaConfigService: SolanaConfigService,
     private eventsService: EventsService,
-    private fulfillmentConfigService: FulfillmentConfigService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    private readonly blockchainConfigService: BlockchainConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
   ) {
     this.logger.setContext(SvmListenersManagerService.name);
@@ -56,9 +50,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       const listener = new SolanaListener(
         this.solanaConfigService,
         this.eventsService,
-        this.fulfillmentConfigService,
         listenerLogger,
-        this.blockchainConfigService,
       );
 
       await listener.start();

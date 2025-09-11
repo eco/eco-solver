@@ -54,7 +54,7 @@ jest.mock('@/common/utils/portal-encoder', () => ({
 }));
 
 // Mock parseIntentPublish and parseIntentFulfilled functions
-jest.mock('@/modules/blockchain/evm/utils/events', () => ({
+jest.mock('@/modules/blockchain/evm/utils/evm-event-parser', () => ({
   parseIntentPublish: jest.fn((sourceChainId, log) => ({
     intentHash: log.args.intentHash,
     destination: log.args.destination,
@@ -315,7 +315,9 @@ describe('ChainListener', () => {
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
       // Mock parseIntentPublish to return an intent with empty calls for this specific test
-      const { parseIntentPublish } = await import('@/modules/blockchain/evm/utils/events');
+      const { parseIntentPublish } = await import(
+        '@/modules/blockchain/evm/utils/evm-event-parser'
+      );
       const mockParseIntentPublish = parseIntentPublish as jest.MockedFunction<
         typeof parseIntentPublish
       >;
@@ -536,7 +538,9 @@ describe('ChainListener', () => {
       expect(intentFulfilledCallback).toBeDefined();
 
       // Mock parseIntentFulfilled to throw an error
-      const { parseIntentFulfilled } = await import('@/modules/blockchain/evm/utils/events');
+      const { parseIntentFulfilled } = await import(
+        '@/modules/blockchain/evm/utils/evm-event-parser'
+      );
       const mockParseIntentFulfilled = parseIntentFulfilled as jest.MockedFunction<
         typeof parseIntentFulfilled
       >;

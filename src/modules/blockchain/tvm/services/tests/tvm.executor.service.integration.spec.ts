@@ -4,17 +4,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Address, encodeFunctionData, erc20Abi, Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
+import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
+import { TvmUtils } from '../../utils/tvm-utils';
 import { BasicWalletFactory } from '../../wallets/basic-wallet';
 import { TvmExecutorService } from '../tvm.executor.service';
 import { TvmReaderService } from '../tvm.reader.service';
-import { TvmUtilsService } from '../tvm-utils.service';
 import { TvmWalletManagerService } from '../tvm-wallet-manager.service';
 
 describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
@@ -22,7 +22,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
   let executorService: TvmExecutorService;
 
   // Mock configuration
-  const mockTvmConfig = {
+  const mockTvmConfig: any = {
     isConfigured: jest.fn().mockReturnValue(true),
     networks: [
       {
@@ -61,7 +61,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     supportedChainIds: [728126428],
     getChain: jest.fn().mockImplementation((chainId) => {
       // Find network by chain ID
-      const network = mockTvmConfig.networks.find((n) => n.chainId === chainId);
+      const network: any = mockTvmConfig.networks.find((n: any) => n.chainId === chainId);
       if (!network) throw new Error(`Network not found: ${chainId}`);
       return network;
     }),
@@ -177,7 +177,6 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       imports: [EventEmitterModule.forRoot()],
       providers: [
         // TVM module services
-        TvmUtilsService,
         TvmReaderService,
         TvmExecutorService,
         TvmWalletManagerService,
@@ -220,14 +219,14 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       ['TLRwjRfjxa4wEDom56qCo1nYiAfJaozJVi', '0x742d35cc6634c0532925a3b844bc9e7595ed5f3f'],
     ]);
 
-    jest.spyOn(TvmUtilsService, 'toHex').mockImplementation((addr) => {
+    jest.spyOn(TvmUtils, 'toHex').mockImplementation((addr) => {
       if (addr.startsWith('T')) {
         const evmAddr = mockAddressMap.get(addr);
         return evmAddr ? evmAddr.substring(2) : '41' + addr.substring(1).padEnd(40, '0');
       }
       return addr;
     });
-    jest.spyOn(TvmUtilsService, 'fromHex').mockImplementation((hex) => {
+    jest.spyOn(TvmUtils, 'fromHex').mockImplementation((hex) => {
       for (const [tronAddr, evmAddr] of mockAddressMap.entries()) {
         if (evmAddr.substring(2) === hex || '0x' + hex === evmAddr) {
           return tronAddr as any;
@@ -266,18 +265,18 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
   it('should successfully fulfill an intent on Tron mainnet', async () => {
     // Convert Tron addresses to UniversalAddress format
-    const proverAddress = toUniversalAddress(
-      padTo32Bytes('0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41'),
-    );
-    const creatorAddress = toUniversalAddress(
-      padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'),
-    );
-    const inboxAddress = toUniversalAddress(
-      padTo32Bytes('0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5'),
-    );
-    const usdtAddress = toUniversalAddress(
-      padTo32Bytes('0xa614f803b6fd780986a42c78ec9c7f77e6ded13c'),
-    );
+    const proverAddress = padTo32Bytes(
+      '0xd1f491a3c2e8bc6094b49f2b69847fce4e6eaa41',
+    ) as UniversalAddress;
+    const creatorAddress = padTo32Bytes(
+      '0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5',
+    ) as UniversalAddress;
+    const inboxAddress = padTo32Bytes(
+      '0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5',
+    ) as UniversalAddress;
+    const usdtAddress = padTo32Bytes(
+      '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c',
+    ) as UniversalAddress;
 
     // For viem encodeFunctionData, we need a standard 20-byte address
     const recipientEvmAddress = '0x742d35cc6634c0532925a3b844bc9e7595ed5f3f' as Address;
@@ -330,7 +329,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     let result;
     try {
       result = await executorService.fulfill(testIntent, 'basic');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Exception during fulfill:', error);
       console.error('Stack trace:', error.stack);
       throw error;
@@ -351,7 +350,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     expect(result.success).toBe(true);
     expect(result.txHash).toBeDefined();
     expect(typeof result.txHash).toBe('string');
-    expect(result.txHash.length).toBeGreaterThan(0);
+    expect(result.txHash?.length).toBeGreaterThan(0);
     console.log('Transaction successful with hash:', result.txHash);
 
     // Verify the prover service was called with correct parameters

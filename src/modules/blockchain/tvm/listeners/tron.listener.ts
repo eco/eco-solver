@@ -4,17 +4,17 @@ import { getAbiItem, Hex, toEventHash } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { TvmEvent, TvmEventResponse } from '@/common/interfaces/events.interface';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { minutes } from '@/common/utils/time';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
-import { parseIntentPublish } from '@/modules/blockchain/evm/utils/events';
-import { TvmUtilsService } from '@/modules/blockchain/tvm/services/tvm-utils.service';
+import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
+import { TvmEvent, TvmEventResponse } from '@/modules/blockchain/tvm/types/events.type';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
-import { parseTvmIntentFulfilled } from '@/modules/blockchain/tvm/utils/events.utils';
+import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
+import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -287,9 +287,12 @@ export class TronListener extends BaseChainListener {
 
     try {
       // Parse the IntentFulfilled event
-      const fulfilledEvent = parseTvmIntentFulfilled(BigInt(this.config.chainId), event);
+      const fulfilledEvent = TvmEventParser.parseTvmIntentFulfilled(
+        BigInt(this.config.chainId),
+        event,
+      );
       const claimant = AddressNormalizer.normalize(
-        TvmUtilsService.fromHex(fulfilledEvent.claimant),
+        TvmUtils.fromHex(fulfilledEvent.claimant),
         ChainType.TVM,
       );
 
@@ -303,7 +306,7 @@ export class TronListener extends BaseChainListener {
         this.eventsService.emit('intent.fulfilled', {
           intentHash: fulfilledEvent.intentHash,
           claimant,
-          txHash: event.transaction_id,
+          transactionHash: event.transaction_id,
           blockNumber: BigInt(event.block_number || 0),
           timestamp: new Date(event.block_timestamp || 0),
           chainId: BigInt(this.config.chainId),
@@ -329,25 +332,18 @@ export class TronListener extends BaseChainListener {
   }
 
   private async processIntentProvenEvent(event: TvmEvent): Promise<void> {
-    const spanAttributes: any = {
-      'tvm.chain_id': this.config.chainId.toString(),
-      'tvm.event_name': event.event_name,
-      'tvm.transaction_id': event.transaction_id,
-      'tvm.block_number': event.block_number,
-    };
-
     const span = this.otelService.startSpan('tvm.listener.processIntentProvenEvent', {
-      attributes: spanAttributes,
+      attributes: {
+        'tvm.chain_id': this.config.chainId.toString(),
+        'tvm.event_name': event.event_name,
+        'tvm.transaction_id': event.transaction_id,
+        'tvm.block_number': event.block_number,
+      },
     });
 
     try {
-      // Parse event result
-      const result = event.result;
-      const intentHash = result.intentHash || result.hash;
-      const claimant = AddressNormalizer.normalize(
-        TvmUtilsService.fromHex(result.claimant),
-        ChainType.TVM,
-      );
+      const parsedEvent = TvmEventParser.parseIntentProvenEvent(event, this.config.chainId);
+      const { intentHash, claimant } = parsedEvent;
 
       span.setAttributes({
         'tvm.intent_hash': intentHash,
@@ -356,14 +352,7 @@ export class TronListener extends BaseChainListener {
 
       // Emit the event within the span context to propagate trace context
       api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-        this.eventsService.emit('intent.proven', {
-          intentHash,
-          claimant,
-          txHash: event.transaction_id,
-          blockNumber: BigInt(event.block_number || 0),
-          timestamp: new Date(event.block_timestamp || 0),
-          chainId: BigInt(this.config.chainId),
-        });
+        this.eventsService.emit('intent.proven', parsedEvent);
       });
 
       span.addEvent('intent.proven.emitted');
@@ -395,13 +384,8 @@ export class TronListener extends BaseChainListener {
     });
 
     try {
-      // Parse event result
-      const result = event.result;
-      const intentHash = result.intentHash || result.hash;
-      const claimant = AddressNormalizer.normalize(
-        TvmUtilsService.fromHex(result.claimant),
-        ChainType.TVM,
-      );
+      const parsedEvent = TvmEventParser.parseIntentWithdrawnEvent(event, this.config.chainId);
+      const { intentHash, claimant } = parsedEvent;
 
       span.setAttributes({
         'tvm.intent_hash': intentHash,
@@ -410,14 +394,7 @@ export class TronListener extends BaseChainListener {
 
       // Emit the event within the span context to propagate trace context
       api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-        this.eventsService.emit('intent.withdrawn', {
-          intentHash,
-          claimant,
-          txHash: event.transaction_id,
-          blockNumber: BigInt(event.block_number || 0),
-          timestamp: new Date(event.block_timestamp || 0),
-          chainId: BigInt(this.config.chainId),
-        });
+        this.eventsService.emit('intent.withdrawn', parsedEvent);
       });
 
       span.addEvent('intent.withdrawn.emitted');
@@ -475,7 +452,7 @@ export class TronListener extends BaseChainListener {
 
         const evmLog = { topics, data: data as Hex };
 
-        const intent = parseIntentPublish(BigInt(this.config.chainId), evmLog);
+        const intent = EvmEventParser.parseIntentPublish(BigInt(this.config.chainId), evmLog);
         // Add the transaction hash to the intent
         intent.publishTxHash = txInfo.id;
 

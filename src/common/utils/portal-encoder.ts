@@ -19,7 +19,7 @@ import {
 import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
 import { bufferToBytes, bytes32ToAddress } from '@/modules/blockchain/svm/utils/converter';
 import { toSvmReward, toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
-import { TvmUtilsService } from '@/modules/blockchain/tvm/services';
+import { TvmUtils } from '@/modules/blockchain/tvm/services';
 
 import { EVMRewardAbiItem, EVMRouteAbiItem } from '../abis/portal.abi';
 import { Intent } from '../interfaces/intent.interface';
@@ -192,14 +192,11 @@ export class PortalEncoder {
 
       return {
         deadline: decoded.deadline,
-        creator: AddressNormalizer.normalize(
-          TvmUtilsService.fromEvm(decoded.creator),
-          ChainType.TVM,
-        ),
-        prover: AddressNormalizer.normalize(TvmUtilsService.fromEvm(decoded.prover), ChainType.TVM),
+        creator: AddressNormalizer.normalize(TvmUtils.fromEvm(decoded.creator), ChainType.TVM),
+        prover: AddressNormalizer.normalize(TvmUtils.fromEvm(decoded.prover), ChainType.TVM),
         nativeAmount: decoded.nativeAmount,
         tokens: decoded.tokens.map((t) => ({
-          token: AddressNormalizer.normalize(TvmUtilsService.fromEvm(t.token), ChainType.TVM),
+          token: AddressNormalizer.normalize(TvmUtils.fromEvm(t.token), ChainType.TVM),
           amount: t.amount,
         })),
       } as Intent['reward'] as Type extends 'route' ? Intent['route'] : Intent['reward'];
@@ -209,14 +206,14 @@ export class PortalEncoder {
     return {
       salt: decoded.salt,
       deadline: decoded.deadline,
-      portal: AddressNormalizer.normalize(TvmUtilsService.fromEvm(decoded.portal), ChainType.TVM),
+      portal: AddressNormalizer.normalize(TvmUtils.fromEvm(decoded.portal), ChainType.TVM),
       nativeAmount: decoded.nativeAmount || 0n,
       tokens: decoded.tokens.map((t) => ({
-        token: AddressNormalizer.normalize(TvmUtilsService.fromEvm(t.token), ChainType.TVM),
+        token: AddressNormalizer.normalize(TvmUtils.fromEvm(t.token), ChainType.TVM),
         amount: t.amount,
       })),
       calls: decoded.calls.map((c) => ({
-        target: AddressNormalizer.normalize(TvmUtilsService.fromEvm(c.target), ChainType.TVM),
+        target: AddressNormalizer.normalize(TvmUtils.fromEvm(c.target), ChainType.TVM),
         data: c.data,
         value: c.value,
       })),
