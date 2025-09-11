@@ -1,4 +1,5 @@
 import { EcoError } from '../errors/eco-error'
+import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 
 interface BaseLoggingDataParams {
   message: string
@@ -29,9 +30,14 @@ export class EcoLogMessage {
   private readonly _content: object
 
   private constructor(params: BaseLoggingDataParams) {
+    // Transform any BigInt values to strings to prevent serialization errors
+    const transformedProperties = params.properties 
+      ? BigIntToStringInterceptor.transformBigInt(params.properties)
+      : {}
+    
     this._content = {
       msg: params.message,
-      ...params.properties,
+      ...transformedProperties,
     }
   }
 
