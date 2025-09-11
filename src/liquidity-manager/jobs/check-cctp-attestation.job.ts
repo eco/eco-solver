@@ -107,7 +107,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         }),
       )
 
-      this.delay(job, 30_000)
+      await this.delay(job, 30_000)
     }
 
     return result

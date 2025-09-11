@@ -66,7 +66,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
     switch (result.status) {
       case 'pending':
-        this.delay(job, EVERCLEAR_RETRY_DELAY_MS)
+        await this.delay(job, EVERCLEAR_RETRY_DELAY_MS)
       case 'complete':
         return result
       case 'failed':

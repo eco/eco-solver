@@ -51,8 +51,8 @@ export abstract class BaseJobManager<Job extends BullMQJob, Processor = unknown>
    * @param job - The job to delay.
    * @param delay - The delay in milliseconds.
    */
-  delay(job: Job, delay: number): void {
-    job.moveToDelayed(Date.now() + delay, job.token)
+  async delay(job: Job, delay: number): Promise<void> {
+    await job.moveToDelayed(Date.now() + delay, job.token)
     // we need to exit from the processor by throwing this error that will signal to the worker
     // that the job has been delayed so that it does not try to complete (or fail the job) instead
     throw new DelayedError()
