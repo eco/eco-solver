@@ -25,8 +25,7 @@ import {
   IntentProcessorQueueType,
 } from '@/intent-processor/queues/intent-processor.queue'
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
-import { Multicall3Abi } from '@/contracts/Multicall3'
-import { getMulticall } from '@/intent-processor/utils/multicall'
+import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { getChainConfig } from '@/eco-configs/utils'
 
 @Injectable()
@@ -301,7 +300,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }),
     )
 
-    const transaction = this.sendTransactions(chainId, sendBatchTransactions)
+    const transaction = batchTransactionsWithMulticall(chainId, sendBatchTransactions)
 
     const txHash = await walletClient.sendTransaction(transaction)
 
@@ -316,38 +315,6 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     )
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
-  }
-
-  /**
-   * Aggregates transactions using a Multicall contract
-   * @param chainId
-   * @param transactions
-   * @private
-   */
-  private sendTransactions(
-    chainId: number,
-    transactions: TransactionRequest[],
-  ): TransactionRequest {
-    if (transactions.length === 1) {
-      return transactions[0]
-    }
-
-    const totalValue = transactions.reduce((acc, tx) => acc + (tx.value || 0n), 0n)
-
-    const calls = transactions.map((tx) => ({
-      target: tx.to!,
-      allowFailure: false,
-      value: tx.value ?? 0n,
-      callData: tx.data ?? '0x',
-    }))
-
-    const data = encodeFunctionData({
-      abi: Multicall3Abi,
-      functionName: 'aggregate3Value',
-      args: [calls],
-    })
-
-    return { to: getMulticall(chainId), value: totalValue, data }
   }
 
   private getIntentSource() {
