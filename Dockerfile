@@ -43,8 +43,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Install production dependencies only (skip prepare script which runs husky)
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
