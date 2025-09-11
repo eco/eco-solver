@@ -38,8 +38,7 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     const amountStr = (deserialize(data.amount) as bigint).toString()
     await queue.add(LiquidityManagerJobName.GATEWAY_TOP_UP, data, {
       jobId: `${LiquidityManagerJobName.GATEWAY_TOP_UP}-${data.id}-${data.chainId}-${amountStr}`,
-      removeOnComplete: true,
-      removeOnFail: true,
+      removeOnFail: false,
       attempts: 3,
       backoff: { type: 'exponential', delay: 10_000 },
     })

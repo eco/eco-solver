@@ -264,47 +264,71 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         },
       }),
     )
+
+    const url = new URL(`${this.config.apiUrl}/v2/messages/${sourceDomain}`)
+    url.searchParams.append('transactionHash', transactionHash)
+
+    // Apply timeout to fetch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10_000)
+    let response: Response
     try {
-      const url = new URL(`${this.config.apiUrl}/v2/messages/${sourceDomain}`)
-      url.searchParams.append('transactionHash', transactionHash)
-
-      const response = await fetch(url.toString())
-
-      if (!response.ok) {
-        const errorBody = await response.text()
-        throw new Error(`API request failed with status ${response.status}: ${errorBody}`)
+      response = await fetch(url.toString(), { signal: controller.signal } as any)
+    } catch (error) {
+      if ((error as any)?.name === 'AbortError') {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTPV2: Attestation request timed out, treating as pending`,
+            id: quoteId,
+            properties: { transactionHash, sourceDomain },
+          }),
+        )
+        return { status: 'pending' }
       }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
-      const data = await response.json()
+    // Handle non-OK responses
+    if (!response.ok) {
+      // 404 means message not yet indexed - treat as pending
+      if (response.status === 404) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTPV2: Message not found (404), treating as pending`,
+            id: quoteId,
+            properties: { transactionHash, sourceDomain },
+          }),
+        )
+        return { status: 'pending' }
+      }
+      throw new Error(
+        `CCTPV2 API request failed with status ${response.status}: ${response.statusText}`,
+      )
+    }
 
-      if (data?.messages && data.messages.length > 0) {
-        const message = data.messages[0]
-        // The API may return a message object with an attestation string of "PENDING"
-        if (
-          message.attestation &&
-          message.attestation !== 'PENDING' &&
-          message.status === 'complete'
-        ) {
-          return {
-            status: 'complete',
-            messageBody: message.message,
-            attestation: message.attestation,
-          }
+    // Parse successful response
+    const data = await response.json()
+
+    if (data?.messages && data.messages.length > 0) {
+      const message = data.messages[0]
+      // The API may return a message object with an attestation string of "PENDING"
+      if (
+        message.attestation &&
+        message.attestation !== 'PENDING' &&
+        message.status === 'complete'
+      ) {
+        return {
+          status: 'complete',
+          messageBody: message.message,
+          attestation: message.attestation,
         }
       }
-
-      return { status: 'pending' }
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          message: `Failed to fetch CCTP V2 attestation for tx ${transactionHash} on domain ${sourceDomain}`,
-          id: quoteId,
-        }),
-      )
-      // If there's an error, we assume it's still pending so the job can be retried.
-      return { status: 'pending' }
     }
+
+    // No messages or attestation is PENDING
+    return { status: 'pending' }
   }
 
   /**

@@ -135,7 +135,7 @@ describe('CCTPLiFiDestinationSwapJobManager', () => {
       expect(payload).toEqual(data)
       expect(opts).toEqual(
         expect.objectContaining({
-          removeOnComplete: true,
+          removeOnFail: false,
           attempts: 3,
           backoff: { type: 'exponential', delay: 2_000 },
           delay: 0,
