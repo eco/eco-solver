@@ -1,7 +1,7 @@
 import { decodeFunctionData, erc20Abi, Hex } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
@@ -9,12 +9,19 @@ import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
 import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
 import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cacheable } from '@/decorators/cacheable.decorator'
 
 @Injectable()
 export class QuoteV2TransformService {
   private logger = new Logger(QuoteV2TransformService.name)
 
-  constructor(private readonly ecoConfigService: EcoConfigService) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: EcoConfigService,
+    private readonly kernelAccountClientService: KernelAccountClientService,
+  ) {}
 
   /**
    * Transforms the current quote structure to V2 format
@@ -58,12 +65,12 @@ export class QuoteV2TransformService {
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Error transforming quote to V2',
           properties: {
             quoteID: quoteIntent.quoteID,
-            error: error.message,
           },
+          error,
         }),
       )
       throw error
@@ -127,9 +134,9 @@ export class QuoteV2TransformService {
       if (decoded.functionName === 'transferFrom') return decoded.args[1]
     } catch (error) {
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Could not extract recipient from call data',
-          properties: { error: error.message },
+          error,
         }),
       )
     }
@@ -176,25 +183,55 @@ export class QuoteV2TransformService {
     return fees
   }
 
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
   private async getTokenInfo(
     tokenAddress: Hex,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _chainId: number,
+    chainId: number,
   ): Promise<{ address: Hex; decimals: number; symbol: string }> {
-    // In a real implementation, this would fetch token info from chain or config
-    // For now, returning placeholder data
-    return {
-      address: tokenAddress,
-      decimals: 18, // Default to 18 decimals
-      symbol: 'TOKEN', // Placeholder symbol
+    try {
+      const client = await this.kernelAccountClientService.getClient(chainId)
+
+      const [decimals, symbol] = await Promise.all([
+        client.readContract({
+          abi: erc20Abi,
+          address: tokenAddress,
+          functionName: 'decimals',
+        }) as Promise<number>,
+        client.readContract({
+          abi: erc20Abi,
+          address: tokenAddress,
+          functionName: 'symbol',
+        }) as Promise<string>,
+      ])
+
+      const decimalsNumber = typeof decimals === 'number' ? decimals : Number(decimals)
+
+      return {
+        address: tokenAddress,
+        decimals: decimalsNumber,
+        symbol: symbol,
+      }
+    } catch (error) {
+      this.logger.warn(
+        EcoLogMessage.withError({
+          message: 'Failed to fetch token metadata',
+          properties: {
+            tokenAddress,
+            chainId,
+          },
+          error,
+        }),
+      )
+      throw error
     }
   }
 
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
   private async getNativeTokenInfo(
     chainId: number,
   ): Promise<{ address: Hex; decimals: number; symbol: string }> {
     // Get native token info based on chain
-    const chainConfig = this.ecoConfigService.getChain(chainId)
+    const chainConfig = this.configService.getChain(chainId)
 
     return {
       address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Hex, // Standard native token address
@@ -203,13 +240,14 @@ export class QuoteV2TransformService {
     }
   }
 
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
   private async getContractAddresses(
     quoteIntent: QuoteIntentDataDTO,
   ): Promise<QuoteV2ContractsDTO> {
     const sourceChain = Number(quoteIntent.route.source)
 
     // Get intent source contract for source chain
-    const sourceConfig = this.ecoConfigService.getIntentSource(sourceChain)
+    const sourceConfig = this.configService.getIntentSource(sourceChain)
     const intentSource =
       sourceConfig?.sourceAddress || ('0x0000000000000000000000000000000000000000' as Hex)
 
