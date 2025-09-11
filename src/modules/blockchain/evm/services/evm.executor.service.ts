@@ -131,14 +131,12 @@ export class EvmExecutorService extends BaseChainExecutor {
         }),
       };
 
-      console.log('SOYLANA fulfillTx:', fulfillTx);
-
       span.addEvent('evm.transaction.submitting', {
         transaction_count: approvalTxs.length + 1,
       });
 
       const [hash] = await wallet.writeContracts([...approvalTxs, fulfillTx], {
-        value: 0n,
+        value: 0n, // EOA doesn't send ETH, prover fee is paid by the Kernel wallet
       });
 
       span.setAttribute('evm.transaction_hash', hash);
