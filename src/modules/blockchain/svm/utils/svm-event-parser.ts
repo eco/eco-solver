@@ -1,7 +1,6 @@
 import { Logs } from '@solana/web3.js';
 
-import { EventMap } from '@/common/events';
-import { IntentWithdrawnEvent } from '@/common/interfaces/events.interface';
+import { IntentFulfilledEvent, IntentWithdrawnEvent } from '@/common/interfaces/events.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
@@ -54,7 +53,7 @@ export class SvmEventParser {
     evt: IntentFulfilledInstruction,
     logs: Logs,
     chainId: number,
-  ): EventMap['intent.fulfilled'] {
+  ): IntentFulfilledEvent {
     return {
       intentHash: bufferToBytes(evt.intent_hash[0]),
       claimant: bufferToBytes(evt.claimant[0]) as UniversalAddress,
