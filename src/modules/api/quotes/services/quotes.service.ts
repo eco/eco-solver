@@ -87,14 +87,19 @@ export class QuotesService {
     const sourceAmount = intent.route.tokens[0].amount;
 
     // Get token configuration from BlockchainConfigService
-    const tokenConfig = this.blockchainConfigService.getTokenConfig(sourceChainId, sourceToken);
+    const rewardTokenConfig = this.blockchainConfigService.getTokenConfig(
+      sourceChainId,
+      sourceToken,
+    );
+    const routeTokenConfig = this.blockchainConfigService.getTokenConfig(
+      destinationChainId,
+      destinationToken,
+    );
+
+    const fee = denormalize(quoteResult.fees!.fee, routeTokenConfig.decimals);
 
     // TODO: Get quote should return the destination amount from the source
-    const destinationAmount =
-      sourceAmount * 2n -
-      (quoteResult.fees?.minimumRequiredReward
-        ? denormalize(quoteResult.fees.minimumRequiredReward, 6)
-        : 0n);
+    const destinationAmount = sourceAmount - fee;
 
     // Build the response
     return {
@@ -115,10 +120,10 @@ export class QuotesService {
                 description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
                 token: {
                   address: request.quoteRequest.sourceToken,
-                  decimals: tokenConfig.decimals,
-                  symbol: tokenConfig.symbol,
+                  decimals: rewardTokenConfig.decimals,
+                  symbol: rewardTokenConfig.symbol,
                 },
-                amount: quoteResult.fees.totalRequiredFee.toString(),
+                amount: fee.toString(),
               },
             ]
           : [],

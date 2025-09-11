@@ -5,6 +5,7 @@ import { Validation } from './validation.interface';
 
 export interface FeeDetails {
   baseFee: bigint;
+  fee: bigint;
   percentageFee: bigint;
   totalRequiredFee: bigint;
   currentReward: bigint;

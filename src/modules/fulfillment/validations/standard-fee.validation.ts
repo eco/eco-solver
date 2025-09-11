@@ -90,8 +90,8 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     // Get fee logic for the destination chain
-    const fee = this.blockchainConfigService.getFeeLogic(intent.destination);
-    const baseFee = normalize(parseUnits(fee.tokens.flatFee.toString(), 18), 18);
+    const feeConfig = this.blockchainConfigService.getFeeLogic(intent.destination);
+    const baseFee = normalize(parseUnits(feeConfig.tokens.flatFee.toString(), 18), 18);
 
     // Calculate total value being transferred
     const totalReward = sum(
@@ -106,12 +106,14 @@ export class StandardFeeValidation implements FeeCalculationValidation {
     // Calculate the required fee: baseFee + (totalValue * scalarBps / 10000)
     // Note: totalValue should NOT be added to the fee - it's the transfer amount, not a fee
     const base = 10_000;
-    const scalarBpsInt = BigInt(Math.floor(fee.tokens.scalarBps * base));
+    const scalarBpsInt = BigInt(Math.floor(feeConfig.tokens.scalarBps * base));
     const percentageFee = (totalValue * scalarBpsInt) / BigInt(base * 10000);
-    const totalRequiredFee = totalValue + baseFee + percentageFee;
+    const fee = baseFee + percentageFee;
+    const totalRequiredFee = totalValue + fee;
 
     return {
       baseFee,
+      fee,
       percentageFee,
       totalRequiredFee,
       currentReward: totalReward,

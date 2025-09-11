@@ -99,9 +99,11 @@ export class NativeFeeValidation implements FeeCalculationValidation {
     const nativePercentageFeeScalar = BigInt(Math.floor(nativeFeeConfig.native.scalarBps * base));
 
     const percentageFee = (nativeAmount * nativePercentageFeeScalar) / BigInt(base * 10000);
-    const totalRequiredFee = baseFee + percentageFee;
+    const fee = baseFee + percentageFee;
+    const totalRequiredFee = nativeAmount + fee;
 
     return {
+      fee,
       baseFee,
       percentageFee,
       totalRequiredFee,
