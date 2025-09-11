@@ -11,9 +11,11 @@ import { getChainConfig } from '@/eco-configs/utils'
 import config from '../config/solana'
 import { PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { createTransferCheckedInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { portalAbi } from '@/contracts/v2-abi/Portal'
-import { web3 } from '@coral-xyz/anchor'
+import { BorshCoder, Idl, web3 } from '@coral-xyz/anchor'
+import { portalIdl } from './targets/idl/portal.idl'
+import { CalldataWithAccountsInstruction } from './targets/types/portal-idl.type'
 
 // Load environment variables from .env file
 dotenv.config()
@@ -99,82 +101,32 @@ const tokenMint = new PublicKey(routeTokens[0].token) // USDC on Solana
 const recipientAddress = new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh') // Destination wallet
 const transferAmount = BigInt(1000)
 
-function encodeTransferCheckedData(amount: bigint | number, decimals: number): Buffer {
-  const buf = Buffer.alloc(1 + 8 + 1)
-  buf.writeUInt8(12, 0) // 12 = TransferChecked
-  buf.writeBigUInt64LE(BigInt(amount), 1)
-  buf.writeUInt8(decimals, 1 + 8)
-  return buf
-}
+export const portalBorshCoder = new BorshCoder<string, (typeof portalIdl)['types'][number]['name']>(
+  portalIdl as unknown as Idl,
+)
 
 async function getSolanaTransferCall() {
-  // Create SPL token transfer call exactly as in the integration test
-  // The integration test uses: spl_token_2022::instruction::transfer_checked()
-
-  // Get the executor and recipient ATAs for the call
-  const executorAta = await getAssociatedTokenAddress(tokenMint, solanaPortalAddress, true)
-  const recipientAta = await getAssociatedTokenAddress(tokenMint, recipientAddress)
-
   // Get executor PDA for call accounts
   const EXECUTOR_SEED = Buffer.from('executor')
   const [executorPda] = web3.PublicKey.findProgramAddressSync([EXECUTOR_SEED], solanaPortalAddress)
 
-  // Create the actual SPL token transfer_checked instruction
-  // This matches exactly what the integration test does
-  // Note: We need to use a function that creates TransferChecked (not Transfer)
-  // to match the 4-account requirement
-
-  // Create proper TransferChecked instruction data
-  // TransferChecked format: [instruction(1), amount(8), decimals(1)]
-
-  const transferCheckedInstructionData = encodeTransferCheckedData(transferAmount, 6)
-
-  const accounts = [
-    { pubkey: executorAta, isSigner: false, isWritable: true }, // executor_ata (source)
-    { pubkey: tokenMint, isSigner: false, isWritable: false }, // token mint
-    { pubkey: recipientAta, isSigner: false, isWritable: true }, // recipient_ata (destination)
-    { pubkey: executorPda, isSigner: false, isWritable: false }, // executor authority
-  ]
-
   // Create the Calldata struct exactly as in the integration test
-  const calldata = {
-    data: Array.from(transferCheckedInstructionData), // Use the actual instruction data
-    account_count: accounts.length, // 4 accounts as per integration test
-  }
+  const calldata = createTransferCheckedInstruction(
+    solanaPortalAddress,
+    tokenMint,
+    recipientAddress,
+    executorPda,
+    transferAmount,
+    6,
+  )
 
-  // Serialize the Calldata struct using Borsh format
-  // Based on Rust struct: { data: Vec<u8>, account_count: u8 }
-  // Borsh serialization order: data first (with length), then account_count
-  const dataLength = calldata.data.length
-  const calldataBytes = Buffer.alloc(4 + dataLength + 1)
-  let offset = 0
-
-  // Write data length (u32 little-endian for Vec<u8>)
-  calldataBytes.writeUInt32LE(dataLength, offset)
-  offset += 4
-
-  // Write data bytes
-  Buffer.from(calldata.data).copy(calldataBytes, offset)
-  offset += dataLength
-
-  // Write account_count (u8) - comes after data in Rust struct
-  calldataBytes[offset] = calldata.account_count
-
-  console.log('MADDEN: Serialized calldata bytes:', calldataBytes.toString('hex'))
-
-  const accountsLengthBuffer = Buffer.alloc(4)
-  accountsLengthBuffer.writeUInt32LE(accounts.length, 0)
-
-  const accountsBuffer = accounts.map((acc) => {
-    // SerializableAccountMeta: { pubkey: [u8; 32], is_signer: bool, is_writable: bool }
-    const pubkeyBytes = Buffer.from(acc.pubkey.toBytes())
-    const isSignerByte = Buffer.from([acc.isSigner ? 1 : 0])
-    const isWritableByte = Buffer.from([acc.isWritable ? 1 : 0])
-    return Buffer.concat([pubkeyBytes, isSignerByte, isWritableByte])
-  })
-  const accountsData = Buffer.concat(accountsBuffer)
-
-  const serializedCalldata = Buffer.concat([calldataBytes, accountsLengthBuffer, accountsData])
+  const serializedCalldata = portalBorshCoder.types.encode<CalldataWithAccountsInstruction>(
+    'CalldataWithAccounts',
+    {
+      calldata: { data: calldata.data, accountCount: calldata.keys.length },
+      accounts: calldata.keys,
+    },
+  )
 
   return {
     target: TOKEN_PROGRAM_ID, // SPL Token program
