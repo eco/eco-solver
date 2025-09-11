@@ -2,6 +2,7 @@ import { FeeModule } from '@/fee/fee.module'
 import { FulfillmentEstimateModule } from '@/fulfillment-estimate/fulfillment-estimate.module'
 import { IntentModule } from '@/intent/intent.module'
 import { Module } from '@nestjs/common'
+import { CacheModule } from '@nestjs/cache-manager'
 import { MongooseModule } from '@nestjs/mongoose'
 import { ProverModule } from '@/prover/prover.module'
 import { QuoteIntentModel, QuoteIntentSchema } from '@/quote/schemas/quote-intent.schema'
@@ -13,6 +14,7 @@ import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.ser
 
 @Module({
   imports: [
+    CacheModule.register(),
     FeeModule,
     IntentModule,
     ProverModule,
@@ -26,6 +28,12 @@ import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.ser
     QuoteV2TransformService,
     QuoteV2RequestTransformService,
   ],
-  exports: [QuoteService, QuoteV2Service, QuoteV2TransformService, QuoteV2RequestTransformService],
+  exports: [
+    QuoteService,
+    QuoteV2Service,
+    QuoteRepository,
+    QuoteV2TransformService,
+    QuoteV2RequestTransformService,
+  ],
 })
 export class QuoteModule {}
