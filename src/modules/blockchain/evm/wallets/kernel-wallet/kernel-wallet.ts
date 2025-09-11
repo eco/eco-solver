@@ -417,26 +417,7 @@ export class KernelWallet extends BaseEvmWallet {
         totalValue: totalValue.toString(),
       });
 
-      // check kernel account balance before execution
-      const kernelBalance = await this.publicClient.getBalance({
-        address: this.kernelAccount.address,
-      });
-      
-      this.logger.debug('Kernel account balance check', {
-        kernelAddress: this.kernelAccount.address,
-        balance: kernelBalance.toString(),
-        requiredValue: totalValue.toString(),
-        sufficient: kernelBalance >= totalValue,
-      });
-
-      if (kernelBalance < totalValue) {
-        throw new Error(
-          `Kernel account has insufficient ETH balance. ` +
-          `Required: ${totalValue.toString()} wei, ` +
-          `Available: ${kernelBalance.toString()} wei. ` +
-          `Please fund the Kernel account at ${this.kernelAccount.address} with at least ${(totalValue - kernelBalance).toString()} wei additional ETH.`
-        );
-      }
+      await this.checkKernelAccountBalance(totalValue, span);
 
       const execution = encodeKernelExecuteParams(calls);
 
@@ -742,6 +723,51 @@ export class KernelWallet extends BaseEvmWallet {
       throw error;
     } finally {
       span.end();
+    }
+  }
+
+  /**
+   * Checks if the kernel account has sufficient ETH balance for the transaction.
+   * Only performs the check if totalValue is greater than zero.
+   */
+  private async checkKernelAccountBalance(totalValue: bigint, span: api.Span): Promise<void> {
+    if (totalValue <= 0n) {
+      span.setAttribute('kernel.balance_check_skipped', true);
+      span.setAttribute('kernel.balance_check_reason', 'zero_value');
+      return;
+    }
+
+    span.setAttribute('kernel.balance_check_performed', true);
+    
+    const kernelBalance = await this.publicClient.getBalance({
+      address: this.kernelAccount.address,
+    });
+
+    const sufficient = kernelBalance >= totalValue;
+    
+    span.setAttributes({
+      'kernel.account_balance': kernelBalance.toString(),
+      'kernel.required_balance': totalValue.toString(),
+      'kernel.balance_sufficient': sufficient,
+    });
+
+    this.logger.debug('Kernel account balance check', {
+      kernelAddress: this.kernelAccount.address,
+      balance: kernelBalance.toString(),
+      requiredValue: totalValue.toString(),
+      sufficient,
+    });
+
+    if (!sufficient) {
+      const shortfall = totalValue - kernelBalance;
+      span.setAttribute('kernel.balance_shortfall', shortfall.toString());
+      
+      throw new Error(
+        `Kernel account has insufficient ETH balance. ` +
+          `Required: ${totalValue.toString()} wei, ` +
+          `Available: ${kernelBalance.toString()} wei. ` +
+          `Please fund the Kernel account at ${this.kernelAccount.address} with at least ${shortfall.toString()} wei additional ETH.`,
+      );
     }
   }
 }
