@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
+import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import {
   BlockchainConfigService,
   EvmConfigService,
@@ -16,6 +16,8 @@ import { BlockchainReaderService } from '../blockchain-reader.service';
 import { EvmReaderService } from '../evm/services/evm.reader.service';
 import { SvmReaderService } from '../svm/services/svm.reader.service';
 
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
 describe('BlockchainReaderService', () => {
   let service: BlockchainReaderService;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;

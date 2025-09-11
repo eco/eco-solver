@@ -1,11 +1,14 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RouteAmountLimitValidation } from '../route-amount-limit.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
+
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
 
 describe('RouteAmountLimitValidation', () => {
   let validation: RouteAmountLimitValidation;
@@ -82,6 +85,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 1000 }, // 1000 USDC limit (acts as max)
         });
 
@@ -128,6 +132,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 1000 },
         });
 
@@ -183,6 +188,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 1000 }, // Limit is 1000 USDC
         });
 
@@ -221,6 +227,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 1000 },
         });
 
@@ -275,6 +282,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { max: 1000 }, // USDC limit is 1000
           })
           .mockReturnValueOnce({
@@ -282,6 +290,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { max: 500 }, // USDT limit is 500 (smaller)
           });
 
@@ -334,6 +343,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { max: 1000 },
           })
           .mockReturnValueOnce({
@@ -341,6 +351,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { max: 500 }, // Smallest limit
           });
 
@@ -395,6 +406,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { max: 1000 },
           })
           .mockReturnValueOnce({
@@ -402,6 +414,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             ),
             decimals: 18,
+            symbol: 'WETH',
             limit: { max: 1000 },
           });
 
@@ -442,6 +455,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 10000000000 }, // 10 billion limit (larger than amount)
         });
 
@@ -480,6 +494,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 1000 },
         });
 
@@ -520,6 +535,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { max: 1000 },
         });
 
@@ -561,6 +577,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { min: 100, max: 1000 }, // Object format with min and max
         });
 
@@ -598,6 +615,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { min: 100, max: 1000 }, // Max is 1000
         });
 
@@ -650,6 +668,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { max: 1000 }, // Object format (max only)
           })
           .mockReturnValueOnce({
@@ -657,6 +676,7 @@ describe('RouteAmountLimitValidation', () => {
               '0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
             ),
             decimals: 6,
+            symbol: 'USDC',
             limit: { min: 50, max: 400 }, // Object format
           });
 
@@ -696,6 +716,7 @@ describe('RouteAmountLimitValidation', () => {
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
           decimals: 6,
+          symbol: 'USDC',
           // No limit property
         });
 

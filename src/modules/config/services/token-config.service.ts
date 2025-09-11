@@ -73,6 +73,7 @@ export class TokenConfigService {
       const config: TokenConfig = {
         address: tokenConfig.address,
         decimals: tokenConfig.decimals,
+        symbol: tokenConfig.symbol,
       };
 
       if (tokenConfig.limit) {
@@ -114,6 +115,7 @@ export class TokenConfigService {
         const config: TokenConfig = {
           address: token.address,
           decimals: token.decimals,
+          symbol: token.symbol,
         };
 
         if (token.limit) {

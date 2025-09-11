@@ -68,6 +68,7 @@ export class TvmConfigService implements IBlockchainConfigService {
   getSupportedTokens(chainId: ChainIdentifier): Array<{
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   }> {
     const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
@@ -75,6 +76,7 @@ export class TvmConfigService implements IBlockchainConfigService {
     return network.tokens.map((token) => ({
       address: AddressNormalizer.normalizeTvm(token.address),
       decimals: token.decimals,
+      symbol: token.symbol,
       limit: token.limit,
     }));
   }
@@ -99,6 +101,7 @@ export class TvmConfigService implements IBlockchainConfigService {
   ): {
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   } {
     const tokens = this.getTvmSupportedTokens(chainId);
@@ -110,6 +113,7 @@ export class TvmConfigService implements IBlockchainConfigService {
     return {
       address: AddressNormalizer.normalizeTvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
+      symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
     };
   }

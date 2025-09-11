@@ -113,6 +113,7 @@ describe('TokenConfigService', () => {
       const mockToken = {
         address: address,
         decimals: 18,
+        symbol: 'TEST',
         limit: { min: 1, max: 1000 },
       };
       evmConfigService.getTokenConfig.mockReturnValue(mockToken);
@@ -123,6 +124,7 @@ describe('TokenConfigService', () => {
       expect(result).toEqual({
         address: address,
         decimals: 18,
+        symbol: 'TEST',
         limit: { min: 1, max: 1000 },
       });
     });
@@ -133,6 +135,7 @@ describe('TokenConfigService', () => {
       const mockToken = {
         address: address,
         decimals: 18,
+        symbol: 'TEST',
         limit: 1000,
       };
       evmConfigService.getTokenConfig.mockReturnValue(mockToken);
@@ -142,6 +145,7 @@ describe('TokenConfigService', () => {
       expect(result).toEqual({
         address: address,
         decimals: 18,
+        symbol: 'TEST',
         limit: { max: 1000 },
       });
     });
@@ -152,6 +156,7 @@ describe('TokenConfigService', () => {
       const mockToken = {
         address: address,
         decimals: 6,
+        symbol: 'USDT',
         limit: { min: 10, max: 5000 },
       };
       tvmConfigService.getTokenConfig.mockReturnValue(mockToken);
@@ -162,6 +167,7 @@ describe('TokenConfigService', () => {
       expect(result).toEqual({
         address: address,
         decimals: 6,
+        symbol: 'USDT',
         limit: { min: 10, max: 5000 },
       });
     });
@@ -173,6 +179,7 @@ describe('TokenConfigService', () => {
       solanaConfigService.getTokenConfig.mockReturnValue({
         address: address,
         decimals: 9,
+        symbol: 'SOL',
       });
 
       const result = service.getTokenConfig('solana-mainnet', address);
@@ -180,6 +187,7 @@ describe('TokenConfigService', () => {
       expect(result).toEqual({
         address: address,
         decimals: 9,
+        symbol: 'SOL',
       });
     });
 
@@ -204,11 +212,13 @@ describe('TokenConfigService', () => {
           address:
             '0x0000000000000000000000000000000000000000000000000000000000000123' as UniversalAddress,
           decimals: 18,
+          symbol: 'WETH',
         },
         {
           address:
             '0x0000000000000000000000000000000000000000000000000000000000000456' as UniversalAddress,
           decimals: 6,
+          symbol: 'USDC',
         },
       ];
       evmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
@@ -220,10 +230,12 @@ describe('TokenConfigService', () => {
         {
           address: '0x0000000000000000000000000000000000000000000000000000000000000123',
           decimals: 18,
+          symbol: 'WETH',
         },
         {
           address: '0x0000000000000000000000000000000000000000000000000000000000000456',
           decimals: 6,
+          symbol: 'USDC',
         },
       ]);
     });
@@ -234,11 +246,13 @@ describe('TokenConfigService', () => {
           address:
             '0x0000000000000000000000000000000000000000000000005441646472657373' as UniversalAddress,
           decimals: 6,
+          symbol: 'USDT',
         },
         {
           address:
             '0x0000000000000000000000000000000000000000000000005441646472657374' as UniversalAddress,
           decimals: 8,
+          symbol: 'TRX',
         },
       ];
       tvmConfigService.getSupportedTokens.mockReturnValue(mockTokens);
@@ -250,10 +264,12 @@ describe('TokenConfigService', () => {
         {
           address: '0x0000000000000000000000000000000000000000000000005441646472657373',
           decimals: 6,
+          symbol: 'USDT',
         },
         {
           address: '0x0000000000000000000000000000000000000000000000005441646472657374',
           decimals: 8,
+          symbol: 'TRX',
         },
       ]);
     });

@@ -61,11 +61,13 @@ export class EvmConfigService implements IBlockchainConfigService {
   getSupportedTokens(chainId: ChainIdentifier): Array<{
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   }> {
     return this.getEvmSupportedTokens(chainId).map((token) => ({
       address: AddressNormalizer.normalizeEvm(token.address),
       decimals: token.decimals,
+      symbol: token.symbol,
       limit: token.limit,
     }));
   }
@@ -88,12 +90,14 @@ export class EvmConfigService implements IBlockchainConfigService {
   ): {
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   } {
     const tokenConfig = this.getEvmTokenConfig(chainId, tokenAddress);
     return {
       address: AddressNormalizer.normalizeEvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
+      symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
     };
   }

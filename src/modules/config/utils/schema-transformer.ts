@@ -137,6 +137,17 @@ export function traverseSchema(schema: z.ZodTypeAny, currentPath: string[] = [])
     // For arrays, we don't know the indices ahead of time,
     // but we can indicate this is an array path
     paths.push({ path: currentPath, schema });
+    // IMPORTANT: Also traverse the element schema to capture its properties
+    // This allows us to match paths like ['evm', 'networks', '0', 'tokens', '0', 'symbol']
+    const elementSchema = schema.element;
+    if (elementSchema instanceof z.ZodObject) {
+      // Don't add array indices to the path since we don't know them ahead of time
+      // The findMatchingSchemaPath function will handle the array index matching
+      const shape = elementSchema.shape;
+      for (const [key, value] of Object.entries(shape)) {
+        paths.push(...traverseSchema(value as z.ZodTypeAny, [...currentPath, key]));
+      }
+    }
   } else if (schema instanceof z.ZodRecord) {
     // For records (objects with dynamic keys), we also don't know the keys ahead of time
     paths.push({ path: currentPath, schema });
@@ -262,18 +273,46 @@ function findMatchingSchemaPath(envPath: string[], schemaPaths: SchemaPath[]): S
         if (nextSegmentIndex + 1 < envPath.length) {
           const remainingPath = envPath.slice(nextSegmentIndex + 1);
 
-          // Navigate through the object schema to find the final property schema
-          for (const segment of remainingPath) {
+          // Navigate through the schema to find the final property schema
+          let i = 0;
+          while (i < remainingPath.length) {
+            const segment = remainingPath[i];
+
+            // Unwrap optional/default types first
+            while (
+              elementSchema instanceof z.ZodDefault ||
+              elementSchema instanceof z.ZodOptional
+            ) {
+              elementSchema =
+                (elementSchema as any)._def.innerType || (elementSchema as any)._def.schema;
+            }
+
             if (elementSchema instanceof z.ZodObject) {
               const shape = elementSchema.shape;
               if (shape && shape[segment]) {
                 elementSchema = shape[segment] as z.ZodTypeAny;
+                // Check if this is an array and the next segment is a number
+                if (
+                  elementSchema instanceof z.ZodArray &&
+                  i + 1 < remainingPath.length &&
+                  /^\d+$/.test(remainingPath[i + 1])
+                ) {
+                  // This is a nested array, get its element schema and skip the index
+                  elementSchema = elementSchema.element;
+                  i += 2; // Skip both the property name and the index
+                } else {
+                  i++;
+                }
               } else {
-                // Can't navigate further, return what we have
+                // Can't navigate further
                 break;
               }
+            } else if (elementSchema instanceof z.ZodArray && /^\d+$/.test(segment)) {
+              // Direct array index access (shouldn't happen in this context, but handle it)
+              elementSchema = elementSchema.element;
+              i++;
             } else {
-              // Can't navigate further, return what we have
+              // Can't navigate further
               break;
             }
           }

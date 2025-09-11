@@ -4,7 +4,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
-import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';

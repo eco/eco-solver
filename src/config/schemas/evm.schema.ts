@@ -62,6 +62,7 @@ export const EvmWsSchema = z.object({
 const EvmTokenSchema = z.object({
   address: EvmAddressSchema,
   decimals: z.coerce.number().int().min(0).max(18),
+  symbol: z.string().min(1).max(20),
   limit: z
     .union([
       z.coerce.number().int().positive(), // Backward compatible: acts as max

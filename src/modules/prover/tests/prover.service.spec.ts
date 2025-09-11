@@ -11,6 +11,9 @@ import { DummyProver } from '../provers/dummy.prover';
 import { HyperProver } from '../provers/hyper.prover';
 import { MetalayerProver } from '../provers/metalayer.prover';
 
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
+
 describe('ProverService', () => {
   let service: ProverService;
   let mockHyperProver: jest.Mocked<HyperProver>;

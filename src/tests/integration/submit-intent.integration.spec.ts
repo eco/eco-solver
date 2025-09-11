@@ -8,7 +8,10 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import { Hex } from 'viem';
 
 import { AppModule } from '@/app.module';
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 

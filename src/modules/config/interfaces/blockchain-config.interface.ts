@@ -31,6 +31,7 @@ export interface IBlockchainConfigService {
   getSupportedTokens(chainId: ChainIdentifier): Array<{
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   }>;
 
@@ -52,6 +53,7 @@ export interface IBlockchainConfigService {
   ): {
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   };
 

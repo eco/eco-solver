@@ -111,16 +111,37 @@ export class BlockchainConfigService {
 
   /**
    * Gets supported tokens for any chain ID
-   * Returns array of token configurations with address and decimals
+   * Returns array of token configurations with address, decimals, and symbol
    */
   getSupportedTokens(chainId: ChainIdentifier): Array<{
     address: UniversalAddress;
     decimals: number;
+    symbol: string;
     limit?: number | { min?: number; max?: number };
   }> {
     const chainType = ChainTypeDetector.detect(chainId);
     const configService = this.getConfigService(chainType);
     return configService.getSupportedTokens(chainId);
+  }
+
+  /**
+   * Gets token configuration for a specific token on any chain
+   * @param chainId Chain identifier
+   * @param tokenAddress Token contract address
+   * @returns Token configuration with address, decimals, and symbol
+   */
+  getTokenConfig(
+    chainId: ChainIdentifier,
+    tokenAddress: UniversalAddress,
+  ): {
+    address: UniversalAddress;
+    decimals: number;
+    symbol: string;
+    limit?: number | { min?: number; max?: number };
+  } {
+    const chainType = ChainTypeDetector.detect(chainId);
+    const configService = this.getConfigService(chainType);
+    return configService.getTokenConfig(chainId, tokenAddress);
   }
 
   /**

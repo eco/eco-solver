@@ -4,7 +4,7 @@ import { Job } from 'bullmq';
 import { Hex } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { padTo32Bytes, toUniversalAddress } from '@/common/types/universal-address.type';
+import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -19,6 +19,8 @@ jest.mock('@/common/utils/bigint-serializer');
 const serializeWithBigInt = (obj: any) =>
   JSON.stringify(obj, (_, value) => (typeof value === 'bigint' ? value.toString() : value));
 
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
 describe('BlockchainProcessor', () => {
   let processor: BlockchainProcessor;
   let blockchainService: jest.Mocked<BlockchainExecutorService>;

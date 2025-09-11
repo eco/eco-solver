@@ -738,13 +738,13 @@ export class KernelWallet extends BaseEvmWallet {
     }
 
     span.setAttribute('kernel.balance_check_performed', true);
-    
+
     const kernelBalance = await this.publicClient.getBalance({
       address: this.kernelAccount.address,
     });
 
     const sufficient = kernelBalance >= totalValue;
-    
+
     span.setAttributes({
       'kernel.account_balance': kernelBalance.toString(),
       'kernel.required_balance': totalValue.toString(),
@@ -761,7 +761,7 @@ export class KernelWallet extends BaseEvmWallet {
     if (!sufficient) {
       const shortfall = totalValue - kernelBalance;
       span.setAttribute('kernel.balance_shortfall', shortfall.toString());
-      
+
       throw new Error(
         `Kernel account has insufficient ETH balance. ` +
           `Required: ${totalValue.toString()} wei, ` +

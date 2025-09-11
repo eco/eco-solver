@@ -1,11 +1,14 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { StandardFeeValidation } from '../standard-fee.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
+
+// Helper function to cast string to UniversalAddress
+const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
 
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;

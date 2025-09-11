@@ -8,6 +8,8 @@ export interface TokenConfig {
   address: UniversalAddress;
   /** Number of decimals for the token */
   decimals: number;
+  /** Token symbol (e.g., USDC, USDT, WETH) */
+  symbol: string;
   /** Optional transfer limits */
   limit?: TokenLimit;
 }
