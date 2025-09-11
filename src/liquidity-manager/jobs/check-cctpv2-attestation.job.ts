@@ -86,7 +86,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       )
 
       const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
-      this.delay(job, delay)
+      await this.delay(job, delay)
     }
 
     return result
