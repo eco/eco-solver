@@ -18,7 +18,7 @@ export class RouteTokenValidation implements Validation {
     private readonly otelService: OpenTelemetryService,
   ) {}
 
-  async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
+  async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
     const activeSpan = api.trace.getActiveSpan();
     const span =
       activeSpan ||
@@ -32,6 +32,13 @@ export class RouteTokenValidation implements Validation {
           'reward.tokens.count': intent.reward.tokens?.length || 0,
         },
       });
+
+    if (context.quoting) {
+      // Skip validation when is quoting
+      span.setAttribute('validation.skipped', true);
+      span.setAttribute('validation.quoting', true);
+      return true;
+    }
 
     try {
       const destinationChainId = Number(intent.destination);
