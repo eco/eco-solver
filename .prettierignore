@@ -6,3 +6,4 @@ package-lock.json
 .pnpm-store
 .pnpm-debug.log*
 .pnpm-audit.log*
+scripts

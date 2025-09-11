@@ -1,12 +1,19 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { EcoError } from '@/common/errors/eco-error'
-import { getAddress, Hex, Mutable } from 'viem'
-import { IntentCreatedEventLog, CallDataInterface, RewardTokensInterface } from '@/contracts'
-import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
-import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
 import { encodeIntent, hashIntent, IntentType } from '@eco-foundation/routes-ts'
+import { getAddress, Hex, Mutable } from 'viem'
+import {
+  IntentCreatedEventLog,
+  CallDataInterface,
+  RewardTokensInterface,
+  V2RouteType,
+} from '@/contracts'
+import { IntentV2 } from '@/contracts/v2-abi/Portal'
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { RewardDataModel, RewardDataModelSchema } from '@/intent/schemas/reward-data.schema'
+import { RouteDataModel, RouteDataSchema } from '@/intent/schemas/route-data.schema'
 
 export interface CreateIntentDataModelParams {
+  intentGroupID?: string
   quoteID?: string
   hash: Hex
   salt: Hex
@@ -26,6 +33,9 @@ export interface CreateIntentDataModelParams {
 
 @Schema({ timestamps: true })
 export class IntentDataModel implements IntentType {
+  @Prop({ required: false, type: String })
+  intentGroupID?: string
+
   @Prop({ required: false, type: String })
   quoteID?: string
 
@@ -47,6 +57,7 @@ export class IntentDataModel implements IntentType {
 
   constructor(params: CreateIntentDataModelParams) {
     const {
+      intentGroupID,
       quoteID,
       hash,
       salt,
@@ -75,6 +86,7 @@ export class IntentDataModel implements IntentType {
       throw EcoError.IntentSourceDataInvalidParams
     }
 
+    this.intentGroupID = intentGroupID
     this.quoteID = quoteID
     this.hash = hash
 
@@ -91,6 +103,9 @@ export class IntentDataModel implements IntentType {
         call.target = getAddress(call.target)
         return call
       }),
+      deadline,
+      inbox,
+      nativeValue,
     )
 
     this.reward = new RewardDataModel(
@@ -124,20 +139,25 @@ export class IntentDataModel implements IntentType {
     return encodeIntent(intentDataModel)
   }
 
-  static fromEvent(event: IntentCreatedEventLog, logIndex: number): IntentDataModel {
+  static fromEvent(
+    sourceChainID: bigint,
+    logIndex: number,
+    event: IntentCreatedEventLog,
+    route: V2RouteType,
+  ): IntentDataModel {
     const e = event.args
     return new IntentDataModel({
-      hash: e.hash,
-      salt: e.salt,
-      source: e.source,
+      hash: e.intentHash,
+      salt: route.salt,
+      source: sourceChainID,
       destination: e.destination,
-      inbox: e.inbox,
-      routeTokens: e.routeTokens as Mutable<typeof e.routeTokens>,
-      calls: e.calls as Mutable<typeof e.calls>,
+      inbox: route.portal,
+      routeTokens: route.tokens as Mutable<typeof route.tokens>,
+      calls: route.calls as Mutable<typeof route.calls>,
       creator: e.creator,
       prover: e.prover,
-      deadline: e.deadline,
-      nativeValue: e.nativeValue,
+      deadline: e.rewardDeadline,
+      nativeValue: e.rewardNativeAmount,
       rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
       logIndex,
     })
@@ -149,9 +169,33 @@ export class IntentDataModel implements IntentType {
       reward: intent.reward,
     }
   }
+
+  static toIntentV2(intent: IntentDataModel): IntentV2 {
+    return {
+      source: intent.route.source,
+      destination: intent.route.destination,
+      route: {
+        salt: intent.route.salt,
+        deadline: intent.route.deadline,
+        portal: intent.route.portal,
+        nativeAmount: intent.route.nativeAmount,
+        tokens: intent.route.tokens,
+        calls: intent.route.calls,
+      },
+      reward: {
+        creator: intent.reward.creator,
+        prover: intent.reward.prover,
+        deadline: intent.reward.deadline,
+        nativeAmount: intent.reward.nativeValue,
+        tokens: intent.reward.tokens,
+      },
+    }
+  }
 }
 
 export const IntentSourceDataSchema = SchemaFactory.createForClass(IntentDataModel)
+IntentSourceDataSchema.index({ intentGroupID: 1 }, { unique: false })
+IntentSourceDataSchema.index({ quoteID: 1 }, { unique: false })
 IntentSourceDataSchema.index({ hash: 1 }, { unique: true })
 IntentSourceDataSchema.index(
   { source: 1, destination: 'ascending', deadline: 'ascending' },

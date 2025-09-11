@@ -75,6 +75,7 @@ config/*
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
+!config/blue.ts
 
 #AI
 CLAUDE.md

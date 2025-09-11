@@ -7,6 +7,7 @@ import { ModuleRef, NestFactory } from '@nestjs/core'
 import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
 import { NestExpressApplication } from '@nestjs/platform-express'
+import * as express from 'express'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
@@ -35,6 +36,11 @@ async function bootstrap() {
 
   // Starts listening for shutdown hooks
   app.enableShutdownHooks()
+
+  // Raise body size limits (example: 10 MB)
+  app.use(express.json({ limit: '10mb' }))
+  app.use(express.urlencoded({ limit: '10mb', extended: true }))
+
   await app.listen(3000)
 }
 

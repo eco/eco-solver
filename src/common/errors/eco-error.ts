@@ -87,6 +87,8 @@ export class EcoError extends Error {
   static AllPermitsMustBeOnSameChain = new Error(
     `All Permits must be on the same chain for batching`,
   )
+  static NoTransfersFoundForChain = new Error()
+  static LeafNotFoundInSignedPermit = new EcoError()
 
   // Permit Validations
   static InvalidVaultAddress = new EcoError('Permit spender does not match expected vault address')
@@ -161,6 +163,13 @@ export class EcoError extends Error {
   static NegativeGasOverhead(gasOverhead: number) {
     return new EcoError(`Gas overhead is negative: ${gasOverhead}`)
   }
+
+  // V2 Quote Service
+  static InvalidQuoteV2Request(errorMessage: string) {
+    return new EcoError(`Invalid V2 quote request: ${errorMessage}`)
+  }
+
+  static InvalidQuoteResponse = new EcoError(`Failed to transform quote to V2 format`)
 
   static DefaultGasOverheadUndefined() {
     return new EcoError(`Default gas overhead is undefined`)

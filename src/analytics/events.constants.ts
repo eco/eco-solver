@@ -119,6 +119,12 @@ export const QUOTE_EVENTS = {
   REVERSE_RESPONSE_SUCCESS: 'reverse_quote_response_success',
   REVERSE_RESPONSE_ERROR: 'reverse_quote_response_error',
 
+  // Quote V2 Events (V2 uses reverse quote logic)
+  V2_REQUEST_RECEIVED: 'quote_v2_request_received',
+  V2_RESPONSE_SUCCESS: 'quote_v2_response_success',
+  V2_RESPONSE_ERROR: 'quote_v2_response_error',
+  V2_TRANSFORM_ERROR: 'quote_v2_transform_error',
+
   // Quote Processing
   PROCESSING_STARTED: 'quote_processing_started',
   PROCESSING_SUCCESS: 'quote_processing_success',
