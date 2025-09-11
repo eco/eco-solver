@@ -8,10 +8,8 @@
  * - SVM: Borsh serialization
  */
 
-import { BorshCoder } from '@coral-xyz/anchor';
 import { decodeAbiParameters, encodeAbiParameters, Hex } from 'viem';
 
-import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
 import {
   RewardInstruction,
   RouteInstruction,
@@ -19,6 +17,7 @@ import {
 import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
 import { bufferToBytes, bytes32ToAddress } from '@/modules/blockchain/svm/utils/converter';
 import { toSvmReward, toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
+import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { TvmUtils } from '@/modules/blockchain/tvm/services';
 
 import { EVMRewardAbiItem, EVMRouteAbiItem } from '../abis/portal.abi';
@@ -26,8 +25,6 @@ import { Intent } from '../interfaces/intent.interface';
 
 import { AddressNormalizer } from './address-normalizer';
 import { ChainType } from './chain-type-detector';
-
-const svmCoder = new BorshCoder(portalIdl);
 
 export class PortalEncoder {
   /**
@@ -130,9 +127,13 @@ export class PortalEncoder {
    */
   private static encodeSvm(data: Intent['route'] | Intent['reward']): Hex {
     if (PortalEncoder.isRoute(data)) {
-      return bufferToBytes(svmCoder.types.encode('Route', toSvmRoute(data)));
+      return bufferToBytes(
+        portalBorshCoder.types.encode<RouteInstruction>('route', toSvmRoute(data)),
+      );
     } else {
-      return bufferToBytes(svmCoder.types.encode('Reward', toSvmReward(data)));
+      return bufferToBytes(
+        portalBorshCoder.types.encode<RewardInstruction>('reward', toSvmReward(data)),
+      );
     }
   }
 
@@ -234,7 +235,7 @@ export class PortalEncoder {
 
     if (dataType === 'route') {
       // Decode route using Borsh
-      const decoded = svmCoder.types.decode('Route', buffer) as Snakify<RouteInstruction> | null;
+      const decoded = portalBorshCoder.types.decode<Snakify<RouteInstruction>>('reward', buffer);
 
       if (decoded === null) {
         throw new Error('Unable to decode SVM route');
@@ -260,7 +261,7 @@ export class PortalEncoder {
     }
 
     // Decode reward using Borsh
-    const decoded = svmCoder.types.decode('Reward', buffer) as Snakify<RewardInstruction> | null;
+    const decoded = portalBorshCoder.types.decode<Snakify<RewardInstruction>>('reward', buffer);
 
     if (decoded === null) {
       throw new Error('Unable to decode SVM reward');
@@ -273,7 +274,7 @@ export class PortalEncoder {
       nativeAmount: BigInt(decoded.native_amount.toString()),
       tokens: decoded.tokens.map((t) => ({
         token: AddressNormalizer.normalizeSvm(t.token),
-        amount: BigInt(t.amount),
+        amount: BigInt(t.amount.toString()),
       })),
     };
 

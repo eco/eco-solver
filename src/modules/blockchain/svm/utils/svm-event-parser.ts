@@ -11,7 +11,6 @@ import {
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
-import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
 import { bufferToBytes } from '@/modules/blockchain/svm/utils/converter';
 
 export class SvmEventParser {
@@ -26,9 +25,6 @@ export class SvmEventParser {
     const destChainType = ChainTypeDetector.detect(destination);
     const decodedRoute = PortalEncoder.decode(ev.route, destChainType, 'route');
 
-    // TODO: Fix Snakify Deep issue
-    const reward = ev.reward as unknown as Snakify<IntentPublishedInstruction['reward']>;
-
     return {
       sourceChainId: BigInt(sourceChainId), // Solana chainId
       destination,
@@ -37,11 +33,11 @@ export class SvmEventParser {
       publishTxHash: log.signature,
       route: decodedRoute,
       reward: {
-        deadline: BigInt(reward.deadline.toString()),
-        prover: AddressNormalizer.normalizeSvm(reward.prover),
-        creator: AddressNormalizer.normalizeSvm(reward.creator),
-        nativeAmount: BigInt(reward.native_amount.toString()),
-        tokens: reward.tokens.map((token) => ({
+        deadline: BigInt(ev.reward.deadline.toString()),
+        prover: AddressNormalizer.normalizeSvm(ev.reward.prover),
+        creator: AddressNormalizer.normalizeSvm(ev.reward.creator),
+        nativeAmount: BigInt(ev.reward.native_amount.toString()),
+        tokens: ev.reward.tokens.map((token) => ({
           amount: BigInt(token.amount.toString()),
           token: AddressNormalizer.normalizeSvm(token.token),
         })),

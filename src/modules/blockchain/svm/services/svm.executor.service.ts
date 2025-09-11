@@ -78,6 +78,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     try {
       // Add compute budget instruction to increase CU limit
       // The transaction is consuming ~395k CUs, so we'll set the limit to 600k for safety margin
+      // TODO: Move units to SvmConfig
       const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
         units: 600_000,
       });
@@ -95,6 +96,8 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       // Generate the fulfillment instruction for the Portal program
       const fulfillIx = await this.generateFulfillIx(intent);
+
+      // TODO: Must create a proveIx to prove intents
 
       const transaction = new Transaction()
         .add(computeBudgetIx)
