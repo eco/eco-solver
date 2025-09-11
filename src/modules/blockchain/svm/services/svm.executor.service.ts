@@ -20,11 +20,11 @@ import { PortalIdl } from '@/modules/blockchain/svm/targets/types/portal-idl.typ
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
 import {
   buildTokenTransferInstructions,
-  getCallAccounts,
+  decodeRouteCalls,
   getTokenAccounts,
-  prepareRouteCalls,
 } from '@/modules/blockchain/svm/utils/call-data';
 import { toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
+import { getTransferDestination } from '@/modules/blockchain/svm/utils/tokens';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -83,26 +83,17 @@ export class SvmExecutorService extends BaseChainExecutor {
         units: 600_000,
       });
 
-      const walletAddress = await this.wallet.getAddress();
-      span.setAttribute('svm.wallet_address', walletAddress.toString());
-
-      const transferInstructions = await buildTokenTransferInstructions(
-        intent,
-        this.connection,
-        walletAddress,
-      );
+      // Generate the fulfillment instruction for the Portal program
+      const { fulfillmentIx, transferInstructions } = await this.generateFulfillIx(intent);
 
       span.setAttribute('svm.transfer_instruction_count', transferInstructions.length);
-
-      // Generate the fulfillment instruction for the Portal program
-      const fulfillIx = await this.generateFulfillIx(intent);
 
       // TODO: Must create a proveIx to prove intents
 
       const transaction = new Transaction()
         .add(computeBudgetIx)
         .add(...transferInstructions)
-        .add(fulfillIx);
+        .add(fulfillmentIx);
 
       span.addEvent('svm.transaction.submitting', {
         instruction_count: 1 + transferInstructions.length + 1, // compute budget + transfers + fulfill
@@ -204,33 +195,33 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async generateFulfillIx(intent: Intent) {
-    // Recipient's associated token account (destination)
-    // TODO: Use real recipient. For now, using the solver's address as recipient
-    //       this should be parsed from call data
-    const recipientKeypair = this.keypair;
-
     const tokenAccounts = await getTokenAccounts(
       intent.route,
       this.keypair,
       this.portalProgram.idl.address,
     );
-    const callAccounts = await getCallAccounts(
-      intent.route,
-      recipientKeypair,
-      this.portalProgram.idl.address,
+
+    // Construct calls
+
+    const calls = decodeRouteCalls(intent.route.calls);
+    const callAccounts = calls.map((call) => call.accounts).flat();
+
+    const recipients = calls.map(
+      (call) => getTransferDestination(call.calldata.data, call.accounts).pubkey,
     );
 
-    const svmIntent: Intent = {
-      ...intent,
-      route: {
-        ...intent.route,
-        calls: prepareRouteCalls(intent.route.calls, callAccounts),
-      },
-    };
+    // Get Token Instructions
+    const walletAddress = await this.wallet!.getAddress();
 
-    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(svmIntent);
+    const transferInstructions = await buildTokenTransferInstructions(
+      intent.route.tokens,
+      this.connection,
+      walletAddress,
+      recipients,
+    );
 
     // Calculate hashes
+    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intent);
     const intentHashBuffer = toBuffer(intentHash);
     const rewardHashBytes = toBuffer(rewardHash);
 
@@ -252,15 +243,20 @@ export class SvmExecutorService extends BaseChainExecutor {
 
     // Prepare route data for the instruction
 
+    const svmRoute: Intent['route'] = {
+      ...intent.route,
+      calls: calls.map((call) => call.routeCall),
+    };
+
     const fulfillArgs: Parameters<typeof this.portalProgram.methods.fulfill>[0] = {
       intentHash: { 0: Array.from(intentHashBuffer) }, // Bytes32 format
-      route: toSvmRoute(intent.route),
+      route: toSvmRoute(svmRoute),
       rewardHash: { 0: Array.from(rewardHashBytes) }, // Bytes32 format
       claimant: { 0: Array.from(claimantBytes32) }, // Bytes32 format
     };
 
     // Build the fulfill instruction matching the Rust accounts structure
-    return this.portalProgram!.methods.fulfill(fulfillArgs)
+    const fulfillmentIx = await this.portalProgram!.methods.fulfill(fulfillArgs)
       .accounts({
         payer: this.keypair.publicKey,
         solver: this.keypair.publicKey,
@@ -269,6 +265,8 @@ export class SvmExecutorService extends BaseChainExecutor {
       })
       .remainingAccounts([...tokenAccounts, ...callAccounts])
       .instruction();
+
+    return { fulfillmentIx, transferInstructions };
   }
 
   private async initializeProgram() {

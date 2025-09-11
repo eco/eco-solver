@@ -1,6 +1,4 @@
-import { Idl } from '@coral-xyz/anchor';
-
-export const portalIdl: Idl = {
+export const portalIdl = {
   address: '5nCJDkRg8mhj9XHkjuFoR6Mcs6VcDZVsCbZ7pTJhRFEF',
   metadata: {
     name: 'portal',
@@ -840,5 +838,67 @@ export const portalIdl: Idl = {
         ],
       },
     },
+    {
+      name: 'Calldata',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'data',
+            type: 'bytes',
+          },
+          {
+            name: 'account_count',
+            type: 'u8',
+          },
+        ],
+      },
+    },
+    {
+      name: 'SerializableAccountMeta',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'pubkey',
+            type: 'pubkey',
+          },
+          {
+            name: 'is_signer',
+            type: 'bool',
+          },
+          {
+            name: 'is_writable',
+            type: 'bool',
+          },
+        ],
+      },
+    },
+    {
+      name: 'CalldataWithAccounts',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'calldata',
+            type: {
+              defined: {
+                name: 'Calldata',
+              },
+            },
+          },
+          {
+            name: 'accounts',
+            type: {
+              vec: {
+                defined: {
+                  name: 'SerializableAccountMeta',
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
   ],
-};
+} as const;

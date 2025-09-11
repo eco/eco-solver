@@ -1,7 +1,5 @@
 import { IdlTypes } from '@coral-xyz/anchor';
 
-import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
-
 /**
  * Program IDL in camelCase format in order to be used in JS/TS.
  *
@@ -848,12 +846,69 @@ export type PortalIdl = {
         ];
       };
     },
+    {
+      name: 'calldata';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'data';
+            type: 'bytes';
+          },
+          {
+            name: 'accountCount';
+            type: 'u8';
+          },
+        ];
+      };
+    },
+    {
+      name: 'serializableAccountMeta';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'pubkey';
+            type: 'pubkey';
+          },
+          {
+            name: 'isSigner';
+            type: 'bool';
+          },
+          {
+            name: 'isWritable';
+            type: 'bool';
+          },
+        ];
+      };
+    },
+    {
+      name: 'calldataWithAccounts';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'calldata';
+            type: {
+              defined: {
+                name: 'calldata';
+              };
+            };
+          },
+          {
+            name: 'accounts';
+            type: {
+              vec: {
+                defined: {
+                  name: 'serializableAccountMeta';
+                };
+              };
+            };
+          },
+        ];
+      };
+    },
   ];
 };
 
-export type RouteInstruction = IdlTypes<PortalIdl>['route'];
-export type RewardInstruction = IdlTypes<PortalIdl>['reward'];
-
-export type IntentPublishedInstruction = Snakify<IdlTypes<PortalIdl>['intentPublished']>;
-export type IntentFulfilledInstruction = Snakify<IdlTypes<PortalIdl>['intentFulfilled']>;
-export type IntentWithdrawnInstruction = Snakify<IdlTypes<PortalIdl>['intentWithdrawn']>;
+export type PortalIdlTypes = IdlTypes<PortalIdl>;

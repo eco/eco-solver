@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
+import { web3 } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
 import {
+  getAccount,
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
   TokenAccountNotFoundError,
@@ -17,8 +19,8 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
-import { extractCallData } from '@/modules/blockchain/svm/utils/call-data';
-import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
+import { decodeRouteCall } from '@/modules/blockchain/svm/utils/call-data';
+import { SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -29,7 +31,6 @@ export class SvmReaderService extends BaseChainReader {
   constructor(
     private solanaConfigService: SolanaConfigService,
     protected readonly logger: SystemLoggerService,
-    private readonly blockchainConfigService: BlockchainConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {
     super();
@@ -273,54 +274,12 @@ export class SvmReaderService extends BaseChainReader {
     }
   }
 
-  async getBlockHeight(): Promise<bigint> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.reader.getBlockHeight', {
-        attributes: {
-          'svm.operation': 'getBlockHeight',
-        },
-      });
-
-    try {
-      if (!this.connection) {
-        throw new Error('Solana connection not initialized');
-      }
-
-      const blockHeight = await this.connection.getBlockHeight();
-      const blockHeightBigInt = BigInt(blockHeight);
-
-      span.setAttribute('svm.block_height', blockHeightBigInt.toString());
-      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
-
-      return blockHeightBigInt;
-    } catch (error) {
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw error;
-    } finally {
-      if (!activeSpan) span.end();
-    }
-  }
-
   async getAccountInfo(address: string): Promise<any> {
     if (!this.connection) {
       throw new Error('Solana connection not initialized');
     }
     const publicKey = new PublicKey(address);
     return this.connection.getAccountInfo(publicKey);
-  }
-
-  async getTransaction(signature: string): Promise<any> {
-    if (!this.connection) {
-      throw new Error('Solana connection not initialized');
-    }
-    return this.connection.getTransaction(signature, {
-      maxSupportedTransactionVersion: 0,
-    });
   }
 
   async isTransactionConfirmed(signature: string): Promise<boolean> {
@@ -448,32 +407,25 @@ export class SvmReaderService extends BaseChainReader {
         );
       }
 
-      // Note: For Solana, we don't validate specific token addresses here because:
-      // 1. All token transfers go through TOKEN_PROGRAM_ID (validated above)
-      // 2. The specific token mint address would be specified in the accounts array of the transaction, not in the call target
-      // 3. Token address validation would need to be done at a different level (transaction accounts validation)
-
-      // Then, validate the Solana instruction data for token transfer
-      if (!call.data || call.data === '0x') {
-        throw new Error('Invalid Solana instruction: call data is empty');
-      }
-
-      // Remove '0x' prefix and convert to buffer
-      const instructionData = extractCallData(call.data);
+      const { calldata, accounts } = decodeRouteCall(call);
 
       // Basic sanity check - Solana token instructions should have reasonable length
-      if (instructionData.length < 1) {
+      if (calldata.data.length < 1) {
         throw new Error('Invalid Solana instruction: call data too short');
+      }
+
+      if (calldata.account_count !== accounts.length) {
+        throw new Error('Invalid count of accounts for call');
       }
 
       // Parse the instruction discriminator (first byte)
       // Solana SPL Token instruction discriminators:
       // - Transfer: 3
       // - TransferChecked: 12
-      const instructionType = instructionData[0];
+      const instructionType = calldata.data[0];
 
       span.setAttribute('svm.instruction_type', instructionType);
-      span.setAttribute('svm.call_data_length', instructionData.length);
+      span.setAttribute('svm.call_data_length', calldata.data.length);
 
       // Validate instruction type
       const isTransferInstruction = instructionType === 3; // Transfer
@@ -492,23 +444,12 @@ export class SvmReaderService extends BaseChainReader {
         );
       }
 
-      // Additional validation based on instruction type
-      if (isTransferInstruction) {
-        // Transfer instruction should have exactly 8 bytes of data (discriminator + amount as u64)
-        if (instructionData.length !== 9) {
-          // 1 byte discriminator + 8 bytes amount
-          throw new Error(
-            `Invalid Transfer instruction: expected 9 bytes, got ${instructionData.length}`,
-          );
-        }
-      } else if (isTransferCheckedInstruction) {
-        // TransferChecked instruction should have exactly 9 bytes of data (discriminator + amount as u64 + decimals as u8)
-        if (instructionData.length !== 10) {
-          // 1 byte discriminator + 8 bytes amount + 1 byte decimals
-          throw new Error(
-            `Invalid TransferChecked instruction: expected 10 bytes, got ${instructionData.length}`,
-          );
-        }
+      const areValidAccounts = await this.validateTokenProgramAccounts(instructionType, accounts);
+
+      span.setAttribute('svm.are_valid_accounts', areValidAccounts);
+
+      if (!areValidAccounts) {
+        throw new Error('Invalid accounts for transfer');
       }
 
       span.setAttribute('svm.validation_result', 'token_transfer_validated');
@@ -529,5 +470,78 @@ export class SvmReaderService extends BaseChainReader {
     } finally {
       span.end();
     }
+  }
+
+  /**
+   *  Validate accounts for the Transfer and TransferChecked functions of the Token Program.
+   *
+   * @param instructionType Instruction type (3 = Transfer, 12 = TransferChecked)
+   * @param accounts Accounts
+   * @private
+   */
+  private async validateTokenProgramAccounts(
+    instructionType: number,
+    accounts: web3.AccountMeta[],
+  ) {
+    switch (instructionType) {
+      case 3: {
+        // Transfer accounts: [source, destination, authority]
+        const [sourceAcctMeta] = accounts;
+        return this.validateATAAccount(sourceAcctMeta.pubkey);
+      }
+      case 12:
+        // TransferChecked accounts: [source, mint, destination, authority]
+        const [sourceAcctMeta] = accounts;
+        return this.validateATAAccount(sourceAcctMeta.pubkey);
+
+      default:
+        throw new Error(`Invalid Token program instruction: ${instructionType}`);
+    }
+  }
+
+  private async validateATAAccount(ataAccount: web3.PublicKey) {
+    try {
+      return await this.validateExistingATAAccount(ataAccount);
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        return this.validateNonExistingATAAccount(ataAccount);
+      }
+      throw new Error('Unable to validate ATAAccount: ' + getErrorMessage(error));
+    }
+  }
+
+  private async validateExistingATAAccount(ataAccount: web3.PublicKey) {
+    // Get mint from the source account
+    const { owner, mint } = await getAccount(this.connection, ataAccount);
+
+    const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
+    const isValidOwnerAccount = portalProgramId.equals(owner);
+
+    const isTokenSupported = this.solanaConfigService.isTokenSupported(
+      this.solanaConfigService.chainId,
+      AddressNormalizer.normalizeSvm(mint),
+    );
+
+    return isTokenSupported && isValidOwnerAccount;
+  }
+
+  private async validateNonExistingATAAccount(ataAccount: web3.PublicKey) {
+    const validATAs = await this.getPortalATAs();
+    return validATAs.some((ata) => ata.equals(ataAccount));
+  }
+
+  private async getPortalATAs(): Promise<web3.PublicKey[]> {
+    // TODO: Cache this function
+
+    // Owner must be the Portal program
+    const owner = new PublicKey(this.solanaConfigService.portalProgramId);
+    const tokens = this.solanaConfigService.getSupportedTokens();
+    const accountPromises = tokens.map((token) => {
+      const tokenAddr = AddressNormalizer.denormalizeToSvm(token.address);
+      const tokenMint = new web3.PublicKey(tokenAddr);
+      return getAssociatedTokenAddress(tokenMint, owner, true);
+    });
+
+    return Promise.all(accountPromises);
   }
 }

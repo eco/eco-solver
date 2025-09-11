@@ -13,10 +13,13 @@ import { decodeAbiParameters, encodeAbiParameters, Hex } from 'viem';
 import {
   RewardInstruction,
   RouteInstruction,
-} from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+} from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
 import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
 import { bufferToBytes, bytes32ToAddress } from '@/modules/blockchain/svm/utils/converter';
-import { toSvmReward, toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
+import {
+  toSvmRewardForCoder,
+  toSvmRouteForCoder,
+} from '@/modules/blockchain/svm/utils/instruments';
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { TvmUtils } from '@/modules/blockchain/tvm/services';
 
@@ -128,11 +131,11 @@ export class PortalEncoder {
   private static encodeSvm(data: Intent['route'] | Intent['reward']): Hex {
     if (PortalEncoder.isRoute(data)) {
       return bufferToBytes(
-        portalBorshCoder.types.encode<RouteInstruction>('route', toSvmRoute(data)),
+        portalBorshCoder.types.encode<RouteInstruction>('Route', toSvmRouteForCoder(data)),
       );
     } else {
       return bufferToBytes(
-        portalBorshCoder.types.encode<RewardInstruction>('reward', toSvmReward(data)),
+        portalBorshCoder.types.encode<RewardInstruction>('Reward', toSvmRewardForCoder(data)),
       );
     }
   }
@@ -235,7 +238,7 @@ export class PortalEncoder {
 
     if (dataType === 'route') {
       // Decode route using Borsh
-      const decoded = portalBorshCoder.types.decode<Snakify<RouteInstruction>>('reward', buffer);
+      const decoded = portalBorshCoder.types.decode<Snakify<RouteInstruction>>('Route', buffer);
 
       if (decoded === null) {
         throw new Error('Unable to decode SVM route');
@@ -261,7 +264,7 @@ export class PortalEncoder {
     }
 
     // Decode reward using Borsh
-    const decoded = portalBorshCoder.types.decode<Snakify<RewardInstruction>>('reward', buffer);
+    const decoded = portalBorshCoder.types.decode<Snakify<RewardInstruction>>('Reward', buffer);
 
     if (decoded === null) {
       throw new Error('Unable to decode SVM reward');

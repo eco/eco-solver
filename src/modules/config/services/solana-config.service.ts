@@ -73,7 +73,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
     );
   }
 
-  getSupportedTokens(_chainId: ChainIdentifier): Array<{
+  getSupportedTokens(): Array<{
     address: UniversalAddress;
     decimals: number;
     limit?: number | { min?: number; max?: number };

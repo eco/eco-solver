@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
-import { BorshCoder, EventParser } from '@coral-xyz/anchor';
+import { EventParser } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { toError } from '@/common/utils/error-handler';
-import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
 import {
   IntentFulfilledInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
-} from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+} from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
+import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SvmEventParser } from '@/modules/blockchain/svm/utils/svm-event-parser';
 import { SolanaConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
@@ -35,8 +35,10 @@ export class SolanaListener extends BaseChainListener {
     super();
     this.logger.setContext(SolanaListener.name);
 
-    const coder = new BorshCoder(portalIdl);
-    this.parser = new EventParser(new PublicKey(this.solanaConfigService.portalProgramId), coder);
+    this.parser = new EventParser(
+      new PublicKey(this.solanaConfigService.portalProgramId),
+      portalBorshCoder,
+    );
   }
 
   async start(): Promise<void> {

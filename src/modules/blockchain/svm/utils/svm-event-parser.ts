@@ -10,7 +10,7 @@ import {
   IntentFulfilledInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
-} from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+} from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
 import { bufferToBytes } from '@/modules/blockchain/svm/utils/converter';
 
 export class SvmEventParser {

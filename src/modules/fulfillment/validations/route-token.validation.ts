@@ -36,6 +36,14 @@ export class RouteTokenValidation implements Validation {
     try {
       const destinationChainId = Number(intent.destination);
 
+      if (intent.route.calls.length !== 1) {
+        throw new ValidationError(
+          `Only one route call is allowed`,
+          ValidationErrorType.PERMANENT,
+          'RouteTokenValidation',
+        );
+      }
+
       const nativeTokenAmount = intent.route.calls.reduce((acc, call) => acc + call.value, 0n);
       span.setAttribute('route.native_token_amount', nativeTokenAmount.toString());
 

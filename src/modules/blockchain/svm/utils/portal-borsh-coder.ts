@@ -1,6 +1,7 @@
-import { BorshCoder } from '@coral-xyz/anchor';
+import { BorshCoder, Idl } from '@coral-xyz/anchor';
 
 import { portalIdl } from '@/modules/blockchain/svm/targets/idl/portal.idl';
-import { PortalIdlTypes } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
 
-export const portalBorshCoder = new BorshCoder<string, keyof PortalIdlTypes>(portalIdl);
+export const portalBorshCoder = new BorshCoder<string, (typeof portalIdl)['types'][number]['name']>(
+  portalIdl as unknown as Idl,
+);

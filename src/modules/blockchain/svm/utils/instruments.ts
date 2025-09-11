@@ -2,18 +2,16 @@ import { BN, web3 } from '@coral-xyz/anchor';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import {
-  RewardInstruction,
-  RouteInstruction,
-} from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+import { PortalIdlTypes } from '@/modules/blockchain/svm/targets/types/portal-idl.type';
+import * as PortalIdlCoder from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
 
 import { toBuffer } from './buffer';
 
-export function toSvmRoute(route: Intent['route']): RouteInstruction {
+export function toSvmRouteForCoder(route: Intent['route']): PortalIdlCoder.RouteInstruction {
   return {
     salt: { 0: Array.from(toBuffer(route.salt)) },
     deadline: new BN(route.deadline.toString()),
-    nativeAmount: new BN(route.nativeAmount.toString()),
+    native_amount: new BN(route.nativeAmount.toString()),
     portal: {
       0: Array.from(new web3.PublicKey(AddressNormalizer.denormalizeToSvm(route.portal)).toBytes()),
     },
@@ -30,15 +28,25 @@ export function toSvmRoute(route: Intent['route']): RouteInstruction {
   };
 }
 
-export function toSvmReward(reward: Intent['reward']): RewardInstruction {
+export function toSvmRewardForCoder(reward: Intent['reward']): PortalIdlCoder.RewardInstruction {
   return {
     deadline: new BN(reward.deadline.toString()),
     creator: new web3.PublicKey(AddressNormalizer.denormalizeToSvm(reward.creator)),
     prover: new web3.PublicKey(AddressNormalizer.denormalizeToSvm(reward.prover)),
-    nativeAmount: new BN(reward.nativeAmount.toString()),
+    native_amount: new BN(reward.nativeAmount.toString()),
     tokens: reward.tokens.map(({ token, amount }) => ({
       token: new web3.PublicKey(AddressNormalizer.denormalizeToSvm(token)),
       amount: new BN(amount.toString()),
     })),
   };
+}
+
+export function toSvmRoute(route: Intent['route']): PortalIdlTypes['route'] {
+  const { native_amount, ...rest } = toSvmRouteForCoder(route);
+  return { ...rest, nativeAmount: native_amount };
+}
+
+export function toSvmReward(reward: Intent['reward']): PortalIdlTypes['reward'] {
+  const { native_amount, ...rest } = toSvmRewardForCoder(reward);
+  return { ...rest, nativeAmount: native_amount };
 }
