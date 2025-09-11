@@ -1,4 +1,4 @@
-import { decodeFunctionData, erc20Abi, Hex } from 'viem'
+import { decodeFunctionData, erc20Abi, Hex, isAddressEqual } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Inject, Injectable, Logger } from '@nestjs/common'
@@ -9,7 +9,6 @@ import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
 import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
 import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
 
@@ -20,7 +19,6 @@ export class QuoteV2TransformService {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly configService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
   ) {}
 
   /**
@@ -188,42 +186,25 @@ export class QuoteV2TransformService {
     tokenAddress: Hex,
     chainId: number,
   ): Promise<{ address: Hex; decimals: number; symbol: string }> {
-    try {
-      const client = await this.kernelAccountClientService.getClient(chainId)
+    const chainConfig = this.configService.getChain(chainId)
+    const stables = (chainConfig as any)?.stables as
+      | Record<string, { address: Hex; decimals?: number } | Hex>
+      | undefined
 
-      const [decimals, symbol] = await Promise.all([
-        client.readContract({
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'decimals',
-        }) as Promise<number>,
-        client.readContract({
-          abi: erc20Abi,
-          address: tokenAddress,
-          functionName: 'symbol',
-        }) as Promise<string>,
-      ])
-
-      const decimalsNumber = typeof decimals === 'number' ? decimals : Number(decimals)
-
-      return {
-        address: tokenAddress,
-        decimals: decimalsNumber,
-        symbol: symbol,
+    if (stables) {
+      for (const [symbol, value] of Object.entries(stables)) {
+        const address = (typeof value === 'string' ? value : value?.address) as Hex
+        if (address && isAddressEqual(address, tokenAddress)) {
+          const decimals =
+            typeof value === 'object' && typeof (value as any)?.decimals === 'number'
+              ? (value as any).decimals
+              : 6
+          return { address, decimals, symbol }
+        }
       }
-    } catch (error) {
-      this.logger.warn(
-        EcoLogMessage.withError({
-          message: 'Failed to fetch token metadata',
-          properties: {
-            tokenAddress,
-            chainId,
-          },
-          error,
-        }),
-      )
-      throw error
     }
+
+    throw new Error('Token Config not found')
   }
 
   @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
