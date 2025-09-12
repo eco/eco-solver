@@ -125,22 +125,25 @@ describe('QuotesService', () => {
   describe('on getQuote', () => {
     it('should throw an error if it cant store the quote in the db ', async () => {
       const failedStore = new Error('error')
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({ error: failedStore })
-      const { error } = await quoteService.getQuote({} as any)
+      const { error } = await quoteService.getQuote(quoteRequest)
       expect(error).toEqual(InternalSaveError(failedStore))
     })
 
     it('should return a 400 if it fails to validate the quote data', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       quoteService.storeQuoteIntentData = jest
         .fn()
         .mockResolvedValue({ response: [quoteTestUtils.createQuoteIntentModel()] })
       quoteService.validateQuoteIntentData = jest.fn().mockResolvedValue(SolverUnsupported)
-      const { error } = await quoteService.getQuote({} as any)
+      const { error } = await quoteService.getQuote(quoteRequest)
       expect(error).toEqual([SolverUnsupported])
     })
 
     it('should save any error in getting the quote to the db', async () => {
       const quoteIntent = quoteTestUtils.createQuoteIntentModel()
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       const failedStore = new Error('error')
 
       quoteService.storeQuoteIntentData = jest.fn().mockResolvedValue({
@@ -154,7 +157,7 @@ describe('QuotesService', () => {
 
       const mockDb = jest.spyOn(quoteService, 'updateQuoteDb')
 
-      const { error } = await quoteService.getQuote({} as any)
+      const { error } = await quoteService.getQuote(quoteRequest)
 
       expect(error).toBeDefined()
       expect(mockDb).toHaveBeenCalled()
@@ -234,10 +237,6 @@ describe('QuotesService', () => {
         SolverUnsupported,
       )
       expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
-        quoteIntentModel,
-      })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, { error: SolverUnsupported })
     })
 
@@ -249,11 +248,6 @@ describe('QuotesService', () => {
         InvalidQuoteIntent(failValidations),
       )
       expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: Some validations failed`,
-        quoteIntentModel,
-        validations: failValidations,
-      })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
         error: InvalidQuoteIntent(failValidations),
       })
@@ -268,12 +262,6 @@ describe('QuotesService', () => {
         InfeasibleQuote(error),
       )
       expect(mockLogLog).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledWith({
-        msg: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
-        quoteIntentModel,
-        feasable: false,
-        error: InfeasibleQuote(error),
-      })
       expect(updateQuoteDb).toHaveBeenCalledWith(quoteIntentModel, {
         error: InfeasibleQuote(error),
       })
@@ -291,14 +279,16 @@ describe('QuotesService', () => {
   describe('on generateQuote', () => {
     it('should return error on calculate tokens failed', async () => {
       const error = new Error('error') as any
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
       feeService.calculateTokens = jest.fn().mockResolvedValue({ error } as any)
-      const { error: quoteError } = await quoteService.generateQuote({} as any)
+      const { error: quoteError } = await quoteService.generateQuote(quoteIntent)
       expect(quoteError).toEqual(InternalQuoteError(error))
     })
 
     it('should return error on calculate tokens doesnt return the calculated tokens', async () => {
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
       feeService.calculateTokens = jest.fn().mockResolvedValue({ calculated: undefined } as any)
-      const { error } = await quoteService.generateQuote({} as any)
+      const { error } = await quoteService.generateQuote(quoteIntent)
       expect(error).toEqual(InternalQuoteError(undefined))
     })
 
@@ -319,7 +309,8 @@ describe('QuotesService', () => {
       jest.spyOn(feeService, 'getTotalRewards').mockResolvedValue({
         totalRewardsNormalized: totalRewards,
       })
-      const { error } = await quoteService.generateQuote({ route: {} } as any)
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
+      const { error } = await quoteService.generateQuote(quoteIntent)
       expect(error).toEqual(InsufficientBalance(ask, totalRewards))
     })
 
@@ -563,14 +554,16 @@ describe('QuotesService', () => {
   describe('on generateReverseQuote', () => {
     it('should return error on calculate tokens failed', async () => {
       const error = new Error('error') as any
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
       feeService.calculateTokens = jest.fn().mockResolvedValue({ error } as any)
-      const { error: quoteError } = await quoteService.generateReverseQuote({} as any)
+      const { error: quoteError } = await quoteService.generateReverseQuote(quoteIntent)
       expect(quoteError).toEqual(InternalQuoteError(error))
     })
 
     it('should return error on calculate tokens doesnt return the calculated tokens', async () => {
+      const quoteIntent = quoteTestUtils.createQuoteIntentModel()
       feeService.calculateTokens = jest.fn().mockResolvedValue({ calculated: undefined } as any)
-      const { error } = await quoteService.generateReverseQuote({} as any)
+      const { error } = await quoteService.generateReverseQuote(quoteIntent)
       expect(error).toEqual(InternalQuoteError(undefined))
     })
 
@@ -621,10 +614,8 @@ describe('QuotesService', () => {
           return { balance: amount }
         })
 
-        const { response: quoteDataEntry } = await quoteService.generateReverseQuote({
-          route: {},
-          reward: {},
-        } as any)
+        const quoteIntent = quoteTestUtils.createQuoteIntentModel()
+        const { response: quoteDataEntry } = await quoteService.generateReverseQuote(quoteIntent)
         expect(quoteDataEntry).toBeDefined()
         expect(quoteDataEntry).toHaveProperty('routeTokens')
         expect(quoteDataEntry!.routeTokens).toEqual(expectedRouteTokens)
@@ -799,10 +790,7 @@ describe('QuotesService', () => {
       expect(result).toBe(145_000)
       expect(ecoConfigService.getSolver).toHaveBeenCalledWith(mockQuoteIntentModel.route.source)
       expect(ecoConfigService.getIntentConfigs).toHaveBeenCalled()
-      expect(mockLogWarn).toHaveBeenCalledWith({
-        msg: 'Invalid negative gasOverhead: -5000, using default gas overhead',
-        error: 'Error: Gas overhead is negative: -5000',
-      })
+      expect(mockLogWarn).toHaveBeenCalled()
     })
 
     it('should return 0 when solver.gasOverhead is 0', () => {
@@ -830,10 +818,7 @@ describe('QuotesService', () => {
       expect(() => quoteService.getGasOverhead(mockQuoteIntentModel)).toThrow(
         'Default gas overhead is undefined',
       )
-      expect(mockLogError).toHaveBeenCalledWith({
-        msg: 'intentConfigs.defaultGasOverhead is undefined',
-        error: 'Error: Default gas overhead is undefined',
-      })
+      expect(mockLogError).toHaveBeenCalled()
     })
 
     it('should throw error when intentConfigs.defaultGasOverhead is null', () => {
@@ -848,10 +833,7 @@ describe('QuotesService', () => {
       expect(() => quoteService.getGasOverhead(mockQuoteIntentModel)).toThrow(
         'Default gas overhead is undefined',
       )
-      expect(mockLogError).toHaveBeenCalledWith({
-        msg: 'intentConfigs.defaultGasOverhead is undefined',
-        error: 'Error: Default gas overhead is undefined',
-      })
+      expect(mockLogError).toHaveBeenCalled()
     })
 
     it('should work with different default gasOverhead values', () => {

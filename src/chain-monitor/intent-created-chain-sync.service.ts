@@ -1,6 +1,5 @@
 import { ChainSyncService } from '@/chain-monitor/chain-sync.service'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentCreatedLog } from '../contracts'
@@ -10,6 +9,8 @@ import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
+import { LogOperation } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -36,13 +37,8 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
     )
   }
 
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `IntentCreatedChainSyncService:OnApplicationBootstrap`,
-      }),
-    )
-
     await super.onApplicationBootstrap()
   }
 
@@ -54,6 +50,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    * @param source the source intent to get missing transactions for
    * @returns
    */
+  @LogOperation('get_missing_transactions', GenericOperationLogger)
   async getMissingTxs(source: IntentSource): Promise<IntentCreatedLog[]> {
     const client = await this.kernelAccountClientService.getClient(source.chainID)
 
@@ -89,13 +86,14 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
     //todo clean out already fulfilled intents
     if (createIntentLogs.length === 0) {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `No transactions found for source ${source.network} to sync from block ${fromBlock}`,
-          properties: {
-            chainID: source.chainID,
-            fromBlock,
-          },
-        }),
+        `No transactions found for source ${source.network} to sync from block ${fromBlock}`,
+        {
+          service: 'intent-created-chain-sync-service',
+          operation: 'get_missing_txs',
+          source_network: source.network,
+          chain_id: source.chainID,
+          from_block: fromBlock?.toString(),
+        },
       )
       return []
     }
@@ -116,6 +114,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    * @param source the source intent to get the last recorded transaction for
    * @returns
    */
+  @LogOperation('get_last_recorded_transaction', GenericOperationLogger)
   async getLastRecordedTx(source: IntentSource): Promise<IntentSourceModel[]> {
     return await this.intentModel
       .find({ 'event.sourceChainID': source.chainID })

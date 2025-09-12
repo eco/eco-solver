@@ -1,4 +1,5 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { QuoteGenerationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext, LogSubOperation } from '@/common/logging/decorators'
 import { RewardTokensInterface } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
@@ -15,7 +16,7 @@ import {
 } from '@/quote/errors'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import * as dayjs from 'dayjs'
 import { encodeFunctionData, erc20Abi, formatEther, Hex, parseGwei } from 'viem'
 import { FeeService } from '@/fee/fee.service'
@@ -54,7 +55,7 @@ interface GenerateQuoteParams {
  */
 @Injectable()
 export class QuoteService implements OnModuleInit {
-  private logger = new Logger(QuoteService.name)
+  private logger = new QuoteGenerationLogger('QuoteService')
 
   private quotesConfig: QuotesConfig
   private gasEstimationsConfig: GasEstimationsConfig
@@ -85,16 +86,12 @@ export class QuoteService implements OnModuleInit {
    * @param quoteIntentDataDTO the quote intent data
    * @returns
    */
-  async getQuote(quoteIntentDataDTO: QuoteIntentDataDTO): Promise<EcoResponse<QuoteDataDTO>> {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Getting quote for intent`,
-        properties: {
-          quoteIntentDataDTO,
-        },
-      }),
-    )
-
+  @LogOperation('quote_generation', QuoteGenerationLogger, {
+    sampling: { rate: 0.1, level: 'debug' }, // Sample high-volume quote operations
+  })
+  async getQuote(
+    @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<EcoResponse<QuoteDataDTO>> {
     const txValidationFn: TxValidationFn = () => true
     const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRouteFeasible.bind(
       this.feeService,
@@ -103,18 +100,12 @@ export class QuoteService implements OnModuleInit {
     return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, false)
   }
 
+  @LogOperation('reverse_quote_generation', QuoteGenerationLogger, {
+    sampling: { rate: 0.1, level: 'debug' },
+  })
   async getReverseQuote(
-    quoteIntentDataDTO: QuoteIntentDataDTO,
+    @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
   ): Promise<EcoResponse<QuoteDataDTO>> {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Getting reverse quote for intent`,
-        properties: {
-          quoteIntentDataDTO,
-        },
-      }),
-    )
-
     const txValidationFn: TxValidationFn = (tx: TransactionTargetData) =>
       tx && tx.decodedFunctionData.functionName === 'transfer'
     const quoteFeasibilityCheckFn: QuoteFeasibilityCheckFn = this.feeService.isRewardFeasible.bind(
@@ -124,6 +115,7 @@ export class QuoteService implements OnModuleInit {
     return this._getQuote(quoteIntentDataDTO, txValidationFn, quoteFeasibilityCheckFn, true)
   }
 
+  @LogSubOperation('quote_processing')
   private async _getQuote(
     quoteIntentDataDTO: QuoteIntentDataDTO,
     txValidationFn: TxValidationFn,
@@ -332,12 +324,15 @@ export class QuoteService implements OnModuleInit {
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.destination)
     if (!solver) {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
-          properties: {
-            quoteIntentModel,
-          },
-        }),
+        {
+          quoteId: quoteIntentModel.quoteID,
+          dAppId: quoteIntentModel.dAppID,
+          destinationChainId: Number(quoteIntentModel.route.destination),
+          sourceChainId: Number(quoteIntentModel.route.source),
+          intentExecutionType: quoteIntentModel.intentExecutionType,
+        },
+        `validateQuoteIntentData: No solver found for destination : ${quoteIntentModel.route.destination}`,
+        { quoteIntentModel },
       )
       await this.updateQuoteDb(quoteIntentModel, { error: SolverUnsupported })
       return SolverUnsupported
@@ -351,13 +346,15 @@ export class QuoteService implements OnModuleInit {
 
     if (!validationsSucceeded(validations)) {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateQuoteIntentData: Some validations failed`,
-          properties: {
-            quoteIntentModel,
-            validations,
-          },
-        }),
+        {
+          quoteId: quoteIntentModel.quoteID,
+          dAppId: quoteIntentModel.dAppID,
+          destinationChainId: Number(quoteIntentModel.route.destination),
+          sourceChainId: Number(quoteIntentModel.route.source),
+          intentExecutionType: quoteIntentModel.intentExecutionType,
+        },
+        `validateQuoteIntentData: Some validations failed`,
+        { quoteIntentModel, validations },
       )
       await this.updateQuoteDb(quoteIntentModel, {
         error: InvalidQuoteIntent(validations),
@@ -370,14 +367,15 @@ export class QuoteService implements OnModuleInit {
     if (error) {
       const quoteError = InfeasibleQuote(error)
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
-          properties: {
-            quoteIntentModel,
-            feasable: false,
-            error: quoteError,
-          },
-        }),
+        {
+          quoteId: quoteIntentModel.quoteID,
+          dAppId: quoteIntentModel.dAppID,
+          destinationChainId: Number(quoteIntentModel.route.destination),
+          sourceChainId: Number(quoteIntentModel.route.source),
+          intentExecutionType: quoteIntentModel.intentExecutionType,
+        },
+        `validateQuoteIntentData: quote intent is not feasable ${quoteIntentModel._id}`,
+        { quoteIntentModel, feasable: false, error: quoteError },
       )
       await this.updateQuoteDb(quoteIntentModel, { error: quoteError })
       return quoteError
@@ -459,18 +457,23 @@ export class QuoteService implements OnModuleInit {
   async generateQuoteForGasless(
     params: GenerateQuoteParams,
   ): Promise<EcoResponse<QuoteDataEntryDTO>> {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `generateQuoteForGasless`,
-        properties: {
-          params,
-        },
-      }),
-    )
-
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { quoteIntent, isReverseQuote } = params
     const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
+
+    this.logger.log(
+      {
+        quoteId: 'gasless-quote',
+        dAppId: gaslessIntentRequest.dAppID,
+        sourceChainId: gaslessIntentRequest.getSourceChainID?.() || 0,
+        destinationChainId: undefined, // Will be filled from intent data
+        tokenInAddress: undefined, // Will be filled from intent data
+        tokenOutAddress: undefined, // Will be filled from intent data
+        intentExecutionType: IntentExecutionType.GASLESS.toString(),
+      },
+      'Generating gasless quote',
+      { params },
+    )
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -507,17 +510,20 @@ export class QuoteService implements OnModuleInit {
     const gasPrice = await this.intentInitiationService.getGasPrice(chainID, defaultGasPrice)
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `estimateFlatFee`,
-        properties: {
-          chainID,
-          baseGas,
-          gas,
-          gasPrice,
-          totalFee: gas * gasPrice,
-          'totalFee in ETH': formatEther(gas * gasPrice),
-        },
-      }),
+      {
+        quoteId: 'estimate-flat-fee',
+        sourceChainId: chainID,
+        operationType: 'quote_generation',
+      },
+      'Estimating flat fee',
+      {
+        chainID,
+        baseGas,
+        gas,
+        gasPrice,
+        totalFee: gas * gasPrice,
+        'totalFee in ETH': formatEther(gas * gasPrice),
+      },
     )
 
     return gas * gasPrice
@@ -552,10 +558,14 @@ export class QuoteService implements OnModuleInit {
     const totalAsk = this.feeService.getAsk(totalFillNormalized, quoteIntentModel)
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Generating quote`,
-        properties: serialize({ totalFillNormalized, totalAsk: totalAsk }),
-      }),
+      {
+        quoteId: 'generate-quote',
+        intentHash: 'unknown',
+        operationType: 'quote_generation',
+        status: 'started',
+      },
+      'Generating quote',
+      serialize({ totalFillNormalized, totalAsk: totalAsk }),
     )
 
     const { totalRewardsNormalized, error: totalRewardsError } =
@@ -774,10 +784,12 @@ export class QuoteService implements OnModuleInit {
 
     if (solver.gasOverhead < 0) {
       this.logger.warn(
-        EcoLogMessage.withError({
-          message: `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
-          error: EcoError.NegativeGasOverhead(solver.gasOverhead),
-        }),
+        {
+          quoteId: 'gas-overhead-validation',
+          sourceChainId: Number(quoteIntentModel.route.source),
+        },
+        `Invalid negative gasOverhead: ${solver.gasOverhead}, using default gas overhead`,
+        { gasOverhead: solver.gasOverhead, solver: solver },
       )
       return defaultGasOverhead
     }
@@ -792,10 +804,11 @@ export class QuoteService implements OnModuleInit {
     const intentConfigs = this.ecoConfigService.getIntentConfigs()
     if (intentConfigs.defaultGasOverhead == null) {
       this.logger.error(
-        EcoLogMessage.withError({
-          message: 'intentConfigs.defaultGasOverhead is undefined',
-          error: EcoError.DefaultGasOverheadUndefined(),
-        }),
+        {
+          quoteId: 'config-validation',
+        },
+        'intentConfigs.defaultGasOverhead is undefined',
+        EcoError.DefaultGasOverheadUndefined(),
       )
       throw EcoError.DefaultGasOverheadUndefined()
     }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { Network } from '@/common/alchemy/network'
 import { JobsOptions, Queue } from 'bullmq'
@@ -7,14 +7,15 @@ import { InjectQueue } from '@nestjs/bullmq'
 import { ViemEventLog } from '../common/events/viem'
 import { erc20Abi, Hex, WatchContractEventReturnType, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '../common/viem/utils'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { getIntentJobId } from '../common/utils/strings'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { EcoError } from '@/common/errors/eco-error'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 
 @Injectable()
 export class BalanceWebsocketService implements OnApplicationBootstrap, OnModuleDestroy {
-  private logger = new Logger(BalanceWebsocketService.name)
+  private logger = new GenericOperationLogger('BalanceWebsocketService')
   private intentJobConfig: JobsOptions
   private unwatch: Record<string, WatchContractEventReturnType> = {}
 
@@ -24,27 +25,32 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
     private readonly ecoConfigService: EcoConfigService,
   ) {}
 
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   async onApplicationBootstrap() {
     await this.subscribeWS()
   }
 
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   async onModuleDestroy() {
     // close all websockets
     try {
       Object.values(this.unwatch).forEach((unwatch) => unwatch())
     } catch (e) {
       this.logger.error(
-        EcoLogMessage.withError({
-          message: `watch-event: unsubscribe`,
-          error: EcoError.WatchEventUnsubscribeError,
-          properties: {
-            errorPassed: e,
-          },
-        }),
+        {
+          operationType: 'infrastructure_operation',
+          status: 'failed',
+        },
+        'Failed to unsubscribe from websocket events',
+        EcoError.WatchEventUnsubscribeError,
+        {
+          errorPassed: e,
+        },
       )
     }
   }
 
+  @LogOperation('infrastructure_operation', GenericOperationLogger)
   async subscribeWS() {
     this.intentJobConfig = this.ecoConfigService.getRedis().jobs.intentJobConfig
 
@@ -65,10 +71,12 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
               onLogs: this.addJob(solver.network, solver.chainID) as any,
               onError: (error) => {
                 this.logger.error(
-                  EcoLogMessage.withError({
-                    message: 'ws: balance event error',
-                    error,
-                  }),
+                  {
+                    operationType: 'infrastructure_operation',
+                    status: 'failed',
+                  },
+                  'WebSocket balance event error',
+                  error,
                 )
               },
             })
@@ -98,13 +106,15 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
         jobIds.push(jobId)
 
         this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `ws: balance transfer`,
-            properties: {
-              transferEvent: transferEvent,
-              jobId,
-            },
-          }),
+          {
+            operationType: 'infrastructure_operation',
+            status: 'started',
+          },
+          'Processing balance transfer event',
+          {
+            transferEvent: transferEvent,
+            jobId,
+          },
         )
 
         tasks.push(
@@ -128,26 +138,34 @@ export class BalanceWebsocketService implements OnApplicationBootstrap, OnModule
         for (const f of failures) {
           const reason = f.r.reason instanceof Error ? f.r.reason.message : String(f.r.reason)
           this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: `ws: balance queue add failed`,
-              properties: {
-                jobId: jobIds[f.idx],
-                reason,
-              },
-            }),
+            {
+              operationType: 'infrastructure_operation',
+              status: 'failed',
+            },
+            'Failed to add job to balance queue',
+            new Error(reason),
+            {
+              jobId: jobIds[f.idx],
+              reason,
+            },
           )
         }
 
         // Log summarized failure counts
         this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `ws: balance addJob: ${failures.length}/${logs.length} jobs failed to be added to queue`,
-            properties: {
-              failures: failures.map((f) =>
-                f.r.reason instanceof Error ? f.r.reason.message : String(f.r.reason),
-              ),
-            },
-          }),
+          {
+            operationType: 'infrastructure_operation',
+            status: 'failed',
+          },
+          `Failed to add ${failures.length}/${logs.length} balance jobs to queue`,
+          new Error('Multiple job failures'),
+          {
+            failureCount: failures.length,
+            totalCount: logs.length,
+            failures: failures.map((f) =>
+              f.r.reason instanceof Error ? f.r.reason.message : String(f.r.reason),
+            ),
+          },
         )
       }
     }

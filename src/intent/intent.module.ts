@@ -1,6 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common'
-import { initBullMQ } from '../bullmq/bullmq.helper'
 import { QUEUES } from '../common/redis/constants'
+import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
 import { ValidateIntentService } from './validate-intent.service'
 import { FeasableIntentService } from './feasable-intent.service'

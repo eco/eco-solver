@@ -1,5 +1,4 @@
 import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { IntentSource } from '../eco-configs/eco-config.types'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
@@ -7,6 +6,8 @@ import { Log } from 'viem'
 import { Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { Model } from 'mongoose'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
+import { LogOperation } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -23,18 +24,15 @@ export abstract class ChainSyncService implements OnApplicationBootstrap {
     protected logger: Logger,
   ) {}
 
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `ChainSyncService:OnApplicationBootstrap`,
-      }),
-    )
     await this.syncTxs()
   }
 
   /**
    * Syncs all the missing transactions for all the source intent contracts.
    */
+  @LogOperation('sync_transactions', GenericOperationLogger)
   async syncTxs() {
     const missingTxsTasks = this.ecoConfigService.getIntentSources().map((source) => {
       return this.syncTxsPerSource(source)
@@ -49,6 +47,7 @@ export abstract class ChainSyncService implements OnApplicationBootstrap {
    * @param source the source intent to get the missing transactions for
    * @returns
    */
+  @LogOperation('sync_transactions_per_source', GenericOperationLogger)
   async syncTxsPerSource(source: IntentSource) {
     const createIntentLogs = await this.getMissingTxs(source)
     if (createIntentLogs.length === 0) {

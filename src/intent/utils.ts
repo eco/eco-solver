@@ -9,7 +9,6 @@ import { mainnet } from 'viem/chains'
 import { ValidationIntentInterface } from './validation.sevice'
 import { Logger } from '@nestjs/common'
 import { ChainsSupported } from '../common/chains/supported'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { isEmptyData } from '../common/viem/utils'
 
 // The default number of decimals for native tokens that we enfores for now
@@ -91,14 +90,13 @@ export function equivalentNativeGas(intent: ValidationIntentInterface, logger: L
     id: Number(intent.route.destination),
   })
   if (!sourceChain || !dstChain) {
-    logger.error(
-      EcoLogMessage.fromDefault({
-        message: `equivalentNativeGas: Chain not found`,
-        properties: {
-          intent,
-        },
-      }),
-    )
+    logger.error(`equivalentNativeGas: Chain not found`, {
+      service: 'intent-utils',
+      operation: 'equivalent_native_gas',
+      intent_data: intent.route,
+      source_chain: intent.route.source,
+      destination_chain: intent.route.destination,
+    })
     return false
   }
   //Forge decimals to be 18 for now, even though it might change in future when we need to support native gas normalization
@@ -107,18 +105,17 @@ export function equivalentNativeGas(intent: ValidationIntentInterface, logger: L
     sourceChain.nativeCurrency.decimals == DEFAULT_NATIVE_DECIMALS
   const sameSymbol = sourceChain.nativeCurrency.symbol == dstChain.nativeCurrency.symbol
   if (!sameDecimals || !sameSymbol) {
-    logger.error(
-      EcoLogMessage.fromDefault({
-        message: `equivalentNativeGas: Different native currency`,
-        properties: {
-          intent,
-          sameDecimals,
-          sameSymbol,
-          source: sourceChain.nativeCurrency,
-          dst: dstChain.nativeCurrency,
-        },
-      }),
-    )
+    logger.error(`equivalentNativeGas: Different native currency`, {
+      service: 'intent-utils',
+      operation: 'equivalent_native_gas',
+      intent_data: intent.route,
+      source_chain: intent.route.source,
+      destination_chain: intent.route.destination,
+      same_decimals: sameDecimals,
+      same_symbol: sameSymbol,
+      source_currency: sourceChain.nativeCurrency,
+      destination_currency: dstChain.nativeCurrency,
+    })
     return false
   }
   return true

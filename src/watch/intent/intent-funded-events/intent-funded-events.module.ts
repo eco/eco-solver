@@ -1,7 +1,7 @@
-import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { QUEUES } from '@/common/redis/constants'
+import { initBullMQ } from '@/bullmq/bullmq.helper'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
 import {
   IntentFundedEventModel,

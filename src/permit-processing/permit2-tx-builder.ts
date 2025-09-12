@@ -1,5 +1,5 @@
 import { encodeFunctionData, Hex } from 'viem'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
@@ -9,14 +9,14 @@ import {
   PermitBatchArg,
   PermitSingleArg,
 } from './permit2-abis'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * This class returns a transaction for a permit2.
  */
 @Injectable()
 export class Permit2TxBuilder {
-  private logger = new Logger(Permit2TxBuilder.name)
+  private logger = new GenericOperationLogger('Permit2TxBuilder')
 
   /**
    * This function generates the transaction for the permit2. It encodes the function data for the permit2 function
@@ -62,16 +62,20 @@ export class Permit2TxBuilder {
     details: Permit2TypedDataDetailsDTO[],
   ): Hex {
     if (details.length === 1) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `encodeFunctionData: single permit`,
-          properties: {
-            details: details[0],
-            spender,
-            sigDeadline,
-            signature,
-          },
-        }),
+      this.logger.logSignature(
+        {
+          operationType: 'permit2_encoding',
+          status: 'started',
+          permitType: 'permit2_single',
+          signatureMethod: 'EIP-2612',
+        },
+        'Encoding Permit2 single permit transaction data',
+        {
+          details: details[0],
+          spender,
+          sigDeadline,
+          signature,
+        },
       )
 
       return encodeFunctionData({
@@ -81,16 +85,20 @@ export class Permit2TxBuilder {
       })
     }
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `encodeFunctionData: batch permit`,
-        properties: {
-          details,
-          spender,
-          sigDeadline,
-          signature,
-        },
-      }),
+    this.logger.logSignature(
+      {
+        operationType: 'permit2_encoding',
+        status: 'started',
+        permitType: 'permit2_batch',
+        signatureMethod: 'EIP-2612',
+      },
+      'Encoding Permit2 batch permit transaction data',
+      {
+        details,
+        spender,
+        sigDeadline,
+        signature,
+      },
     )
 
     return encodeFunctionData({

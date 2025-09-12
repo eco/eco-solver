@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { LitActionSdkParams, SignerLike } from '@lit-protocol/types'
 import { LitNodeClient } from '@lit-protocol/lit-node-client'
 import { LIT_ABILITY } from '@lit-protocol/constants'
@@ -25,7 +25,8 @@ import { CrowdLiquidityConfig, Solver } from '@/eco-configs/eco-config.types'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { getERC20Selector } from '@/contracts'
 import { TokenData } from '@/liquidity-manager/types/types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogSubOperation, LogContext } from '@/common/logging/decorators'
 import { BalanceService } from '@/balance/balance.service'
 import { TokenConfig } from '@/balance/types'
 import { EcoError } from '@/common/errors/eco-error'
@@ -34,7 +35,7 @@ import { EcoAnalyticsService } from '@/analytics'
 
 @Injectable()
 export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
-  private logger = new Logger(CrowdLiquidityService.name)
+  private logger = new IntentOperationLogger('CrowdLiquidityService')
   private config: CrowdLiquidityConfig
 
   constructor(
@@ -55,7 +56,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve the intent.
    * @return {Promise<Hex>} A promise that resolves to the hexadecimal hash representing the result of the fulfilled intent.
    */
-  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  @LogOperation('intent_fulfillment', IntentOperationLogger)
+  async fulfill(@LogContext model: IntentSourceModel, @LogContext solver: Solver): Promise<Hex> {
     const startTime = Date.now()
 
     try {
@@ -82,7 +84,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     }
   }
 
-  async rebalanceCCTP(tokenIn: TokenData, tokenOut: TokenData) {
+  @LogOperation('crowd_liquidity_rebalance', IntentOperationLogger)
+  async rebalanceCCTP(@LogContext tokenIn: TokenData, @LogContext tokenOut: TokenData) {
     try {
       const { kernel, pkp, actions } = this.config
 
@@ -119,7 +122,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {IntentSourceModel} intentModel - The model containing intent data, including route information.
    * @return {boolean} - Returns true if the route is supported, otherwise false.
    */
-  isRouteSupported(intentModel: IntentSourceModel): boolean {
+  @LogOperation('route_support_check', IntentOperationLogger)
+  isRouteSupported(@LogContext intentModel: IntentSourceModel): boolean {
     this.ecoAnalytics.trackCrowdLiquidityRouteSupportCheck(intentModel)
 
     const { route, reward } = intentModel.intent
@@ -147,7 +151,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {IntentSourceModel} intentModel - The intent model containing the route and reward information.
    * @return {boolean} - Returns true if the total reward amount is greater than or equal to the calculated minimum required reward; otherwise, false.
    */
-  isRewardEnough(intentModel: IntentSourceModel): boolean {
+  @LogOperation('reward_validation', IntentOperationLogger)
+  isRewardEnough(@LogContext intentModel: IntentSourceModel): boolean {
     this.ecoAnalytics.trackCrowdLiquidityRewardCheck(intentModel)
 
     const { route, reward } = intentModel.intent
@@ -172,6 +177,7 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    *
    * @return {TokenConfig[]} Array of supported tokens, each including token details and the corresponding target balance.
    */
+  @LogOperation('supported_tokens_retrieval', IntentOperationLogger)
   getSupportedTokens(): TokenConfig[] {
     return this.balanceService
       .getInboxTokens()
@@ -188,7 +194,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {IntentSourceModel} intentModel - The intent model containing route information and token requirements.
    * @return {Promise<boolean>} - A promise that resolves to true if the intent is solvent, otherwise false.
    */
-  async isPoolSolvent(intentModel: IntentSourceModel) {
+  @LogOperation('pool_solvency_check', IntentOperationLogger)
+  async isPoolSolvent(@LogContext intentModel: IntentSourceModel) {
     try {
       // Get supported tokens from intent
       const routeTokens = this.getSupportedTokens().filter((token) => {
@@ -231,7 +238,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Hex} address - The address of the token to check.
    * @return {boolean} Returns true if the token is supported; otherwise, false.
    */
-  isSupportedToken(chainId: number, address: Hex): boolean {
+  @LogSubOperation('token_support_validation')
+  isSupportedToken(@LogContext chainId: number, @LogContext address: Hex): boolean {
     return this.config.supportedTokens.some(
       (token) => isAddressEqual(token.tokenAddress, address) && token.chainId === chainId,
     )
@@ -254,11 +262,13 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    *
    * @return {string} The address of the pool as specified in the configuration.
    */
+  @LogSubOperation('pool_address_retrieval')
   getPoolAddress(): Hex {
     return this.config.kernel.address as Hex
   }
 
-  private async _fulfill(intentModel: IntentDataModel): Promise<Hex> {
+  @LogSubOperation('internal_fulfillment')
+  private async _fulfill(@LogContext intentModel: IntentDataModel): Promise<Hex> {
     const { kernel, pkp, actions } = this.config
 
     const publicClient = await this.publicClient.getClient(Number(intentModel.route.destination))
@@ -309,10 +319,11 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
     return this.callLitAction(actions.fulfill, publicClient, params)
   }
 
+  @LogSubOperation('lit_action_execution')
   private async callLitAction(
-    ipfsId: string,
-    publicClient: PublicClient,
-    params: LitActionSdkParams['jsParams'],
+    @LogContext ipfsId: string,
+    @LogContext publicClient: PublicClient,
+    @LogContext params: LitActionSdkParams['jsParams'],
   ): Promise<Hex> {
     try {
       const { capacityTokenId, capacityTokenOwnerPk, pkp, litNetwork } = this.config
@@ -370,14 +381,9 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
       // ================ Execute Transaction ================
 
       if (typeof litRes.response === 'string') {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: 'Error processing Lit action',
-            properties: { ipfsId, params },
-          }),
-        )
-
+        // Log lit action error using business event method
         const error = new Error(litRes.response)
+        this.logger.logLitActionResult(ipfsId, false, litRes.response, { params })
         this.ecoAnalytics.trackCrowdLiquidityLitActionError(ipfsId, params, error)
         throw error
       }
@@ -430,7 +436,8 @@ export class CrowdLiquidityService implements OnModuleInit, IFulfillService {
    * @param {Hex} data - The data to be evaluated, which is expected to contain encoded function calls.
    * @return {boolean} Returns true if the data is a supported action; otherwise, false.
    */
-  private isSupportedAction(data: Hex): boolean {
+  @LogSubOperation('action_support_validation')
+  private isSupportedAction(@LogContext data: Hex): boolean {
     // Only support `transfer` function calls
     return data.startsWith(getERC20Selector('transfer'))
   }

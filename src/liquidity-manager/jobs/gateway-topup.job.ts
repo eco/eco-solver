@@ -1,5 +1,6 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { gatewayWalletAbi } from '@/liquidity-manager/services/liquidity-providers/Gateway/constants/abis'
 import { Hex, encodeFunctionData, erc20Abi } from 'viem'
 import {
@@ -48,17 +49,13 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     return job.name === LiquidityManagerJobName.GATEWAY_TOP_UP
   }
 
-  async process(job: GatewayTopUpJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: GatewayTopUpJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<Hex> {
     const { chainId, usdc, gatewayWallet, id } = job.data
     const amount = deserialize(job.data.amount) as bigint
-
-    processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'GatewayTopUp: Starting top-up',
-        id,
-        properties: { chainId, usdc, gatewayWallet, amount: amount.toString() },
-      }),
-    )
 
     // Build approve + depositFor batch via Kernel
     const approveData = encodeFunctionData({
@@ -80,21 +77,25 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     const existingTxHash = (job.progress as any)?.txHash as Hex | undefined
     if (existingTxHash) {
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'GatewayTopUp: Resuming existing transaction',
+        { operationType: 'job_execution' },
+        'GatewayTopUp: Resuming existing transaction',
+        {
           id,
-          properties: { chainId, txHash: existingTxHash },
-        }),
+          chainId,
+          txHash: existingTxHash,
+        },
       )
 
       await client.waitForTransactionReceipt({ hash: existingTxHash })
 
       processor.logger.log(
-        EcoLogMessage.withId({
-          message: 'GatewayTopUp: Completed',
+        { operationType: 'job_execution', status: 'completed' },
+        'GatewayTopUp: Completed',
+        {
           id,
-          properties: { chainId, txHash: existingTxHash },
-        }),
+          chainId,
+          txHash: existingTxHash,
+        },
       )
       return existingTxHash
     }
@@ -110,11 +111,13 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
       await job.updateProgress({ txHash })
     } catch (error) {
       processor.logger.error(
-        EcoLogMessage.withId({
-          message: 'GatewayTopUp: Broadcast failed',
+        { operationType: 'job_execution', status: 'failed' },
+        'GatewayTopUp: Broadcast failed',
+        error,
+        {
           id,
-          properties: { chainId, error: (error as any)?.message ?? error },
-        }),
+          chainId,
+        },
       )
       throw error
     }
@@ -122,41 +125,33 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
     await client.waitForTransactionReceipt({ hash: txHash })
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: 'GatewayTopUp: Completed',
+      { operationType: 'job_execution', status: 'completed' },
+      'GatewayTopUp: Completed',
+      {
         id,
-        properties: { chainId, txHash },
-      }),
+        chainId,
+        txHash,
+      },
     )
     return txHash
   }
 
-  async onComplete(job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async onComplete(@LogContext job: GatewayTopUpJob, processor: LiquidityManagerProcessor) {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
-    const { groupID, rebalanceJobID } = jobData
-
-    processor.logger.log(
-      EcoLogMessage.withId({
-        message: `GatewayTopUpJob: Completed!`,
-        id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          chainId: job.data.chainId,
-          txHash: job.returnvalue,
-        },
-      }),
-    )
+    const { rebalanceJobID } = jobData
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
-  async onFailed(job: GatewayTopUpJob, processor: LiquidityManagerProcessor, error: unknown) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onFailed(
+    @LogContext job: GatewayTopUpJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: unknown,
+  ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'Gateway: GatewayTopUpJob: FINAL FAILURE'
-      : 'Gateway: GatewayTopUpJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -164,15 +159,7 @@ export class GatewayTopUpJobManager extends LiquidityManagerJobManager<GatewayTo
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
-        id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
-    )
+    // Error details are automatically captured by the decorator
+    throw error
   }
 }

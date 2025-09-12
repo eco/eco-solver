@@ -1,4 +1,5 @@
 import { BalanceModule } from '@/balance/balance.module'
+import { initBullMQ, initFlowBullMQ } from '@/bullmq/bullmq.helper'
 import { CacheModule } from '@nestjs/cache-manager'
 import { CCTPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-LiFi/cctp-lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
@@ -8,8 +9,11 @@ import { GatewayProviderService } from '@/liquidity-manager/services/liquidity-p
 import { IntentModule } from '@/intent/intent.module'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
+import {
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { CheckBalancesProcessor } from '@/liquidity-manager/processors/check-balances.processor'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
@@ -39,9 +43,25 @@ import { LmTxGatedKernelAccountClientV2Service } from './wallet-wrappers/kernel-
     BalanceModule,
     IntentModule,
     TransactionModule,
-    LiquidityManagerQueue.init(),
-    CheckBalancesQueue.init(),
-    LiquidityManagerQueue.initFlow(),
+    initBullMQ(
+      { queue: LIQUIDITY_MANAGER_QUEUE_NAME, prefix: '{liquidity-manager}' },
+      {
+        defaultJobOptions: {
+          removeOnFail: true,
+          removeOnComplete: true,
+        },
+      },
+    ),
+    initBullMQ(
+      { queue: CHECK_BALANCES_QUEUE_NAME, prefix: '{check-balances}' },
+      {
+        defaultJobOptions: {
+          removeOnFail: true,
+          removeOnComplete: true,
+        },
+      },
+    ),
+    initFlowBullMQ({ queue: LIQUIDITY_MANAGER_FLOW_NAME, prefix: '{liquidity-manager-flow}' }),
 
     MongooseModule.forFeature([
       { name: RebalanceModel.name, schema: RebalanceSchema },

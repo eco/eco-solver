@@ -1,8 +1,8 @@
-import { Inject, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { groupBy, zipWith } from 'lodash'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getDestinationNetworkAddressKey } from '@/common/utils/strings'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { erc20Abi, Hex, MulticallParameters, MulticallReturnType } from 'viem'
 import { ViemEventLog } from '@/common/events/viem'
 import { decodeTransferLog, isSupportedTokenType } from '@/contracts'
@@ -28,7 +28,7 @@ export type TokenFetchAnalysis = {
  */
 @Injectable()
 export class BalanceService implements OnApplicationBootstrap {
-  private logger = new Logger(BalanceService.name)
+  private logger = new HealthOperationLogger('BalanceService')
 
   private readonly tokenBalances: Map<string, TokenBalance> = new Map()
 
@@ -50,12 +50,14 @@ export class BalanceService implements OnApplicationBootstrap {
    */
   updateBalance(balanceEvent: ViemEventLog) {
     this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `updateBalance ${balanceEvent.transactionHash}`,
-        properties: {
-          intentHash: balanceEvent.transactionHash,
-        },
-      }),
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'started',
+      },
+      `updateBalance ${balanceEvent.transactionHash}`,
+      {
+        transactionHash: balanceEvent.transactionHash,
+      },
     )
 
     const intent = decodeTransferLog(balanceEvent.data, balanceEvent.topics)
@@ -140,14 +142,16 @@ export class BalanceService implements OnApplicationBootstrap {
     const client = await this.kernelAccountClientService.getClient(chainID)
 
     this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `fetchWalletTokenBalances`,
-        properties: {
-          chainID,
-          tokenAddresses,
-          walletAddress,
-        },
-      }),
+      {
+        healthCheck: 'balance-monitoring',
+        status: 'started',
+      },
+      'fetchWalletTokenBalances',
+      {
+        chainID,
+        tokenAddresses,
+        walletAddress,
+      },
     )
 
     const results = (await client.multicall({

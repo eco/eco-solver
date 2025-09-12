@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import * as _ from 'lodash'
 import * as config from 'config'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
   AwsCredential,
@@ -44,7 +45,7 @@ import { TransportConfig } from '@/common/chains/transport'
  */
 @Injectable()
 export class EcoConfigService {
-  private logger = new Logger(EcoConfigService.name)
+  private logger = new GenericOperationLogger('EcoConfigService')
   private externalConfigs: any = {}
   private ecoConfig: config.IConfig
   private ecoChains: EcoChains
@@ -69,13 +70,8 @@ export class EcoConfigService {
   async onModuleInit() {}
 
   // Initialize the configs
+  @LogOperation('config_initialization', GenericOperationLogger)
   initConfigs() {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Initializing eco configs`,
-      }),
-    )
-
     // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
     this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
 

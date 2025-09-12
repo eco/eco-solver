@@ -1,7 +1,6 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { CCTPV2StrategyContext } from '../types/types'
 import { deserialize, Serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { ExecuteCCTPV2MintJobData, ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
 import { Hex } from 'viem'
 import {
@@ -16,6 +15,8 @@ import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface CheckCCTPV2AttestationJobData extends LiquidityManagerQueueDataType {
   sourceDomain: number
@@ -44,7 +45,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
         removeOnFail: false,
         delay,
-        attempts: 10,
+        attempts: 3,
         backoff: {
           type: 'exponential',
           delay: 10_000,
@@ -59,11 +60,12 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     return job.name === LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async process(
-    job: CheckCCTPV2AttestationJob,
+    @LogContext job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPV2AttestationJob['returnvalue']> {
-    const { transactionHash, sourceDomain, destinationChainId, id } = job.data
+    const { transactionHash, sourceDomain, id } = job.data
     const result = await processor.cctpv2ProviderService.fetchV2Attestation(
       transactionHash,
       sourceDomain,
@@ -72,19 +74,6 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
 
     if (result.status === 'pending') {
       const deserializedContext = deserialize(job.data.context)
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTPV2: Attestation pending...',
-          id,
-          properties: {
-            ...result,
-            transactionHash,
-            destinationChainId,
-            transferType: deserializedContext.transferType,
-          },
-        }),
-      )
-
       const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
       await this.delay(job, delay)
     }
@@ -92,17 +81,20 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     return result
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onComplete(
-    job: CheckCCTPV2AttestationJob,
+    @LogContext job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
+    const deserializedContext = deserialize(job.data.context)
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTPV2: Attestation complete. Adding V2 mint transaction to execution queue',
+        { operationType: 'job_execution', status: 'completed' },
+        'CCTPV2: Attestation complete. Adding V2 mint transaction to execution queue',
+        {
           id: job.data.id,
-          properties: job.returnvalue,
-        }),
+          ...job.returnvalue,
+        },
       )
 
       const executeCCTPV2MintJobData: ExecuteCCTPV2MintJobData = {
@@ -117,19 +109,31 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       }
 
       await ExecuteCCTPV2MintJobManager.start(processor.queue, executeCCTPV2MintJobData)
+    } else {
+      processor.logger.debug(
+        { operationType: 'job_execution', status: 'pending' },
+        'CCTPV2: Attestation pending...',
+        {
+          id: job.data.id,
+          ...job.returnvalue,
+          transactionHash: job.data.transactionHash,
+          destinationChainId: job.data.destinationChainId,
+          transferType: deserializedContext.transferType,
+        },
+      )
+      // Fast polling for "fast" transfers, slower for "standard"
+      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
+      await CheckCCTPV2AttestationJobManager.start(processor.queue, job.data, delay)
     }
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onFailed(
-    job: CheckCCTPV2AttestationJob,
+    @LogContext job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
-    error: unknown,
+    @LogContext error: unknown,
   ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'CCTPV2: CheckCCTPV2AttestationJob: FINAL FAILURE'
-      : 'CCTPV2: CheckCCTPV2AttestationJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -137,15 +141,8 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
-        id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
-    )
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

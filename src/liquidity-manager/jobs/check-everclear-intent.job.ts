@@ -1,6 +1,5 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { Queue, UnrecoverableError } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
@@ -13,8 +12,8 @@ import {
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
-
-const EVERCLEAR_RETRY_DELAY_MS = 5_000
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface CheckEverclearIntentJobData extends LiquidityManagerQueueDataType {
   txHash: Hex
@@ -25,6 +24,7 @@ export type CheckEverclearIntentJob = LiquidityManagerJob<
   CheckEverclearIntentJobData,
   { status: 'pending' | 'complete' | 'failed'; intentId?: string }
 >
+const EVERCLEAR_RETRY_DELAY_MS = 5_000
 
 export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<CheckEverclearIntentJob> {
   @AutoInject(RebalanceRepository)
@@ -41,7 +41,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       attempts: 10, // Retry up to 10 times for long-running intents
       backoff: {
         type: 'exponential',
-        delay: EVERCLEAR_RETRY_DELAY_MS,
+        delay: 5_000, // 5 seconds
       },
     })
   }
@@ -50,18 +50,20 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     return job.name === LiquidityManagerJobName.CHECK_EVERCLEAR_INTENT
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async process(
-    job: CheckEverclearIntentJob,
+    @LogContext job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckEverclearIntentJob['returnvalue']> {
     const { txHash, id } = job.data
     const result = await processor.everclearProviderService.checkIntentStatus(txHash)
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Everclear: Intent status check result',
+      { operationType: 'job_execution' },
+      'Everclear: Intent status check result',
+      {
         id,
-        properties: { result },
-      }),
+        result,
+      },
     )
 
     switch (result.status) {
@@ -75,39 +77,36 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     }
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onComplete(
-    job: CheckEverclearIntentJob,
+    @LogContext job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { groupID, rebalanceJobID } = jobData
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
+      { operationType: 'job_execution', status: 'completed' },
+      `Everclear: Intent check complete with status: ${job.returnvalue.status}`,
+      {
         id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          ...job.returnvalue,
-          txHash: job.data.txHash,
-        },
-      }),
+        groupID,
+        rebalanceJobID,
+        ...job.returnvalue,
+        txHash: job.data.txHash,
+      },
     )
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
+  @LogOperation('job_execution', GenericOperationLogger)
   async onFailed(
-    job: CheckEverclearIntentJob,
+    @LogContext job: CheckEverclearIntentJob,
     processor: LiquidityManagerProcessor,
-    error: unknown,
+    @LogContext error: unknown,
   ) {
     const isFinal = this.isFinalAttempt(job, error)
-
-    const errorMessage = isFinal
-      ? 'Everclear: CheckEverclearIntentJob: FINAL FAILURE'
-      : 'Everclear: CheckEverclearIntentJob: Failed: Retrying...'
 
     if (isFinal) {
       const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -115,15 +114,8 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
 
-    processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
-        id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
-    )
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

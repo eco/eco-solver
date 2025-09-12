@@ -1,0 +1,319 @@
+import { Strategy } from '@/liquidity-manager/types/types'
+import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+
+// Business Context Interfaces for Factory Methods
+export interface IntentOperationLogParams {
+  message: string
+  intentHash: string
+  quoteId?: string
+  creator?: string
+  prover?: string
+  funder?: string
+  inbox?: string
+  dAppId?: string
+  sourceChainId?: number
+  destinationChainId?: number
+  tokenInAddress?: string
+  tokenOutAddress?: string
+  amountIn?: string
+  amountOut?: string
+  nativeValue?: string
+  deadline?: string
+  salt?: string
+  logIndex?: number
+  routeTokens?: Array<{ token: string; amount: string }>
+  rewardTokens?: Array<{ token: string; amount: string }>
+  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number]
+  operationType: 'creation' | 'fulfillment' | 'validation' | 'funding'
+  status: 'started' | 'completed' | 'failed'
+  properties?: object
+}
+
+export interface LiquidityOperationLogParams {
+  message: string
+  rebalanceId: string
+  walletAddress: string
+  strategy: Strategy | string // Allow string for system operations
+  sourceChainId?: number
+  destinationChainId?: number
+  tokenInAddress?: string
+  tokenOutAddress?: string
+  amountIn?: string
+  amountOut?: string
+  slippage?: number
+  groupId?: string
+  rebalanceJobId?: string
+  currentBalanceIn?: string
+  targetBalanceIn?: string
+  currentBalanceOut?: string
+  targetBalanceOut?: string
+  tokenInDecimals?: number
+  tokenOutDecimals?: number
+  operationType: 'rebalancing' | 'liquidity_provision' | 'withdrawal' | 'quote_rejection'
+  status: 'pending' | 'completed' | 'failed' | 'rejected'
+  rejectionReason?: RejectionReason
+  properties?: object
+}
+
+export interface QuoteGenerationLogParams {
+  message: string
+  quoteId: string
+  intentHash?: string
+  dAppId?: string
+  sourceChainId?: number
+  destinationChainId?: number
+  tokenInAddress?: string
+  tokenOutAddress?: string
+  amountIn?: string
+  amountOut?: string
+  receipt?: string
+  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number] | string
+  operationType: 'quote_generation' | 'quote_validation' | 'quote_rejection'
+  status: 'started' | 'completed' | 'failed'
+  properties?: object
+}
+
+export interface HealthOperationLogParams {
+  message: string
+  healthCheck: string
+  status: 'healthy' | 'unhealthy' | 'degraded'
+  responseTime?: number
+  dependencies?: string[]
+  properties?: object
+}
+
+export interface GenericOperationLogParams {
+  message: string
+  operationType: string
+  status?: string
+  duration?: number
+  properties?: object
+}
+
+export interface TransactionOperationLogParams {
+  message: string
+  transactionHash?: string
+  walletAddress?: string
+  chainId?: number
+  gasUsed?: number
+  gasPrice?: string
+  operationType:
+    | 'transaction_send'
+    | 'transaction_confirm'
+    | 'signature_generation'
+    | 'wallet_operation'
+    | 'smart_wallet_deploy'
+  status: 'pending' | 'completed' | 'failed' | 'signed'
+  blockNumber?: number
+  nonce?: number
+  value?: string
+  to?: string
+  properties?: object
+}
+
+export interface PerformanceMetricLogParams {
+  message: string
+  operationType: string
+  responseTimeMs: number
+  queueDepth?: number
+  cpuUsage?: number
+  memoryUsage?: number
+  activeConnections?: number
+  properties?: object
+}
+
+// Context Interfaces for Wrapper Classes
+export interface LiquidityManagerLogContext {
+  rebalanceId: string
+  walletAddress: string
+  strategy: Strategy | string // Allow string for system operations like 'check-balances', 'system', etc.
+  sourceChainId?: number
+  destinationChainId?: number
+  tokenInAddress?: string
+  tokenOutAddress?: string
+  groupId?: string
+}
+
+export interface IntentOperationLogContext {
+  intentHash: string
+  quoteId?: string
+  creator?: string
+  dAppId?: string
+  sourceChainId?: number
+  destinationChainId?: number
+  operationType?: 'creation' | 'fulfillment' | 'validation' | 'funding'
+  status?: 'started' | 'completed' | 'failed'
+}
+
+export interface QuoteGenerationLogContext {
+  quoteId: string
+  intentHash?: string
+  dAppId?: string
+  sourceChainId?: number
+  destinationChainId?: number
+  tokenInAddress?: string
+  tokenOutAddress?: string
+  intentExecutionType?: (typeof IntentExecutionTypeKeys)[number] | string
+  operationType?: 'quote_generation' | 'quote_validation' | 'quote_rejection'
+  status?: 'started' | 'completed' | 'failed'
+}
+
+export interface HealthOperationLogContext {
+  healthCheck: string
+  status?:
+    | 'healthy'
+    | 'unhealthy'
+    | 'degraded'
+    | 'started'
+    | 'warning'
+    | 'error'
+    | 'ok'
+    | 'shutting_down'
+  responseTime?: number
+  dependencies?: string[]
+}
+
+export interface GenericOperationLogContext {
+  operationType?: string
+  status?: string
+  duration?: number
+}
+
+export interface TransactionOperationLogContext {
+  transactionHash?: string
+  walletAddress?: string
+  chainId?: number
+  operationType?:
+    | 'transaction_send'
+    | 'transaction_confirm'
+    | 'signature_generation'
+    | 'wallet_operation'
+    | 'smart_wallet_deploy'
+  status?: 'pending' | 'completed' | 'failed' | 'signed'
+  blockNumber?: number
+  nonce?: number
+  value?: string
+  to?: string
+}
+
+// Datadog Structure Interfaces
+export interface DatadogLogStructure {
+  '@timestamp': string
+  message: string
+  service: string
+  status: 'debug' | 'info' | 'warn' | 'error'
+  ddsource: string
+  ddtags: string
+  host?: string
+  env?: string
+  version?: string
+  'logger.name'?: string
+  trace_id?: string
+  eco?: EcoBusinessContext
+  operation?: OperationContext
+  metrics?: MetricsContext
+  error?: ErrorContext
+  performance?: PerformanceContext
+  [key: string]: any
+}
+
+export interface EcoBusinessContext {
+  intent_hash?: string
+  intent_hash_full?: string // Full value for high-cardinality optimization
+  quote_id?: string
+  quote_id_full?: string // Full value for high-cardinality optimization
+  rebalance_id?: string
+  rebalance_id_full?: string // Full value for high-cardinality optimization
+  transaction_hash?: string
+  request_id?: string
+  wallet_address?: string
+  creator?: string
+  prover?: string
+  funder?: string
+  inbox?: string
+  d_app_id?: string
+  group_id?: string
+  source_chain_id?: number
+  destination_chain_id?: number
+  strategy?: string
+  intent_execution_type?: string
+  rejection_reason?: string
+  // New schema fields for complete coverage
+  salt?: string
+  log_index?: number
+  deadline?: string
+  rebalance_job_id?: string
+  receipt?: string
+  token_in_address?: string
+  token_out_address?: string
+  amount_in?: string
+  amount_out?: string
+  current_balance_in?: string
+  target_balance_in?: string
+  current_balance_out?: string
+  target_balance_out?: string
+  token_in_decimals?: number
+  token_out_decimals?: number
+}
+
+export interface OperationContext {
+  type: string
+  status?: string
+  duration_ms?: number
+  retry_count?: number
+  correlation_id?: string
+}
+
+export interface MetricsContext {
+  amount_in?: string
+  amount_out?: string
+  native_value?: string
+  swap_amount?: number
+  slippage?: number
+  deadline?: string
+  current_balance?: number
+  target_balance?: number
+  token_in_address?: string
+  token_out_address?: string
+  fee_amount?: string
+  gas_used?: number
+  gas_price?: string
+  execution_price?: string
+  block_number?: number
+  nonce?: number
+  transaction_value?: string
+}
+
+export interface ErrorContext {
+  kind: string
+  message: string
+  stack?: string
+  code?: string | number
+  recoverable?: boolean
+  upstream_service?: string
+  retry_after?: number
+}
+
+export interface PerformanceContext {
+  response_time_ms: number
+  queue_depth?: number
+  cpu_usage?: number
+  memory_usage?: number
+  active_connections?: number
+}
+
+// Validation Constants
+export const DATADOG_LIMITS = {
+  MAX_ATTRIBUTES: 256,
+  MAX_ATTRIBUTE_KEY_LENGTH: 50,
+  MAX_NESTED_LEVELS: 20,
+  MAX_ATTRIBUTE_VALUE_LENGTH: 1024, // For faceted fields
+  MAX_LOG_SIZE: 25 * 1024, // 25KB in bytes
+} as const
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+// Re-export commonly used types for convenience
+export type { Strategy as StrategyType } from '@/liquidity-manager/types/types'
+export type { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
+export type IntentExecutionTypeUnion = (typeof IntentExecutionTypeKeys)[number]

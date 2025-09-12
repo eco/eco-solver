@@ -16,6 +16,7 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
@@ -36,7 +37,6 @@ import { serialize } from '@/common/utils/serialize'
 import { GatewayProviderService } from '../Gateway/gateway-provider.service'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
-import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -207,8 +207,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<EcoConfigService>(),
         },
         {
-          provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+          provide: KernelAccountClientService,
+          useValue: createMock<KernelAccountClientService>(),
         },
         {
           provide: CrowdLiquidityService,

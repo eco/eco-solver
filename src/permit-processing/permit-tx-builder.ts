@@ -1,7 +1,7 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { encodeFunctionData, Hex, hexToBigInt } from 'viem'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { PermitAbi } from '@/contracts/Permit.abi'
 import { PermitProcessingParams } from '@/permit-processing/interfaces/permit-processing-params.interface'
 
@@ -16,7 +16,7 @@ interface SplitSignature {
  */
 @Injectable()
 export class PermitTxBuilder {
-  private logger = new Logger(PermitTxBuilder.name)
+  private logger = new GenericOperationLogger('PermitTxBuilder')
 
   /**
    * This function generates the transaction for the permit. It encodes the function data for the permit function
@@ -30,19 +30,23 @@ export class PermitTxBuilder {
     const { signature, deadline } = permit.data
     const { r, s, v } = this.splitSignature(signature)
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `getPermitTx: encodeFunctionData args:`,
-        properties: {
-          owner,
-          spender,
-          value,
-          deadline,
-          v,
-          r,
-          s,
-        },
-      }),
+    this.logger.logSignature(
+      {
+        operationType: 'permit_encoding',
+        status: 'started',
+        permitType: 'permit',
+        signatureMethod: 'EIP-2612',
+      },
+      'Encoding permit transaction data',
+      {
+        owner,
+        spender,
+        value,
+        deadline,
+        v,
+        r,
+        s,
+      },
     )
 
     const data = encodeFunctionData({

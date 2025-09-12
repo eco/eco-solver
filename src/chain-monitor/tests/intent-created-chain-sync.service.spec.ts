@@ -64,7 +64,7 @@ describe('IntentCreatedChainSyncService', () => {
       chainSyncService.syncTxsPerSource = mockSyncTxsPerSource
       ecoConfigService.getIntentSources.mockReturnValue(intentSources)
 
-      chainSyncService.syncTxs()
+      await chainSyncService.syncTxs()
       expect(mockSyncTxsPerSource).toHaveBeenCalledTimes(3)
       expect(mockSyncTxsPerSource).toHaveBeenNthCalledWith(1, intentSources[0])
       expect(mockSyncTxsPerSource).toHaveBeenNthCalledWith(2, intentSources[1])
@@ -158,11 +158,17 @@ describe('IntentCreatedChainSyncService', () => {
       expect(mockLog).toHaveBeenCalledTimes(1)
       // we search from the next block
       const searchFromBlock = model.event!.blockNumber + 1n
-      expect(mockLog).toHaveBeenCalledWith({
-        msg: `No transactions found for source ${intentSource.network} to sync from block ${searchFromBlock}`,
-        chainID: IntentSourceModel.getSource(model),
-        fromBlock: searchFromBlock,
-      })
+      // logger.log is called with (messageString, contextObject)
+      expect(mockLog).toHaveBeenCalledWith(
+        `No transactions found for source ${intentSource.network} to sync from block ${searchFromBlock}`,
+        expect.objectContaining({
+          service: 'intent-created-chain-sync-service',
+          operation: 'get_missing_txs',
+          source_network: intentSource.network,
+          chain_id: intentSource.chainID,
+          from_block: searchFromBlock?.toString(),
+        }),
+      )
     })
 
     it('should process all the txs that are to a supported destination since the last saved blockNumber', async () => {

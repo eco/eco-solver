@@ -1,6 +1,7 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
-import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Body, Controller, InternalServerErrorException, Post } from '@nestjs/common'
+import { QuoteGenerationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteErrorsInterface } from '@/quote/errors'
@@ -11,7 +12,7 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Controller(API_ROOT + QUOTE_ROUTE)
 export class QuoteController {
-  private logger = new Logger(QuoteController.name)
+  private logger = new QuoteGenerationLogger('QuoteController')
 
   constructor(
     private readonly quoteService: QuoteService,
@@ -19,33 +20,17 @@ export class QuoteController {
   ) {}
 
   @Post()
-  async getQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
+  @LogOperation('quote_generation', QuoteGenerationLogger)
+  async getQuote(
+    @Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<QuoteDataDTO> {
     const startTime = Date.now()
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Received quote request:`,
-        properties: {
-          quoteIntentDataDTO,
-        },
-      }),
-    )
 
     // Track quote request start
     this.ecoAnalytics.trackQuoteRequestReceived(quoteIntentDataDTO)
 
     const { response: quote, error } = await this.quoteService.getQuote(quoteIntentDataDTO)
     const processingTime = Date.now() - startTime
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Responding to quote request:`,
-        properties: {
-          quote,
-          error,
-        },
-      }),
-    )
 
     if (!error) {
       // Track successful quote response
@@ -75,33 +60,17 @@ export class QuoteController {
   }
 
   @Post('/reverse')
-  async getReverseQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
+  @LogOperation('reverse_quote_generation', QuoteGenerationLogger)
+  async getReverseQuote(
+    @Body() @LogContext quoteIntentDataDTO: QuoteIntentDataDTO,
+  ): Promise<QuoteDataDTO> {
     const startTime = Date.now()
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Received reverse quote request:`,
-        properties: {
-          quoteIntentDataDTO,
-        },
-      }),
-    )
 
     // Track reverse quote request start
     this.ecoAnalytics.trackReverseQuoteRequestReceived(quoteIntentDataDTO)
 
     const { response: quote, error } = await this.quoteService.getReverseQuote(quoteIntentDataDTO)
     const processingTime = Date.now() - startTime
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `Responding to reverse quote request:`,
-        properties: {
-          quote,
-          error,
-        },
-      }),
-    )
 
     if (!error) {
       // Track successful reverse quote response

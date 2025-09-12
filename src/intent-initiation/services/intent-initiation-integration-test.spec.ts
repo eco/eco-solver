@@ -4,7 +4,6 @@ import { CreateIntentService } from '@/intent/create-intent.service'
 import { createTestClient, Hex, http, parseEther, publicActions } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@/fee/fee.service'
 import { foundry } from 'viem/chains'
@@ -201,15 +200,12 @@ describe.skip('IntentInitiationIntegrationTest', () => {
     expect(gasPrice).toBeGreaterThan(0n)
     expect(gasCost).toBeGreaterThan(0n)
 
-    logger.error(
-      EcoLogMessage.fromDefault({
-        message: `calculateGasQuoteForIntent: estimated gas details`,
-        properties: {
-          estimatedGas: gasEstimate,
-          price: gasPrice,
-          totalCost: gasCost,
-        },
-      }),
-    )
+    logger.error(`calculateGasQuoteForIntent: estimated gas details`, {
+      service: 'intent-initiation-test',
+      operation: 'calculate_gas_quote',
+      estimatedGas: gasEstimate,
+      price: gasPrice,
+      totalCost: gasCost,
+    })
   })
 })
