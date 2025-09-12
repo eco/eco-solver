@@ -60,7 +60,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
-      removeOnComplete: true,
+      removeOnFail: false,
       delay,
       attempts: 10,
       backoff: {
@@ -91,7 +91,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
     const { messageHash, id, destinationChainId, cctpLiFiContext } = job.data
-    const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+    const result = await processor.cctpProviderService.fetchAttestation(messageHash, id)
 
     if (result.status === 'pending') {
       processor.logger.debug(
@@ -107,7 +107,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         }),
       )
 
-      this.delay(job, 30_000)
+      await this.delay(job, 30_000)
     }
 
     return result

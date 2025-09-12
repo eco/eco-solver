@@ -36,7 +36,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_EVERCLEAR_INTENT, data, {
-      removeOnComplete: true,
+      removeOnFail: false,
       delay,
       attempts: 10, // Retry up to 10 times for long-running intents
       backoff: {
@@ -66,7 +66,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
     switch (result.status) {
       case 'pending':
-        this.delay(job, EVERCLEAR_RETRY_DELAY_MS)
+        await this.delay(job, EVERCLEAR_RETRY_DELAY_MS)
       case 'complete':
         return result
       case 'failed':
