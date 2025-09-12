@@ -1,27 +1,25 @@
 #!/usr/bin/env ts-node
 
-import { Program, AnchorProvider, Wallet, web3, BN } from '@coral-xyz/anchor'
-import * as borsh from 'borsh'
-
-// Use Anchor's bundled web3.js to avoid type conflicts
-const { Connection, Keypair, PublicKey, ComputeBudgetProgram } = web3
+import { AnchorProvider, BN, Program, Wallet, web3 } from '@coral-xyz/anchor'
 import { Buffer } from 'buffer'
 import * as dotenv from 'dotenv'
 import { encodeAbiParameters, encodeFunctionData, Hex } from 'viem'
 import {
-  getAssociatedTokenAddress,
-  TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
   TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
 } from '@solana/spl-token'
 import { VmType } from '@/eco-configs/eco-config.types'
-import { RouteType, IntentType, RewardType } from '@/utils/encodeAndHash'
+import { hashIntentSvm, IntentType, RewardType, RouteType } from '@/utils/encodeAndHash'
 
 import config from '../config/solana'
 import { getChainConfig } from '@/eco-configs/utils'
-import { RewardStruct, RouteStruct } from '@/intent/abi'
+import { RouteStruct } from '@/intent/abi'
 import { getVaultPda } from '@/intent/check-funded-solana'
-import { hashIntentSvm } from '@/utils/encodeAndHash'
+
+// Use Anchor's bundled web3.js to avoid type conflicts
+const { Connection, Keypair, PublicKey, ComputeBudgetProgram } = web3
 
 // Load environment variables from .env file
 dotenv.config()
@@ -317,7 +315,7 @@ async function publishSolanaIntent(fundIntent: boolean = false) {
 
     const intentHash = hashIntentSvm(BigInt(intent.destination), intent.route, intent.reward)
 
-    console.log('JUSTLOGGING: intent', BigInt(intent.destination),intent.route)
+    console.log('JUSTLOGGING: intent', BigInt(intent.destination), intent.route)
 
     // Conditionally fund the intent if requested
     let fundingSignature: string | null = null

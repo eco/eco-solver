@@ -49,7 +49,7 @@ export type IntentType<SourceVM extends VmType = VmType, TargetVM extends VmType
 export function encodeRoute(route: RouteType): Hex {
   switch (route.vm) {
     case VmType.EVM:
-      console.log('SAQUON encodeRoute EVM', route);
+      console.log('SAQUON encodeRoute EVM', route)
       return encodeAbiParameters([{ type: 'tuple', components: RouteStruct }], [route])
     case VmType.SVM:
       // Use Anchor's BorshCoder for proper Solana serialization
@@ -89,10 +89,7 @@ export function addAccountsToRoute(
   const calls = route.calls.map(({ target, data, value }, callIndex) => {
     const callDataBytes = Buffer.from(data.slice(2), 'hex')
     const dataLength = callDataBytes.readUInt32LE(0)
-    const instructionData = callDataBytes.slice(sizeBytesLength, sizeBytesLength + dataLength)
     const accountCount = callDataBytes[sizeBytesLength + dataLength]
-
-    const startIndex = callIndex * accountCount
 
     if (accountCount != accounts.length) {
       throw new Error(
@@ -236,10 +233,6 @@ export function hashIntent(
 } {
   const routeHash = hashRoute(route)
   const rewardHash = hashReward(reward)
-
-  console.log('hashIntent: ', destination)
-  console.log('hashIntent', Array.from(Buffer.from(routeHash.slice(2), 'hex')))
-  console.log('hashIntent', Array.from(Buffer.from(rewardHash.slice(2), 'hex')))
 
   const intentHash = keccak256(
     encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, routeHash, rewardHash]),

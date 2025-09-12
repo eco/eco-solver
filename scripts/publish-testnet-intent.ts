@@ -1,26 +1,38 @@
 #!/usr/bin/env ts-node
 /* eslint-disable */
 
-import { Address, createPublicClient, createWalletClient, erc20Abi, http } from 'viem'
+import { Address, createPublicClient, createWalletClient, erc20Abi, Hex, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { optimism } from 'viem/chains'
+import { optimismSepolia } from 'viem/chains'
 import * as dotenv from 'dotenv'
 import { VmType } from '@/eco-configs/eco-config.types'
 import { encodeRoute, hashIntent, IntentType, RewardType, RouteType } from '@/utils/encodeAndHash'
-import { getChainConfig } from '@/eco-configs/utils'
 import config from '../config/solana'
 import { PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import { createTransferCheckedInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import {
+  createTransferCheckedInstruction,
+  getAssociatedTokenAddress,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token'
 import { portalAbi } from '@/contracts/v2-abi/Portal'
 import { BorshCoder, Idl, web3 } from '@coral-xyz/anchor'
-import { portalIdl } from './targets/idl/portal.idl'
 import { CalldataWithAccountsInstruction } from './targets/types/portal-idl.type'
+import { portalIdl } from './targets/idl/portal.idl'
+
+const portalBorshCoder = new BorshCoder<string, (typeof portalIdl)['types'][number]['name']>(
+  portalIdl as unknown as Idl,
+)
 
 // Load environment variables from .env file
 dotenv.config()
 
 const deadlineWindow = 7200 // 2 hours
+
+// Get portal addresses
+const optimismPortalAddress = '0xBcdc2cfADcD6E026d4Da81D01D82BFa20bcf2CaC' as Hex
+const optimismProverAddress = '0xdc9D0C27B0E76F3D7472aC7e10413667B12768Cc' as Hex
+const solanaPortalAddress: PublicKey = new PublicKey('5nCJDkRg8mhj9XHkjuFoR6Mcs6VcDZVsCbZ7pTJhRFEF')
 
 console.log('Publishing Optimism to Solana Intent...')
 
@@ -28,7 +40,7 @@ console.log('Publishing Optimism to Solana Intent...')
 const optimismRpcUrl = process.env.OPTIMISM_RPC_URL
 
 const publicClient = createPublicClient({
-  chain: optimism,
+  chain: optimismSepolia,
   transport: http(optimismRpcUrl),
 })
 
@@ -41,7 +53,7 @@ if (!privateKeyEnv) {
 const account = privateKeyToAccount(privateKeyEnv as `0x${string}`)
 const walletClient = createWalletClient({
   account,
-  chain: optimism,
+  chain: optimismSepolia,
   transport: http(optimismRpcUrl),
 })
 
@@ -52,10 +64,6 @@ const now = Math.floor(Date.now() / 1000)
 
 // Generate salt as 32-byte hex string directly from timestamp
 const salt = `0x${now.toString(16).padStart(64, '0')}` as `0x${string}`
-
-// Get portal addresses
-const optimismPortalAddress = getChainConfig(10).Inbox
-const solanaPortalAddress: PublicKey = getChainConfig(1399811149).Inbox as PublicKey
 
 interface TokenAmount {
   token: string
@@ -83,7 +91,7 @@ const reward: RewardType<VmType.EVM> = {
   vm: VmType.EVM,
   deadline: BigInt(now + deadlineWindow), // 2 hours from now
   creator: account.address,
-  prover: '0xde255Aab8e56a6Ae6913Df3a9Bbb6a9f22367f4C', // Placeholder - needs actual EVM prover
+  prover: optimismProverAddress, // Placeholder - needs actual EVM prover
   nativeAmount: 0n,
   tokens: rewardTokens.map((token) => ({
     token: token.token as Address,
@@ -98,27 +106,39 @@ const shouldFund = true
 
 // Create Solana SPL token transfer instruction
 const tokenMint = new PublicKey(routeTokens[0].token) // USDC on Solana
-const recipientAddress = new PublicKey('DTrmsGNtx3ki5PxMwv3maBsHLZ2oLCG7LxqdWFBgBtqh') // Destination wallet
+const recipientAddress = new PublicKey('5nChimm7uJNx3JWPxZqH3xuunqL2dvHB4F4uQJHSYTPQ') // Destination wallet
 const transferAmount = BigInt(1000)
 
-const portalBorshCoder = new BorshCoder<string, (typeof portalIdl)['types'][number]['name']>(
-  portalIdl as unknown as Idl,
-)
+function encodeTransferCheckedData(amount: bigint | number, decimals: number): Buffer {
+  const buf = Buffer.alloc(1 + 8 + 1)
+  buf.writeUInt8(12, 0) // 12 = TransferChecked
+  buf.writeBigUInt64LE(BigInt(amount), 1)
+  buf.writeUInt8(decimals, 1 + 8)
+  return buf
+}
 
 async function getSolanaTransferCall() {
   // Get executor PDA for call accounts
   const EXECUTOR_SEED = Buffer.from('executor')
   const [executorPda] = web3.PublicKey.findProgramAddressSync([EXECUTOR_SEED], solanaPortalAddress)
 
+  const source = await getAssociatedTokenAddress(tokenMint, executorPda, true)
+  const destination = await getAssociatedTokenAddress(tokenMint, recipientAddress, true)
+
+  console.log('Destination ATA: ', destination.toBase58())
+
   // Create the Calldata struct exactly as in the integration test
   const calldata = createTransferCheckedInstruction(
-    solanaPortalAddress,
+    source,
     tokenMint,
-    recipientAddress,
+    destination,
     executorPda,
     transferAmount,
     6,
   )
+
+  // Since the
+  calldata.keys[3].isSigner = false
 
   const serializedCalldata = portalBorshCoder.types.encode<CalldataWithAccountsInstruction>(
     'CalldataWithAccounts',
@@ -131,6 +151,18 @@ async function getSolanaTransferCall() {
       })),
     },
   )
+
+  console.log(
+    'Call accounts: \n',
+    calldata.keys
+      .map(
+        (account, i) =>
+          `${i}: Public Key ${account.pubkey}. isSigner=${Number(account.isSigner)} isWritable=${Number(account.isWritable)}`,
+      )
+      .join('\n'),
+  )
+
+  console.log(`CalldataWithAccounts encoded: 0x${serializedCalldata.toString('hex')}`)
 
   return {
     target: TOKEN_PROGRAM_ID, // SPL Token program
@@ -197,12 +229,17 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
       const tokenAmount = reward.tokens[0].amount
 
       // Check current allowance first
-      const currentAllowance = await publicClient.readContract({
-        address: tokenAddress,
-        abi: erc20Abi,
-        functionName: 'allowance',
-        args: [account.address, contractAddress],
-      })
+      let currentAllowance: bigint
+      try {
+        currentAllowance = await publicClient.readContract({
+          address: tokenAddress,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [account.address, contractAddress],
+        })
+      } catch {
+        currentAllowance = 0n
+      }
 
       console.log(`Current allowance: ${Number(currentAllowance) / 1e6} USDC`)
       console.log(`Required amount: ${Number(tokenAmount) / 1e6} USDC`)
@@ -242,12 +279,18 @@ async function publishOptimismToSolanaIntent(fundIntent: boolean = false) {
         console.log('Token approval confirmed')
 
         // Verify the approval worked
-        const newAllowance = await publicClient.readContract({
-          address: tokenAddress,
-          abi: erc20Abi,
-          functionName: 'allowance',
-          args: [account.address, contractAddress],
-        })
+        let newAllowance: bigint
+        try {
+          newAllowance = await publicClient.readContract({
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [account.address, contractAddress],
+          })
+        } catch {
+          newAllowance = 0n
+        }
+
         console.log(`New allowance after approval: ${Number(newAllowance) / 1e6} USDC`)
 
         if (newAllowance < tokenAmount) {
