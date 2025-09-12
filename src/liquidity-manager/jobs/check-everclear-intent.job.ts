@@ -1,5 +1,5 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
-import { DelayedError, Queue, UnrecoverableError } from 'bullmq'
+import { Queue, UnrecoverableError } from 'bullmq'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
@@ -24,6 +24,7 @@ export type CheckEverclearIntentJob = LiquidityManagerJob<
   CheckEverclearIntentJobData,
   { status: 'pending' | 'complete' | 'failed'; intentId?: string }
 >
+const EVERCLEAR_RETRY_DELAY_MS = 5_000
 
 export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<CheckEverclearIntentJob> {
   @AutoInject(RebalanceRepository)
@@ -35,7 +36,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_EVERCLEAR_INTENT, data, {
-      removeOnComplete: true,
+      removeOnFail: false,
       delay,
       attempts: 10, // Retry up to 10 times for long-running intents
       backoff: {
@@ -67,10 +68,7 @@ export class CheckEverclearIntentJobManager extends LiquidityManagerJobManager<C
 
     switch (result.status) {
       case 'pending':
-        await job.moveToDelayed(Date.now() + 5_000, job.token)
-        // we need to exit from the processor by throwing this error that will signal to the worker
-        // that the job has been delayed so that it does not try to complete (or fail the job) instead
-        throw new DelayedError()
+        await this.delay(job, EVERCLEAR_RETRY_DELAY_MS)
       case 'complete':
         return result
       case 'failed':

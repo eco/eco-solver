@@ -4,7 +4,7 @@ import {
   ExecuteCCTPMintJobManager,
 } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { Hex } from 'viem'
-import { DelayedError } from 'bullmq'
+// DelayedError import removed as it's now handled by the delay method
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 import {
   LiquidityManagerJob,
@@ -62,7 +62,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
-      removeOnComplete: true,
+      removeOnFail: false,
       delay,
       attempts: 3,
       backoff: {
@@ -93,12 +93,11 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     @LogContext job: CheckCCTPAttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
-    const { messageHash } = job.data
-    const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+    const { messageHash, id } = job.data
+    const result = await processor.cctpProviderService.fetchAttestation(messageHash, id)
 
     if (result.status === 'pending') {
-      await job.moveToDelayed(Date.now() + 30_000, job.token)
-      throw new DelayedError()
+      await this.delay(job, 30_000)
     }
 
     return result

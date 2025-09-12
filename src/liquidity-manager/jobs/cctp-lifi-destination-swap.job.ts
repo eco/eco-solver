@@ -47,8 +47,7 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
    */
   static async start(queue: Queue, data: CCTPLiFiDestinationSwapJobData, delay = 0): Promise<void> {
     await queue.add(LiquidityManagerJobName.CCTP_LIFI_DESTINATION_SWAP, data, {
-      removeOnComplete: true,
-      removeOnFail: false, // Keep failed jobs for debugging - helps with stranded USDC recovery
+      removeOnFail: false,
       delay,
       attempts: 3,
       backoff: {

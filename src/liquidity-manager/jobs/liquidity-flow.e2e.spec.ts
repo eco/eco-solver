@@ -76,8 +76,8 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
         job: any,
         processor: any,
       ) {
-        const { messageHash } = job.data
-        const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+        const { messageHash, id } = job.data
+        const result = await processor.cctpProviderService.fetchAttestation(messageHash, id)
 
         if (result.status === 'pending') {
           // Use shorter delay for testing
@@ -155,7 +155,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
       .spyOn(CheckCCTPAttestationJobManager, 'start')
       .mockImplementation(async (q, data /*, delay */) => {
         const opts: JobsOptions = {
-          removeOnComplete: true,
+          removeOnFail: false,
           attempts: 3,
           backoff: { type: 'exponential', delay: 10_000 },
           delay: 25, // <<< force small delay regardless of the real 30_000
@@ -346,8 +346,16 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     // Attestation is checked twice (pending -> re-enqueue -> complete)
     expect(processor.cctpProviderService.fetchAttestation).toHaveBeenCalledTimes(2)
-    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(1, '0xdead')
-    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(2, '0xdead')
+    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(
+      1,
+      '0xdead',
+      'job-123',
+    )
+    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(
+      2,
+      '0xdead',
+      'job-123',
+    )
 
     // Mint is executed once
     expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledTimes(1)

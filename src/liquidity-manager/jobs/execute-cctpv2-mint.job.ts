@@ -38,8 +38,7 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
   static async start(queue: Queue, data: ExecuteCCTPV2MintJob['data']): Promise<void> {
     await queue.add(LiquidityManagerJobName.EXECUTE_CCTPV2_MINT, data, {
       jobId: `${ExecuteCCTPV2MintJobManager.name}-${data.messageHash}`,
-      removeOnComplete: false,
-      removeOnFail: true,
+      removeOnFail: false,
       attempts: 3,
       backoff: {
         type: 'exponential',

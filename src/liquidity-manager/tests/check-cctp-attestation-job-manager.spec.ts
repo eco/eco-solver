@@ -61,7 +61,10 @@ describe('CheckCCTPAttestationJobManager', () => {
         liquidityManagerProcessor,
       )
 
-      expect(mockFetchAttestation).toHaveBeenCalledWith(checkCCTPAttestationJob.data?.messageHash)
+      expect(mockFetchAttestation).toHaveBeenCalledWith(
+        checkCCTPAttestationJob.data?.messageHash,
+        checkCCTPAttestationJob.data?.id,
+      )
     })
   })
 

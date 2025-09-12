@@ -43,7 +43,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
   ): Promise<void> {
     try {
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
-        removeOnComplete: true,
+        removeOnFail: false,
         delay,
         attempts: 3,
         backoff: {
@@ -65,12 +65,20 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     @LogContext job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPV2AttestationJob['returnvalue']> {
-    const { transactionHash, sourceDomain } = job.data
-    return processor.cctpv2ProviderService.fetchV2Attestation(
+    const { transactionHash, sourceDomain, id } = job.data
+    const result = await processor.cctpv2ProviderService.fetchV2Attestation(
       transactionHash,
       sourceDomain,
-      job.data.id,
+      id,
     )
+
+    if (result.status === 'pending') {
+      const deserializedContext = deserialize(job.data.context)
+      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
+      await this.delay(job, delay)
+    }
+
+    return result
   }
 
   @LogOperation('job_execution', GenericOperationLogger)
