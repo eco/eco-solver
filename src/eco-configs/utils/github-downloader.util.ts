@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common'
+import * as _ from 'lodash'
 import { EcoLogMessage } from '../../common/logging/eco-log-message'
 import { GitConfig, GitApp } from '../eco-config.types'
 import { createAuthenticatedOctokit } from './github-auth.util'
@@ -121,7 +122,8 @@ export async function downloadGitHubConfigs(
     })
 
     const configResults = await Promise.all(configPromises)
-    const mergedConfig = configResults.reduce((acc, config) => ({ ...acc, ...config }), {})
+    // Deep merge all configs recursively, including arrays and nested objects
+    const mergedConfig = configResults.reduce((acc, config) => _.merge(acc, config), {})
 
     logger?.debug(
       EcoLogMessage.fromDefault({
