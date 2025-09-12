@@ -14,11 +14,11 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { EcoAnalyticsService } from '@/analytics'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
-import { LmTxGatedKernelAccountClientV2Service } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client-v2.service'
+import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
-  let kernelAccountClientService: LmTxGatedKernelAccountClientV2Service
+  let kernelAccountClientService: KernelAccountClientV2Service
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let mockAssetCacheManager: DeepMocked<LiFiAssetCacheManager>
@@ -39,8 +39,8 @@ describe('LiFiProviderService', () => {
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         {
-          provide: LmTxGatedKernelAccountClientV2Service,
-          useValue: createMock<LmTxGatedKernelAccountClientV2Service>(),
+          provide: KernelAccountClientV2Service,
+          useValue: createMock<KernelAccountClientV2Service>(),
         },
         {
           provide: EcoAnalyticsService,
@@ -61,7 +61,7 @@ describe('LiFiProviderService', () => {
     ecoConfigService = chainMod.get(EcoConfigService)
     balanceService = chainMod.get(BalanceService)
     lifiProviderService = chainMod.get(LiFiProviderService)
-    kernelAccountClientService = chainMod.get(LmTxGatedKernelAccountClientV2Service)
+    kernelAccountClientService = chainMod.get(KernelAccountClientV2Service)
 
     kernelAccountClientService['getAddress'] = jest.fn().mockResolvedValue(zeroAddress)
 

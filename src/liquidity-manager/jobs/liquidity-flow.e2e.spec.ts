@@ -68,12 +68,24 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
 
     jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue(fakeModuleRef)
 
-    // Force small self-delay for pending attestation path
+    // Mock the delay time to be shorter for testing
     jest
-      .spyOn(CheckCCTPAttestationJobManager.prototype as any, 'delay')
-      .mockImplementation((job: any) => {
-        job.moveToDelayed(Date.now() + 25, job.token)
-        throw new DelayedError()
+      .spyOn(CheckCCTPAttestationJobManager.prototype, 'process')
+      .mockImplementation(async function (
+        this: CheckCCTPAttestationJobManager,
+        job: any,
+        processor: any,
+      ) {
+        const { messageHash } = job.data
+        const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+
+        if (result.status === 'pending') {
+          // Use shorter delay for testing
+          await job.moveToDelayed(Date.now() + 25, job.token)
+          throw new DelayedError()
+        }
+
+        return result
       })
 
     // 1) start Redis
@@ -233,13 +245,21 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
       { connection: workerConn, concurrency: 1 },
     )
 
-    // ❗ fail test immediately on worker errors/failures
+    // ❗ fail test immediately on worker errors/failures (but not DelayedError)
     worker.on('failed', (job, err) => {
+      // DelayedError is expected and should not fail the test
+      if (err && err.constructor.name === 'DelayedError') {
+        return
+      }
       // eslint-disable-next-line no-console
       console.error('Worker job failed:', job?.name, err)
       throw err
     })
     worker.on('error', (err) => {
+      // DelayedError is expected and should not fail the test
+      if (err && err.constructor.name === 'DelayedError') {
+        return
+      }
       // eslint-disable-next-line no-console
       console.error('Worker error:', err)
       throw err

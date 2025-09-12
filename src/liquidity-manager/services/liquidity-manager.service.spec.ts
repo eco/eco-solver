@@ -9,14 +9,10 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
 import {
-  LiquidityManagerQueue,
   LIQUIDITY_MANAGER_QUEUE_NAME,
   LIQUIDITY_MANAGER_FLOW_NAME,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
-import {
-  CheckBalancesQueue,
   CHECK_BALANCES_QUEUE_NAME,
-} from '@/liquidity-manager/queues/check-balances.queue'
+} from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
@@ -27,13 +23,13 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
-import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
   let liquidityProviderService: LiquidityProviderService
   let crowdLiquidityService: CrowdLiquidityService
-  let kernelAccountClientService: LmTxGatedKernelAccountClientService
+  let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -48,8 +44,8 @@ describe('LiquidityManagerService', () => {
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         {
-          provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+          provide: KernelAccountClientService,
+          useValue: createMock<KernelAccountClientService>(),
         },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         {
@@ -88,9 +84,9 @@ describe('LiquidityManagerService', () => {
     ecoConfigService = chainMod.get(EcoConfigService)
     crowdLiquidityService = chainMod.get(CrowdLiquidityService)
     liquidityManagerService = chainMod.get(LiquidityManagerService)
-    kernelAccountClientService = chainMod.get(LmTxGatedKernelAccountClientService)
+    kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
-    queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
+    queue = chainMod.get(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
     rebalanceModel = chainMod.get(getModelToken(RebalanceModel.name)) as any
     rebalanceRepository = chainMod.get(RebalanceRepository) as any
 

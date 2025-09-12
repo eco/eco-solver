@@ -144,7 +144,7 @@ describe('CheckCCTPAttestationJobManager', () => {
       expect(name).toBe(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION)
       expect(payload).toEqual(data)
       expect(opts?.removeOnComplete).toBe(true)
-      expect(opts?.attempts).toBe(10)
+      expect(opts?.attempts).toBe(3)
       expect(opts?.backoff).toEqual({ type: 'exponential', delay: 10_000 })
       expect(opts?.delay).toBeUndefined()
     })

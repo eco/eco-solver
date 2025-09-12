@@ -106,13 +106,18 @@ describe('RebalanceRepository', () => {
       await repository.create(mockRebalanceData)
 
       expect(loggerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          groupId: mockRebalanceData.groupId,
+          walletAddress: mockRebalanceData.wallet,
+          strategy: mockRebalanceData.strategy,
+          sourceChainId: mockRebalanceData.tokenIn.chainId,
+          destinationChainId: mockRebalanceData.tokenOut.chainId,
+          rebalanceId: 'pending',
+        }),
         'Persisting successful rebalance',
         expect.objectContaining({
-          service: 'rebalance-repository',
-          operation: 'create_rebalance',
-          strategy: mockRebalanceData.strategy,
-          wallet: mockRebalanceData.wallet,
-          group_id: mockRebalanceData.groupId,
+          token_in_chain: mockRebalanceData.tokenIn.chainId,
+          token_out_chain: mockRebalanceData.tokenOut.chainId,
         }),
       )
     })

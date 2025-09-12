@@ -24,20 +24,26 @@ class DecoratorLogger extends BaseStructuredLogger {
 
   // Expose the protected method as public for decorators
   public logMessage(structure: any, level: 'debug' | 'info' | 'warn' | 'error' = 'info'): void {
-    // Use the parent class methods based on level
-    switch (level) {
-      case 'debug':
-        super.debug(structure)
-        break
-      case 'info':
-        super.log(structure)
-        break
-      case 'warn':
-        super.warn(structure)
-        break
-      case 'error':
-        super.error(structure)
-        break
+    // Ensure the structure conforms to DatadogLogStructure
+    const datadogStructure = this.formatForDatadog(structure, level)
+    this.logStructured(datadogStructure, level)
+  }
+
+  /**
+   * Format log structure to conform to DatadogLogStructure interface
+   */
+  private formatForDatadog(structure: any, level: string): any {
+    return {
+      '@timestamp': new Date().toISOString(),
+      message: structure.message || 'Operation log',
+      service: this.context,
+      status: level,
+      ddsource: 'nodejs',
+      ddtags: `env:${process.env.NODE_ENV || 'development'},service:${this.context}`,
+      env: process.env.NODE_ENV || 'development',
+      version: process.env.APP_VERSION || '1.0.0',
+      'logger.name': this.context,
+      ...structure,
     }
   }
 }
@@ -136,23 +142,15 @@ function sanitizeResult(result: any): any {
   if (!result) return result
 
   try {
+    // Deep clone and sanitize the result
+    const sanitized = sanitizeObjectForLogging(result)
+
     // Convert to string and limit size for logging
-    // Use custom replacer to handle BigInt values
-    const stringified = JSON.stringify(
-      result,
-      (key, value) => {
-        // Convert BigInt to string
-        if (typeof value === 'bigint') {
-          return value.toString()
-        }
-        return value
-      },
-      0,
-    )
+    const stringified = JSON.stringify(sanitized, null, 0)
 
     // Handle case where stringified could be undefined or null
     if (!stringified || stringified.length <= 1000) {
-      return result
+      return sanitized
     }
 
     return `${stringified.substring(0, 1000)}...[truncated]`
@@ -160,6 +158,53 @@ function sanitizeResult(result: any): any {
     // If JSON.stringify fails, return a safe representation
     return `[Object: ${typeof result}]`
   }
+}
+
+/**
+ * Recursively sanitize objects for logging, handling BigInt and other special types
+ */
+function sanitizeObjectForLogging(obj: any): any {
+  if (obj === null || obj === undefined) return obj
+
+  if (typeof obj === 'bigint') {
+    return obj.toString()
+  }
+
+  if (typeof obj !== 'object') return obj
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeObjectForLogging(item))
+  }
+
+  const sanitized: any = {}
+  for (const [key, value] of Object.entries(obj)) {
+    // Skip functions and other non-serializable types
+    if (typeof value === 'function' || typeof value === 'symbol') continue
+
+    sanitized[key] = sanitizeObjectForLogging(value)
+  }
+
+  return sanitized
+}
+
+/**
+ * Check if an error is potentially recoverable
+ */
+function isRecoverableError(error: any): boolean {
+  if (!error) return false
+
+  const recoverablePatterns = [
+    /timeout/i,
+    /network/i,
+    /connection/i,
+    /rate limit/i,
+    /throttle/i,
+    /temporary/i,
+    /unavailable/i,
+  ]
+
+  const errorMessage = error.message || error.toString()
+  return recoverablePatterns.some((pattern) => pattern.test(errorMessage))
 }
 
 /**
@@ -218,6 +263,8 @@ export function LogOperation(
           parent_id: parentOperation?.operationId,
           level: operationContext.level,
           method_name: String(propertyName),
+          status: 'started',
+          correlation_id: operationId,
         },
       }
 
@@ -245,9 +292,15 @@ export function LogOperation(
         if (options.logExit !== false && shouldSample(options, 'info')) {
           const successContext = {
             ...enhancedContext,
+            operation: {
+              ...enhancedContext.operation,
+              status: 'completed',
+              duration_ms: Math.round(duration * 100) / 100,
+            },
             performance: {
               ...enhancedContext.performance,
               duration_ms: Math.round(duration * 100) / 100,
+              response_time_ms: Math.round(duration * 100) / 100,
             },
           }
 
@@ -266,18 +319,28 @@ export function LogOperation(
       } catch (error) {
         const duration = performance.now() - startTime
 
-        // Error logging
-        if (options.logErrors !== false) {
+        // Check if this is a DelayedError from BullMQ - this is expected behavior, not a failure
+        const isDelayedError = error instanceof Error && error.constructor.name === 'DelayedError'
+
+        // Error logging (skip logging DelayedError as it's expected BullMQ behavior)
+        if (options.logErrors !== false && !isDelayedError) {
           const errorContext = {
             ...enhancedContext,
+            operation: {
+              ...enhancedContext.operation,
+              status: 'failed',
+              duration_ms: Math.round(duration * 100) / 100,
+            },
             performance: {
               ...enhancedContext.performance,
               duration_ms: Math.round(duration * 100) / 100,
+              response_time_ms: Math.round(duration * 100) / 100,
             },
             error: {
-              type: error instanceof Error ? error.constructor.name : 'UnknownError',
+              kind: error instanceof Error ? error.constructor.name : 'UnknownError',
               message: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
+              recoverable: isRecoverableError(error),
             },
           }
 
@@ -288,6 +351,30 @@ export function LogOperation(
               ...errorContext,
             },
             'error',
+          )
+        } else if (isDelayedError) {
+          // Log DelayedError as debug information, not as an error
+          const delayContext = {
+            ...enhancedContext,
+            operation: {
+              ...enhancedContext.operation,
+              status: 'delayed',
+              duration_ms: Math.round(duration * 100) / 100,
+            },
+            performance: {
+              ...enhancedContext.performance,
+              duration_ms: Math.round(duration * 100) / 100,
+              response_time_ms: Math.round(duration * 100) / 100,
+            },
+          }
+
+          const decoratorLogger = new DecoratorLogger(target.constructor.name)
+          decoratorLogger.logMessage(
+            {
+              message: `${operationType} delayed`,
+              ...delayContext,
+            },
+            'debug',
           )
         }
 
@@ -354,6 +441,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
             parent_id: parentOperation.operationId,
             level: parentOperation.level + 1,
             method_name: String(propertyName),
+            status: 'started',
+            correlation_id: parentOperation.operationId,
           },
         }
 
@@ -378,9 +467,15 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
               {
                 message: `${subOperationType} completed`,
                 ...enhancedContext,
+                operation: {
+                  ...enhancedContext.operation,
+                  status: 'completed',
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
                 performance: {
                   ...enhancedContext.performance,
                   duration_ms: Math.round(duration * 100) / 100,
+                  response_time_ms: Math.round(duration * 100) / 100,
                 },
               },
               'debug',
@@ -391,22 +486,54 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
         } catch (error) {
           const duration = performance.now() - startTime
 
-          // Error logging for sub-operation
-          logger.logMessage(
-            {
-              message: `${subOperationType} failed`,
-              ...enhancedContext,
-              performance: {
-                ...enhancedContext.performance,
-                duration_ms: Math.round(duration * 100) / 100,
+          // Check if this is a DelayedError from BullMQ - this is expected behavior, not a failure
+          const isDelayedError = error instanceof Error && error.constructor.name === 'DelayedError'
+
+          // Error logging for sub-operation (skip DelayedError)
+          if (!isDelayedError) {
+            logger.logMessage(
+              {
+                message: `${subOperationType} failed`,
+                ...enhancedContext,
+                operation: {
+                  ...enhancedContext.operation,
+                  status: 'failed',
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
+                performance: {
+                  ...enhancedContext.performance,
+                  duration_ms: Math.round(duration * 100) / 100,
+                  response_time_ms: Math.round(duration * 100) / 100,
+                },
+                error: {
+                  kind: error instanceof Error ? error.constructor.name : 'UnknownError',
+                  message: error instanceof Error ? error.message : String(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                  recoverable: isRecoverableError(error),
+                },
               },
-              error: {
-                type: error instanceof Error ? error.constructor.name : 'UnknownError',
-                message: error instanceof Error ? error.message : String(error),
+              'error',
+            )
+          } else {
+            // Log DelayedError as debug information
+            logger.logMessage(
+              {
+                message: `${subOperationType} delayed`,
+                ...enhancedContext,
+                operation: {
+                  ...enhancedContext.operation,
+                  status: 'delayed',
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
+                performance: {
+                  ...enhancedContext.performance,
+                  duration_ms: Math.round(duration * 100) / 100,
+                  response_time_ms: Math.round(duration * 100) / 100,
+                },
               },
-            },
-            'error',
-          )
+              'debug',
+            )
+          }
 
           throw error
         }
@@ -442,6 +569,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
             parent_id: parentOperation.operationId,
             level: parentOperation.level + 1,
             method_name: String(propertyName),
+            status: 'started',
+            correlation_id: parentOperation.operationId,
           },
         }
 
@@ -466,9 +595,15 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
               {
                 message: `${subOperationType} completed`,
                 ...enhancedContext,
+                operation: {
+                  ...enhancedContext.operation,
+                  status: 'completed',
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
                 performance: {
                   ...enhancedContext.performance,
                   duration_ms: Math.round(duration * 100) / 100,
+                  response_time_ms: Math.round(duration * 100) / 100,
                 },
               },
               'debug',
@@ -479,22 +614,54 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
         } catch (error) {
           const duration = performance.now() - startTime
 
-          // Error logging for sub-operation
-          logger.logMessage(
-            {
-              message: `${subOperationType} failed`,
-              ...enhancedContext,
-              performance: {
-                ...enhancedContext.performance,
-                duration_ms: Math.round(duration * 100) / 100,
+          // Check if this is a DelayedError from BullMQ - this is expected behavior, not a failure
+          const isDelayedError = error instanceof Error && error.constructor.name === 'DelayedError'
+
+          // Error logging for sub-operation (skip DelayedError)
+          if (!isDelayedError) {
+            logger.logMessage(
+              {
+                message: `${subOperationType} failed`,
+                ...enhancedContext,
+                operation: {
+                  ...enhancedContext.operation,
+                  status: 'failed',
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
+                performance: {
+                  ...enhancedContext.performance,
+                  duration_ms: Math.round(duration * 100) / 100,
+                  response_time_ms: Math.round(duration * 100) / 100,
+                },
+                error: {
+                  kind: error instanceof Error ? error.constructor.name : 'UnknownError',
+                  message: error instanceof Error ? error.message : String(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                  recoverable: isRecoverableError(error),
+                },
               },
-              error: {
-                type: error instanceof Error ? error.constructor.name : 'UnknownError',
-                message: error instanceof Error ? error.message : String(error),
+              'error',
+            )
+          } else {
+            // Log DelayedError as debug information
+            logger.logMessage(
+              {
+                message: `${subOperationType} delayed`,
+                ...enhancedContext,
+                operation: {
+                  ...enhancedContext.operation,
+                  status: 'delayed',
+                  duration_ms: Math.round(duration * 100) / 100,
+                },
+                performance: {
+                  ...enhancedContext.performance,
+                  duration_ms: Math.round(duration * 100) / 100,
+                  response_time_ms: Math.round(duration * 100) / 100,
+                },
               },
-            },
-            'error',
-          )
+              'debug',
+            )
+          }
 
           throw error
         }

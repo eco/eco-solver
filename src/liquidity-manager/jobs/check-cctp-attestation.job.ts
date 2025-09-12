@@ -4,6 +4,7 @@ import {
   ExecuteCCTPMintJobManager,
 } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { Hex } from 'viem'
+import { DelayedError } from 'bullmq'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 import {
   LiquidityManagerJob,
@@ -93,7 +94,14 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
     const { messageHash } = job.data
-    return processor.cctpProviderService.fetchAttestation(messageHash)
+    const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+
+    if (result.status === 'pending') {
+      await job.moveToDelayed(Date.now() + 30_000, job.token)
+      throw new DelayedError()
+    }
+
+    return result
   }
 
   @LogOperation('job_execution', GenericOperationLogger)
@@ -135,7 +143,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         },
       )
 
-      await CheckCCTPAttestationJobManager.start(processor.queue, job.data, 30_000)
+      // Note: Re-enqueueing is now handled in process() method via DelayedError
     }
   }
 
