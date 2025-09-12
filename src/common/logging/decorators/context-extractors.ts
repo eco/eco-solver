@@ -3,6 +3,58 @@ import { PublicClient } from 'viem'
 import { extractClientInfo } from '@/watch/utils/client-info-extractor'
 
 /**
+ * Datadog logging limits
+ */
+const DATADOG_LIMITS = {
+  MAX_ARRAY_ITEMS: 10, // Limit array items to prevent size issues
+  MAX_STRING_LENGTH: 1000, // Limit individual string length
+} as const
+
+/**
+ * Smart array sampling to prevent Datadog size limits
+ * Preserves first few items + summary statistics
+ */
+function sampleArray<T>(
+  array: T[],
+  maxItems: number = DATADOG_LIMITS.MAX_ARRAY_ITEMS,
+): {
+  items: T[]
+  summary: {
+    total_count: number
+    sampled: boolean
+  }
+} {
+  if (array.length <= maxItems) {
+    return {
+      items: array,
+      summary: {
+        total_count: array.length,
+        sampled: false,
+      },
+    }
+  }
+
+  return {
+    items: array.slice(0, maxItems),
+    summary: {
+      total_count: array.length,
+      sampled: true,
+    },
+  }
+}
+
+/**
+ * Truncate strings to prevent size issues
+ */
+function truncateString(
+  str: string | undefined,
+  maxLength: number = DATADOG_LIMITS.MAX_STRING_LENGTH,
+): string | undefined {
+  if (!str) return str
+  return str.length > maxLength ? str.substring(0, maxLength - 3) + '...' : str
+}
+
+/**
  * Entity type guards for identifying domain objects
  */
 export const entityTypeGuards: EntityTypeGuards = {
@@ -320,18 +372,20 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
 
   // Extract call data context for execution path visibility
   const routeCalls =
-    entity.route?.calls?.map((call: any) => ({
+    entity.route?.calls?.map((call: any, index: number) => ({
       target: call.target || call.to,
       value: call.value?.toString() || '0',
-      callData: call.callData ? call.callData.substring(0, 100) + '...' : undefined, // Truncate for size limits
+      callData: truncateString(call.callData, 100), // Size-safe truncation
+      selector: call.callData ? call.callData.substring(0, 10) : undefined, // Function selector for analytics
+      position: index, // Order in execution chain
     })) || []
 
   const baseContext: ExtractedContext = {
     eco: {
       intent_hash: entity.hash,
       quote_id: entity.quoteID,
-      creator: entity.route?.creator,
-      prover: entity.route?.prover,
+      creator: entity.reward?.creator,
+      prover: entity.reward?.prover,
       source_chain_id: entity.route?.source,
       destination_chain_id: entity.route?.destination,
       funder: entity.funder,
@@ -339,23 +393,51 @@ export const extractIntentContext: ContextExtractor = (entity: any): ExtractedCo
       // New schema fields for complete coverage
       salt: entity.route?.salt || entity.salt,
       log_index: entity.logIndex,
-      deadline: entity.route?.deadline?.toString() || entity.deadline,
+      deadline: entity.reward?.deadline?.toString(),
+      native_value: entity.reward?.nativeValue?.toString(),
       d_app_id: entity.dAppID,
       // Route token information (first and last for backward compatibility)
       token_in_address: routeTokens[0]?.token,
       token_out_address: routeTokens[routeTokens.length - 1]?.token,
       amount_in: routeTokens[0]?.amount,
       amount_out: routeTokens[routeTokens.length - 1]?.amount,
+      // Individual token addresses for complete coverage
+      route_token_addresses: routeTokens.map((token) => token.token).filter(Boolean),
+      route_token_amounts: routeTokens.map((token) => token.amount).filter(Boolean),
+      // Call data targets and selectors for analytics
+      execution_targets: routeCalls.map((call) => call.target).filter(Boolean),
+      function_selectors: routeCalls.map((call) => call.selector).filter(Boolean),
     },
     metrics: {
       native_value: entity.reward?.nativeValue?.toString(),
-      deadline: entity.route?.deadline?.toString(),
-      // Complete token arrays for detailed analysis
-      route_tokens: routeTokens.length > 0 ? routeTokens : undefined,
-      reward_tokens: rewardTokens.length > 0 ? rewardTokens : undefined,
-      // Call data context for execution visibility
-      route_calls: routeCalls.length > 0 ? routeCalls : undefined,
+      deadline: entity.reward?.deadline?.toString(),
+      // Size-optimized token arrays with sampling
+      ...(() => {
+        const sampledRouteTokens = sampleArray(routeTokens)
+        const sampledRewardTokens = sampleArray(rewardTokens)
+        const sampledRouteCalls = sampleArray(routeCalls)
+
+        return {
+          route_tokens: sampledRouteTokens.items.length > 0 ? sampledRouteTokens.items : undefined,
+          route_tokens_summary: sampledRouteTokens.summary,
+          reward_tokens:
+            sampledRewardTokens.items.length > 0 ? sampledRewardTokens.items : undefined,
+          reward_tokens_summary: sampledRewardTokens.summary,
+          route_calls: sampledRouteCalls.items.length > 0 ? sampledRouteCalls.items : undefined,
+          route_calls_summary: sampledRouteCalls.summary,
+        }
+      })(),
       route_calls_count: routeCalls.length,
+      // Enhanced analytics metrics
+      total_route_value: routeTokens.reduce(
+        (sum, token) => sum + (parseFloat(token.amount || '0') || 0),
+        0,
+      ),
+      total_reward_value: rewardTokens.reduce(
+        (sum, token) => sum + (parseFloat(token.amount || '0') || 0),
+        0,
+      ),
+      has_native_transfers: routeCalls.some((call) => parseFloat(call.value || '0') > 0),
     },
     operation: {
       log_index: entity.logIndex,
@@ -446,29 +528,90 @@ export const extractQuoteContext: ContextExtractor = (entity: any): ExtractedCon
     return {}
   }
 
+  // Extract route tokens for analysis
+  const routeTokens =
+    entity.route?.tokens?.map((token: any) => ({
+      address: token.token || token.tokenAddress,
+      amount: token.amount?.toString() || '0',
+      chain_id: entity.route?.source || token.chainId,
+    })) || []
+
+  // Extract reward tokens for analysis
+  const rewardTokens =
+    entity.reward?.tokens?.map((token: any) => ({
+      address: token.token || token.tokenAddress,
+      amount: token.amount?.toString() || '0',
+      chain_id: entity.route?.destination || token.chainId,
+    })) || []
+
+  // Extract call data for execution context
+  const routeCalls =
+    entity.route?.calls?.map((call: any, index: number) => ({
+      target: call.target || call.to,
+      value: call.value?.toString() || '0',
+      position: index,
+    })) || []
+
   return {
     eco: {
       quote_id: entity.quoteID,
       d_app_id: entity.dAppID,
       intent_execution_type: entity.intentExecutionType,
-      // New schema field for complete coverage
+      // Missing schema fields now captured
+      source_chain_id: entity.route?.source,
+      destination_chain_id: entity.route?.destination,
+      inbox: entity.route?.inbox,
+      creator: entity.reward?.creator,
+      prover: entity.reward?.prover,
+      deadline: entity.reward?.deadline?.toString(),
+      native_value: entity.reward?.nativeValue?.toString(),
+      // Individual token addresses for complete coverage
+      route_token_addresses: routeTokens.map((token) => token.address).filter(Boolean),
+      reward_token_addresses: rewardTokens.map((token) => token.address).filter(Boolean),
+      // Call data targets for analytics
+      execution_targets: routeCalls.map((call) => call.target).filter(Boolean),
+      // Receipt data
       receipt: entity.receipt ? JSON.stringify(entity.receipt) : undefined,
     },
     metrics: {
-      route_tokens: entity.route?.routeTokens?.map((token: any) => ({
-        address: token.tokenAddress,
-        amount: token.amount?.toString(),
-        chain_id: token.chainId,
-      })),
-      reward_tokens: entity.reward?.rewardTokens?.map((token: any) => ({
-        address: token.tokenAddress,
-        amount: token.amount?.toString(),
-        chain_id: token.chainId,
-      })),
+      // Size-optimized token arrays with sampling
+      ...(() => {
+        const sampledRouteTokens = sampleArray(routeTokens)
+        const sampledRewardTokens = sampleArray(rewardTokens)
+        const sampledRouteCalls = sampleArray(routeCalls)
+
+        return {
+          route_tokens: sampledRouteTokens.items.length > 0 ? sampledRouteTokens.items : undefined,
+          route_tokens_summary: sampledRouteTokens.summary,
+          reward_tokens:
+            sampledRewardTokens.items.length > 0 ? sampledRewardTokens.items : undefined,
+          reward_tokens_summary: sampledRewardTokens.summary,
+          route_calls: sampledRouteCalls.items.length > 0 ? sampledRouteCalls.items : undefined,
+          route_calls_summary: sampledRouteCalls.summary,
+        }
+      })(),
+      route_calls_count: routeCalls.length,
+      // Financial metrics
+      total_route_value: routeTokens.reduce(
+        (sum, token) => sum + (parseFloat(token.amount || '0') || 0),
+        0,
+      ),
+      total_reward_value: rewardTokens.reduce(
+        (sum, token) => sum + (parseFloat(token.amount || '0') || 0),
+        0,
+      ),
+      native_value: entity.reward?.nativeValue?.toString(),
+      deadline: entity.reward?.deadline?.toString(),
+      has_native_transfers: routeCalls.some((call) => parseFloat(call.value || '0') > 0),
     },
     operation: {
       created_at: entity.createdAt?.toISOString(),
       updated_at: entity.updatedAt?.toISOString(),
+      route_complexity: {
+        token_count: routeTokens.length,
+        call_count: routeCalls.length,
+        has_rewards: rewardTokens.length > 0,
+      },
     },
   }
 }
