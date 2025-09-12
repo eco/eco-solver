@@ -19,16 +19,16 @@ import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { CCTPTokenMessengerABI } from '@/contracts/CCTPTokenMessenger'
 import { CCTPConfig } from '@/eco-configs/eco-config.types'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CCTPMessageTransmitterABI } from '@/contracts/CCTPMessageTransmitter'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -39,8 +39,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly walletClientService: LmTxGatedWalletClientService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly rebalanceRepository: RebalanceRepository,
 
@@ -253,15 +253,67 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return config
   }
 
-  async fetchAttestation(messageHash: Hex) {
+  async fetchAttestation(messageHash: Hex, id?: string) {
     const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
-    const response = await fetch(url)
+
+    // Apply timeout to fetch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10_000)
+    let response: Response
+    try {
+      response = await fetch(url, { signal: controller.signal } as any)
+    } catch (error) {
+      // Treat timeouts as pending to allow polling
+      if ((error as any)?.name === 'AbortError') {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'CCTP: Attestation request timed out, treating as pending',
+            id,
+            properties: { messageHash },
+          }),
+        )
+        return { status: 'pending' as const }
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
+
+    // If API has not indexed the message yet, it may return 404 or an error string.
+    if (!response.ok) {
+      if (response.status === 404) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTP: Treating "${response.statusText}" as pending`,
+            id,
+            properties: {
+              messageHash,
+            },
+          }),
+        )
+        return { status: 'pending' as const }
+      }
+      throw new Error(`CCTP attestation API request failed with status ${response.statusText}`)
+    }
+
     const data:
       | { status: 'pending' }
       | { error: string }
       | { status: 'complete'; attestation: Hex } = await response.json()
 
     if ('error' in data) {
+      if (/not found/i.test(data.error)) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTP: Treating "${data.error}" as pending`,
+            id,
+            properties: {
+              messageHash,
+            },
+          }),
+        )
+        return { status: 'pending' as const }
+      }
       throw new Error(data.error)
     }
 

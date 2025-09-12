@@ -42,9 +42,9 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
   ): Promise<void> {
     try {
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
-        removeOnComplete: true,
+        removeOnFail: false,
         delay,
-        attempts: 3,
+        attempts: 10,
         backoff: {
           type: 'exponential',
           delay: 10_000,
@@ -63,19 +63,39 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPV2AttestationJob['returnvalue']> {
-    const { transactionHash, sourceDomain } = job.data
-    return processor.cctpv2ProviderService.fetchV2Attestation(
+    const { transactionHash, sourceDomain, destinationChainId, id } = job.data
+    const result = await processor.cctpv2ProviderService.fetchV2Attestation(
       transactionHash,
       sourceDomain,
-      job.data.id,
+      id,
     )
+
+    if (result.status === 'pending') {
+      const deserializedContext = deserialize(job.data.context)
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'CCTPV2: Attestation pending...',
+          id,
+          properties: {
+            ...result,
+            transactionHash,
+            destinationChainId,
+            transferType: deserializedContext.transferType,
+          },
+        }),
+      )
+
+      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
+      await this.delay(job, delay)
+    }
+
+    return result
   }
 
   async onComplete(
     job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
-    const deserializedContext = deserialize(job.data.context)
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
         EcoLogMessage.withId({
@@ -97,22 +117,6 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       }
 
       await ExecuteCCTPV2MintJobManager.start(processor.queue, executeCCTPV2MintJobData)
-    } else {
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTPV2: Attestation pending...',
-          id: job.data.id,
-          properties: {
-            ...job.returnvalue,
-            transactionHash: job.data.transactionHash,
-            destinationChainId: job.data.destinationChainId,
-            transferType: deserializedContext.transferType,
-          },
-        }),
-      )
-      // Fast polling for "fast" transfers, slower for "standard"
-      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
-      await CheckCCTPV2AttestationJobManager.start(processor.queue, job.data, delay)
     }
   }
 

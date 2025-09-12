@@ -11,7 +11,7 @@ import {
   LiquidityManagerJobName,
   LiquidityManagerQueue,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { Queue, Worker, Job, JobsOptions } from 'bullmq'
+import { Queue, Worker, Job, JobsOptions, DelayedError } from 'bullmq'
 import IORedis from 'ioredis'
 import type { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { ModuleRef } from '@nestjs/core'
@@ -67,6 +67,14 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
     } as unknown as ModuleRef
 
     jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue(fakeModuleRef)
+
+    // Force small self-delay for pending attestation path
+    jest
+      .spyOn(CheckCCTPAttestationJobManager.prototype as any, 'delay')
+      .mockImplementation((job: any) => {
+        job.moveToDelayed(Date.now() + 25, job.token)
+        throw new DelayedError()
+      })
 
     // 1) start Redis
     container = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start()
@@ -135,7 +143,7 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
       .spyOn(CheckCCTPAttestationJobManager, 'start')
       .mockImplementation(async (q, data /*, delay */) => {
         const opts: JobsOptions = {
-          removeOnComplete: true,
+          removeOnFail: false,
           attempts: 3,
           backoff: { type: 'exponential', delay: 10_000 },
           delay: 25, // <<< force small delay regardless of the real 30_000
@@ -309,18 +317,25 @@ describe('E2E: CCTP attestation → mint → LiFi destination swap', () => {
       }),
     ])
 
-    // Sequence assertion
+    // Sequence assertion (attestation completes only once; pending path is delayed not completed)
     expect(seen).toEqual([
-      'CHECK_CCTP_ATTESTATION', // first run (pending)
-      'CHECK_CCTP_ATTESTATION', // re-enqueued (complete)
+      'CHECK_CCTP_ATTESTATION',
       'EXECUTE_CCTP_MINT',
       'CCTP_LIFI_DESTINATION_SWAP',
     ])
 
     // Attestation is checked twice (pending -> re-enqueue -> complete)
     expect(processor.cctpProviderService.fetchAttestation).toHaveBeenCalledTimes(2)
-    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(1, '0xdead')
-    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(2, '0xdead')
+    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(
+      1,
+      '0xdead',
+      'job-123',
+    )
+    expect(processor.cctpProviderService.fetchAttestation).toHaveBeenNthCalledWith(
+      2,
+      '0xdead',
+      'job-123',
+    )
 
     // Mint is executed once
     expect(processor.cctpProviderService.receiveMessage).toHaveBeenCalledTimes(1)

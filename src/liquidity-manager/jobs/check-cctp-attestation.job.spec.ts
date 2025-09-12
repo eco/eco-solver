@@ -29,7 +29,9 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 
 function makeQueueMock() {
   return {
-    add: jest.fn<Promise<any>, [string, any, JobsOptions | undefined]>(),
+    add: jest
+      .fn<Promise<any>, [string, any, JobsOptions | undefined]>()
+      .mockResolvedValue({} as any),
   } as unknown as jest.Mocked<Queue>
 }
 
@@ -126,10 +128,11 @@ describe('CheckCCTPAttestationJobManager', () => {
       const [name, payload, opts] = queue.add.mock.calls[0]
       expect(name).toBe(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION)
       expect(payload).toEqual(data)
-      expect(opts?.removeOnComplete).toBe(true)
-      expect(opts?.attempts).toBe(3)
-      expect(opts?.backoff).toEqual({ type: 'exponential', delay: 10_000 })
-      expect(opts?.delay).toBeUndefined()
+      expect(opts).toBeDefined()
+      expect(opts!.removeOnFail).toBe(false)
+      expect(opts!.attempts).toBe(10)
+      expect(opts!.backoff).toEqual({ type: 'exponential', delay: 10_000 })
+      expect(opts!.delay).toBeUndefined()
     })
 
     it('forwards the delay option', async () => {
@@ -161,13 +164,27 @@ describe('CheckCCTPAttestationJobManager', () => {
       const processor = makeProcessorMock()
       const job = makeJob({ messageHash: '0xfeed' as Hex })
 
-      const providerResult = { status: 'pending' }
+      const providerResult = { status: 'complete', attestation: '0xbeef' as Hex }
       processor.cctpProviderService.fetchAttestation.mockResolvedValueOnce(providerResult as any)
 
       const result = await mgr.process(job as any, processor)
 
-      expect(processor.cctpProviderService.fetchAttestation).toHaveBeenCalledWith('0xfeed')
+      expect(processor.cctpProviderService.fetchAttestation).toHaveBeenCalledWith('0xfeed', 'job-1')
       expect(result).toBe(providerResult)
+    })
+
+    it('when result is pending: delays via moveToDelayed and throws', async () => {
+      const processor = makeProcessorMock()
+      const job = makeJob({ messageHash: '0xfeed' as Hex }) as any
+      job.moveToDelayed = jest.fn()
+      job.token = 'token'
+
+      processor.cctpProviderService.fetchAttestation.mockResolvedValueOnce({
+        status: 'pending',
+      } as any)
+
+      await expect(mgr.process(job, processor)).rejects.toBeInstanceOf(Error)
+      expect(job.moveToDelayed).toHaveBeenCalled()
     })
   })
 
@@ -199,7 +216,7 @@ describe('CheckCCTPAttestationJobManager', () => {
       })
     })
 
-    it('when status=pending: logs and re-enqueues attestation check with 30_000 delay', async () => {
+    it('when status=pending: does not re-enqueue (handled in process)', async () => {
       const queue = makeQueueMock()
       const processor = makeProcessorMock({ queue: queue as LiquidityManagerQueueType })
 
@@ -215,35 +232,7 @@ describe('CheckCCTPAttestationJobManager', () => {
 
       await mgr.onComplete(job as any, processor)
 
-      expect(processor.queue).toBe(queue)
-      expect(queue.add).toHaveBeenCalledWith(
-        LiquidityManagerJobName.CHECK_CCTP_ATTESTATION,
-
-        expect.objectContaining({
-          groupID: job.data.groupID,
-          rebalanceJobID: job.data.rebalanceJobID,
-          messageHash: job.data.messageHash,
-        }),
-
-        expect.objectContaining({
-          delay: 30_000,
-          removeOnComplete: true,
-          attempts: 3,
-        }),
-      )
-
-      // Logged
-      expect(processor.logger.debug).toHaveBeenCalled()
-
-      // Re-enqueued self with delay 30_000
-      expect(queue.add).toHaveBeenCalledTimes(1)
-
-      const [name, payload, opts] = queue.add.mock.calls[0]
-      expect(name).toBe(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION)
-      expect(payload).toMatchObject(job.data)
-      expect(opts?.delay).toBe(30_000)
-      expect(opts?.removeOnComplete).toBe(true)
-      expect(opts?.attempts).toBe(3)
+      expect(queue.add).not.toHaveBeenCalled()
     })
   })
 

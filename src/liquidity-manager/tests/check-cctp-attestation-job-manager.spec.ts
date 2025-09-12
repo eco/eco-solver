@@ -35,22 +35,24 @@ describe('CheckCCTPAttestationJobManager', () => {
 
   describe('process', () => {
     it('should fetch attestation', async () => {
+      const mockFetchAttestation = jest
+        .spyOn(liquidityManagerProcessor.cctpProviderService, 'fetchAttestation')
+        .mockResolvedValueOnce({ status: 'complete', attestation: '0xbeef' } as any)
+
       await checkCCTPAttestationJobManager.process(
         checkCCTPAttestationJob as CheckCCTPAttestationJob,
         liquidityManagerProcessor,
       )
 
-      const mockFetchAttestation = jest.spyOn(
-        liquidityManagerProcessor.cctpProviderService,
-        'fetchAttestation',
+      expect(mockFetchAttestation).toHaveBeenCalledWith(
+        checkCCTPAttestationJob.data?.messageHash,
+        checkCCTPAttestationJob.data?.id,
       )
-
-      expect(mockFetchAttestation).toHaveBeenCalledWith(checkCCTPAttestationJob.data?.messageHash)
     })
   })
 
   describe('onComplete', () => {
-    it('should start a new job if attestation is still pending', async () => {
+    it('does nothing when attestation is pending (re-enqueue handled by process delay)', async () => {
       const pendingCheckCCTPAttestationJob: Partial<CheckCCTPAttestationJob> = {
         ...checkCCTPAttestationJob,
         returnvalue: { status: 'pending' },
@@ -62,7 +64,7 @@ describe('CheckCCTPAttestationJobManager', () => {
       )
 
       expect(ExecuteCCTPMintJobManager.start).not.toHaveBeenCalled()
-      expect(CheckCCTPAttestationJobManager.start).toHaveBeenCalled()
+      expect(CheckCCTPAttestationJobManager.start).not.toHaveBeenCalled()
     })
 
     it('should execute mint if attestation is still completed', async () => {

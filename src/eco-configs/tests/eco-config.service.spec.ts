@@ -297,4 +297,22 @@ describe('Eco Config Helper Tests', () => {
       )
     })
   })
+
+  describe('getLiquidityManagerMaxQuoteSlippageBps', () => {
+    it('should convert slippage to rounded basis points string', () => {
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ maxQuoteSlippage: 0.01234 } as any)
+
+      expect(ecoConfigService.getLiquidityManagerMaxQuoteSlippageBps()).toBe('123')
+    })
+
+    it('should return 100 for 1% slippage', () => {
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ maxQuoteSlippage: 0.01 } as any)
+
+      expect(ecoConfigService.getLiquidityManagerMaxQuoteSlippageBps()).toBe('100')
+    })
+  })
 })
