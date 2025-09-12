@@ -5,6 +5,7 @@ import { HealthCheckService } from '@nestjs/terminus'
 import { BalanceHealthIndicator } from './indicators/balance.indicator'
 import { EcoRedisHealthIndicator } from './indicators/eco-redis.indicator'
 import { MongoDBHealthIndicator } from './indicators/mongodb.indicator'
+import { RebalanceHealthIndicator } from './indicators/rebalance-health.indicator'
 import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { GitCommitHealthIndicator } from './indicators/git-commit.indicator'
 import { EcoAnalyticsService } from '@/analytics'
@@ -19,6 +20,7 @@ export class HealthService {
     private readonly gitCommitHealthIndicator: GitCommitHealthIndicator,
     private readonly mongoDBHealthIndicator: MongoDBHealthIndicator,
     private readonly redisIndicator: EcoRedisHealthIndicator,
+    private readonly rebalanceHealthIndicator: RebalanceHealthIndicator,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {}
 
@@ -28,6 +30,7 @@ export class HealthService {
       () => this.redisIndicator.checkRedis(),
       () => this.mongoDBHealthIndicator.checkMongoDB(),
       () => this.balanceIndicator.checkBalances(),
+      () => this.rebalanceHealthIndicator.checkRebalancingHealth(),
     ])
     this.logger.log(
       EcoLogMessage.fromDefault({

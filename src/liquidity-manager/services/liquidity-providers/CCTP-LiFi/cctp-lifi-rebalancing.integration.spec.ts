@@ -36,6 +36,7 @@ import { EcoAnalyticsService } from '@/analytics'
 import { serialize } from '@/common/utils/serialize'
 import { GatewayProviderService } from '../Gateway/gateway-provider.service'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -226,6 +227,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
+        },
+        {
+          provide: RebalanceQuoteRejectionRepository,
+          useValue: createMock<RebalanceQuoteRejectionRepository>(),
         },
       ],
     }).compile()
