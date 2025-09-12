@@ -31,5 +31,5 @@ module.exports = {
   globals: {
     mongodbMemoryServerOptions, // 👈 Inject manually here!
   },
-  setupFiles: ['<rootDir>/../jest.setup.js'],
+  setupFiles: ['<rootDir>/../jest.setup.js', '<rootDir>/../jest-setup-mocks.js'],
 }
