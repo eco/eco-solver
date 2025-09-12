@@ -13,7 +13,6 @@ import {
   CalldataInstruction,
   CalldataWithAccountsInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
-import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
 import { toBuffer } from '@/modules/blockchain/svm/utils/buffer';
 import { bufferToBytes } from '@/modules/blockchain/svm/utils/converter';
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
@@ -103,9 +102,10 @@ export async function getTokenAccounts(
 }
 
 export function decodeRouteCall(call: Intent['route']['calls'][number]) {
-  const { accounts, calldata } = portalBorshCoder.types.decode<
-    Snakify<CalldataWithAccountsInstruction>
-  >('CalldataWithAccounts', toBuffer(call.data));
+  const { accounts, calldata } = portalBorshCoder.types.decode<CalldataWithAccountsInstruction>(
+    'CalldataWithAccounts',
+    toBuffer(call.data),
+  );
 
   const callBuffer = portalBorshCoder.types.encode<CalldataInstruction>('Calldata', {
     data: calldata.data,

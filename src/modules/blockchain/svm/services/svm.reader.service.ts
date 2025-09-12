@@ -515,7 +515,12 @@ export class SvmReaderService extends BaseChainReader {
     const { owner, mint } = await getAccount(this.connection, ataAccount);
 
     const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
-    const isValidOwnerAccount = portalProgramId.equals(owner);
+    const [executorPda] = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from('executor')],
+      portalProgramId,
+    );
+
+    const isValidOwnerAccount = executorPda.equals(owner);
 
     const isTokenSupported = this.solanaConfigService.isTokenSupported(
       this.solanaConfigService.chainId,
@@ -526,20 +531,22 @@ export class SvmReaderService extends BaseChainReader {
   }
 
   private async validateNonExistingATAAccount(ataAccount: web3.PublicKey) {
-    const validATAs = await this.getPortalATAs();
+    const validATAs = await this.getPortalExecutorATAs();
     return validATAs.some((ata) => ata.equals(ataAccount));
   }
 
-  private async getPortalATAs(): Promise<web3.PublicKey[]> {
+  private async getPortalExecutorATAs(): Promise<web3.PublicKey[]> {
     // TODO: Cache this function
 
     // Owner must be the Portal program
-    const owner = new PublicKey(this.solanaConfigService.portalProgramId);
+    const portal = new PublicKey(this.solanaConfigService.portalProgramId);
+    const [executorPda] = web3.PublicKey.findProgramAddressSync([Buffer.from('executor')], portal);
+
     const tokens = this.solanaConfigService.getSupportedTokens();
     const accountPromises = tokens.map((token) => {
       const tokenAddr = AddressNormalizer.denormalizeToSvm(token.address);
       const tokenMint = new web3.PublicKey(tokenAddr);
-      return getAssociatedTokenAddress(tokenMint, owner, true);
+      return getAssociatedTokenAddress(tokenMint, executorPda, true);
     });
 
     return Promise.all(accountPromises);

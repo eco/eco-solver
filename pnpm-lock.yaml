@@ -210,6 +210,9 @@ importers:
       '@types/bn.js':
         specifier: ^5.2.0
         version: 5.2.0
+      '@types/bs58':
+        specifier: ^4.0.1
+        version: 4.0.4
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.23
@@ -2274,6 +2277,9 @@ packages:
 
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
+
+  '@types/bs58@4.0.4':
+    resolution: {integrity: sha512-0IEpMFXXQi2zXaXl9GJ3sRwQo0uEkD+yFOv+FnAU5lkPtcu6h61xb7jc2CFPEZ5BUOaiP13ThuGc9HD4R8lR5g==}
 
   '@types/bunyan@1.8.11':
     resolution: {integrity: sha512-758fRH7umIMk5qt5ELmRMff4mLDlN+xyYzC+dkPTdKwbSkJFvz6xwyScrytPU0QIBbRRwbiE8/BIg8bpajerNQ==}
@@ -8717,6 +8723,11 @@ snapshots:
     dependencies:
       '@types/connect': 3.4.38
       '@types/node': 20.19.9
+
+  '@types/bs58@4.0.4':
+    dependencies:
+      '@types/node': 20.19.9
+      base-x: 3.0.11
 
   '@types/bunyan@1.8.11':
     dependencies:

@@ -14,7 +14,6 @@ import {
   RewardInstruction,
   RouteInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
-import { Snakify } from '@/modules/blockchain/svm/types/snake-case.types';
 import { bufferToBytes, bytes32ToAddress } from '@/modules/blockchain/svm/utils/converter';
 import {
   toSvmRewardForCoder,
@@ -238,7 +237,7 @@ export class PortalEncoder {
 
     if (dataType === 'route') {
       // Decode route using Borsh
-      const decoded = portalBorshCoder.types.decode<Snakify<RouteInstruction>>('Route', buffer);
+      const decoded = portalBorshCoder.types.decode<RouteInstruction>('Route', buffer);
 
       if (decoded === null) {
         throw new Error('Unable to decode SVM route');
@@ -264,7 +263,7 @@ export class PortalEncoder {
     }
 
     // Decode reward using Borsh
-    const decoded = portalBorshCoder.types.decode<Snakify<RewardInstruction>>('Reward', buffer);
+    const decoded = portalBorshCoder.types.decode<RewardInstruction>('Reward', buffer);
 
     if (decoded === null) {
       throw new Error('Unable to decode SVM reward');
