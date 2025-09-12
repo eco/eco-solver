@@ -33,6 +33,7 @@ import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { KernelAccountClientConfig } from '@/transaction/smart-wallets/kernel/kernel-account.config'
 import { ExecuteSmartWalletArgs } from '@/transaction/smart-wallets/smart-wallet.types'
 import { encodeKernelExecuteCallData } from '@/transaction/smart-wallets/kernel/actions/encodeData.kernel'
+import { legacyTx } from '@/transaction/smart-wallets/utils'
 
 export type KernelAccountClientV2Config<
   entryPointVersion extends '0.6' | '0.7',
@@ -142,5 +143,6 @@ export async function executeTransactionsWithKernel(
     kzg: undefined,
     to: kernelClient.account?.address,
     chain: kernelClient.chain as Chain,
+    ...legacyTx(kernelClient.chain?.id),
   })
 }
