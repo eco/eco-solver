@@ -1,6 +1,6 @@
 export default {
   server: {
-    url: process.env.SERVICE_URL || 'https://solver-bg.staging.eco',
+    url: process.env.SERVICE_URL || 'https://solver-bg.staging.eco.com',
   },
 
   aws: [
