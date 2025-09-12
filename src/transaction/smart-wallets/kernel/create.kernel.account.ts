@@ -37,7 +37,7 @@ import { Logger } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { OwnableExecutorAbi } from '@/contracts'
 import { GetKernelVersion } from '@zerodev/sdk/types'
-
+import { legacyTx } from '../utils'
 export type entryPointV_0_7 = '0.7'
 
 /**
@@ -252,7 +252,6 @@ export async function executorTransferERC20Token<
     ['address', 'uint256', 'bytes'],
     [tx.tokenAddress, BigInt(Number(0)), transferCalldata],
   )
-  const isLegacy = (await client.getChainId()) == 9745
   // Simulate the contract call
   const { request } = await client.simulateContract({
     address: GLOBAL_CONSTANTS.OWNABLE_EXECUTOR_ADDRESS,
@@ -260,7 +259,7 @@ export async function executorTransferERC20Token<
     functionName: 'executeOnOwnedAccount',
     args: [client.kernelAccount.address, packed], //the owned account is the kernel account
     account: client.kernelAccount.client.account, //assumes the kernel account signer is the owner of the executor for the kernel contract
-    ...(isLegacy ? { type: 'legacy' } : {}), // EIP-1559 not supported on plasma mainnet yet
+    ...legacyTx(await client.getChainId()), // EIP-1559 not supported on plasma mainnet yet
   })
 
   logger.log(

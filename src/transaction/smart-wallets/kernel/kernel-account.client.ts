@@ -12,6 +12,7 @@ import { ExecuteSmartWalletArgs, SmartWalletClient } from '../smart-wallet.types
 import { ToEcdsaKernelSmartAccountReturnType } from 'permissionless/accounts'
 import { KernelWalletActions } from './kernel-account.config'
 import { encodeKernelExecuteCallData } from './actions/encodeData.kernel'
+import { legacyTx } from '@/transaction/smart-wallets/utils'
 
 export type DeployFactoryArgs = {
   factory?: Hex | undefined
@@ -67,6 +68,7 @@ async function execute<
     to: client.kernelAccount.address,
     chain: client.chain as Chain,
     account: client.account as Account,
+    ...legacyTx(await client.getChainId()),
   })
 }
 
@@ -95,6 +97,7 @@ async function deployKernelAccount<
       to: args.factory,
       chain: client.chain as Chain,
       account: client.account as Account,
+      ...legacyTx(await client.getChainId()),
     })
 
     if (client.waitForTransactionReceipt) {
