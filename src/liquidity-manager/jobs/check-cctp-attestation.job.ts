@@ -61,7 +61,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
       removeOnFail: false,
-      delay,
+      delay: delay ?? 10_000,
       attempts: 10,
       backoff: {
         type: 'exponential',
@@ -107,7 +107,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         }),
       )
 
-      await this.delay(job, 30_000)
+      await this.delay(job, 10_000)
     }
 
     return result

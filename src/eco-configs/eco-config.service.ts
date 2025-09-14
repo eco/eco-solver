@@ -315,6 +315,10 @@ export class EcoConfigService {
     return this.get('gateway')
   }
 
+  getUSDT0(): EcoConfigType['usdt0'] {
+    return this.get('usdt0')
+  }
+
   getWatch(): EcoConfigType['watch'] {
     return this.get('watch')
   }

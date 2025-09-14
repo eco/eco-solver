@@ -38,7 +38,13 @@ export class LmTxGatedKernelAccountClientV2Service {
       get: (target, prop, receiver) => {
         if (prop === 'execute') {
           return async (calls: Array<{ to: string; data?: string; value?: bigint }>) =>
-            this.txQueue.enqueue(wallet, chainId, () => target.execute(calls))
+            this.txQueue.enqueue(wallet, chainId, () => {
+              const exec = (target as any).execute || (target as any).sendTransactions
+              if (typeof exec !== 'function') {
+                throw new TypeError('Kernel client: execute/sendTransactions is not a function')
+              }
+              return exec.call(target, calls)
+            })
         }
         if (prop === 'sendTransaction') {
           return async (args: any) =>
