@@ -87,6 +87,7 @@ const TvmTransactionSettingsSchema = z.object({
   maxTransactionAttempts: z.coerce.number().int().positive().default(30),
   transactionCheckInterval: z.coerce.number().int().positive().default(2000), // milliseconds
   listenerPollInterval: z.coerce.number().int().positive().default(5000), // milliseconds
+  proverListenerInterval: z.coerce.number().int().positive().default(60000), // milliseconds (1 minute for prover events)
 });
 
 /**

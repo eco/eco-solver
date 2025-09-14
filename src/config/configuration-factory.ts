@@ -1,4 +1,4 @@
-import { merge } from 'lodash';
+import merge from 'lodash.merge';
 import { z } from 'zod';
 
 import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';

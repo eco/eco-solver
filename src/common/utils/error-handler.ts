@@ -1,3 +1,5 @@
+import { isError, isString } from 'es-toolkit';
+
 /**
  * Type-safe error handling utilities
  */
@@ -7,10 +9,10 @@
  * Preserves original error if it's already an Error
  */
 export function toError(error: unknown): Error {
-  if (error instanceof Error) {
+  if (isError(error)) {
     return error;
   }
-  if (typeof error === 'string') {
+  if (isString(error)) {
     return new Error(error);
   }
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -23,10 +25,10 @@ export function toError(error: unknown): Error {
  * Gets error message from unknown error
  */
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
+  if (isError(error)) {
     return error.message;
   }
-  if (typeof error === 'string') {
+  if (isString(error)) {
     return error;
   }
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -40,7 +42,7 @@ export function getErrorMessage(error: unknown): string {
  */
 export function hasErrorCode(error: unknown): error is Error & { code: string | number } {
   return (
-    error instanceof Error &&
+    isError(error) &&
     'code' in error &&
     (typeof (error as any).code === 'string' || typeof (error as any).code === 'number')
   );
@@ -50,5 +52,5 @@ export function hasErrorCode(error: unknown): error is Error & { code: string | 
  * Type guard to check if error has a stack property
  */
 export function hasErrorStack(error: unknown): error is Error & { stack: string } {
-  return error instanceof Error && typeof error.stack === 'string';
+  return isError(error) && typeof error.stack === 'string';
 }
