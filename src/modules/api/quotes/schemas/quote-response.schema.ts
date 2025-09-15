@@ -3,6 +3,21 @@ import { z } from 'zod';
 
 import { zodBlockchainAddress, zodHex } from '@/common/utils/zod-to-swagger.util';
 
+// Call schema for route calls
+const CallSchema = extendApi(
+  z.object({
+    target: zodBlockchainAddress('Target contract address'),
+    data: zodHex('Encoded call data'),
+    value: extendApi(z.string(), {
+      description: 'Native token value to send (as string for BigInt compatibility)',
+      example: '0',
+    }),
+  }),
+  {
+    description: 'Call data for executing on destination chain',
+  },
+);
+
 // Token info schema
 const TokenInfoSchema = extendApi(
   z.object({
@@ -77,6 +92,9 @@ const QuoteDataSchema = extendApi(
     estimatedFulfillTimeSec: extendApi(z.number(), {
       description: 'Estimated fulfillment time in seconds',
       example: 300,
+    }),
+    routeCalls: extendApi(z.array(CallSchema), {
+      description: 'Array of calls to execute on the destination chain',
     }),
   }),
   {

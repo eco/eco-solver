@@ -10,6 +10,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { hours, now } from '@/common/utils/time';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 
@@ -22,6 +23,7 @@ export class QuotesService {
     private readonly fulfillmentConfigService: FulfillmentConfigService,
     private readonly fulfillmentService: FulfillmentService,
     private readonly blockchainConfigService: BlockchainConfigService,
+    private readonly blockchainReaderService: BlockchainReaderService,
   ) {}
 
   async getQuote(request: QuoteRequest): Promise<QuoteResponse> {
@@ -101,6 +103,18 @@ export class QuotesService {
     // TODO: Get quote should return the destination amount from the source
     const destinationAmount = sourceAmount - fee;
 
+    // Construct the token transfer call using buildTokenTransferCalldata
+    const recipientAddress = AddressNormalizer.normalize(
+      request.quoteRequest.recipient,
+      destinationChainType,
+    );
+    const tokenTransferCall = this.blockchainReaderService.buildTokenTransferCalldata(
+      destinationChainId,
+      recipientAddress,
+      destinationToken,
+      destinationAmount,
+    );
+
     // Build the response
     return {
       quoteResponse: {
@@ -129,6 +143,13 @@ export class QuotesService {
           : [],
         deadline: Number(intent.reward.deadline),
         estimatedFulfillTimeSec: 30, // Default estimate can be made configurable
+        routeCalls: [
+          {
+            target: AddressNormalizer.denormalize(tokenTransferCall.target, destinationChainType),
+            data: tokenTransferCall.data as Hex,
+            value: tokenTransferCall.value?.toString() || '0',
+          },
+        ],
       },
       contracts: {
         sourcePortal: AddressNormalizer.denormalize(sourcePortalAddressUA, sourceChainType),
