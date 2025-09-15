@@ -1,4 +1,4 @@
-import { concat, Hex, keccak256, encodePacked, encodeAbiParameters, toBytes } from 'viem'
+import { concat, Hex, keccak256, encodePacked, encodeAbiParameters, pad, toBytes } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoResponse } from '@/common/eco-response'
@@ -333,5 +333,60 @@ export class StandardMerkleBuilder {
         amountDelta: p.amountDelta,
       })),
     }
+  }
+
+  /**
+   * Helper to create AllowanceOrTransfer for ERC20 tokens
+   * Automatically encodes the token address as tokenKey
+   */
+  static createErc20Permit(
+    tokenAddress: Hex,
+    account: Hex,
+    amountDelta: bigint,
+    modeOrExpiration: number = 0,
+  ): AllowanceOrTransfer {
+    return {
+      modeOrExpiration,
+      tokenKey: this.encodeTokenKey(tokenAddress),
+      account,
+      amountDelta,
+    }
+  }
+
+  /**
+   * Helper to create AllowanceOrTransfer for NFTs
+   * Automatically encodes the token + tokenId as tokenKey
+   */
+  static createNftPermit(
+    tokenAddress: Hex,
+    tokenId: bigint,
+    account: Hex,
+    amountDelta = 1n, // Usually 1 for NFTs
+    modeOrExpiration: number = 0,
+  ): AllowanceOrTransfer {
+    return {
+      modeOrExpiration,
+      tokenKey: this.encodeNftTokenKey(tokenAddress, tokenId),
+      account,
+      amountDelta,
+    }
+  }
+
+  /**
+   * Encode ERC20 token address as bytes32 tokenKey
+   * For ERC20: bytes32(uint256(uint160(address)))
+   * For NFTs: keccak256(abi.encodePacked(token, tokenId)) - handled elsewhere
+   */
+  static encodeTokenKey(tokenAddress: Hex): Hex {
+    // Convert address to bytes32 by padding with zeros
+    return pad(tokenAddress, { size: 32 }) as Hex
+  }
+
+  /**
+   * Encode NFT tokenKey for signed permits
+   * Creates unique identifier for token + tokenId combination
+   */
+  static encodeNftTokenKey(tokenAddress: Hex, tokenId: bigint): Hex {
+    return keccak256(encodePacked(['address', 'uint256'], [tokenAddress, tokenId]))
   }
 }
