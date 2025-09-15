@@ -60,6 +60,7 @@ export function envVarToPath(envVar: string): string[] {
     { parts: ['wallet', 'address'], combined: 'walletAddress' },
     { parts: ['secret', 'key'], combined: 'secretKey' },
     { parts: ['program', 'id'], combined: 'programId' },
+    { parts: ['portal', 'program', 'id'], combined: 'portalProgramId' },
     { parts: ['retry', 'strategy'], combined: 'retryStrategy' },
     { parts: ['retry', 'delay'], combined: 'retryDelay' },
     { parts: ['retry', 'attempts'], combined: 'retryAttempts' },
