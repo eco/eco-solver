@@ -1,4 +1,4 @@
-import { AllowanceOrTransferDTO } from '@/quote/dto/permit3/allowance-or-transfer.dto.ts'
+import { AllowanceOrTransferDTO } from '@/quote/dto/permit3/allowance-or-transfer.dto'
 import { ApiProperty } from '@nestjs/swagger'
 import {
   ArrayNotEmpty,
@@ -6,7 +6,9 @@ import {
   IsEthereumAddress,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
+  Matches,
   ValidateNested,
 } from 'class-validator'
 import { Hex } from 'viem'
@@ -15,7 +17,7 @@ import { Transform, Type } from 'class-transformer'
 export class Permit3DTO {
   @IsInt()
   @ApiProperty({
-    description: 'The original chain ID from the signature',
+    description: 'The original chain ID where the request is being signed or executed',
     example: 1,
   })
   chainId: number
@@ -38,7 +40,7 @@ export class Permit3DTO {
 
   @IsNotEmpty()
   @ApiProperty({
-    description: 'Unique salt value for the permit signature',
+    description: 'Unique salt value used for EIP-712 signature and nonce tracking',
     example: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
   })
   salt: Hex
@@ -46,46 +48,57 @@ export class Permit3DTO {
   @IsNotEmpty()
   @IsString()
   @ApiProperty({
-    description: 'Cryptographic signature for the permit',
+    description: 'EIP-712 cryptographic signature from the token owner',
     example:
       '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1b',
   })
-  signature: string
+  signature: Hex
 
   @IsNotEmpty()
   @ApiProperty({
-    description: 'Expiration timestamp for the permit signature',
-    example: 1234567890,
+    description: 'Expiration timestamp for the permit signature (uint48)',
+    example: 1699999999,
   })
   @Transform(({ value }) => BigInt(value))
   deadline: bigint
 
   @IsInt()
   @ApiProperty({
-    description: 'Unix timestamp when the permit was created',
-    example: 1234567890,
+    description: 'Unix timestamp when the permit was created (uint48)',
+    example: 1699988888,
   })
   timestamp: number
 
-  @IsArray()
-  @ArrayNotEmpty()
+  @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{64}$/, {
+    message: 'merkleRoot must be a valid bytes32 string',
+  })
   @ApiProperty({
-    description: 'Array of merkle tree leaf hashes for multi-chain permits',
+    description: 'Merkle root hash representing all chain permit leaves',
+    example: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+  })
+  merkleRoot: Hex
+
+  @IsOptional()
+  @IsArray()
+  @ApiProperty({
+    description:
+      'Optional array of Merkle tree leaves (hashed ChainPermits), useful for client-side debugging or proof regeneration',
     example: [
-      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab',
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       '0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321',
     ],
   })
-  leafs: Hex[] // The original chain ID from the signature
+  leaves: Hex[]
 
-  // Store all permits by chain ID for easy filtering
   @IsArray()
   @ArrayNotEmpty()
-  @ApiProperty({
-    description: 'Array of allowance or transfer data organized by chain for multi-chain permits',
-    type: [AllowanceOrTransferDTO],
-  })
   @ValidateNested({ each: true })
   @Type(() => AllowanceOrTransferDTO)
+  @ApiProperty({
+    description:
+      'Flattened list of all permits across chains used to construct ChainPermits and Merkle tree leaves',
+    type: [AllowanceOrTransferDTO],
+  })
   allowanceOrTransfers: AllowanceOrTransferDTO[]
 }

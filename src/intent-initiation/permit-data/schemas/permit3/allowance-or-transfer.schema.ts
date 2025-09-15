@@ -10,7 +10,7 @@ export class AllowanceOrTransfer {
   modeOrExpiration: number
 
   @Prop({ required: true })
-  token: Hex
+  tokenKey: Hex
 
   @Prop({ required: true })
   account: Hex

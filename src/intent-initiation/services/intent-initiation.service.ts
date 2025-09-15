@@ -1,3 +1,4 @@
+import { AllowanceOrTransferDTO } from '@/quote/dto/permit3/allowance-or-transfer.dto'
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
@@ -20,16 +21,19 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { InternalQuoteError } from '@/quote/errors'
+import { KernelExecuteAbi } from '@/contracts'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2Processor } from '@/common/permit/permit2-processor'
+import { permit3Abi } from '@/contracts/Permit3.abi'
 import { Permit3DTO } from '@/quote/dto/permit3/permit3.dto'
-import { Permit3Processor } from '@/common/permit/permit3-processor'
+import { Permit3Validator } from '@/intent-initiation/permit-validation/permit3-validator'
 import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { StandardMerkleBuilder } from '@/common/permit/standard-merkle-builder'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 const GAS_ESTIMATION_BUFFER_BASE = 1_000_000n
@@ -836,7 +840,7 @@ export class IntentInitiationService implements OnModuleInit {
       return { response: undefined }
     }
 
-    const { response: transaction, error } = await Permit3Processor.generateTxs(
+    const { response: transaction, error } = await this.generateTxs(
       chainID,
       permit3DTO,
       this.walletClientService,
@@ -855,6 +859,158 @@ export class IntentInitiationService implements OnModuleInit {
         funder: permit3DTO.owner,
         permitContract: permit3DTO.permitContract,
         transactions: [transaction],
+      },
+    }
+  }
+
+  async generateTxs(
+    chainID: number,
+    permit3: Permit3DTO,
+    walletClientService: WalletClientDefaultSignerService,
+  ): Promise<EcoResponse<ExecuteSmartWalletArg | undefined>> {
+    const permitsByChain: Record<number, AllowanceOrTransferDTO[]> = {}
+
+    // Rebuild permitsByChain from all allowanceOrTransfers
+    for (const p of permit3.allowanceOrTransfers) {
+      if (!permitsByChain[p.chainID]) {
+        permitsByChain[p.chainID] = []
+      }
+      permitsByChain[p.chainID].push(p)
+    }
+
+    const thisChainPermits = permitsByChain[chainID]
+    if (!thisChainPermits) {
+      return { response: undefined }
+    }
+
+    // Build Merkle tree
+    // const builder = new StandardMerkleBuilder()
+    const builder = new StandardMerkleBuilder()
+    const { response: crossChainProofs, error } = builder.createCrossChainProofs(permitsByChain)
+
+    if (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `generateTxs: failed to create Merkle tree`,
+          properties: { error: error?.message, permit3 },
+        }),
+      )
+      return { error: EcoError.PermitProofConstructionFailed }
+    }
+
+    const { merkleRoot, proofsByChainId } = crossChainProofs!
+    const proofData = proofsByChainId.get(BigInt(chainID))
+
+    if (!proofData) {
+      return { error: new Error(`Missing proof for chain ${chainID}`) }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { proof } = proofData
+    const { owner, salt, deadline, timestamp, signature, permitContract } = permit3
+
+    // Run validation (if you still use this)
+    const { error: permitValidationError } = await Permit3Validator.validatePermit({
+      owner,
+      salt,
+      deadline,
+      timestamp,
+      merkleRoot,
+      signature,
+      permitContract,
+    })
+
+    this.logger.error(
+      EcoLogMessage.fromDefault({
+        message: `generateTxs`,
+        properties: {
+          deadline,
+          typeof_deadline: typeof deadline,
+          timestamp,
+          typeof_timestamp: typeof timestamp,
+        },
+      }),
+    )
+
+    if (permitValidationError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `generateTxs: permit validation failed`,
+          properties: {
+            chainID,
+            permit3,
+            error: permitValidationError,
+          },
+        }),
+      )
+    }
+
+    // Encode the Permit3 function call
+    const chainPermits = {
+      chainId: BigInt(chainID),
+      permits: thisChainPermits.map((p) => ({
+        modeOrExpiration: p.modeOrExpiration,
+        tokenKey: p.tokenKey,
+        account: p.account,
+        amountDelta: p.amountDelta,
+      })),
+    }
+
+    const permitData = encodeFunctionData({
+      abi: permit3Abi,
+      functionName: 'permit',
+      args: [owner, salt, deadline, timestamp, chainPermits, proof, signature],
+    })
+
+    // Simulate it before returning
+    try {
+      const publicClient = await walletClientService.getPublicClient(chainID)
+      const client = await walletClientService.getClient(chainID)
+      const kernelAccountAddress = client.account.address
+
+      // await publicClient.simulateContract({
+      //   address: permitContract,
+      //   abi: permit3Abi,
+      //   functionName: 'permit',
+      //   args: [owner, salt, deadline, timestamp, chainPermits, proof, signature],
+      //   account: kernelAccountAddress,
+      // })
+
+      await publicClient.simulateContract({
+        address: kernelAccountAddress,
+        abi: KernelExecuteAbi,
+        functionName: 'execute',
+        args: [permitContract, 0n, permitData, 0],
+        account: kernelAccountAddress,
+      })
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `generateTxs: ❌ simulation failed`,
+          properties: {
+            chainID,
+            permitArgs: {
+              owner,
+              salt,
+              deadline,
+              timestamp,
+              chainPermits,
+              proof,
+              signature,
+            },
+            permit3,
+            error: ex instanceof Error ? ex.message : 'Unknown error',
+          },
+        }),
+      )
+      return { error: EcoError.PermitSimulationsFailed }
+    }
+
+    return {
+      response: {
+        data: permitData,
+        value: 0n,
+        to: permitContract,
       },
     }
   }
