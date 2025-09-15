@@ -9,7 +9,9 @@ describe('StandardMerkleBuilder – regression tests', () => {
     10: [
       {
         modeOrExpiration: 0,
-        tokenKey: StandardMerkleBuilder.encodeTokenKey('0x0000000000000000000000000b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Hex),
+        tokenKey: StandardMerkleBuilder.encodeTokenKey(
+          '0x0000000000000000000000000b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Hex,
+        ),
         account: '0x8E995c4Ce907Ca6Afc36937B06861D17eCB1b915',
         amountDelta: 32000n,
       },
@@ -17,7 +19,9 @@ describe('StandardMerkleBuilder – regression tests', () => {
     8453: [
       {
         modeOrExpiration: 0,
-        tokenKey: StandardMerkleBuilder.encodeTokenKey('0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Hex),
+        tokenKey: StandardMerkleBuilder.encodeTokenKey(
+          '0x000000000000000000000000833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Hex,
+        ),
         account: '0xcA9d14700B881C4C1B5a19e3b6caF646A8EB34F3',
         amountDelta: 2000n,
       },
@@ -30,7 +34,7 @@ describe('StandardMerkleBuilder – regression tests', () => {
     leaves: {
       10: '0x34d8d9879568164def6591ef8a0945c21744e8745700f59956ac04e4f4b65757' as Hex,
       8453: '0xf6966f996571a7de56a738b1a15cde846e13ec3b33d3decc387b2e578c3c45ca' as Hex,
-    }
+    },
   }
 
   it('builds a deterministic root from permits', () => {
