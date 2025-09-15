@@ -164,6 +164,36 @@ export class LiquidityManagerLogger extends BaseStructuredLogger {
     this.logStructured(structure, 'warn')
   }
 
+  /**
+   * Log a quote rejection with enhanced details for analytics
+   */
+  logQuoteRejectionWithDetails(
+    context: LiquidityManagerLogContext,
+    rejectionReason: RejectionReason,
+    rejectionDetails: import('../types').QuoteRejectionDetails,
+    properties?: object,
+  ): void {
+    const structure = EcoLogMessage.forLiquidityOperation({
+      message: `Quote rejected with analysis: ${rejectionReason}`,
+      rebalanceId: context.rebalanceId,
+      walletAddress: context.walletAddress,
+      strategy: context.strategy,
+      sourceChainId: context.sourceChainId,
+      destinationChainId: context.destinationChainId,
+      groupId: context.groupId,
+      operationType: 'quote_rejection',
+      status: 'rejected',
+      rejectionReason,
+      rejectionDetails,
+      properties: {
+        ...properties,
+        rejection_details: rejectionDetails,
+        enhanced_logging: true,
+      },
+    })
+    this.logStructured(structure, 'warn')
+  }
+
   // ================== BUSINESS EVENT METHODS ==================
 
   /**

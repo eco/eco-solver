@@ -491,4 +491,171 @@ export class EnhancedJsonLogger extends BaseStructuredLogger {
       keys: Array.from(this.contextCache.keys()),
     }
   }
+
+  // ================== ENHANCEMENT UTILITIES ==================
+
+  /**
+   * Create receipt analysis from transaction receipt data
+   */
+  public static createReceiptAnalysis(
+    receipt: any,
+    startTime?: number,
+  ): import('../types').QuoteReceiptAnalysis {
+    const endTime = Date.now()
+    const confirmationTime = startTime ? endTime - startTime : undefined
+
+    return {
+      transaction_hash: receipt?.transactionHash || receipt?.hash,
+      block_number: receipt?.blockNumber,
+      block_hash: receipt?.blockHash,
+      gas_used: receipt?.gasUsed ? Number(receipt.gasUsed) : undefined,
+      gas_price: receipt?.gasPrice?.toString(),
+      effective_gas_price: receipt?.effectiveGasPrice?.toString(),
+      cumulative_gas_used: receipt?.cumulativeGasUsed
+        ? Number(receipt.cumulativeGasUsed)
+        : undefined,
+      status:
+        receipt?.status === 1 || receipt?.status === '0x1'
+          ? 'success'
+          : receipt?.status === 0 || receipt?.status === '0x0'
+            ? 'failed'
+            : 'reverted',
+      event_count: receipt?.logs?.length || 0,
+      events: receipt?.logs?.slice(0, 10)?.map((log: any) => ({
+        event_name: log.eventName || 'unknown',
+        contract_address: log.address,
+        topics_count: log.topics?.length || 0,
+      })),
+      confirmation_time_ms: confirmationTime,
+      receipt_size_bytes: JSON.stringify(receipt).length,
+    }
+  }
+
+  /**
+   * Create rejection details from error and context
+   */
+  public static createRejectionDetails(
+    error: any,
+    context?: {
+      provider?: string
+      slippageCalculated?: number
+      maxSlippage?: number
+      quotesAttempted?: number
+      fallbackAttempted?: boolean
+      retryCount?: number
+    },
+  ): import('../types').QuoteRejectionDetails {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error'
+    const errorCode = error?.code || error?.errorCode || error?.name
+
+    // Categorize error based on common patterns
+    let errorCategory:
+      | 'liquidity'
+      | 'slippage'
+      | 'balance'
+      | 'provider'
+      | 'validation'
+      | 'network' = 'validation'
+
+    if (
+      errorMessage.toLowerCase().includes('liquidity') ||
+      errorMessage.toLowerCase().includes('reserves')
+    ) {
+      errorCategory = 'liquidity'
+    } else if (
+      errorMessage.toLowerCase().includes('slippage') ||
+      errorMessage.toLowerCase().includes('price')
+    ) {
+      errorCategory = 'slippage'
+    } else if (
+      errorMessage.toLowerCase().includes('balance') ||
+      errorMessage.toLowerCase().includes('insufficient')
+    ) {
+      errorCategory = 'balance'
+    } else if (
+      errorMessage.toLowerCase().includes('network') ||
+      errorMessage.toLowerCase().includes('timeout')
+    ) {
+      errorCategory = 'network'
+    } else if (
+      errorMessage.toLowerCase().includes('provider') ||
+      errorMessage.toLowerCase().includes('quote')
+    ) {
+      errorCategory = 'provider'
+    }
+
+    return {
+      error_code: errorCode,
+      error_category: errorCategory,
+      provider_response: errorMessage,
+      provider_error_code: error?.providerCode || error?.originalCode,
+      slippage_calculated: context?.slippageCalculated,
+      max_slippage_allowed: context?.maxSlippage,
+      quotes_attempted: context?.quotesAttempted || 1,
+      fallback_attempted: context?.fallbackAttempted || false,
+      retry_count: context?.retryCount || 0,
+      upstream_service: context?.provider,
+      network_conditions: {
+        gas_price: error?.gasPrice?.toString(),
+        network_congestion: this.analyzeNetworkCongestion(error),
+        estimated_confirmation_time_ms: error?.estimatedConfirmationTime,
+      },
+      token_analysis: {
+        liquidity_depth: error?.liquidityDepth?.toString(),
+        price_impact: error?.priceImpact,
+        volatility_warning: error?.volatilityWarning || false,
+      },
+    }
+  }
+
+  /**
+   * Create lifecycle timestamps for comprehensive tracking
+   */
+  public static createLifecycleTimestamps(
+    baseTimestamps?: { createdAt?: Date; updatedAt?: Date },
+    operationTimestamps?: {
+      startedAt?: Date
+      completedAt?: Date
+      failedAt?: Date
+      processingStarted?: Date
+      processingCompleted?: Date
+    },
+  ): import('../types').LifecycleTimestamps {
+    const now = new Date().toISOString()
+
+    return {
+      created_at: baseTimestamps?.createdAt?.toISOString(),
+      updated_at: baseTimestamps?.updatedAt?.toISOString(),
+      started_at: operationTimestamps?.startedAt?.toISOString(),
+      completed_at: operationTimestamps?.completedAt?.toISOString(),
+      failed_at: operationTimestamps?.failedAt?.toISOString(),
+      last_status_change: now,
+      first_seen: baseTimestamps?.createdAt?.toISOString(),
+      last_seen: now,
+      processing_started: operationTimestamps?.processingStarted?.toISOString(),
+      processing_completed: operationTimestamps?.processingCompleted?.toISOString(),
+      validation_completed: operationTimestamps?.completedAt
+        ? operationTimestamps.completedAt.toISOString()
+        : undefined,
+      execution_started: operationTimestamps?.startedAt?.toISOString(),
+      execution_completed: operationTimestamps?.completedAt?.toISOString(),
+    }
+  }
+
+  /**
+   * Analyze network congestion from error context
+   */
+  private static analyzeNetworkCongestion(error: any): 'low' | 'medium' | 'high' {
+    const gasPrice = error?.gasPrice ? Number(error.gasPrice) : 0
+    const timeout = error?.timeout || false
+    const queueDepth = error?.queueDepth || 0
+
+    if (timeout || queueDepth > 100) {
+      return 'high'
+    } else if (gasPrice > 50000000000 || queueDepth > 50) {
+      // 50 gwei threshold
+      return 'medium'
+    }
+    return 'low'
+  }
 }

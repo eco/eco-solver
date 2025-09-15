@@ -30,6 +30,29 @@ export interface IntentOperationLogParams {
   properties?: object
 }
 
+export interface QuoteRejectionDetails {
+  error_code?: string
+  error_category?: 'liquidity' | 'slippage' | 'balance' | 'provider' | 'validation' | 'network'
+  provider_response?: string
+  provider_error_code?: string
+  slippage_calculated?: number
+  max_slippage_allowed?: number
+  quotes_attempted?: number
+  fallback_attempted?: boolean
+  retry_count?: number
+  upstream_service?: string
+  network_conditions?: {
+    gas_price?: string
+    network_congestion?: 'low' | 'medium' | 'high'
+    estimated_confirmation_time_ms?: number
+  }
+  token_analysis?: {
+    liquidity_depth?: string
+    price_impact?: number
+    volatility_warning?: boolean
+  }
+}
+
 export interface LiquidityOperationLogParams {
   message: string
   rebalanceId: string
@@ -53,7 +76,27 @@ export interface LiquidityOperationLogParams {
   operationType: 'rebalancing' | 'liquidity_provision' | 'withdrawal' | 'quote_rejection'
   status: 'pending' | 'completed' | 'failed' | 'rejected'
   rejectionReason?: RejectionReason
+  rejectionDetails?: QuoteRejectionDetails
   properties?: object
+}
+
+export interface QuoteReceiptAnalysis {
+  transaction_hash?: string
+  block_number?: number
+  block_hash?: string
+  gas_used?: number
+  gas_price?: string
+  effective_gas_price?: string
+  cumulative_gas_used?: number
+  status: 'success' | 'failed' | 'reverted'
+  event_count?: number
+  events?: Array<{
+    event_name: string
+    contract_address: string
+    topics_count: number
+  }>
+  confirmation_time_ms?: number
+  receipt_size_bytes?: number
 }
 
 export interface QuoteGenerationLogParams {
@@ -68,6 +111,7 @@ export interface QuoteGenerationLogParams {
   amountIn?: string
   amountOut?: string
   receipt?: string
+  receiptAnalysis?: QuoteReceiptAnalysis
   intentExecutionType?: (typeof IntentExecutionTypeKeys)[number] | string
   operationType: 'quote_generation' | 'quote_validation' | 'quote_rejection'
   status: 'started' | 'completed' | 'failed'
@@ -218,6 +262,22 @@ export interface DatadogLogStructure {
   [key: string]: any
 }
 
+export interface LifecycleTimestamps {
+  created_at?: string
+  updated_at?: string
+  started_at?: string
+  completed_at?: string
+  failed_at?: string
+  last_status_change?: string
+  first_seen?: string
+  last_seen?: string
+  processing_started?: string
+  processing_completed?: string
+  validation_completed?: string
+  execution_started?: string
+  execution_completed?: string
+}
+
 export interface EcoBusinessContext {
   intent_hash?: string
   intent_hash_full?: string // Full value for high-cardinality optimization
@@ -255,6 +315,8 @@ export interface EcoBusinessContext {
   target_balance_out?: string
   token_in_decimals?: number
   token_out_decimals?: number
+  // Lifecycle timestamp tracking
+  lifecycle_timestamps?: LifecycleTimestamps
   // Chain sync specific fields
   sync_type?:
     | 'intent_created'

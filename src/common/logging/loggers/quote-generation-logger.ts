@@ -61,6 +61,41 @@ export class QuoteGenerationLogger extends BaseStructuredLogger {
   }
 
   /**
+   * Log quote execution with enhanced receipt analysis
+   */
+  logQuoteExecutionWithAnalysis(
+    context: QuoteGenerationLogContext,
+    receiptData: any,
+    receiptAnalysis: import('../types').QuoteReceiptAnalysis,
+    executionSuccess: boolean,
+    properties?: object,
+  ): void {
+    const structure = EcoLogMessage.forQuoteGeneration({
+      message: executionSuccess
+        ? 'Quote executed with receipt analysis'
+        : 'Quote execution failed with analysis',
+      quoteId: context.quoteId,
+      intentHash: context.intentHash,
+      dAppId: context.dAppId,
+      sourceChainId: context.sourceChainId,
+      destinationChainId: context.destinationChainId,
+      tokenInAddress: context.tokenInAddress,
+      tokenOutAddress: context.tokenOutAddress,
+      intentExecutionType: context.intentExecutionType,
+      receipt: JSON.stringify(receiptData),
+      receiptAnalysis,
+      operationType: 'quote_validation',
+      status: executionSuccess ? 'completed' : 'failed',
+      properties: {
+        ...properties,
+        receipt_analysis: receiptAnalysis,
+        enhanced_logging: true,
+      },
+    })
+    this.logStructured(structure, executionSuccess ? 'info' : 'error')
+  }
+
+  /**
    * Log a quote generation error with structured context
    */
   error(
