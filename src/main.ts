@@ -1,3 +1,4 @@
+import 'dd-trace/init'
 import { AppModule } from '@/app.module'
 import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'

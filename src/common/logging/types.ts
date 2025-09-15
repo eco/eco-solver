@@ -262,7 +262,20 @@ export interface EcoBusinessContext {
     | 'application_bootstrap'
     | 'sync_transactions'
     | 'missing_transactions'
+
+  // APM trace correlation fields
+  trace_id?: string
+  span_id?: string
+  parent_id?: string
+  service_name?: string
+
+  // Event tracking fields
+  event_type?: string
   chain_sync_status?: 'started' | 'completed' | 'failed' | 'no_transactions_found'
+
+  // Smart wallet specific fields
+  contract_address?: string
+  token_address?: string
   source_network?: string
   source_address?: string
   from_block?: string
@@ -278,6 +291,7 @@ export interface OperationContext {
   duration_ms?: number
   retry_count?: number
   correlation_id?: string
+  apm_operation?: string // APM operation name for trace correlation
 }
 
 export interface MetricsContext {
@@ -308,6 +322,7 @@ export interface ErrorContext {
   recoverable?: boolean
   upstream_service?: string
   retry_after?: number
+  fingerprint?: string
 }
 
 export interface PerformanceContext {
@@ -321,6 +336,8 @@ export interface PerformanceContext {
   blocks_per_second?: number
   block_range_processed?: number
   throughput_efficiency?: number
+  // Logging performance tracking
+  logging_overhead_ms?: number
 }
 
 // Validation Constants

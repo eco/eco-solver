@@ -1,6 +1,7 @@
 import { EcoLogger } from '../eco-logger'
 import { LogLevel, DatadogLogStructure } from '../types'
 import { DatadogValidator, LoggingMetrics } from '../datadog-validator'
+import { TraceCorrelation } from '../apm/trace-correlation'
 
 /**
  * Base class for specialized loggers with enhanced Datadog structure support
@@ -19,13 +20,16 @@ export abstract class BaseStructuredLogger extends EcoLogger {
   /**
    * Log a structured message using Datadog format with validation and optimization
    */
-  protected logStructured(structure: DatadogLogStructure, level: LogLevel = 'info'): void {
+  public logStructured(structure: DatadogLogStructure, level: LogLevel = 'info'): void {
     let processedStructure = structure
+
+    // Enrich with APM correlation context if enabled
+    processedStructure = this.enrichWithAPM(processedStructure)
 
     // Apply Datadog validation and optimization if enabled
     if (this.datadogOptimizationEnabled) {
       const startTime = Date.now()
-      const validation = DatadogValidator.validateAndOptimize(structure)
+      const validation = DatadogValidator.validateAndOptimize(processedStructure)
       const endTime = Date.now()
 
       processedStructure = validation.processedData
@@ -78,6 +82,51 @@ export abstract class BaseStructuredLogger extends EcoLogger {
       ...context,
     }
     this.logStructured(structure, level)
+  }
+
+  /**
+   * Enrich log structure with APM trace correlation data
+   */
+  private enrichWithAPM(structure: DatadogLogStructure): DatadogLogStructure {
+    if (!TraceCorrelation.isTracingEnabled()) {
+      return structure
+    }
+
+    const apmContext = TraceCorrelation.createCorrelationContext()
+
+    // Add APM context to the log structure
+    const enrichedStructure = { ...structure }
+
+    // Add trace correlation to Datadog standard fields
+    if (apmContext.trace_id) {
+      enrichedStructure['dd.trace_id'] = apmContext.trace_id
+    }
+
+    if (apmContext.span_id) {
+      enrichedStructure['dd.span_id'] = apmContext.span_id
+    }
+
+    // Add to eco business context for custom queries
+    if (enrichedStructure.eco) {
+      enrichedStructure.eco = {
+        ...enrichedStructure.eco,
+        trace_id: apmContext.trace_id,
+        span_id: apmContext.span_id,
+        parent_id: apmContext.parent_id,
+        service_name: apmContext.service_name,
+      }
+    }
+
+    // Add operation context if available
+    const operationName = TraceCorrelation.getCurrentOperationName()
+    if (operationName && enrichedStructure.operation) {
+      enrichedStructure.operation = {
+        ...enrichedStructure.operation,
+        apm_operation: operationName,
+      }
+    }
+
+    return enrichedStructure
   }
 
   /**

@@ -11,6 +11,13 @@ export {
   HealthOperationLogger,
 } from './loggers'
 
+// Enhanced JSON Logger
+export { EnhancedJsonLogger } from './loggers/enhanced-json-logger'
+export { SmartWalletLogger } from './loggers/smart-wallet-logger'
+
+// APM trace correlation
+export { TraceCorrelation } from './apm/trace-correlation'
+
 // Validation utilities
 export { LogValidation } from './validation'
 
