@@ -234,6 +234,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
         EcoLogMessage.withId({
           message: 'CCTPLiFi: CCTP attestation check queued',
           id: quote.id,
+          properties: { checkCCTPAttestationJobData },
         }),
       )
 
