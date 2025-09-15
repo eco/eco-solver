@@ -8,6 +8,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { denormalize } from '@/common/tokens/normalize';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { hours, now } from '@/common/utils/time';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
@@ -115,6 +116,13 @@ export class QuotesService {
       destinationAmount,
     );
 
+    const route = {
+      ...intent.route,
+      calls: [tokenTransferCall],
+    } satisfies Intent['route'];
+
+    const encodedRoute = PortalEncoder.encode(route, destinationChainType);
+
     // Build the response
     return {
       quoteResponse: {
@@ -143,13 +151,7 @@ export class QuotesService {
           : [],
         deadline: Number(intent.reward.deadline),
         estimatedFulfillTimeSec: 30, // Default estimate can be made configurable
-        routeCalls: [
-          {
-            target: AddressNormalizer.denormalize(tokenTransferCall.target, destinationChainType),
-            data: tokenTransferCall.data as Hex,
-            value: tokenTransferCall.value?.toString() || '0',
-          },
-        ],
+        encodedRoute,
       },
       contracts: {
         sourcePortal: AddressNormalizer.denormalize(sourcePortalAddressUA, sourceChainType),
