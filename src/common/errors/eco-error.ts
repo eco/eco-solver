@@ -89,6 +89,9 @@ export class EcoError extends Error {
   )
   static NoTransfersFoundForChain = new Error()
   static LeafNotFoundInSignedPermit = new EcoError()
+  static PermitProofConstructionFailed = new EcoError('Permit Proof Construction Failed')
+  static MerkleTreeCreateError = new EcoError('Could not create Merkle tree')
+  static CrossChainProofsError = new EcoError('Missing proof for chainID')
 
   // Permit Validations
   static InvalidVaultAddress = new EcoError('Permit spender does not match expected vault address')

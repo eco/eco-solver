@@ -4,24 +4,25 @@ import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 
+// Typed data for EIP-712 signature verification
 const types = {
-  SignedUnhingedPermit3: [
+  Permit3: [
     { name: 'owner', type: 'address' },
     { name: 'salt', type: 'bytes32' },
-    { name: 'deadline', type: 'uint256' },
+    { name: 'deadline', type: 'uint48' },
     { name: 'timestamp', type: 'uint48' },
-    { name: 'unhingedRoot', type: 'bytes32' },
+    { name: 'merkleRoot', type: 'bytes32' },
   ],
-} as const
+}
 
 export interface Permit3Params {
   owner: Hex
   salt: Hex
-  deadline: number | bigint
-  timestamp: number | bigint
-  unhingedRoot: Hex
+  deadline: number | bigint // uint48
+  timestamp: number | bigint // uint48
+  merkleRoot: Hex
   signature: Hex
-  permitContract: Hex // optional, if not used in domain
+  permitContract: Hex // optional if domain is passed separately
 }
 
 export class Permit3Validator {
@@ -40,49 +41,67 @@ export class Permit3Validator {
   }
 
   static async validatePermit(permit: Permit3Params): Promise<EcoResponse<void>> {
-    const { owner, signature, permitContract, salt, deadline, timestamp, unhingedRoot } = permit
+    const { owner, salt, deadline, timestamp, merkleRoot, signature, permitContract } = permit
 
     // Basic expiration check
     const { error: expirationError } = this.expirationCheck(deadline, `deadline`)
 
     if (expirationError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Permit3 expirationError check failed`,
+          properties: {
+            deadline,
+          },
+        }),
+      )
       return { error: expirationError }
     }
 
-    const verificationData = {
-      domain: {
-        name: 'Permit3',
-        version: '1',
-        chainId: 1,
-        verifyingContract: permitContract.toLowerCase() as Address,
-      },
-      types,
-      primaryType: 'SignedUnhingedPermit3',
-      message: {
-        owner: owner.toLowerCase() as Address,
-        salt,
-        deadline: BigInt(deadline),
-        timestamp: Number(timestamp),
-        unhingedRoot,
-      },
-      signature,
-    } as any
+    try {
+      const validSig = await verifyTypedData({
+        address: owner.toLowerCase() as Address,
+        domain: {
+          name: 'Permit3',
+          version: '1',
+          chainId: 1,
+          verifyingContract: permitContract.toLowerCase() as Address,
+        },
+        types,
+        primaryType: 'Permit3',
+        message: {
+          owner: owner.toLowerCase() as Address,
+          salt,
+          deadline: BigInt(deadline),
+          timestamp: Number(timestamp),
+          merkleRoot,
+        },
+        signature,
+      })
 
-    const validSig = await verifyTypedData({
-      address: permit.owner.toLowerCase() as Address,
-      ...verificationData,
-    })
+      if (!validSig) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Permit3 signature verification failed`,
+            properties: { permit },
+          }),
+        )
+        return { error: EcoError.InvalidPermitSignature }
+      }
 
-    if (!validSig) {
+      return {}
+    } catch (err) {
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `Permit3 signature verification failed`,
+          message: `Permit3 signature validation threw`,
+          properties: {
+            error: err instanceof Error ? err.message : String(err),
+            permit,
+          },
         }),
       )
       return { error: EcoError.InvalidPermitSignature }
     }
-
-    return {}
   }
 
   static expirationCheck(expiration: number | bigint, logMessage: string): EcoResponse<void> {

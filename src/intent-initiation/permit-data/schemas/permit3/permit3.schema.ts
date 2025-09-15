@@ -22,7 +22,7 @@ export class Permit3 {
   salt: Hex
 
   @Prop({ required: true })
-  signature: string
+  signature: Hex
 
   @Prop({ required: true, type: BigInt })
   deadline: bigint // UNIX seconds since epoch integer
@@ -30,8 +30,11 @@ export class Permit3 {
   @Prop({ required: true })
   timestamp: number
 
+  @Prop({ required: true })
+  merkleRoot: Hex
+
   @Prop({ type: [String], required: true })
-  leafs: Hex[]
+  leaves: Hex[]
 
   @Prop({ type: [AllowanceOrTransferSchema], required: true })
   @ValidateNested()
