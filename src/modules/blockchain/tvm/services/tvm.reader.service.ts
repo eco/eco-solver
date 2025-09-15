@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
-import { decodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
+import { Address, decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
@@ -338,6 +338,32 @@ export class TvmReaderService extends BaseChainReader {
     } finally {
       span.end();
     }
+  }
+
+  buildTokenTransferCalldata(
+    recipient: UniversalAddress,
+    token: UniversalAddress,
+    amount: bigint,
+  ): Call {
+    // Denormalize addresses to TVM format
+    const tvmRecipientAddress = AddressNormalizer.denormalizeToTvm(recipient);
+
+    // Convert TRON addresses to hex format for EVM-style encoding
+    const recipientHex = TronWeb.address.toHex(tvmRecipientAddress);
+
+    // TRC20 uses the same ABI encoding as ERC20
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [recipientHex as Address, amount], // Cast to Address type
+    });
+
+    // Return the normalized token address as the target
+    return {
+      target: token,
+      data,
+      value: 0n,
+    };
   }
 
   /**

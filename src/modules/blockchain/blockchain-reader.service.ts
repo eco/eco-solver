@@ -3,7 +3,7 @@ import { Injectable, Optional } from '@nestjs/common';
 import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
@@ -138,6 +138,23 @@ export class BlockchainReaderService {
     call: Intent['route']['calls'][number],
   ): Promise<boolean> {
     return this.getReaderForChain(chainId).validateTokenTransferCall(call, Number(chainId));
+  }
+
+  /**
+   * Build token transfer calldata for a specific chain
+   * @param chainId The chain ID
+   * @param recipient The address of the recipient
+   * @param token The address of the token contract
+   * @param amount The amount of tokens to transfer
+   * @returns Call object with encoded transfer data
+   */
+  buildTokenTransferCalldata(
+    chainId: number | bigint,
+    recipient: UniversalAddress,
+    token: UniversalAddress,
+    amount: bigint,
+  ): Call {
+    return this.getReaderForChain(chainId).buildTokenTransferCalldata(recipient, token, amount);
   }
 
   private initializeReaders() {

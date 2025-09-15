@@ -3,6 +3,12 @@ import { Hex } from 'viem';
 import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
 
+export class Call<addr extends UniversalAddress | BlockchainAddress = UniversalAddress> {
+  data: Hex;
+  target: addr;
+  value: bigint;
+}
+
 export interface Intent<
   sourceAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
   destAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
@@ -20,13 +26,7 @@ export interface Intent<
         token: destAddr;
       }[]
     >;
-    calls: Readonly<
-      {
-        data: Hex;
-        target: destAddr;
-        value: bigint;
-      }[]
-    >;
+    calls: Readonly<Call<destAddr>[]>;
   }>;
   reward: Readonly<{
     deadline: bigint;

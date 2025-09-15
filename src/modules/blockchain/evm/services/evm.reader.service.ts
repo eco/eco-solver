@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, decodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
+import { Address, decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
@@ -281,5 +281,27 @@ export class EvmReaderService extends BaseChainReader {
     } finally {
       span.end();
     }
+  }
+
+  buildTokenTransferCalldata(
+    recipient: UniversalAddress,
+    token: UniversalAddress,
+    amount: bigint,
+  ): Call {
+    // Denormalize addresses to EVM format
+    const evmRecipientAddress = AddressNormalizer.denormalizeToEvm(recipient);
+
+    // Encode ERC20 transfer function
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [evmRecipientAddress, amount],
+    });
+
+    return {
+      target: token,
+      data,
+      value: 0n,
+    };
   }
 }

@@ -3,8 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { web3 } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
 import {
+  createTransferCheckedInstruction,
   getAccount,
   getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
   TOKEN_PROGRAM_ID,
   TokenAccountNotFoundError,
 } from '@solana/spl-token';
@@ -13,13 +15,16 @@ import { Hex } from 'viem';
 
 // Types for route and reward are now from the SVMIntent conversion
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { CalldataWithAccountsInstruction } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { decodeRouteCall } from '@/modules/blockchain/svm/utils/call-data';
+import { bufferToBytes } from '@/modules/blockchain/svm/utils/converter';
+import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -470,6 +475,86 @@ export class SvmReaderService extends BaseChainReader {
     } finally {
       span.end();
     }
+  }
+
+  buildTokenTransferCalldata(
+    recipient: UniversalAddress,
+    tokenAddr: UniversalAddress,
+    amount: bigint,
+  ): Call {
+    const token = this.solanaConfigService.getTokenConfig(
+      this.solanaConfigService.chainId,
+      tokenAddr,
+    );
+
+    const svmTokenAddress = AddressNormalizer.denormalizeToSvm(token.address);
+    const svmRecipientAddress = AddressNormalizer.denormalizeToSvm(recipient);
+
+    const recipientPubkey = new PublicKey(svmRecipientAddress);
+    const tokenMintPubkey = new PublicKey(svmTokenAddress);
+    const portalProgramPubkey = new PublicKey(this.solanaConfigService.portalProgramId);
+
+    // Get executor PDA for call accounts
+    const EXECUTOR_SEED = Buffer.from('executor');
+    const [executorPda] = web3.PublicKey.findProgramAddressSync(
+      [EXECUTOR_SEED],
+      portalProgramPubkey,
+    );
+
+    // For SPL token transfers, we need to get the associated token accounts
+    // Using the synchronous version to avoid async in this method
+    const sourceATA = getAssociatedTokenAddressSync(
+      tokenMintPubkey,
+      executorPda,
+      true, // allowOwnerOffCurve for PDAs
+    );
+
+    const destinationATA = getAssociatedTokenAddressSync(
+      tokenMintPubkey,
+      recipientPubkey,
+      true, // allowOwnerOffCurve for PDAs
+    );
+
+    // Create the Calldata struct exactly as in the integration test
+    const calldata = createTransferCheckedInstruction(
+      sourceATA,
+      tokenMintPubkey,
+      destinationATA,
+      executorPda,
+      amount,
+      token.decimals,
+    );
+
+    // Since Portal's executor executes transfers and it's a Program. It's not an ix signer.
+    calldata.keys[3].isSigner = false;
+
+    // Create the accounts structure
+    const accounts: CalldataWithAccountsInstruction['accounts'] = calldata.keys.map((key) => ({
+      pubkey: key.pubkey,
+      is_signer: key.isSigner,
+      is_writable: key.isWritable,
+    }));
+
+    // Encode the calldata with accounts using the Portal's borsh coder
+    const encodedData = portalBorshCoder.types.encode<CalldataWithAccountsInstruction>(
+      'CalldataWithAccounts',
+      {
+        calldata: {
+          data: calldata.data,
+          account_count: calldata.keys.length,
+        },
+        accounts,
+      },
+    );
+
+    // For Solana, token transfers go to the TOKEN_PROGRAM_ID
+    const tokenProgramAddress = AddressNormalizer.normalizeSvm(TOKEN_PROGRAM_ID);
+
+    return {
+      target: tokenProgramAddress,
+      data: bufferToBytes(encodedData),
+      value: 0n,
+    };
   }
 
   /**

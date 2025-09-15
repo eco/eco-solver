@@ -39,7 +39,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return this.configService.get<SolanaConfig['tokens']>('svm.tokens')!;
   }
 
-  get portalProgramId(): SolanaConfig['portalProgramId'] {
+  get portalProgramId() {
     return this.configService.get<SvmAddress>('svm.portalProgramId')!;
   }
 

@@ -1,6 +1,6 @@
 import { Hex } from 'viem';
 
-import { Intent } from '@/common/interfaces/intent.interface';
+import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
@@ -36,4 +36,17 @@ export abstract class BaseChainReader {
     call: Intent['route']['calls'][number],
     chainId: number,
   ): Promise<boolean>;
+
+  /**
+   * Builds a token transfer calldata for the specific blockchain
+   * @param recipient The address of the recipient
+   * @param token The address of the token contract
+   * @param amount The amount of tokens to transfer
+   * @returns Call object with encoded transfer data
+   */
+  abstract buildTokenTransferCalldata(
+    recipient: UniversalAddress,
+    token: UniversalAddress,
+    amount: bigint,
+  ): Call;
 }
