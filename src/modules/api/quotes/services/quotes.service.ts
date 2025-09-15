@@ -119,6 +119,7 @@ export class QuotesService {
     const route = {
       ...intent.route,
       calls: [tokenTransferCall],
+      tokens: intent.route.tokens.map((token) => ({ ...token, amount: destinationAmount })),
     } satisfies Intent['route'];
 
     const encodedRoute = PortalEncoder.encode(route, destinationChainType);
