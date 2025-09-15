@@ -9,7 +9,6 @@ import {
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -37,7 +36,6 @@ export class SvmExecutorService extends BaseChainExecutor {
   private readonly connection: Connection;
   private portalProgram: Program<PortalIdl>;
   private keypair: Keypair;
-  private wallet: ISvmWallet | null = null;
 
   constructor(
     private solanaConfigService: SolanaConfigService,
@@ -66,7 +64,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         },
       });
 
-    if (!this.portalProgram || !this.wallet) {
+    if (!this.portalProgram) {
       const error = new Error('Portal program not initialized');
       if (!activeSpan) {
         span.recordException(error);
@@ -100,7 +98,9 @@ export class SvmExecutorService extends BaseChainExecutor {
         compute_unit_limit: 600_000,
       });
 
-      const signature = await this.wallet.sendTransaction(transaction, {
+      // Get wallet from manager for transaction execution
+      const wallet = this.walletManager.getWallet();
+      const signature = await wallet.sendTransaction(transaction, {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
       });
@@ -211,7 +211,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     );
 
     // Get Token Instructions
-    const walletAddress = await this.wallet!.getAddress();
+    const wallet = this.walletManager.getWallet();
+    const walletAddress = await wallet.getAddress();
 
     const transferInstructions = await buildTokenTransferInstructions(
       intent.route.tokens,
@@ -271,14 +272,14 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private async initializeProgram() {
     try {
-      // Get wallet
-      this.wallet = this.walletManager.createWallet();
-      this.keypair = this.wallet.getKeypair();
+      // Get cached wallet instance and extract keypair for Anchor
+      const svmWallet = this.walletManager.getWallet();
+      this.keypair = svmWallet.getKeypair();
 
       // Create Anchor provider with wallet adapter
-      const wallet = getAnchorWallet(this.keypair);
+      const anchorWallet = getAnchorWallet(this.keypair);
 
-      const provider = new AnchorProvider(this.connection, wallet, {
+      const provider = new AnchorProvider(this.connection, anchorWallet, {
         commitment: 'confirmed',
       });
       setProvider(provider);
