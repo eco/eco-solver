@@ -1,12 +1,16 @@
-import { Call, IEvmWallet, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
+import {
+  EvmCall,
+  IEvmWallet,
+  WriteContractsOptions,
+} from '@/common/interfaces/evm-wallet.interface';
 
 export abstract class BaseEvmWallet implements IEvmWallet {
   abstract getAddress(): Promise<`0x${string}`>;
 
-  abstract writeContract(params: Call): Promise<`0x${string}`>;
+  abstract writeContract(params: EvmCall): Promise<`0x${string}`>;
 
   abstract writeContracts(
-    params: Call[],
+    params: EvmCall[],
     options?: WriteContractsOptions,
   ): Promise<`0x${string}`[]>;
 }

@@ -12,7 +12,7 @@ import {
   LocalAccount,
 } from 'viem';
 
-import { Call } from '@/common/interfaces/evm-wallet.interface';
+import { EvmCall } from '@/common/interfaces/evm-wallet.interface';
 import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 
@@ -701,7 +701,7 @@ describe('KernelWallet', () => {
   });
 
   describe('writeContract', () => {
-    const mockParams: Call = {
+    const mockParams: EvmCall = {
       to: '0xContractAddress' as Address,
       data: '0xtransfer' as Hex,
       value: 0n,
@@ -733,7 +733,7 @@ describe('KernelWallet', () => {
   });
 
   describe('writeContracts', () => {
-    const mockParams: Call[] = [
+    const mockParams: EvmCall[] = [
       {
         to: '0xToken1' as Address,
         data: '0xapprove1' as Hex,
@@ -783,7 +783,7 @@ describe('KernelWallet', () => {
     });
 
     it('should calculate total value from calls', async () => {
-      const paramsWithValues: Call[] = [
+      const paramsWithValues: EvmCall[] = [
         {
           to: '0xContract1' as Address,
           data: '0xdeposit1' as Hex,

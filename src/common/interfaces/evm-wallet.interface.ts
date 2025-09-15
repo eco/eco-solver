@@ -1,6 +1,6 @@
 import { Address, Hash, Hex } from 'viem';
 
-export interface Call {
+export interface EvmCall {
   to: Address;
   value?: bigint;
   data?: Hex;
@@ -16,7 +16,7 @@ export interface WriteContractsOptions {
 export interface IEvmWallet {
   getAddress(): Promise<Address>;
 
-  writeContract(params: Call): Promise<Hash>;
+  writeContract(params: EvmCall): Promise<Hash>;
 
-  writeContracts(params: Call[], options?: WriteContractsOptions): Promise<Hash[]>;
+  writeContracts(params: EvmCall[], options?: WriteContractsOptions): Promise<Hash[]>;
 }

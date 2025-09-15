@@ -2,7 +2,7 @@ import { Address, Hash, PublicClient, WalletClient } from 'viem';
 
 import { multicall3Abi } from '@/common/abis/multicall3.constants';
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
-import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
+import { EvmCall, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 
 export class BasicWallet extends BaseEvmWallet {
   constructor(
@@ -16,11 +16,11 @@ export class BasicWallet extends BaseEvmWallet {
     return this.walletClient.account!.address;
   }
 
-  async writeContract(call: Call): Promise<Hash> {
+  async writeContract(call: EvmCall): Promise<Hash> {
     return this.walletClient.sendTransaction(call as any);
   }
 
-  async writeContracts(calls: Call[], options?: WriteContractsOptions): Promise<Hash[]> {
+  async writeContracts(calls: EvmCall[], options?: WriteContractsOptions): Promise<Hash[]> {
     const keepSender = options?.keepSender ?? false;
 
     if (keepSender) {

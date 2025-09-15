@@ -1,6 +1,6 @@
 import { Address, encodeAbiParameters, encodeFunctionData, Hex } from 'viem';
 
-import { Call } from '@/common/interfaces/evm-wallet.interface';
+import { EvmCall } from '@/common/interfaces/evm-wallet.interface';
 
 import { encodeKernelExecuteCallData } from '../utils/encode-transactions';
 
@@ -16,13 +16,13 @@ jest.mock('viem', () => ({
 }));
 
 describe('encode-transactions', () => {
-  const mockSingleCall: Call = {
+  const mockSingleCall: EvmCall = {
     to: '0x1234567890123456789012345678901234567890' as Address,
     value: 1000000000000000000n,
     data: '0xabcdef' as Hex,
   };
 
-  const mockMultipleCalls: Call[] = [
+  const mockMultipleCalls: EvmCall[] = [
     {
       to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address,
       value: 100n,
@@ -116,7 +116,7 @@ describe('encode-transactions', () => {
     });
 
     it('should handle calls with zero values', () => {
-      const callsWithZeroValues: Call[] = [
+      const callsWithZeroValues: EvmCall[] = [
         {
           to: '0x1111111111111111111111111111111111111111' as Address,
           value: 0n,
@@ -137,7 +137,7 @@ describe('encode-transactions', () => {
     });
 
     it('should handle calls with empty data', () => {
-      const callsWithEmptyData: Call[] = [
+      const callsWithEmptyData: EvmCall[] = [
         {
           to: '0x2222222222222222222222222222222222222222' as Address,
           value: 1000n,

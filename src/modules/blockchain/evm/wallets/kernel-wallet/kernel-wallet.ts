@@ -20,7 +20,7 @@ import {
 } from 'viem';
 
 import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
-import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
+import { EvmCall, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { sum } from '@/common/utils/math';
 import { minutes, now } from '@/common/utils/time';
@@ -268,7 +268,7 @@ export class KernelWallet extends BaseEvmWallet {
     return this.executorEnabled ? 'executor' : 'signer';
   }
 
-  async writeContract(call: Call): Promise<Hash> {
+  async writeContract(call: EvmCall): Promise<Hash> {
     if (!call || !call.to) {
       throw new Error('Invalid call parameters: missing required fields');
     }
@@ -278,7 +278,7 @@ export class KernelWallet extends BaseEvmWallet {
     return hash;
   }
 
-  async writeContracts(calls: Call[], options?: WriteContractsOptions): Promise<Hash[]> {
+  async writeContracts(calls: EvmCall[], options?: WriteContractsOptions): Promise<Hash[]> {
     if (!this.initialized || !this.kernelAccount) {
       throw new Error('Kernel wallet not initialized. Call init() first.');
     }
@@ -342,7 +342,7 @@ export class KernelWallet extends BaseEvmWallet {
   }
 
   protected async writeWithSigner(
-    calls: Call[],
+    calls: EvmCall[],
     _options?: WriteContractsOptions,
   ): Promise<Hash[]> {
     const totalValue = _options?.value ?? sum(calls.map((call) => call.value ?? 0n));
@@ -396,7 +396,7 @@ export class KernelWallet extends BaseEvmWallet {
   }
 
   protected async writeWithExecutor(
-    calls: Call[],
+    calls: EvmCall[],
     _options?: WriteContractsOptions,
   ): Promise<Hash[]> {
     const totalValue = _options?.value ?? sum(calls.map((call) => call.value ?? 0n));

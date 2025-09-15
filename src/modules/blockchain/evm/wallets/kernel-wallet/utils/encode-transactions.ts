@@ -8,7 +8,7 @@ import {
   toHex,
 } from 'viem';
 
-import { Call } from '@/common/interfaces/evm-wallet.interface';
+import { EvmCall } from '@/common/interfaces/evm-wallet.interface';
 
 type CallType = 'call' | 'delegatecall' | 'batchcall';
 
@@ -21,7 +21,7 @@ type ExecutionMode<callType extends CallType> = {
 
 type EncodeCallDataParams<callType extends CallType> = {
   mode: ExecutionMode<callType>;
-  callData: Call[];
+  callData: EvmCall[];
 };
 
 function parseCallType(callType: CallType) {
@@ -144,7 +144,7 @@ function encode7579Tx<callType extends CallType>(params: EncodeCallDataParams<ca
   });
 }
 
-export function encodeKernelExecuteCallData(calls: Call[]) {
+export function encodeKernelExecuteCallData(calls: EvmCall[]) {
   return encode7579Tx({
     mode: {
       type: calls.length > 1 ? 'batchcall' : 'call',
@@ -156,7 +156,7 @@ export function encodeKernelExecuteCallData(calls: Call[]) {
   });
 }
 
-export function encodeKernelExecuteParams(calls: Call[]) {
+export function encodeKernelExecuteParams(calls: EvmCall[]) {
   return encode7579Calls({
     mode: {
       type: calls.length > 1 ? 'batchcall' : 'call',

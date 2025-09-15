@@ -1,6 +1,6 @@
 import { Address, Chain, encodeFunctionData, Hex } from 'viem';
 
-import { Call, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
+import { EvmCall, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 
 import { BasicWallet } from '../basic-wallet';
 
@@ -67,7 +67,7 @@ describe('BasicWallet', () => {
 
   describe('writeContract', () => {
     it('should execute single contract write', async () => {
-      const params: Call = {
+      const params: EvmCall = {
         to: '0xContractAddress' as Address,
         data: '0x1234' as Hex,
         value: 0n,
@@ -80,7 +80,7 @@ describe('BasicWallet', () => {
     });
 
     it('should handle contract write with value', async () => {
-      const params: Call = {
+      const params: EvmCall = {
         to: '0xContractAddress' as Address,
         data: '0x5678' as Hex,
         value: 1000000000000000000n,
@@ -94,7 +94,7 @@ describe('BasicWallet', () => {
   });
 
   describe('writeContracts', () => {
-    const mockParams: Call[] = [
+    const mockParams: EvmCall[] = [
       {
         to: '0xToken1' as Address,
         data: '0xapprove1' as Hex,
@@ -139,7 +139,7 @@ describe('BasicWallet', () => {
       });
 
       it('should handle batch writes with value', async () => {
-        const paramsWithValue: Call[] = [
+        const paramsWithValue: EvmCall[] = [
           ...mockParams,
           {
             to: '0xContract' as Address,
@@ -173,7 +173,7 @@ describe('BasicWallet', () => {
       });
 
       it('should calculate total value from individual calls', async () => {
-        const paramsWithValues: Call[] = [
+        const paramsWithValues: EvmCall[] = [
           {
             to: '0xContract1' as Address,
             data: '0xdeposit1' as Hex,
@@ -230,7 +230,7 @@ describe('BasicWallet', () => {
       });
 
       it('should preserve individual transaction parameters', async () => {
-        const paramsWithDifferentValues: Call[] = [
+        const paramsWithDifferentValues: EvmCall[] = [
           {
             to: '0xContract1' as Address,
             data: '0xmethod1' as Hex,
