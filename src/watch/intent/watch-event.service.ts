@@ -11,8 +11,9 @@ import { MultichainPublicClientService } from '../../transaction/multichain-publ
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
-import { LogSubOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogSubOperation, LogOperation } from '@/common/logging/decorators/log-operation.decorator'
 import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { logWatchError, createContractErrorContext } from '../utils/error-logger'
 
 /**
@@ -50,6 +51,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   /**
    * Load runtime configuration used by watch jobs from the central config service.
    */
+  @LogOperation('module_init', GenericOperationLogger)
   async onModuleInit() {
     this.watchJobConfig = this.ecoConfigService.getRedis().jobs.watchJobConfig
     const watchCfg = this.ecoConfigService.getWatch()
@@ -62,6 +64,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Subscribe on bootstrap and await completion to ensure watchers are registered
    * before the application begins handling traffic.
    */
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
     await this.subscribe()
   }

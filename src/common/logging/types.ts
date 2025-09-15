@@ -255,6 +255,21 @@ export interface EcoBusinessContext {
   target_balance_out?: string
   token_in_decimals?: number
   token_out_decimals?: number
+  // Chain sync specific fields
+  sync_type?:
+    | 'intent_created'
+    | 'intent_funded'
+    | 'application_bootstrap'
+    | 'sync_transactions'
+    | 'missing_transactions'
+  chain_sync_status?: 'started' | 'completed' | 'failed' | 'no_transactions_found'
+  source_network?: string
+  source_address?: string
+  from_block?: string
+  to_block?: string
+  event_count?: number
+  max_block_range?: string
+  block_number?: number
 }
 
 export interface OperationContext {
@@ -301,6 +316,11 @@ export interface PerformanceContext {
   cpu_usage?: number
   memory_usage?: number
   active_connections?: number
+  // Chain sync specific performance metrics
+  events_per_second?: number
+  blocks_per_second?: number
+  block_range_processed?: number
+  throughput_efficiency?: number
 }
 
 // Validation Constants

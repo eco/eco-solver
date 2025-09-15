@@ -74,7 +74,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     this.checkBalancesQueueWrapper = new CheckBalancesQueue(this.checkBalancesQueue as any)
   }
 
-  @LogOperation('system_bootstrap', LiquidityManagerLogger)
+  @LogOperation('application_bootstrap', LiquidityManagerLogger)
   async onApplicationBootstrap() {
     // Remove existing job schedulers for CHECK_BALANCES (legacy + new queue)
     try {

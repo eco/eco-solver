@@ -124,8 +124,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
-      quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
-      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}`,
+      quotesUrl: `https://cool-actively-mayfly.ngrok-free.app${API_ROOT}${QUOTE_ROUTE}`,
+      receiveSignedIntentUrl: `https://cool-actively-mayfly.ngrok-free.app${API_ROOT}${INTENT_INITIATION_ROUTE}`,
       supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
 
       crossChainRoutes: {

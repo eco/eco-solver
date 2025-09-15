@@ -52,7 +52,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     this.intentProcessorQueue = new IntentProcessorQueue(queue)
   }
 
-  @LogOperation('intent_processing', IntentOperationLogger)
+  @LogOperation('application_bootstrap', IntentOperationLogger)
   async onApplicationBootstrap() {
     this.config = {
       sendBatch: this.ecoConfigService.getSendBatch(),

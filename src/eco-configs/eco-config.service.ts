@@ -67,6 +67,7 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
+  @LogOperation('module_init', GenericOperationLogger)
   async onModuleInit() {}
 
   // Initialize the configs

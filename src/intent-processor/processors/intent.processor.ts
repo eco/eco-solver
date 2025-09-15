@@ -80,10 +80,10 @@ export class IntentProcessor
 
     if (waitingCount > 0 || activeCount > 1) {
       if (activeCount <= this.nonConcurrentJobs.length) {
-        const activeJobs: IntentProcessorJob[] = await this.queue.getActive(
+        const activeJobs = (await this.queue.getActive(
           0,
           this.nonConcurrentJobs.length,
-        )
+        )) as IntentProcessorJob[]
         const jobNames = activeJobs.map((job) => job.name)
         return !jobNames.every((jobName) => this.nonConcurrentJobs.includes(jobName))
       }

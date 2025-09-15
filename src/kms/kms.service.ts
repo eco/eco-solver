@@ -1,5 +1,6 @@
 import { EcoError } from '@/common/errors/eco-error'
 import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 import { obscureCenter } from '@/common/utils/strings'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Signer } from '@eco-foundation/eco-kms-core'
@@ -20,6 +21,7 @@ export class KmsService implements OnModuleInit {
   signer: Signer
   constructor(private readonly ecoConfigService: EcoConfigService) {}
 
+  @LogOperation('module_init', GenericOperationLogger)
   async onModuleInit() {
     const kmsConfig = this.ecoConfigService.getKmsConfig()
     if (!kmsConfig) {

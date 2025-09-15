@@ -10,7 +10,7 @@ import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/
 import { Model } from 'mongoose'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
 import { LogOperation } from '@/common/logging/decorators'
-import { GenericOperationLogger } from '@/common/logging/loggers'
+import { ChainSyncLogger } from '@/common/logging/loggers'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -37,7 +37,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
     )
   }
 
-  @LogOperation('application_bootstrap', GenericOperationLogger)
+  @LogOperation('chain-sync', ChainSyncLogger)
   async onApplicationBootstrap() {
     await super.onApplicationBootstrap()
   }
@@ -50,62 +50,121 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    * @param source the source intent to get missing transactions for
    * @returns
    */
-  @LogOperation('get_missing_transactions', GenericOperationLogger)
+  @LogOperation('chain-sync', ChainSyncLogger)
   async getMissingTxs(source: IntentSource): Promise<IntentCreatedLog[]> {
-    const client = await this.kernelAccountClientService.getClient(source.chainID)
+    const startTime = Date.now()
 
-    const supportedChains = this.ecoConfigService.getSupportedChains()
-    const [lastRecordedTx] = await this.getLastRecordedTx(source)
+    try {
+      const client = await this.kernelAccountClientService.getClient(source.chainID)
 
-    let fromBlock = lastRecordedTx
-      ? BigInt(lastRecordedTx.event!.blockNumber) + 1n //start search from next block
-      : undefined
+      const supportedChains = this.ecoConfigService.getSupportedChains()
+      const [lastRecordedTx] = await this.getLastRecordedTx(source)
 
-    const toBlock = await client.getBlockNumber()
-
-    if (fromBlock && toBlock - fromBlock > IntentCreatedChainSyncService.MAX_BLOCK_RANGE) {
-      fromBlock = toBlock - IntentCreatedChainSyncService.MAX_BLOCK_RANGE
-    }
-
-    const allCreateIntentLogs = await client.getContractEvents({
-      address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
-      strict: true,
-      args: {
-        prover: source.provers,
-      },
-      fromBlock,
-      toBlock,
-    })
-
-    const createIntentLogs = allCreateIntentLogs.filter((log) =>
-      supportedChains.includes(log.args.destination),
-    )
-
-    //todo clean out already fulfilled intents
-    if (createIntentLogs.length === 0) {
-      this.logger.log(
-        `No transactions found for source ${source.network} to sync from block ${fromBlock}`,
-        {
-          service: 'intent-created-chain-sync-service',
-          operation: 'get_missing_txs',
-          source_network: source.network,
-          chain_id: source.chainID,
-          from_block: fromBlock?.toString(),
-        },
+      // Log the last recorded transaction info
+      this.chainSyncLogger.logLastRecordedTransaction(
+        source.network,
+        source.chainID,
+        lastRecordedTx?.event?.blockNumber ? Number(lastRecordedTx.event.blockNumber) : undefined,
+        lastRecordedTx?.event?.transactionHash,
+        undefined, // intentHash not available in IntentSourceModel
       )
-      return []
-    }
 
-    // add the required source network and chain id to the logs
-    return createIntentLogs.map((log) => {
-      return {
-        ...log,
-        sourceNetwork: source.network,
-        sourceChainID: source.chainID,
-      } as unknown as IntentCreatedLog
-    })
+      let fromBlock = lastRecordedTx
+        ? BigInt(lastRecordedTx.event!.blockNumber) + 1n //start search from next block
+        : undefined
+
+      const toBlock = await client.getBlockNumber()
+
+      if (fromBlock && toBlock - fromBlock > IntentCreatedChainSyncService.MAX_BLOCK_RANGE) {
+        fromBlock = toBlock - IntentCreatedChainSyncService.MAX_BLOCK_RANGE
+      }
+
+      const allCreateIntentLogs = await client.getContractEvents({
+        address: source.sourceAddress,
+        abi: IntentSourceAbi,
+        eventName: 'IntentCreated',
+        strict: true,
+        args: {
+          prover: source.provers,
+        },
+        fromBlock,
+        toBlock,
+      })
+
+      const createIntentLogs = allCreateIntentLogs.filter((log) =>
+        supportedChains.includes(log.args.destination),
+      )
+
+      const processingTime = Date.now() - startTime
+      const blockRange = fromBlock ? toBlock - fromBlock : toBlock
+
+      // Log missing transactions found
+      this.chainSyncLogger.logMissingTransactions(
+        source.network,
+        source.chainID,
+        fromBlock,
+        toBlock,
+        createIntentLogs.length,
+        'intent_created',
+        IntentCreatedChainSyncService.MAX_BLOCK_RANGE,
+      )
+
+      // Log performance metrics if we found transactions
+      if (createIntentLogs.length > 0) {
+        this.chainSyncLogger.logSyncPerformance(
+          source.network,
+          source.chainID,
+          'intent_created',
+          createIntentLogs.length,
+          processingTime,
+          blockRange,
+        )
+
+        // Log individual transaction processing (only for small batches to control log volume)
+        if (createIntentLogs.length <= 10) {
+          createIntentLogs.forEach((log) => {
+            this.chainSyncLogger.logTransactionProcessed(
+              log.args.hash,
+              log.transactionHash,
+              log.blockNumber,
+              source.network,
+              source.chainID,
+              'intent_created',
+            )
+          })
+        } else {
+          // For large batches, log a summary with sample transactions
+          const sampleLogs = createIntentLogs.slice(0, 3)
+          sampleLogs.forEach((log) => {
+            this.chainSyncLogger.logTransactionProcessed(
+              log.args.hash,
+              log.transactionHash,
+              log.blockNumber,
+              source.network,
+              source.chainID,
+              'intent_created',
+            )
+          })
+        }
+      }
+
+      // add the required source network and chain id to the logs
+      return createIntentLogs.map((log) => {
+        return {
+          ...log,
+          sourceNetwork: source.network,
+          sourceChainID: source.chainID,
+        } as unknown as IntentCreatedLog
+      })
+    } catch (error) {
+      this.chainSyncLogger.logSyncError(
+        error as Error,
+        source.network,
+        source.chainID,
+        'intent_created',
+      )
+      throw error
+    }
   }
 
   /**
@@ -114,7 +173,7 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
    * @param source the source intent to get the last recorded transaction for
    * @returns
    */
-  @LogOperation('get_last_recorded_transaction', GenericOperationLogger)
+  @LogOperation('chain-sync', ChainSyncLogger)
   async getLastRecordedTx(source: IntentSource): Promise<IntentSourceModel[]> {
     return await this.intentModel
       .find({ 'event.sourceChainID': source.chainID })

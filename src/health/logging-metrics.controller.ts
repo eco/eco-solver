@@ -1,13 +1,15 @@
 import { Controller, Get } from '@nestjs/common'
 import { BaseStructuredLogger } from '@/common/logging/loggers/base-structured-logger'
+import { API_ROOT } from '@/common/routes/constants'
+import { HealthPath } from '@/health/constants'
 
 /**
  * Controller for logging system performance and compliance metrics
  */
-@Controller('health/logging')
+@Controller(API_ROOT)
 export class LoggingMetricsController {
-  @Get('metrics')
-  getLoggingMetrics() {
+  @Get(`${HealthPath}/metrics`)
+  async getLoggingMetrics() {
     const metrics = BaseStructuredLogger.getLoggingMetrics()
 
     return {

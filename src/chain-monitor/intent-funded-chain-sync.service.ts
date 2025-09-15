@@ -13,7 +13,7 @@ import { Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
 import { LogOperation } from '@/common/logging/decorators'
-import { GenericOperationLogger } from '@/common/logging/loggers'
+import { ChainSyncLogger } from '@/common/logging/loggers'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -54,68 +54,128 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @param source the source intent to get missing transactions for
    * @returns
    */
-  @LogOperation('get_missing_transactions', GenericOperationLogger)
+  @LogOperation('chain-sync', ChainSyncLogger)
   async getMissingTxs(source: IntentSource): Promise<IntentFundedLog[]> {
-    const client = await this.kernelAccountClientService.getClient(source.chainID)
-    const lastRecordedTx = await this.getLastRecordedTx(source)
+    const startTime = Date.now()
 
-    let fromBlock = lastRecordedTx
-      ? BigInt(lastRecordedTx.blockNumber) + 1n //start search from next block
-      : undefined
+    try {
+      const client = await this.kernelAccountClientService.getClient(source.chainID)
+      const lastRecordedTx = await this.getLastRecordedTx(source)
 
-    const toBlock = await client.getBlockNumber()
-
-    if (fromBlock && toBlock - fromBlock > IntentFundedChainSyncService.MAX_BLOCK_RANGE) {
-      fromBlock = toBlock - IntentFundedChainSyncService.MAX_BLOCK_RANGE
-    }
-
-    const allIntentFundedLogs = await client.getContractEvents({
-      address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'IntentFunded',
-      strict: true,
-      fromBlock,
-      toBlock,
-    })
-
-    /* Make sure it's one of ours. It might not be ours because:
-     * .The intent was created by another solver, so won't be in our database.
-     * .The intent was not even a gasless one! Remember, publishAndFund() *also* emits IntentFunded events,
-     *  and those ones are not gasless intents.
-     */
-    const resolvedLogs = await Promise.all(
-      allIntentFundedLogs.map(async (log) => {
-        const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
-        return { log, keep: !error }
-      }),
-    )
-
-    const intentFundedLogs = resolvedLogs
-      .filter((result) => result.keep)
-      .map((result) => result.log)
-
-    if (intentFundedLogs.length === 0) {
-      this.logger.log(
-        `No transactions found for source ${source.network} to sync from block ${fromBlock}`,
-        {
-          service: 'intent-funded-chain-sync-service',
-          operation: 'get_missing_txs',
-          source_network: source.network,
-          chain_id: source.chainID,
-          from_block: fromBlock?.toString(),
-        },
+      // Log the last recorded transaction info
+      this.chainSyncLogger.logLastRecordedTransaction(
+        source.network,
+        source.chainID,
+        lastRecordedTx?.blockNumber ? Number(lastRecordedTx.blockNumber) : undefined,
+        lastRecordedTx?.transactionHash,
+        undefined, // intentHash not available in IntentFundedEventModel
       )
-      return []
-    }
 
-    // add the required source network and chain id to the logs
-    return intentFundedLogs.map((log) => {
-      return {
-        ...log,
-        sourceNetwork: source.network,
-        sourceChainID: source.chainID,
-      } as unknown as IntentFundedLog
-    })
+      let fromBlock = lastRecordedTx
+        ? BigInt(lastRecordedTx.blockNumber) + 1n //start search from next block
+        : undefined
+
+      const toBlock = await client.getBlockNumber()
+
+      if (fromBlock && toBlock - fromBlock > IntentFundedChainSyncService.MAX_BLOCK_RANGE) {
+        fromBlock = toBlock - IntentFundedChainSyncService.MAX_BLOCK_RANGE
+      }
+
+      const allIntentFundedLogs = await client.getContractEvents({
+        address: source.sourceAddress,
+        abi: IntentSourceAbi,
+        eventName: 'IntentFunded',
+        strict: true,
+        fromBlock,
+        toBlock,
+      })
+
+      /* Make sure it's one of ours. It might not be ours because:
+       * .The intent was created by another solver, so won't be in our database.
+       * .The intent was not even a gasless one! Remember, publishAndFund() *also* emits IntentFunded events,
+       *  and those ones are not gasless intents.
+       */
+      const resolvedLogs = await Promise.all(
+        allIntentFundedLogs.map(async (log) => {
+          const { error } = await this.createIntentService.getIntentForHash(log.args.intentHash)
+          return { log, keep: !error }
+        }),
+      )
+
+      const intentFundedLogs = resolvedLogs
+        .filter((result) => result.keep)
+        .map((result) => result.log)
+
+      const processingTime = Date.now() - startTime
+      const blockRange = fromBlock ? toBlock - fromBlock : toBlock
+
+      // Log missing transactions found
+      this.chainSyncLogger.logMissingTransactions(
+        source.network,
+        source.chainID,
+        fromBlock,
+        toBlock,
+        intentFundedLogs.length,
+        'intent_funded',
+        IntentFundedChainSyncService.MAX_BLOCK_RANGE,
+      )
+
+      // Log performance metrics if we found transactions
+      if (intentFundedLogs.length > 0) {
+        this.chainSyncLogger.logSyncPerformance(
+          source.network,
+          source.chainID,
+          'intent_funded',
+          intentFundedLogs.length,
+          processingTime,
+          blockRange,
+        )
+
+        // Log individual transaction processing (only for small batches to control log volume)
+        if (intentFundedLogs.length <= 10) {
+          intentFundedLogs.forEach((log) => {
+            this.chainSyncLogger.logTransactionProcessed(
+              log.args.intentHash,
+              log.transactionHash,
+              log.blockNumber,
+              source.network,
+              source.chainID,
+              'intent_funded',
+            )
+          })
+        } else {
+          // For large batches, log a summary with sample transactions
+          const sampleLogs = intentFundedLogs.slice(0, 3)
+          sampleLogs.forEach((log) => {
+            this.chainSyncLogger.logTransactionProcessed(
+              log.args.intentHash,
+              log.transactionHash,
+              log.blockNumber,
+              source.network,
+              source.chainID,
+              'intent_funded',
+            )
+          })
+        }
+      }
+
+      // add the required source network and chain id to the logs
+      return intentFundedLogs.map((log) => {
+        return {
+          ...log,
+          sourceNetwork: source.network,
+          sourceChainID: source.chainID,
+        } as unknown as IntentFundedLog
+      })
+    } catch (error) {
+      this.chainSyncLogger.logSyncError(
+        error as Error,
+        source.network,
+        source.chainID,
+        'intent_funded',
+      )
+      throw error
+    }
   }
 
   /**
@@ -124,7 +184,7 @@ export class IntentFundedChainSyncService extends ChainSyncService {
    * @param source the source intent to get the last recorded transaction for
    * @returns
    */
-  @LogOperation('get_last_recorded_transaction', GenericOperationLogger)
+  @LogOperation('chain-sync', ChainSyncLogger)
   async getLastRecordedTx(source: IntentSource): Promise<IntentFundedEventModel | undefined> {
     return this.watchIntentService.getLastRecordedTx(BigInt(source.chainID))
   }

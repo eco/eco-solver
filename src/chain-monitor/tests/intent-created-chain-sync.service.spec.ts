@@ -151,23 +151,22 @@ describe('IntentCreatedChainSyncService', () => {
 
     it('should log when no transfers exist since last db record', async () => {
       chainSyncService['getLastRecordedTx'] = jest.fn().mockResolvedValueOnce([model])
-      const mockLog = jest.fn()
-      chainSyncService['logger'].log = mockLog
+      const mockLogMissingTransactions = jest.fn()
+      chainSyncService['chainSyncLogger'].logMissingTransactions = mockLogMissingTransactions
       await chainSyncService.syncTxsPerSource(intentSource)
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
-      expect(mockLog).toHaveBeenCalledTimes(1)
+      expect(mockLogMissingTransactions).toHaveBeenCalledTimes(1)
       // we search from the next block
       const searchFromBlock = model.event!.blockNumber + 1n
-      // logger.log is called with (messageString, contextObject)
-      expect(mockLog).toHaveBeenCalledWith(
-        `No transactions found for source ${intentSource.network} to sync from block ${searchFromBlock}`,
-        expect.objectContaining({
-          service: 'intent-created-chain-sync-service',
-          operation: 'get_missing_txs',
-          source_network: intentSource.network,
-          chain_id: intentSource.chainID,
-          from_block: searchFromBlock?.toString(),
-        }),
+      // chainSyncLogger.logMissingTransactions is called with structured parameters
+      expect(mockLogMissingTransactions).toHaveBeenCalledWith(
+        intentSource.network,
+        intentSource.chainID,
+        searchFromBlock,
+        toBlock,
+        0, // eventCount = 0 (no transactions found)
+        'intent_created',
+        IntentCreatedChainSyncService.MAX_BLOCK_RANGE,
       )
     })
 
