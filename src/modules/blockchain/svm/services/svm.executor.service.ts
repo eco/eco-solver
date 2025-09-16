@@ -34,8 +34,9 @@ import { SvmWalletManagerService, SvmWalletType } from './svm-wallet-manager.ser
 @Injectable()
 export class SvmExecutorService extends BaseChainExecutor {
   private readonly connection: Connection;
-  private portalProgram: Program<PortalIdl>;
-  private keypair: Keypair;
+  private portalProgram: Program<PortalIdl> | null = null;
+  private keypair: Keypair | null = null;
+  private isInitialized = false;
 
   constructor(
     private solanaConfigService: SolanaConfigService,
@@ -47,8 +48,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     super();
     this.logger.setContext(SvmExecutorService.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
-    this.initializeProgram();
   }
+
 
   async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
     const activeSpan = api.trace.getActiveSpan();
@@ -64,8 +65,23 @@ export class SvmExecutorService extends BaseChainExecutor {
         },
       });
 
-    if (!this.portalProgram) {
-      const error = new Error('Portal program not initialized');
+    // Lazy initialization of Portal program
+    if (!this.isInitialized) {
+      try {
+        await this.initializeProgram();
+        this.isInitialized = true;
+      } catch (error) {
+        this.logger.error('Failed to initialize Portal program during fulfill:', toError(error));
+        if (!activeSpan) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+        }
+        throw error;
+      }
+    }
+
+    if (!this.portalProgram || !this.keypair) {
+      const error = new Error('Portal program or keypair not properly initialized');
       if (!activeSpan) {
         span.recordException(error);
         span.setStatus({ code: api.SpanStatusCode.ERROR });
@@ -195,6 +211,11 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async generateFulfillIx(intent: Intent) {
+    // Ensure we have initialized the program
+    if (!this.portalProgram || !this.keypair) {
+      throw new Error('Portal program not initialized');
+    }
+
     const tokenAccounts = await getTokenAccounts(
       intent.route,
       this.keypair,
@@ -249,7 +270,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       calls: calls.map((call) => call.routeCall),
     };
 
-    const fulfillArgs: Parameters<typeof this.portalProgram.methods.fulfill>[0] = {
+    const fulfillArgs = {
       intentHash: { 0: Array.from(intentHashBuffer) }, // Bytes32 format
       route: toSvmRoute(svmRoute),
       rewardHash: { 0: Array.from(rewardHashBytes) }, // Bytes32 format
@@ -257,7 +278,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     };
 
     // Build the fulfill instruction matching the Rust accounts structure
-    const fulfillmentIx = await this.portalProgram!.methods.fulfill(fulfillArgs)
+    const fulfillmentIx = await this.portalProgram.methods.fulfill(fulfillArgs)
       .accounts({
         payer: this.keypair.publicKey,
         solver: this.keypair.publicKey,
@@ -271,27 +292,23 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async initializeProgram() {
-    try {
-      // Get cached wallet instance and extract keypair for Anchor
-      const svmWallet = this.walletManager.getWallet();
-      this.keypair = svmWallet.getKeypair();
+    // Get cached wallet instance and extract keypair for Anchor
+    const svmWallet = this.walletManager.getWallet();
+    this.keypair = svmWallet.getKeypair();
 
-      // Create Anchor provider with wallet adapter
-      const anchorWallet = getAnchorWallet(this.keypair);
+    // Create Anchor provider with wallet adapter
+    const anchorWallet = getAnchorWallet(this.keypair);
 
-      const provider = new AnchorProvider(this.connection, anchorWallet, {
-        commitment: 'confirmed',
-      });
-      setProvider(provider);
+    const provider = new AnchorProvider(this.connection, anchorWallet, {
+      commitment: 'confirmed',
+    });
+    setProvider(provider);
 
-      // Initialize Portal program with IDL
-      const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
-      const idlWithAddress = { ...portalIdl, address: portalProgramId.toString() };
-      this.portalProgram = new Program(idlWithAddress, provider);
+    // Initialize Portal program with IDL
+    const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
+    const idlWithAddress = { ...portalIdl, address: portalProgramId.toString() };
+    this.portalProgram = new Program(idlWithAddress, provider);
 
-      this.logger.log(`Portal program initialized at ${portalProgramId.toString()}`);
-    } catch (error) {
-      this.logger.error('Failed to initialize Portal program:', toError(error));
-    }
+    this.logger.log(`Portal program initialized at ${portalProgramId.toString()}`);
   }
 }

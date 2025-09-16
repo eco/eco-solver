@@ -1,7 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { PublicKey } from '@solana/web3.js';
-
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
@@ -38,28 +36,6 @@ export class SvmWalletManagerService implements OnModuleInit {
     }
   }
 
-  private async initializeWalletsForChain(chainId: number) {
-    if (!this.wallets.has(chainId)) {
-      this.wallets.set(chainId, new Map());
-    }
-
-    const chainWallets = this.wallets.get(chainId)!;
-
-    try {
-      // Create and cache basic wallet
-      const basicWallet = this.basicWalletFactory.create(chainId);
-      chainWallets.set('basic', basicWallet);
-      this.logger.debug(
-        `Initialized basic wallet for chain ${chainId}: ${(await basicWallet.getAddress()).toString()}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to initialize basic wallet for chain ${chainId}: ${getErrorMessage(error)}`,
-      );
-      throw error;
-    }
-  }
-
   /**
    * Creates a wallet instance for the specified chain and type
    * @param chainId - The chain ID to create wallet for (not used for Solana)
@@ -68,7 +44,7 @@ export class SvmWalletManagerService implements OnModuleInit {
    * @throws Error if wallet type is not supported
    * @deprecated Use getWallet() instead for cached wallet instances
    */
-  createWallet(chainId?: number | string, walletType: SvmWalletType = 'basic'): ISvmWallet {
+  createWallet(chainId?: number, walletType: SvmWalletType = 'basic'): ISvmWallet {
     // Use the configured chain ID if not provided
     const effectiveChainId = chainId ? Number(chainId) : this.solanaConfigService.chainId;
     return this.getWallet(walletType, effectiveChainId);
@@ -104,27 +80,33 @@ export class SvmWalletManagerService implements OnModuleInit {
    * @returns The wallet address as a UniversalAddress
    */
   async getWalletAddress(
-    chainId?: number | string,
+    chainId?: number,
     walletType: SvmWalletType = 'basic',
   ): Promise<UniversalAddress> {
-    const effectiveChainId = chainId ? Number(chainId) : this.solanaConfigService.chainId;
-    const wallet = this.getWallet(walletType, effectiveChainId);
+    const wallet = this.getWallet(walletType, chainId);
     const publicKey = await wallet.getAddress();
     return AddressNormalizer.normalizeSvm(publicKey);
   }
 
-  /**
-   * Gets the public key for a specific wallet type
-   * @param chainId - The chain ID (not used for Solana)
-   * @param walletType - The type of wallet (default: 'basic')
-   * @returns The wallet's PublicKey
-   */
-  async getWalletPublicKey(
-    chainId?: number | string,
-    walletType: SvmWalletType = 'basic',
-  ): Promise<PublicKey> {
-    const effectiveChainId = chainId ? Number(chainId) : this.solanaConfigService.chainId;
-    const wallet = this.getWallet(walletType, effectiveChainId);
-    return wallet.getAddress();
+  private async initializeWalletsForChain(chainId: number) {
+    if (!this.wallets.has(chainId)) {
+      this.wallets.set(chainId, new Map());
+    }
+
+    const chainWallets = this.wallets.get(chainId)!;
+
+    try {
+      // Create and cache basic wallet
+      const basicWallet = this.basicWalletFactory.create(chainId);
+      chainWallets.set('basic', basicWallet);
+      this.logger.debug(
+        `Initialized basic wallet for chain ${chainId}: ${(await basicWallet.getAddress()).toString()}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to initialize basic wallet for chain ${chainId}: ${getErrorMessage(error)}`,
+      );
+      throw error;
+    }
   }
 }
