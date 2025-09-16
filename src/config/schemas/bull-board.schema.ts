@@ -1,5 +1,3 @@
-import { registerAs } from '@nestjs/config';
-
 import { z } from 'zod';
 
 /**
@@ -12,16 +10,3 @@ export const BullBoardSchema = z.object({
 });
 
 export type BullBoardConfig = z.infer<typeof BullBoardSchema>;
-
-/**
- * Bull Board configuration factory
- */
-export const bullBoardConfig = registerAs('bullBoard', () => {
-  const config = BullBoardSchema.parse({
-    enabled: process.env.BULL_BOARD_ENABLED ? process.env.BULL_BOARD_ENABLED === 'true' : undefined,
-    username: process.env.BULL_BOARD_USERNAME,
-    password: process.env.BULL_BOARD_PASSWORD,
-  });
-
-  return config;
-});

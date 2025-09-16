@@ -50,6 +50,7 @@ export function envVarToPath(envVar: string): string[] {
     { parts: ['max', 'retries', 'per', 'request'], combined: 'maxRetriesPerRequest' },
     // Two-part patterns
     { parts: ['chain', 'config'], combined: 'chainConfig' },
+    { parts: ['bull', 'board'], combined: 'bullBoard' },
     { parts: ['rpc', 'url'], combined: 'rpcUrl' },
     { parts: ['api', 'url'], combined: 'apiUrl' },
     { parts: ['base', 'url'], combined: 'baseUrl' },
