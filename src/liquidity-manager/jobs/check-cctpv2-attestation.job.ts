@@ -117,6 +117,18 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       }
 
       await ExecuteCCTPV2MintJobManager.start(processor.queue, executeCCTPV2MintJobData)
+    } else {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message:
+            'CCTPV2: CheckCCTPV2AttestationJob: it should not happen, attestation is not complete',
+          id: job.data.id,
+          properties: {
+            returnvalue: job.returnvalue,
+            data: job.data,
+          },
+        }),
+      )
     }
   }
 

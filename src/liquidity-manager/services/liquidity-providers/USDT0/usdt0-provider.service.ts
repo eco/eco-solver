@@ -73,7 +73,7 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
     if (srcMismatch || dstMismatch) {
       this.logger.error(
         EcoLogMessage.withId({
-          message: 'USDT0: getQuote: Token address mismatch for configured USDT0',
+          message: 'USDT0: getQuote: Unsupported token',
           id,
           properties: {
             srcExpected,

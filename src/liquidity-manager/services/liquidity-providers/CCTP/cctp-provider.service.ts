@@ -272,7 +272,7 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
             properties: { messageHash },
           }),
         )
-        return { status: 'pending' as const }
+        return { status: 'pending' }
       }
       throw error
     } finally {
@@ -291,33 +291,22 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
             },
           }),
         )
-        return { status: 'pending' as const }
+        return { status: 'pending' }
       }
       throw new Error(`CCTP attestation API request failed with status ${response.statusText}`)
     }
 
-    const data:
-      | { status: 'pending' }
-      | { error: string }
-      | { status: 'complete'; attestation: Hex } = await response.json()
-
-    if ('error' in data) {
-      if (/not found/i.test(data.error)) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `CCTP: Treating "${data.error}" as pending`,
-            id,
-            properties: {
-              messageHash,
-            },
-          }),
-        )
-        return { status: 'pending' as const }
+    // Parse successful response
+    const data = await response.json()
+    if (data.attestation && data.attestation !== 'PENDING' && data.status === 'complete') {
+      return {
+        status: 'complete',
+        attestation: data.attestation as Hex,
       }
-      throw new Error(data.error)
     }
 
-    return data
+    // attestation not complete or attestation is PENDING
+    return { status: 'pending' }
   }
 
   private getMessageHash(messageBytes: Hex) {

@@ -7,7 +7,7 @@ EVM-only USDT0 rebalancing via LayerZero OFT v2.
 - Uses OFT v2 contracts to move USD₮0 across EVM chains.
 - Ethereum uses an Adapter that locks canonical USDT; other chains use an OFT token that mints/burns.
 - Execution is Kernel v2–gated and pays LayerZero fees in native gas.
-- Delivery is confirmed asynchronously by a job that observes destination `Transfer` events (mint-from-zero) on the OFT token.
+- Delivery is confirmed asynchronously via LayerZero Scan API by tracking the source tx hash until the message is delivered on the destination chain.
 
 ### Ethereum vs. non-Ethereum
 
@@ -34,13 +34,14 @@ Notes
 - `usdt0-provider.service.ts`: Strategy implementation (`getQuote`, `execute`).
 - `constants/abis.ts`: Minimal OFT v2 ABI (quoteOFT, quoteSend, send) and ERC20 approve.
 - `oft-client.ts`: Helpers to build calldata for approve/send and quoting.
-- `../..../jobs/check-oft-delivery.job.ts`: Delivery confirmation job.
+- `../..../jobs/check-oft-delivery.job.ts`: Delivery confirmation job (queries LayerZero Scan API).
 
 ### Config
 
 Global (outside `liquidityManager`) under `usdt0`:
 
 - Per-chain entry: `{ type: 'adapter' | 'oft'; eid: number; contract: Hex; decimals: 6; underlyingToken?: Hex }`.
+- `scanApiBaseUrl: string` for LayerZero Scan API (e.g., `https://scan.layerzero-api.com/v1`).
 - Example (see `config/default.ts`).
 
 Strategy selection is controlled via `liquidityManager.walletStrategies` (add `'USDT0'` for the relevant wallet type).
@@ -58,8 +59,17 @@ Strategy selection is controlled via `liquidityManager.walletStrategies` (add `'
 
 ### Delivery Confirmation
 
-- `CHECK_OFT_DELIVERY` polls destination chain logs on the OFT contract for `Transfer(from=0x0, to=wallet, value=amountLD)` within a recent block window.
-- On success, marks the associated rebalance as `COMPLETED`; on final failure, as `FAILED`.
+- `CHECK_OFT_DELIVERY` uses LayerZero Scan API to confirm delivery of the message emitted by the source `send` tx.
+  - Endpoint: `GET {scanApiBaseUrl}/messages/tx/{sourceTxHash}`.
+  - Filters results by `srcEid`/`dstEid` from `usdt0.chains` to disambiguate paths.
+  - Considered delivered when either:
+    - top-level `status.name === 'DELIVERED'`, or
+    - `destination.status` is `'SUCCEEDED'` or `'DELIVERED'`.
+  - Considered failed when either top-level or destination status is `'FAILED'` (job throws an unrecoverable error).
+  - Otherwise remains pending and retries with exponential backoff (20 attempts, base delay 10s).
+  - On completion, marks the matching rebalance as `COMPLETED`. On final failure, marks it as `FAILED`.
+
+Job payload includes: `groupID`, `rebalanceJobID`, `sourceChainId`, `destinationChainId`, `txHash` (source), `walletAddress`, `amountLD`, and optional `id` for log correlation.
 
 ### Tests
 
