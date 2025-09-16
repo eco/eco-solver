@@ -11,6 +11,8 @@ import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cacheable } from '@/decorators/cacheable.decorator'
+import { PortalHashUtils } from '@/common/utils/portal'
+import { randomBytes } from 'crypto'
 
 @Injectable()
 export class QuoteV2TransformService {
@@ -103,6 +105,28 @@ export class QuoteV2TransformService {
     // Convert expiry time to UNIX seconds
     const deadline = parseInt(quoteEntry.expiryTime)
 
+    // Build the complete route structure needed for encoding
+    // The route from quoteIntent needs additional fields for the Portal contract
+    const salt = ('0x' + randomBytes(32).toString('hex')) as Hex
+    const completeRoute = {
+      salt, // Random 32-byte salt
+      deadline: BigInt(deadline), // Use the quote deadline
+      portal: quoteIntent.route.inbox, // The inbox is the portal on destination chain
+      nativeAmount: 0n, // Default to 0 for quotes
+      tokens: quoteIntent.route.tokens.map((t) => ({
+        token: t.token,
+        amount: BigInt(t.amount),
+      })),
+      calls: quoteIntent.route.calls.map((c) => ({
+        target: c.target,
+        data: c.data,
+        value: BigInt(c.value),
+      })),
+    }
+
+    // Build and encode the route using PortalHashUtils
+    const encodedRoute = PortalHashUtils.getEncodedRoute(completeRoute)
+
     return {
       intentExecutionType: quoteEntry.intentExecutionType,
       sourceChainID,
@@ -117,6 +141,7 @@ export class QuoteV2TransformService {
       fees,
       deadline,
       estimatedFulfillTimeSec: quoteEntry.estimatedFulfillTimeSec,
+      encodedRoute,
     }
   }
 

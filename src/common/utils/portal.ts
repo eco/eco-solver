@@ -31,7 +31,7 @@ export class PortalHashUtils {
   static getIntentHash(intent: IntentV2Pure): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
     const { destination, reward, route } = intent
 
-    const encodedRoute = encodeAbiParameters([routeStructAbiItem], [route])
+    const encodedRoute = PortalHashUtils.getEncodedRoute(route)
     const routeHash = keccak256(encodedRoute)
 
     // Encode and hash the reward
@@ -49,5 +49,9 @@ export class PortalHashUtils {
       routeHash,
       rewardHash,
     }
+  }
+
+  static getEncodedRoute(route: IntentV2Pure['route']) {
+    return encodeAbiParameters([routeStructAbiItem], [route])
   }
 }
