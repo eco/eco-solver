@@ -50,7 +50,6 @@ export class SvmExecutorService extends BaseChainExecutor {
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
   }
 
-
   async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
     const activeSpan = api.trace.getActiveSpan();
     const span =
@@ -278,7 +277,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     };
 
     // Build the fulfill instruction matching the Rust accounts structure
-    const fulfillmentIx = await this.portalProgram.methods.fulfill(fulfillArgs)
+    const fulfillmentIx = await this.portalProgram.methods
+      .fulfill(fulfillArgs)
       .accounts({
         payer: this.keypair.publicKey,
         solver: this.keypair.publicKey,
