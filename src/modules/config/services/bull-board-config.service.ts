@@ -23,10 +23,6 @@ export class BullBoardConfigService {
     return this.configService.get<boolean>('bullBoard.enabled');
   }
 
-  get isProduction(): boolean {
-    return this.appConfigService.env === 'production';
-  }
-
   get isDevelopment(): boolean {
     return this.appConfigService.env === 'development';
   }
@@ -54,11 +50,6 @@ export class BullBoardConfigService {
       return true;
     }
 
-    if (this.isProduction) {
-      // Only enabled in production if credentials are configured
-      return Boolean(this.username && this.password);
-    }
-
     // Default to disabled for other environments (test, preproduction)
     return false;
   }
@@ -68,6 +59,6 @@ export class BullBoardConfigService {
    * - Only in production with configured credentials
    */
   get requiresAuth(): boolean {
-    return this.isProduction && Boolean(this.username && this.password);
+    return Boolean(this.username && this.password);
   }
 }
