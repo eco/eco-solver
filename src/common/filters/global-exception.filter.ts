@@ -1,5 +1,6 @@
 import {
   ArgumentsHost,
+  BadRequestException,
   Catch,
   ExceptionFilter,
   HttpException,
@@ -41,6 +42,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
       const response = exception.getResponse();
+
+      // Check if this is a BadRequestException with validation structure
+      if (
+        exception instanceof BadRequestException &&
+        typeof response === 'object' &&
+        response !== null
+      ) {
+        // Return the validation response directly for quotes API
+        httpAdapter.reply(ctx.getResponse(), response, statusCode);
+        return;
+      }
 
       if (typeof response === 'string') {
         message = response;
