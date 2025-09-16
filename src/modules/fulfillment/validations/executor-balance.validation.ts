@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { formatUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
@@ -18,6 +20,7 @@ export class ExecutorBalanceValidation implements Validation {
   constructor(
     private readonly blockchainReaderService: BlockchainReaderService,
     private readonly otelService: OpenTelemetryService,
+    private readonly tokenConfigService: TokenConfigService,
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
@@ -62,9 +65,15 @@ export class ExecutorBalanceValidation implements Validation {
         const walletAddressUA = await context.getWalletAddress(chainID);
         const walletAddress = AddressNormalizer.denormalize(walletAddressUA, destinationChainType);
 
-        // Create detailed balance information for each insufficient token
+        // Create detailed balance information for each insufficient token with user-friendly formatting
         const balanceDetails = notEnough
-          .map(({ token, balance, required }) => `${token} (has: ${balance}, needs: ${required})`)
+          .map(({ token, balance, required }) => {
+            const tokenConfig = this.tokenConfigService.getTokenConfig(Number(chainID), token);
+            const tokenAddress = AddressNormalizer.denormalize(token, destinationChainType);
+            const balanceFormatted = formatUnits(balance, tokenConfig.decimals);
+            const requiredFormatted = formatUnits(required, tokenConfig.decimals);
+            return `${tokenConfig.symbol || tokenAddress} (has: ${balanceFormatted}, needs: ${requiredFormatted})`;
+          })
           .join(', ');
 
         span.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));

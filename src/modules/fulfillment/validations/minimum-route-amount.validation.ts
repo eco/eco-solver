@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { parseUnits } from 'viem';
+import { formatUnits, parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { normalize } from '@/common/tokens/normalize';
+import { denormalize, normalize } from '@/common/tokens/normalize';
 import { min, sum } from '@/common/utils/math';
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -15,7 +15,7 @@ import { Validation } from './validation.interface';
 @Injectable()
 export class MinimumRouteAmountValidation implements Validation {
   constructor(
-    private readonly fulfillmentConfigService: FulfillmentConfigService,
+    private readonly tokenConfigService: TokenConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
@@ -34,7 +34,7 @@ export class MinimumRouteAmountValidation implements Validation {
 
     try {
       // Calculate total value being transferred
-      const normalizedTokens = this.fulfillmentConfigService.normalize(
+      const normalizedTokens = this.tokenConfigService.normalize(
         intent.destination,
         intent.route.tokens,
       );
@@ -43,7 +43,7 @@ export class MinimumRouteAmountValidation implements Validation {
 
       // Get minimum limits from all tokens
       const tokenMinimums = intent.route.tokens.map((token, index) => {
-        const { limit, decimals } = this.fulfillmentConfigService.getToken(
+        const { limit, decimals } = this.tokenConfigService.getTokenConfig(
           intent.destination,
           token.token,
         );
@@ -97,8 +97,12 @@ export class MinimumRouteAmountValidation implements Validation {
       });
 
       if (totalValue < minimumAmount) {
+        // Convert back to human-readable format for error message
+        // We use 18 decimals as the normalized base
+        const totalValueFormatted = formatUnits(denormalize(totalValue, 18), 18);
+        const minimumFormatted = formatUnits(denormalize(minimumAmount, 18), 18);
         throw new Error(
-          `Total route value ${totalValue} is below minimum amount ${minimumAmount} for destination chain ${intent.destination}`,
+          `Total route value ${totalValueFormatted} is below minimum amount ${minimumFormatted} for destination chain ${intent.destination}`,
         );
       }
 

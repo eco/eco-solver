@@ -7,6 +7,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { sum } from '@/common/utils/math';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
@@ -19,6 +20,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
   constructor(
     private blockchainConfigService: BlockchainConfigService,
     private fulfillmentConfigService: FulfillmentConfigService,
+    private readonly tokenConfigService: TokenConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
@@ -100,14 +102,14 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
     // Calculate reward values
     const rewardTokens = sum(
-      this.fulfillmentConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
+      this.tokenConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
       'amount',
     );
     const rewardNative = intent.reward.nativeAmount;
 
     // Calculate route values
     const routeTokens = sum(
-      this.fulfillmentConfigService.normalize(intent.destination, intent.route.tokens),
+      this.tokenConfigService.normalize(intent.destination, intent.route.tokens),
       'amount',
     );
     const routeNative = intent.route.nativeAmount;

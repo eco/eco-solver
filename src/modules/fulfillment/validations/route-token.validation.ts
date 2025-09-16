@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -78,8 +80,10 @@ export class RouteTokenValidation implements Validation {
 
         // Check if token is supported when there are restrictions
         if (!isSupported) {
+          const chainType = ChainTypeDetector.detect(destinationChainId);
+          const tokenAddress = AddressNormalizer.denormalize(routeToken.token, chainType);
           throw new ValidationError(
-            `Token ${routeToken.token} is not supported on chain ${destinationChainId}`,
+            `Token ${tokenAddress} is not supported on chain ${destinationChainId}`,
             undefined,
             'RouteTokenValidation',
           );
@@ -100,8 +104,10 @@ export class RouteTokenValidation implements Validation {
 
         // Check if reward token is supported when there are restrictions
         if (!isSupported) {
+          const chainType = ChainTypeDetector.detect(sourceChainId);
+          const tokenAddress = AddressNormalizer.denormalize(token.token, chainType);
           throw new ValidationError(
-            `Reward token ${token.token} is not supported on chain ${sourceChainId}`,
+            `Reward token ${tokenAddress} is not supported on chain ${sourceChainId}`,
             ValidationErrorType.PERMANENT,
             'RouteTokenValidation',
           );
