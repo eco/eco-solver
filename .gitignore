@@ -76,6 +76,10 @@ config/*
 !config/production.ts
 !config/test.ts
 !config/blue.ts
+!config/green-production.ts
+!config/purple-production.ts
+!config/yellow-production.ts
+!config/magenta-production.ts
 
 #AI
 CLAUDE.md
