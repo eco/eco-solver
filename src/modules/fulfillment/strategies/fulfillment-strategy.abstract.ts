@@ -243,9 +243,13 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
                   );
                   if (feeResult) {
                     feeSpan.setAttributes({
-                      'fee.base': feeResult.baseFee.toString(),
-                      'fee.percentage': feeResult.percentageFee.toString(),
-                      'fee.total': feeResult.totalRequiredFee.toString(),
+                      'fee.base': feeResult.fee.base.toString(),
+                      'fee.percentage': feeResult.fee.percentage.toString(),
+                      'fee.total': feeResult.fee.total.toString(),
+                      'reward.native': feeResult.reward.native.toString(),
+                      'reward.tokens': feeResult.reward.tokens.toString(),
+                      'route.maximum.native': feeResult.route.maximum.native.toString(),
+                      'route.maximum.tokens': feeResult.route.maximum.tokens.toString(),
                     });
                   }
                   feeSpan.setStatus({ code: api.SpanStatusCode.OK });

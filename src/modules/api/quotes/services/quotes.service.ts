@@ -63,6 +63,10 @@ export class QuotesService {
       throw new BadRequestException(failedResponse);
     }
 
+    if (!quoteResult.fees) {
+      throw new BadRequestException();
+    }
+
     // Build a successful response - sourceChainId should be present after validation
     if (!intent.sourceChainId) {
       throw new BadRequestException('Intent sourceChainId is required');
@@ -99,16 +103,18 @@ export class QuotesService {
       destinationToken,
     );
 
-    const fee = denormalize(quoteResult.fees!.fee, routeTokenConfig.decimals);
-
-    // TODO: Get quote should return the destination amount from the source
-    const destinationAmount = sourceAmount - fee;
+    const totalFee = denormalize(quoteResult.fees.fee.total, routeTokenConfig.decimals);
+    const destinationAmount = denormalize(
+      quoteResult.fees.route.maximum.tokens,
+      routeTokenConfig.decimals,
+    );
 
     // Construct the token transfer call using buildTokenTransferCalldata
     const recipientAddress = AddressNormalizer.normalize(
       request.quoteRequest.recipient,
       destinationChainType,
     );
+
     const tokenTransferCall = this.blockchainReaderService.buildTokenTransferCalldata(
       destinationChainId,
       recipientAddress,
@@ -140,13 +146,13 @@ export class QuotesService {
           ? [
               {
                 name: 'Eco Protocol Fee' as const,
-                description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
+                description: `Protocol fee for fulfilling intent on chain ${destinationChainId} (Base: ${denormalize(quoteResult.fees.fee.base, rewardTokenConfig.decimals)}, Percentage: ${(quoteResult.fees.fee.bps / 100).toFixed(3)}%)`,
                 token: {
                   address: request.quoteRequest.sourceToken,
                   decimals: rewardTokenConfig.decimals,
                   symbol: rewardTokenConfig.symbol,
                 },
-                amount: fee.toString(),
+                amount: totalFee.toString(),
               },
             ]
           : [],

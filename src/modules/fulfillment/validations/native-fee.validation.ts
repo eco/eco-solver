@@ -48,16 +48,18 @@ export class NativeFeeValidation implements FeeCalculationValidation {
       const feeDetails = await this.calculateFee(intent, context);
 
       span.setAttributes({
-        'fee.base': feeDetails.baseFee.toString(),
-        'fee.percentage': feeDetails.percentageFee.toString(),
-        'fee.total_required': feeDetails.totalRequiredFee.toString(),
-        'fee.current_reward': feeDetails.currentReward.toString(),
-        'fee.sufficient': feeDetails.currentReward >= feeDetails.totalRequiredFee,
+        'fee.base': feeDetails.fee.base.toString(),
+        'fee.percentage': feeDetails.fee.percentage.toString(),
+        'fee.total': feeDetails.fee.total.toString(),
+        'reward.native': feeDetails.reward.native.toString(),
+        'route.native': feeDetails.route.native.toString(),
+        'route.maximum.native': feeDetails.route.maximum.native.toString(),
       });
 
-      if (feeDetails.currentReward < feeDetails.totalRequiredFee) {
+      // For native transfers, check if reward native covers route native
+      if (feeDetails.route.native > feeDetails.route.maximum.native) {
         throw new ValidationError(
-          `Reward ${feeDetails.currentReward} is less than required native fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, percentage: ${feeDetails.percentageFee})`,
+          `Native route ${feeDetails.route.native} exceeds the maximum amount ${feeDetails.route.maximum.native}`,
           ValidationErrorType.PERMANENT,
           'NativeFeeValidation',
         );
@@ -82,10 +84,11 @@ export class NativeFeeValidation implements FeeCalculationValidation {
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     // Calculate total value from native values in calls
-    const nativeAmount = intent.route.calls.reduce((sum, call) => sum + call.value, 0n);
+    const routeNativeAmount = intent.route.calls.reduce((sum, call) => sum + call.value, 0n);
 
-    // Get reward from the new structure
-    const reward = intent.reward.nativeAmount;
+    // Get reward values
+    const rewardNative = intent.reward.nativeAmount;
+    const rewardTokens = 0n; // Native fee validation is for pure native transfers
 
     // Native intents have different fee requirements
     const nativeFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.destination);
@@ -95,20 +98,35 @@ export class NativeFeeValidation implements FeeCalculationValidation {
 
     const baseFee = BigInt(nativeFeeConfig.native.flatFee);
 
+    // Calculate percentage fee from native reward amount
     const base = 1_000;
     const nativePercentageFeeScalar = BigInt(Math.floor(nativeFeeConfig.native.scalarBps * base));
+    const percentageFee = (rewardNative * nativePercentageFeeScalar) / BigInt(base * 10000);
+    const totalFee = baseFee + percentageFee;
 
-    const percentageFee = (nativeAmount * nativePercentageFeeScalar) / BigInt(base * 10000);
-    const fee = baseFee + percentageFee;
-    const totalRequiredFee = nativeAmount + fee;
+    // Calculate route maximum (reward.native - total fee for native, 0 for tokens in native fee)
+    const routeMaximumNative = rewardNative > totalFee ? rewardNative - totalFee : 0n;
+    const routeMaximumTokens = 0n; // Native fee validation is for native transfers
 
     return {
-      fee,
-      baseFee,
-      percentageFee,
-      totalRequiredFee,
-      currentReward: reward,
-      minimumRequiredReward: totalRequiredFee,
+      reward: {
+        native: rewardNative,
+        tokens: rewardTokens,
+      },
+      route: {
+        native: routeNativeAmount,
+        tokens: 0n, // Native fee validation is for native transfers
+        maximum: {
+          native: routeMaximumNative,
+          tokens: routeMaximumTokens,
+        },
+      },
+      fee: {
+        base: baseFee,
+        percentage: percentageFee,
+        total: totalFee,
+        bps: nativeFeeConfig.native.scalarBps,
+      },
     };
   }
 }

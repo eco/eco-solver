@@ -4,12 +4,29 @@ import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-c
 import { Validation } from './validation.interface';
 
 export interface FeeDetails {
-  baseFee: bigint;
-  fee: bigint;
-  percentageFee: bigint;
-  totalRequiredFee: bigint;
-  currentReward: bigint;
-  minimumRequiredReward: bigint;
+  // Reward information (what the user provides)
+  reward: {
+    native: bigint; // Native reward amount
+    tokens: bigint; // Token reward amount
+  };
+
+  // Route information (what gets transferred)
+  route: {
+    native: bigint; // Native amount in the route
+    tokens: bigint; // Token amount in the route
+    maximum: {
+      native: bigint; // Maximum native that can be transferred (reward.native - fee.total for native routes)
+      tokens: bigint; // Maximum tokens that can be transferred (reward.tokens - fee.total for token routes)
+    };
+  };
+
+  // Fee breakdown
+  fee: {
+    base: bigint; // Fixed base fee
+    percentage: bigint; // Percentage fee (calculated from reward.tokens for token transfers or reward.native for native)
+    total: bigint; // Total fee (base + percentage)
+    bps: number; // Basis points used for percentage calculation
+  };
 }
 
 export interface FeeCalculationValidation extends Validation {

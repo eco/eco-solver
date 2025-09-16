@@ -245,24 +245,27 @@ describe('StandardFeeValidation', () => {
         });
 
         // Route tokens value: 1 USDC (normalized: 1000000000000000000)
+        // Reward tokens: 0.005 USDC (normalized: 5000000000000000)
         // Base fee: 0.01 USDC (parseUnits('0.01', 18) = 10000000000000000)
-        // Percentage fee: scalarBps=1 means 0.01% of 1 USDC = 0.0001 USDC (100000000000000)
-        // Total required: route value + base + percentage = 1000000000000000000 + 10000000000000000 + 100000000000000 = 1010100000000000000
-        // Reward tokens: 0.005 USDC (normalized: 5000000000000000) < Total required
+        // Percentage fee: scalarBps=1 means 0.01% of reward (0.005 USDC) = 500000000000
+        // Total fee: 10000000000000000 + 500000000000 = 10000500000000000
+        // Maximum tokens: 5000000000000000 - 10000500000000000 = 0 (negative becomes 0)
+        // Route tokens > maximum tokens, so it should throw
 
         await expect(validation.validate(lowRewardIntent, mockContext)).rejects.toThrow(
-          'Reward amount 5000000000000000 is less than required fee 1010100000000000000',
+          'Route amount 1000000000000000000 exceeds maximum 0',
         );
       });
 
       it('should throw error when reward exactly equals total fee minus 1 wei', async () => {
-        // Fee calculation:
-        // Base fee: parseUnits('0.01', 18) = 10000000000000000
+        // Fee calculation with new logic:
         // Route value: 1000000 * 10^12 = 1000000000000000000 (1 USDC normalized)
-        // scalarBps = 1, base = 10000
-        // scalarBpsInt = 1 * 10000 = 10000
-        // percentageFee = (1000000000000000000 * 10000) / (10000 * 10000) = 100000000000000
-        // Total required = route value + base fee + percentage = 1000000000000000000 + 10000000000000000 + 100000000000000 = 1010100000000000000
+        // Reward: 1010099 * 10^12 = 1010099000000000000
+        // Base fee: parseUnits('0.01', 18) = 10000000000000000
+        // Percentage fee from reward: (1010099000000000000 * 10000) / 100000000 = 101009900000000
+        // Total fee: 10000000000000000 + 101009900000000 = 10101009900000000
+        // Maximum: 1010099000000000000 - 10101009900000000 = 999997990100000000
+        // Route (1000000000000000000) > Maximum (999997990100000000), so should throw
 
         const almostEnoughIntent = createMockIntent({
           reward: {
@@ -272,7 +275,7 @@ describe('StandardFeeValidation', () => {
                 token: toUniversalAddress(
                   '0x0000000000000000000000000000000000000000000000000000000000000001',
                 ),
-                amount: BigInt('1010099'), // Slightly less than required (1010100 - 1)
+                amount: BigInt('1010099'), // Slightly less than required
               },
             ],
           },
@@ -290,12 +293,16 @@ describe('StandardFeeValidation', () => {
         });
 
         await expect(validation.validate(almostEnoughIntent, mockContext)).rejects.toThrow(
-          'Reward amount 1010099000000000000 is less than required fee 1010100000000000000 (base: 10000000000000000, scalar: 100000000000000)',
+          'Route amount 1000000000000000000 exceeds maximum 999997990100000000',
         );
       });
 
-      it('should pass when reward exactly equals total fee', async () => {
-        const exactFeeIntent = createMockIntent({
+      it('should pass when reward covers route plus fees', async () => {
+        // With new calculation: we need reward to be high enough that (reward - fees) >= route
+        // Route: 1 USDC = 1000000000000000000
+        // We need a reward such that when fees are subtracted, we still have >= route amount
+        // Let's use 1.02 USDC reward (more than route + fees)
+        const sufficientIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
             tokens: [
@@ -303,7 +310,7 @@ describe('StandardFeeValidation', () => {
                 token: toUniversalAddress(
                   '0x0000000000000000000000000000000000000000000000000000000000000001',
                 ),
-                amount: BigInt(1010100), // Exactly required (route value + fees)
+                amount: BigInt(1020000), // 1.02 USDC - enough to cover route + fees
               },
             ],
           },
@@ -320,7 +327,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        const result = await validation.validate(exactFeeIntent, mockContext);
+        const result = await validation.validate(sufficientIntent, mockContext);
 
         expect(result).toBe(true);
       });
@@ -693,12 +700,26 @@ describe('StandardFeeValidation', () => {
 
       // With flatFee: 0.001, parseUnits('0.001', 18) = 1000000000000000
       // scalarBps: 0.01 means 0.01 * 10000 = 100, percentageFee = (1000000000000000000 * 100) / 100000000 = 1000000000000
+      // percentageFee = (5000000000000000000 * 100) / 1000000 = 5000000000000
       expect(feeDetails).toEqual({
-        baseFee: BigInt('1000000000000000'),
-        percentageFee: BigInt('1000000000000'), // 0.001% of 1 USDC
-        totalRequiredFee: BigInt('1001001000000000000'), // route value + base + percentage
-        currentReward: BigInt('5000000000000000000'), // 5 USDC normalized
-        minimumRequiredReward: BigInt('1001001000000000000'),
+        reward: {
+          native: 0n,
+          tokens: BigInt('5000000000000000000'), // 5 USDC normalized
+        },
+        route: {
+          native: 0n,
+          tokens: BigInt('1000000000000000000'), // 1 USDC normalized
+          maximum: {
+            native: 0n,
+            tokens: BigInt('4998995000000000000'), // reward.tokens - total fee
+          },
+        },
+        fee: {
+          base: BigInt('1000000000000000'),
+          percentage: BigInt('5000000000000'), // 0.01% of 5 USDC
+          total: BigInt('1005000000000000'), // base + percentage
+          bps: 0.01,
+        },
       });
     });
 
@@ -737,12 +758,28 @@ describe('StandardFeeValidation', () => {
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
+      // Actually with the base = 10_000 multiplier:
+      // scalarBpsInt = 0.0005 * 10000 = 5
+      // percentageFee = (5000000000000000000 * 5) / (10000 * 10000) = 250000000000
       expect(feeDetails).toEqual({
-        baseFee: BigInt('0'),
-        percentageFee: BigInt('50000000000'), // 0.00005% of 1 token (0.005 bps)
-        totalRequiredFee: BigInt('1000000050000000000'), // route value + percentage
-        currentReward: BigInt('5000000000000000000'), // 5 USDC normalized
-        minimumRequiredReward: BigInt('1000000050000000000'),
+        reward: {
+          native: 0n,
+          tokens: BigInt('5000000000000000000'), // 5 USDC normalized
+        },
+        route: {
+          native: 0n,
+          tokens: BigInt('1000000000000000000'), // 1 USDC normalized
+          maximum: {
+            native: 0n,
+            tokens: BigInt('4999999750000000000'), // reward.tokens - total fee
+          },
+        },
+        fee: {
+          base: BigInt('0'),
+          percentage: BigInt('250000000000'), // 0.0005% of 5 USDC
+          total: BigInt('250000000000'), // base + percentage
+          bps: 0.0005,
+        },
       });
     });
 
@@ -782,11 +819,24 @@ describe('StandardFeeValidation', () => {
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       expect(feeDetails).toEqual({
-        baseFee: BigInt('2000000000000000'),
-        percentageFee: BigInt('0'),
-        totalRequiredFee: BigInt('1002000000000000000'), // route value + base fee
-        currentReward: BigInt('5000000000000000000'), // 5 USDC normalized
-        minimumRequiredReward: BigInt('1002000000000000000'),
+        reward: {
+          native: 0n,
+          tokens: BigInt('5000000000000000000'), // 5 USDC normalized
+        },
+        route: {
+          native: 0n,
+          tokens: BigInt('1000000000000000000'), // 1 USDC normalized
+          maximum: {
+            native: 0n,
+            tokens: BigInt('4998000000000000000'), // reward.tokens - total fee
+          },
+        },
+        fee: {
+          base: BigInt('2000000000000000'),
+          percentage: BigInt('0'),
+          total: BigInt('2000000000000000'), // base + percentage
+          bps: 0,
+        },
       });
     });
   });
@@ -844,8 +894,15 @@ describe('StandardFeeValidation', () => {
       const isValid = await validation.validate(intent, mockContext);
 
       expect(isValid).toBe(true);
-      expect(feeDetails.currentReward).toBe(BigInt('2000000000000000000'));
-      expect(feeDetails.totalRequiredFee).toBe(BigInt('1001500050000000000')); // route value + fees
+      expect(feeDetails.reward.tokens).toBe(BigInt('2000000000000000000'));
+      // Base fee: 1500000000000000, Percentage fee: (2000000000000000000 * 5) / 100000 = 100000000000000
+      // Total fee: 1600000000000000
+      // Maximum: 2000000000000000000 - 1600000000000000 = 1998400000000000000
+      // Actually: scalarBps: 0.0005 * 10000 = 5
+      // Percentage fee: (2000000000000000000 * 5) / 100000000 = 100000000000
+      // Total fee: 1500000000000000 + 100000000000 = 1500100000000000
+      // Maximum: 2000000000000000000 - 1500100000000000 = 1998499900000000000
+      expect(feeDetails.route.maximum.tokens).toBe(BigInt('1998499900000000000')); // reward - fees
     });
 
     it('should pass validation when reward covers the fee using calculateFee', async () => {
@@ -920,8 +977,15 @@ describe('StandardFeeValidation', () => {
         },
       });
 
+      // Reward: 500 * 10^12 = 500000000000000
+      // Route: 1000000 * 10^12 = 1000000000000000000
+      // Base fee: 0.001 * 10^18 = 1000000000000000
+      // Percentage fee: (500000000000000 * 10000) / 100000000 = 50000000000
+      // Total fee: 1000000000000000 + 50000000000 = 1000050000000000
+      // Maximum: 500000000000000 - 1000050000000000 = 0 (negative becomes 0)
+      // Route > Maximum, should throw
       await expect(validation.validate(intent, mockContext)).rejects.toThrow(
-        'Reward amount 500000000000000 is less than required fee 1001100000000000000 (base: 1000000000000000, scalar: 100000000000000)',
+        'Route amount 1000000000000000000 exceeds maximum 0',
       );
     });
   });

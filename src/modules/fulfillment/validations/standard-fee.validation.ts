@@ -7,6 +7,8 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { sum } from '@/common/utils/math';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -57,17 +59,20 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       const feeDetails = await this.calculateFee(intent, context);
 
       span.setAttributes({
-        'fee.base': feeDetails.baseFee.toString(),
-        'fee.percentage': feeDetails.percentageFee.toString(),
-        'fee.total_required': feeDetails.totalRequiredFee.toString(),
-        'fee.current_reward': feeDetails.currentReward.toString(),
-        'fee.sufficient': feeDetails.currentReward >= feeDetails.totalRequiredFee,
+        'fee.base': feeDetails.fee.base.toString(),
+        'fee.percentage': feeDetails.fee.percentage.toString(),
+        'fee.total': feeDetails.fee.total.toString(),
+        'reward.tokens': feeDetails.reward.tokens.toString(),
+        'route.tokens': feeDetails.route.tokens.toString(),
+        'route.maximum.tokens': feeDetails.route.maximum.tokens.toString(),
       });
 
-      // Check if the reward covers the fee
-      if (feeDetails.currentReward < feeDetails.totalRequiredFee) {
-        throw new Error(
-          `Reward amount ${feeDetails.currentReward} is less than required fee ${feeDetails.totalRequiredFee} (base: ${feeDetails.baseFee}, scalar: ${feeDetails.percentageFee})`,
+      // Check if the reward tokens cover the route tokens and fees
+      if (feeDetails.route.tokens > feeDetails.route.maximum.tokens) {
+        throw new ValidationError(
+          `Route amount ${feeDetails.route.tokens} exceeds maximum ${feeDetails.route.maximum.tokens}`,
+          ValidationErrorType.PERMANENT,
+          StandardFeeValidation.name,
         );
       }
 
@@ -93,31 +98,49 @@ export class StandardFeeValidation implements FeeCalculationValidation {
     const feeConfig = this.blockchainConfigService.getFeeLogic(intent.destination);
     const baseFee = normalize(parseUnits(feeConfig.tokens.flatFee.toString(), 18), 18);
 
-    // Calculate total value being transferred
-    const totalReward = sum(
+    // Calculate reward values
+    const rewardTokens = sum(
       this.fulfillmentConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
       'amount',
     );
-    const totalValue = sum(
+    const rewardNative = intent.reward.nativeAmount;
+
+    // Calculate route values
+    const routeTokens = sum(
       this.fulfillmentConfigService.normalize(intent.destination, intent.route.tokens),
       'amount',
     );
+    const routeNative = intent.route.nativeAmount;
 
-    // Calculate the required fee: baseFee + (totalValue * scalarBps / 10000)
-    // Note: totalValue should NOT be added to the fee - it's the transfer amount, not a fee
+    // Calculate percentage fee from reward tokens (for token transfers)
     const base = 10_000;
     const scalarBpsInt = BigInt(Math.floor(feeConfig.tokens.scalarBps * base));
-    const percentageFee = (totalValue * scalarBpsInt) / BigInt(base * 10000);
-    const fee = baseFee + percentageFee;
-    const totalRequiredFee = totalValue + fee;
+    const percentageFee = (rewardTokens * scalarBpsInt) / BigInt(base * 10000);
+    const totalFee = baseFee + percentageFee;
+
+    // Calculate route maximum (reward.tokens - total fee for tokens, 0 for native in standard fee)
+    const routeMaximumTokens = rewardTokens > totalFee ? rewardTokens - totalFee : 0n;
+    const routeMaximumNative = 0n; // Standard fee validation is for token transfers
 
     return {
-      baseFee,
-      fee,
-      percentageFee,
-      totalRequiredFee,
-      currentReward: totalReward,
-      minimumRequiredReward: totalRequiredFee,
+      reward: {
+        native: rewardNative,
+        tokens: rewardTokens,
+      },
+      route: {
+        native: routeNative,
+        tokens: routeTokens,
+        maximum: {
+          native: routeMaximumNative,
+          tokens: routeMaximumTokens,
+        },
+      },
+      fee: {
+        base: baseFee,
+        percentage: percentageFee,
+        total: totalFee,
+        bps: feeConfig.tokens.scalarBps,
+      },
     };
   }
 }

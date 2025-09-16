@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
@@ -31,6 +32,24 @@ describe('QuotesService', () => {
     getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
     getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
     getDefaultProver: jest.fn().mockReturnValue('hyper'),
+    getTokenConfig: jest.fn().mockReturnValue({
+      symbol: 'TEST',
+      decimals: 18,
+    }),
+    getFeeLogic: jest.fn().mockReturnValue({
+      tokens: {
+        flatFee: 0.001,
+        scalarBps: 0.1,
+      },
+    }),
+  };
+
+  const mockBlockchainReaderService = {
+    buildTokenTransferCalldata: jest.fn().mockReturnValue({
+      target: '0x1234567890123456789012345678901234567890',
+      data: '0x',
+      value: 0n,
+    }),
   };
 
   beforeEach(async () => {
@@ -48,6 +67,10 @@ describe('QuotesService', () => {
         {
           provide: BlockchainConfigService,
           useValue: mockBlockchainConfigService,
+        },
+        {
+          provide: BlockchainReaderService,
+          useValue: mockBlockchainReaderService,
         },
       ],
     }).compile();
@@ -87,11 +110,24 @@ describe('QuotesService', () => {
         valid: true,
         strategy: 'standard',
         fees: {
-          baseFee: BigInt('1000000000000000'),
-          percentageFee: BigInt('50000000000000'),
-          totalRequiredFee: BigInt('1050000000000000'),
-          currentReward: BigInt('5000000000000000000'),
-          minimumRequiredReward: BigInt('1050000000000000'),
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
         },
         validationResults: [
           { validation: 'IntentFundedValidation', passed: true },
@@ -114,24 +150,26 @@ describe('QuotesService', () => {
           sourceToken: '0x1234567890123456789012345678901234567890',
           destinationToken: '0x1234567890123456789012345678901234567890',
           sourceAmount: '5000000000000000000',
-          destinationAmount: '9999999999999998950',
+          destinationAmount: '4998995000000000000',
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
           fees: [
             {
               name: 'Eco Protocol Fee',
-              description: 'Protocol fee for fulfilling intent on chain 10',
+              description:
+                'Protocol fee for fulfilling intent on chain 10 (Base: 1000000000000000, Percentage: 0.001%)',
               token: {
                 address: '0x1234567890123456789012345678901234567890',
                 decimals: 18,
-                symbol: 'TOKEN',
+                symbol: 'TEST',
               },
-              amount: '1050000000000000',
+              amount: '1005000000000000',
             },
           ],
           deadline: expect.any(Number),
           estimatedFulfillTimeSec: 30,
+          encodedRoute: expect.any(String),
         },
         contracts: {
           sourcePortal: '0x1234567890123456789012345678901234567890',
@@ -207,11 +245,24 @@ describe('QuotesService', () => {
         valid: false,
         strategy: 'standard',
         fees: {
-          baseFee: BigInt('1000000000000000'),
-          percentageFee: BigInt('50000000000000'),
-          totalRequiredFee: BigInt('1050000000000000'),
-          currentReward: BigInt('500000000000000'),
-          minimumRequiredReward: BigInt('1050000000000000'),
+          reward: {
+            native: 0n,
+            tokens: BigInt('500000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('499949950000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('50000000000'),
+            total: BigInt('1000050000000'),
+            bps: 0.1,
+          },
         },
         validationResults: [
           { validation: 'IntentFundedValidation', passed: true },
@@ -267,13 +318,14 @@ describe('QuotesService', () => {
           sourceToken: '0x1234567890123456789012345678901234567890',
           destinationToken: '0x1234567890123456789012345678901234567890',
           sourceAmount: '5000000000000000000',
-          destinationAmount: '10000000000000000000',
+          destinationAmount: '5000000000000000000',
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
           fees: [],
           deadline: expect.any(Number),
           estimatedFulfillTimeSec: 30,
+          encodedRoute: expect.any(String),
         },
         contracts: {
           sourcePortal: '0x1234567890123456789012345678901234567890',
