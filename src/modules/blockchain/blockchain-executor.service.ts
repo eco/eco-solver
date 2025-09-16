@@ -115,6 +115,8 @@ export class BlockchainExecutorService {
           error: result.error,
         });
         span.setStatus({ code: 2, message: result.error });
+        span.end();
+        throw new Error(result.error);
       }
 
       span.end();
