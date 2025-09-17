@@ -2,15 +2,15 @@ import { Injectable } from '@nestjs/common';
 
 import { AnchorProvider, BN, Program, setProvider } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
-import { 
-  ComputeBudgetProgram, 
-  Connection, 
-  Keypair, 
-  PublicKey, 
-  SystemProgram, 
+import {
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
   Transaction,
   TransactionMessage,
-  VersionedTransaction
+  VersionedTransaction,
 } from '@solana/web3.js';
 
 import {
@@ -19,7 +19,6 @@ import {
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { TProverType } from '@/common/interfaces/prover.interface';
-import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -33,6 +32,7 @@ import {
   decodeRouteCalls,
   getTokenAccounts,
 } from '@/modules/blockchain/svm/utils/call-data';
+import { quoteAndCreatePayForGasInstruction } from '@/modules/blockchain/svm/utils/igp';
 import { toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
 import { getTransferDestination } from '@/modules/blockchain/svm/utils/tokens';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
@@ -104,19 +104,22 @@ export class SvmExecutorService extends BaseChainExecutor {
     try {
       // Step 1: Execute the fulfill transaction
       const fulfillResult = await this.executeFulfillTransaction(intent, span);
-      
+
       if (!fulfillResult.success) {
         return fulfillResult;
       }
 
-      this.logger.log(`Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`);
-      
-      // Step 2: Execute the prove transaction (if prover is available)
+      this.logger.log(
+        `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
+      );
+
+      // Step 2: Execute the prove transaction
       const proveResult = await this.executeProveTransaction(intent, span);
-      
+
       if (proveResult && !proveResult.success) {
-        this.logger.warn(`Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`);
-        // Continue anyway - fulfill succeeded, prove is optional
+        this.logger.error(
+          `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
+        );
       } else if (proveResult && proveResult.success) {
         this.logger.log(`Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`);
       }
@@ -285,7 +288,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       .instruction();
 
     return { fulfillmentIx, transferInstructions };
-    }
+  }
 
   private async executeFulfillTransaction(intent: Intent, span: any): Promise<ExecutionResult> {
     try {
@@ -324,7 +327,10 @@ export class SvmExecutorService extends BaseChainExecutor {
         txHash: signature,
       };
     } catch (error) {
-      this.logger.error(`Failed to execute fulfill transaction for intent ${intent.intentHash}:`, toError(error));
+      this.logger.error(
+        `Failed to execute fulfill transaction for intent ${intent.intentHash}:`,
+        toError(error),
+      );
       return {
         success: false,
         error: getErrorMessage(error),
@@ -332,64 +338,70 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  private async executeProveTransaction(intent: Intent, span: any): Promise<ExecutionResult | null> {
+  private async executeProveTransaction(
+    intent: Intent,
+    span: any,
+  ): Promise<ExecutionResult | null> {
     try {
-      // Generate the prove instruction
       const proveResult = await this.generateProveIx(intent);
-      
+
       if (!proveResult) {
-        this.logger.debug(`No prove instruction generated for intent ${intent.intentHash}, skipping prove transaction`);
+        this.logger.debug(
+          `No prove instruction generated for intent ${intent.intentHash}, skipping prove transaction`,
+        );
         return null;
       }
 
-      // Add compute budget instruction for prove transaction
       const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 400_000, // Prove transaction typically needs less CUs
+        units: 400_000,
       });
 
-      // Get the latest blockhash
       const { blockhash } = await this.connection.getLatestBlockhash();
-      
-      // Create versioned transaction with just the prove instruction (no memo needed)
+
       const messageV0 = new TransactionMessage({
         payerKey: this.walletManager.getWallet().getKeypair().publicKey,
         recentBlockhash: blockhash,
         instructions: [computeBudgetIx, proveResult.instruction],
       }).compileToV0Message();
-      
       const versionedTx = new VersionedTransaction(messageV0);
-      
-      // Sign with wallet keypair first
+
+      // sign with wallet keypair first
       const wallet = this.walletManager.getWallet();
       versionedTx.sign([wallet.getKeypair()]);
-      
-      // Sign with additional signers (unique message keypair)
+
+      // sign with additional signers (unique message keypair)
       versionedTx.sign(proveResult.signers);
-      
+
       span.addEvent('svm.prove_transaction.submitting', {
         instruction_count: 2, // compute budget + prove
         compute_unit_limit: 400_000,
         additional_signers: proveResult.signers.length,
       });
 
-      // Send the versioned transaction
       const signature = await this.connection.sendTransaction(versionedTx, {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
       });
-      
-      // Wait for confirmation
+
       await this.connection.confirmTransaction(signature, 'confirmed');
 
       span.setAttribute('svm.prove_transaction_signature', signature);
       span.addEvent('svm.prove_transaction.submitted');
+
+      const gasPaymentResult = await this.payForGasForProve(intent, span);
+      this.logger.log(
+        `Gas payment result for intent ${intent.intentHash} with message id: ${gasPaymentResult}`,
+      );
 
       return {
         success: true,
         txHash: signature,
       };
     } catch (error) {
-      this.logger.error(`Failed to execute prove transaction for intent ${intent.intentHash}:`, toError(error));
+      this.logger.error(
+        `Failed to execute prove transaction for intent ${intent.intentHash}:`,
+        toError(error),
+      );
       return {
         success: false,
         error: getErrorMessage(error),
@@ -397,81 +409,80 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  private async generateProveIx(intent: Intent): Promise<{ instruction: any; signers: Keypair[] } | null> {
+  private async generateProveIx(
+    intent: Intent,
+  ): Promise<{ instruction: any; signers: Keypair[] } | null> {
     try {
       // Get the prover for this intent
       const sourceChainId = Number(intent.sourceChainId);
       const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
-      
+
       if (!this.portalProgram) {
         throw new Error('Portal program not initialized');
       }
       const portalProgram = this.portalProgram;
 
       if (!prover) {
-        this.logger.warn(`No prover found for intent ${intent.intentHash}, skipping prove instruction`);
+        this.logger.warn(
+          `No prover found for intent ${intent.intentHash}, skipping prove instruction`,
+        );
         return null;
       }
 
-      // Get prover address on destination chain (Solana)
       const destinationChainId = Number(intent.destination);
       const proverAddress = this.blockchainConfigService.getProverAddress(
-        destinationChainId, 
-        prover.type as TProverType
+        destinationChainId,
+        prover.type as TProverType,
       );
-      
+
       if (!proverAddress) {
-        this.logger.warn(`No prover address configured for ${prover.type} on chain ${destinationChainId}, skipping prove instruction`);
+        this.logger.warn(
+          `No prover address configured for ${prover.type} on chain ${destinationChainId}, skipping prove instruction`,
+        );
         return null;
       }
-      console.log('proverAddress', proverAddress);
 
       // For Hyper prover, the data should be the source prover address as 32 bytes
       // Get the source prover address (the prover address on the source chain)
       const sourceProverAddress = intent.reward.prover;
-      console.log('sourceProverAddress', sourceProverAddress);
-      
+
       // Convert to 32 bytes - pad or truncate as needed
       const sourceProverBytes = Buffer.alloc(32);
-      const sourceProverBuffer = Buffer.from(AddressNormalizer.denormalizeToEvm(sourceProverAddress).slice(2), 'hex');
+      const sourceProverBuffer = Buffer.from(
+        AddressNormalizer.denormalizeToEvm(sourceProverAddress).slice(2),
+        'hex',
+      );
       sourceProverBuffer.copy(sourceProverBytes, 32 - sourceProverBuffer.length); // Right-align (pad left with zeros)
-      
-      console.log('sourceProverBytes', sourceProverBytes.toString('hex'));
-      
+
       // Calculate intent hash
       const { intentHash } = PortalHashUtils.getIntentHash(intent);
       const intentHashBuffer = toBuffer(intentHash);
 
-      // Get fulfill marker PDA for this intent
       const [fulfillMarkerPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('fulfill_marker'), intentHashBuffer],
         portalProgram.programId,
       );
-
-      // Get dispatcher PDA
       const [dispatcherPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('dispatcher')],
         portalProgram.programId,
       );
 
-      // Prepare prove arguments
       const proveArgs: Parameters<typeof portalProgram.methods.prove>[0] = {
         prover: new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
         sourceChainDomainId: new BN(sourceChainId),
-        intentHashes: [{ 0: Array.from(intentHashBuffer) }], // Array of Bytes32
-        data: sourceProverBytes, // 32-byte source prover address
+        intentHashes: [{ 0: Array.from(intentHashBuffer) }],
+        data: sourceProverBytes,
       };
 
-      // Build remaining accounts for Hyper prover
-      // Based on the integration test, we need Hyperlane-specific accounts
       const proverDispatcherPDA = this.getProverDispatcherPDA(proverAddress);
       const outboxPDA = this.getHyperlaneOutboxPDA();
       const uniqueMessageKeypair = Keypair.generate(); // Generate a unique keypair for the message
-      const dispatchedMessagePDA = this.getHyperlaneDispatchedMessagePDA(uniqueMessageKeypair.publicKey);
+      const dispatchedMessagePDA = this.getHyperlaneDispatchedMessagePDA(
+        uniqueMessageKeypair.publicKey,
+      );
       const mailboxProgram = this.getHyperlaneMailboxProgram();
 
       const remainingAccounts = [
-        // Fulfill marker account (must be first, corresponding to intent_hashes order)
         {
           pubkey: fulfillMarkerPDA,
           isSigner: false,
@@ -484,12 +495,16 @@ export class SvmExecutorService extends BaseChainExecutor {
         { pubkey: this.getNoopProgram(), isSigner: false, isWritable: false },
         { pubkey: uniqueMessageKeypair.publicKey, isSigner: true, isWritable: false },
         { pubkey: dispatchedMessagePDA, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(SystemProgram.programId.toString()), isSigner: false, isWritable: false }, // system program
+        {
+          pubkey: new PublicKey(SystemProgram.programId.toString()),
+          isSigner: false,
+          isWritable: false,
+        },
         { pubkey: mailboxProgram, isSigner: false, isWritable: false },
       ];
 
-      // Build the prove instruction
-      const proveIx = await portalProgram.methods.prove(proveArgs)
+      const proveIx = await portalProgram.methods
+        .prove(proveArgs)
         .accounts({
           prover: new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
           dispatcher: dispatcherPDA,
@@ -497,15 +512,19 @@ export class SvmExecutorService extends BaseChainExecutor {
         .remainingAccounts(remainingAccounts)
         .instruction();
 
-      this.logger.debug(`Generated prove instruction for intent ${intent.intentHash} with prover ${prover.type} and unique message signer`);
-      
+      this.logger.debug(
+        `Generated prove instruction for intent ${intent.intentHash} with prover ${prover.type} and unique message signer`,
+      );
+
       return {
         instruction: proveIx,
-        signers: [uniqueMessageKeypair] // Return the additional signer needed
+        signers: [uniqueMessageKeypair],
       };
-
     } catch (error) {
-      this.logger.error(`Failed to generate prove instruction for intent ${intent.intentHash}:`, toError(error));
+      this.logger.error(
+        `Failed to generate prove instruction for intent ${intent.intentHash}:`,
+        toError(error),
+      );
       // Return null to continue without prove instruction rather than failing the entire transaction
       return null;
     }
@@ -515,7 +534,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     // This matches hyper_prover::state::dispatcher_pda().0
     const [pda] = PublicKey.findProgramAddressSync(
       [Buffer.from('dispatcher')],
-      new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress))
+      new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
     );
     return pda;
   }
@@ -524,12 +543,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     // This matches hyperlane_context::outbox_pda()
     // Rust: Pubkey::find_program_address(&[b"hyperlane", b"-", b"outbox"], &MAILBOX_ID).0
     const [pda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from('hyperlane'),
-        Buffer.from('-'),
-        Buffer.from('outbox')
-      ],
-      this.getHyperlaneMailboxProgram()
+      [Buffer.from('hyperlane'), Buffer.from('-'), Buffer.from('outbox')],
+      this.getHyperlaneMailboxProgram(),
     );
     return pda;
   }
@@ -543,9 +558,9 @@ export class SvmExecutorService extends BaseChainExecutor {
         Buffer.from('-'),
         Buffer.from('dispatched_message'),
         Buffer.from('-'),
-        uniqueMessage.toBuffer()
+        uniqueMessage.toBuffer(),
       ],
-      this.getHyperlaneMailboxProgram()
+      this.getHyperlaneMailboxProgram(),
     );
     return pda;
   }
@@ -556,6 +571,124 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private getNoopProgram(): PublicKey {
     return new PublicKey('noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV');
+  }
+
+  private async payForGasForProve(intent: Intent, span: any): Promise<bigint> {
+    try {
+      // Get IGP configuration
+      const igpProgramId = new PublicKey('BhNcatUDC2D5JTyeaqrdSukiVFsEHK7e3hVmKMztwefv');
+      const igpAccount = new PublicKey('JAvHW21tYXE9dtdG83DReqU2b4LUexFuCbtJT5tF8X6M');
+      const overheadIgpAccount = new PublicKey('AkeHBbE5JkwVppujCQQ6WuxsVsJtruBAjUo6fDCFp6fF');
+
+      if (!igpProgramId || !igpAccount) {
+        this.logger.warn(
+          `IGP not configured for Solana, skipping gas payment for intent ${intent.intentHash}`,
+        );
+        return BigInt(0);
+      }
+
+      const destinationDomain = Number(intent.sourceChainId);
+      const gasAmount = BigInt(160000); // fixed gas amount for now
+
+      const messageId = new Uint8Array(32);
+      messageId.set(
+        Buffer.from(
+          '0x3a8fd28df622d2c6aa4df04fe883b3f0ed8cca649338d1bccb34e43b4ccbac5f'.slice(2),
+          'hex',
+        ),
+      ); // TODO: don't hardcode this
+
+      span.addEvent('svm.gas_payment.processing', {
+        destination_domain: destinationDomain,
+        gas_amount: gasAmount.toString(),
+        igp_program_id: igpProgramId.toString(),
+        igp_account: igpAccount.toString(),
+        overhead_igp_account: overheadIgpAccount.toString(),
+        message_id: Buffer.from(messageId).toString('hex'),
+      });
+
+      // Get wallet for payer and fee payer
+      const wallet = this.walletManager.getWallet();
+      const payer = wallet.getKeypair().publicKey;
+
+      const {
+        instruction: payForGasInstruction,
+        quotedAmount,
+        uniqueGasPaymentKeypair,
+        gasPaymentPDA,
+      } = await quoteAndCreatePayForGasInstruction(
+        this.connection,
+        igpProgramId,
+        payer,
+        igpAccount,
+        overheadIgpAccount,
+        messageId,
+        destinationDomain,
+        gasAmount,
+        payer,
+      );
+
+      span.setAttribute('svm.gas_payment.quoted_amount', quotedAmount.toString());
+      span.setAttribute('svm.gas_payment.pda', gasPaymentPDA.toString());
+      span.addEvent('svm.gas_payment.quoted');
+
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      const payForGasTransaction = new Transaction({
+        recentBlockhash: blockhash,
+        feePayer: payer,
+      });
+
+      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+        units: 300_000,
+      });
+
+      payForGasTransaction.add(computeBudgetIx);
+      payForGasTransaction.add(payForGasInstruction);
+
+      // Sign the transaction with both wallet keypair and unique gas payment keypair
+      payForGasTransaction.sign(wallet.getKeypair(), uniqueGasPaymentKeypair);
+
+      span.addEvent('svm.gas_payment.submitting', {
+        quoted_amount: quotedAmount.toString(),
+        instruction_count: 2, // compute budget + pay for gas
+        signatures_count: payForGasTransaction.signatures.length,
+        signers: [payer.toString(), uniqueGasPaymentKeypair.publicKey.toString()],
+      });
+
+      let signature: string;
+      try {
+        signature = await this.connection.sendRawTransaction(payForGasTransaction.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+        });
+      } catch (sendError) {
+        throw new Error(`Failed to send transaction: ${getErrorMessage(sendError)}`);
+      }
+
+      // Wait for confirmation
+      try {
+        await this.connection.confirmTransaction(signature, 'confirmed');
+      } catch (confirmError) {
+        this.logger.warn(`Gas payment transaction sent but confirmation failed: ${signature}`);
+      }
+
+      span.setAttribute('svm.gas_payment.transaction_signature', signature);
+      span.addEvent('svm.gas_payment.confirmed');
+
+      this.logger.log(
+        `Gas payment completed for intent ${intent.intentHash}: paid ${quotedAmount} lamports for ${gasAmount} gas to domain ${destinationDomain}. Tx: ${signature}`,
+      );
+
+      return quotedAmount;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to pay for gas for intent ${intent.intentHash}: ${getErrorMessage(error)}. Continuing without payment.`,
+      );
+      span.addEvent('svm.gas_payment.failed', {
+        error: getErrorMessage(error),
+      });
+      return BigInt(0);
+    }
   }
 
   private async initializeProgram() {
