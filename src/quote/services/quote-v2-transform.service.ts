@@ -1,4 +1,4 @@
-import { decodeFunctionData, erc20Abi, Hex, isAddressEqual } from 'viem'
+import { decodeFunctionData, encodeFunctionData, erc20Abi, Hex, isAddressEqual } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Inject, Injectable, Logger } from '@nestjs/common'
@@ -113,15 +113,23 @@ export class QuoteV2TransformService {
       deadline: BigInt(deadline), // Use the quote deadline
       portal: quoteIntent.route.inbox, // The inbox is the portal on destination chain
       nativeAmount: 0n, // Default to 0 for quotes
-      tokens: quoteIntent.route.tokens.map((t) => ({
-        token: t.token,
-        amount: BigInt(t.amount),
-      })),
-      calls: quoteIntent.route.calls.map((c) => ({
-        target: c.target,
-        data: c.data,
-        value: BigInt(c.value),
-      })),
+      tokens: [
+        {
+          token: quoteIntent.route.tokens[0].token,
+          amount: BigInt(destinationAmount),
+        },
+      ],
+      calls: [
+        {
+          target: quoteIntent.route.calls[0].target,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [recipient, BigInt(destinationAmount)],
+          }),
+          value: 0n,
+        },
+      ],
     }
 
     // Build and encode the route using PortalHashUtils
