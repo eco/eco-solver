@@ -74,7 +74,7 @@ export class ChainListener extends BaseChainListener {
             intent.publishTxHash = log.transactionHash;
 
             span.setAttributes({
-              'evm.intent_id': intent.intentHash,
+              'evm.intent_hash': intent.intentHash,
               'evm.source_chain': evmConfig.chainId.toString(),
               'evm.destination_chain': log.args.destination.toString(),
               'evm.creator': log.args.creator,

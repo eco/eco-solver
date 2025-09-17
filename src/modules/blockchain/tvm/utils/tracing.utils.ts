@@ -41,7 +41,7 @@ export class TvmTracingUtils {
       spanAttributes['tvm.address'] = attributes.address;
     }
     if (attributes.intentHash) {
-      spanAttributes['tvm.intent_id'] = attributes.intentHash;
+      spanAttributes['tvm.intent_hash'] = attributes.intentHash;
     }
     if (attributes.transactionHash) {
       spanAttributes['tvm.transaction_hash'] = attributes.transactionHash;

@@ -156,7 +156,7 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.isIntentFunded', {
       attributes: {
         'tvm.chain_id': chainId,
-        'tvm.intent_id': intent.intentHash,
+        'tvm.intent_hash': intent.intentHash,
         'tvm.operation': 'isIntentFunded',
         'tvm.source_chain': intent.sourceChainId?.toString(),
         'tvm.destination_chain': intent.destination.toString(),
@@ -242,7 +242,7 @@ export class TvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('tvm.reader.fetchProverFee', {
       attributes: {
         'tvm.chain_id': chainId.toString(),
-        'tvm.intent_id': intent.intentHash,
+        'tvm.intent_hash': intent.intentHash,
         'tvm.prover_address': intent.reward.prover,
         'tvm.operation': 'fetchProverFee',
         'tvm.claimant': claimant,

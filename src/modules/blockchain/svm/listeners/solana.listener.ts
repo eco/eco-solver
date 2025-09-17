@@ -100,7 +100,7 @@ export class SolanaListener extends BaseChainListener {
               );
 
               span.setAttributes({
-                'svm.intent_id': intent.intentHash,
+                'svm.intent_hash': intent.intentHash,
                 'svm.source_chain': intent.sourceChainId?.toString(),
                 'svm.destination_chain': intent.destination.toString(),
                 'svm.creator': intent.reward.creator,

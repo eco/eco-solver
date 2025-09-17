@@ -98,7 +98,7 @@ export class EvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('evm.reader.isIntentFunded', {
       attributes: {
         'evm.chain_id': chainId,
-        'evm.intent_id': intent.intentHash,
+        'evm.intent_hash': intent.intentHash,
         'evm.operation': 'isIntentFunded',
         'evm.source_chain': intent.sourceChainId?.toString(),
         'evm.destination_chain': intent.destination.toString(),
@@ -178,7 +178,7 @@ export class EvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('evm.reader.fetchProverFee', {
       attributes: {
         'evm.chain_id': chainId,
-        'evm.intent_id': intent.intentHash,
+        'evm.intent_hash': intent.intentHash,
         'evm.prover_address': intent.reward.prover,
         'evm.operation': 'fetchProverFee',
         'evm.has_claimant': !!claimant,

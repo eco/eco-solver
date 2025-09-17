@@ -165,7 +165,7 @@ export class SvmReaderService extends BaseChainReader {
       activeSpan ||
       this.otelService.startSpan('svm.reader.isIntentFunded', {
         attributes: {
-          'svm.intent_id': intent.intentHash,
+          'svm.intent_hash': intent.intentHash,
           'svm.chain_id': _chainId?.toString() || 'solana',
           'svm.operation': 'isIntentFunded',
           'svm.native_amount': intent.reward.nativeAmount.toString(),
@@ -346,7 +346,7 @@ export class SvmReaderService extends BaseChainReader {
     const span = this.otelService.startSpan('svm.reader.fetchProverFee', {
       attributes: {
         'svm.chain_id': chainId?.toString() || 'solana',
-        'svm.intent_id': intent.intentHash,
+        'svm.intent_hash': intent.intentHash,
         'svm.prover_address': prover,
         'svm.operation': 'fetchProverFee',
         'svm.has_claimant': !!claimant,

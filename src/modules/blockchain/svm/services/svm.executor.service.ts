@@ -56,7 +56,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       activeSpan ||
       this.otelService.startSpan('svm.executor.fulfill', {
         attributes: {
-          'svm.intent_id': intent.intentHash,
+          'svm.intent_hash': intent.intentHash,
           'svm.source_chain': intent.sourceChainId?.toString(),
           'svm.destination_chain': intent.destination.toString(),
           'svm.operation': 'fulfill',

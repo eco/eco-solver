@@ -826,7 +826,7 @@ export class TronListener extends BaseChainListener {
   private async processIntentEvent(intent: Intent): Promise<void> {
     const span = this.otelService.startSpan('tvm.listener.processIntentEvent', {
       attributes: {
-        'tvm.intent_id': intent.intentHash,
+        'tvm.intent_hash': intent.intentHash,
         'tvm.chain_id': this.config.chainId.toString(),
       },
     });
