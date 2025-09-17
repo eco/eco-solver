@@ -21,6 +21,7 @@ import {
   ProverSupportValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
+  RouteEnabledValidation,
   RouteTokenValidation,
   Validation,
 } from '../validations';
@@ -45,6 +46,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
     private readonly expirationValidation: ExpirationValidation,
     private readonly chainSupportValidation: ChainSupportValidation,
+    private readonly routeEnabledValidation: RouteEnabledValidation,
     private readonly proverSupportValidation: ProverSupportValidation,
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly nativeFeeValidation: NativeFeeValidation,
@@ -59,6 +61,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
       this.routeAmountLimitValidation,
       this.expirationValidation,
       this.chainSupportValidation,
+      this.routeEnabledValidation,
       this.proverSupportValidation,
       this.executorBalanceValidation,
       this.nativeFeeValidation, // Use native-specific fee validation

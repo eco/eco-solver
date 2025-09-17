@@ -3,10 +3,21 @@ import { z } from 'zod';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
+ * Route enablement configuration schema
+ */
+const RouteEnablementSchema = z
+  .object({
+    mode: z.enum(['whitelist', 'blacklist']),
+    routes: z.array(z.string()),
+  })
+  .optional();
+
+/**
  * Fulfillment strategy configuration schema
  */
 const FulfillmentStrategySchema = z.object({
   enabled: z.boolean().default(true),
+  routeEnablement: RouteEnablementSchema,
 });
 
 /**
@@ -23,7 +34,9 @@ const FulfillmentStrategiesSchema = z.object({
 /**
  * Validations configuration schema
  */
-const ValidationsSchema = z.object({});
+const ValidationsSchema = z.object({
+  routeEnablement: RouteEnablementSchema,
+});
 
 /**
  * Fulfillment configuration schema

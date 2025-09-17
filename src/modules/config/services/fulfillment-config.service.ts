@@ -35,4 +35,20 @@ export class FulfillmentConfigService {
   getNetworkFee(chainId: bigint | number | string) {
     return this.blockchainConfigService.getFeeLogic(chainId);
   }
+
+  get routeEnablementConfig(): FulfillmentConfig['validations']['routeEnablement'] | undefined {
+    return this.configService.get<FulfillmentConfig['validations']['routeEnablement']>(
+      'fulfillment.validations.routeEnablement',
+    );
+  }
+
+  getStrategyRouteEnablementConfig(
+    strategyName: string,
+  ): FulfillmentConfig['validations']['routeEnablement'] | undefined {
+    // Convert strategy name from constant format (e.g., 'standard') to config key format
+    const strategyKey = strategyName.replace(/-/g, '');
+    return this.configService.get<FulfillmentConfig['validations']['routeEnablement']>(
+      `fulfillment.strategies.${strategyKey}.routeEnablement`,
+    );
+  }
 }

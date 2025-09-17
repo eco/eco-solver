@@ -42,4 +42,8 @@ export class ValidationContextImpl implements ValidationContext {
     }
     return reader.getBalance(walletAddress, Number(chainId));
   }
+
+  getStrategyName(): string {
+    return this.strategy.name;
+  }
 }

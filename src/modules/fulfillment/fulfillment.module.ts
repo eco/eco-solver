@@ -25,6 +25,7 @@ import {
   ProverSupportValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
+  RouteEnabledValidation,
   RouteTokenValidation,
   StandardFeeValidation,
 } from '@/modules/fulfillment/validations';
@@ -71,6 +72,7 @@ import { StrategyManagementService } from './services/strategy-management.servic
     RouteTokenValidation,
     RouteCallsValidation,
     RouteAmountLimitValidation,
+    RouteEnabledValidation,
     ExpirationValidation,
     ChainSupportValidation,
     ProverSupportValidation,

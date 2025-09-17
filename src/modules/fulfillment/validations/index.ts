@@ -10,6 +10,7 @@ export * from './native-fee.validation';
 export * from './prover-support.validation';
 export * from './route-amount-limit.validation';
 export * from './route-calls.validation';
+export * from './route-enabled.validation';
 export * from './route-token.validation';
 export * from './standard-fee.validation';
 export * from './validation.interface';
