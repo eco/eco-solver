@@ -146,7 +146,7 @@ export class QuotesService {
           ? [
               {
                 name: 'Eco Protocol Fee' as const,
-                description: `Protocol fee for fulfilling intent on chain ${destinationChainId} (Base: ${denormalize(quoteResult.fees.fee.base, rewardTokenConfig.decimals)}, Percentage: ${(quoteResult.fees.fee.bps / 100).toFixed(3)}%)`,
+                description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
                 token: {
                   address: request.quoteRequest.sourceToken,
                   decimals: rewardTokenConfig.decimals,
