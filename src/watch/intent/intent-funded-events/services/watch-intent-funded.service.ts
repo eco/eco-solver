@@ -8,9 +8,9 @@ import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/sche
 import { IntentFundedEventRepository } from '@/watch/intent/intent-funded-events/repositories/intent-funded-event.repository'
 import { IntentFundedLog } from '@/contracts'
 import { IntentSource } from '@/eco-configs/eco-config.types'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { Log, PublicClient } from 'viem'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 import { Queue } from 'bullmq'
 import { QUEUES } from '@/common/redis/constants'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
@@ -72,7 +72,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
-      abi: IntentSourceAbi,
+      abi: portalAbi,
       eventName: 'IntentFunded',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints

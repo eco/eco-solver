@@ -21,12 +21,62 @@ export class QuoteV2Controller {
   ) {}
 
   @Post()
+  async getQuote(@Body() v2Request: QuoteV2RequestDTO): Promise<QuoteV2ResponseDTO> {
+    const startTime = Date.now()
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Received V2 quote request`,
+        properties: {
+          v2Request,
+        },
+      }),
+    )
+
+    // Get reverse quote using existing service (V2 uses reverse quote logic)
+    const { response: v2Response, error } = await this.quoteV2Service.getQuote(v2Request)
+    const processingTime = Date.now() - startTime
+
+    if (error) {
+      // Handle errors from quote service
+      const errorStatus = (error as QuoteErrorsInterface).statusCode
+
+      // Track V2 quote error
+      this.ecoAnalytics.trackError(ANALYTICS_EVENTS.QUOTE.V2_RESPONSE_ERROR, error, {
+        dAppID: v2Request.dAppID,
+        processingTimeMs: processingTime,
+        statusCode: errorStatus || 500,
+      })
+
+      if (errorStatus) {
+        throw getEcoServiceException({ error })
+      }
+
+      // Throw generic error if no status code
+      throw getEcoServiceException({
+        httpExceptionClass: InternalServerErrorException,
+        error: { message: error.message || jsonBigInt(error) },
+      })
+    }
+
+    // Track successful V2 response
+    this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.V2_RESPONSE_SUCCESS, {
+      dAppID: v2Request.dAppID,
+      processingTimeMs: processingTime,
+      sourceChainID: v2Response!.quoteResponse.sourceChainID,
+      destinationChainID: v2Response!.quoteResponse.destinationChainID,
+    })
+
+    return v2Response!
+  }
+
+  @Post('/reverse')
   async getReverseQuote(@Body() v2Request: QuoteV2RequestDTO): Promise<QuoteV2ResponseDTO> {
     const startTime = Date.now()
 
     this.logger.log(
       EcoLogMessage.fromDefault({
-        message: `Received V2 quote request (using reverse quote logic):`,
+        message: `Received V2 reverse quote request`,
         properties: {
           v2Request,
         },

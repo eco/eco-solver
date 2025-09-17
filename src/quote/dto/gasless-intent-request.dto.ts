@@ -1,43 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
+import { BaseGaslessIntentRequestDTO } from '@/quote/dto/base-gasless-intent-request.dto'
 import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
-import { Hex } from 'viem'
+import { IsNotEmpty, ValidateNested } from 'class-validator'
 import { Type } from 'class-transformer'
 
-export class GaslessIntentRequestDTO {
-  @IsNotEmpty()
-  @ApiProperty()
-  @IsString()
-  intentGroupID: string
-
-  @IsNotEmpty()
-  @ApiProperty()
-  @IsString()
-  dAppID: string
-
-  @IsArray()
-  @ArrayNotEmpty()
-  @ValidateNested()
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => IntentDTO)
-  intents: IntentDTO[]
-
+export class GaslessIntentRequestDTO extends BaseGaslessIntentRequestDTO {
   @IsNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData: GaslessIntentDataDTO
-}
-
-export class IntentDTO {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty()
-  quoteID: string
-
-  @IsNotEmpty()
-  @IsString()
-  @ApiProperty()
-  salt: Hex
 }

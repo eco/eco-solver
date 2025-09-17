@@ -174,23 +174,25 @@ export class IntentDataModel implements IntentType {
   }
 
   static toIntentV2(intent: IntentDataModel): IntentV2 {
+    const { route, reward } = intent
+
     return {
-      source: intent.route.source,
-      destination: intent.route.destination,
+      source: route.source,
+      destination: route.destination,
       route: {
-        salt: intent.route.salt,
-        deadline: intent.route.deadline,
-        portal: intent.route.portal,
-        nativeAmount: intent.route.nativeAmount,
-        tokens: intent.route.tokens,
-        calls: intent.route.calls,
+        salt: route.salt,
+        deadline: route.deadline,
+        portal: route.portal,
+        nativeAmount: route.nativeAmount,
+        tokens: route.tokens,
+        calls: route.calls,
       },
       reward: {
-        creator: intent.reward.creator,
-        prover: intent.reward.prover,
-        deadline: intent.reward.deadline,
-        nativeAmount: intent.reward.nativeValue,
-        tokens: intent.reward.tokens,
+        creator: reward.creator,
+        prover: reward.prover,
+        deadline: reward.deadline,
+        nativeAmount: reward.nativeValue,
+        tokens: reward.tokens,
       },
     }
   }

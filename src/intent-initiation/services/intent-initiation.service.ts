@@ -1,4 +1,5 @@
 import { AllowanceOrTransferDTO } from '@/quote/dto/permit3/allowance-or-transfer.dto'
+import { BaseGaslessIntentRequestDTO } from '@/quote/dto/base-gasless-intent-request.dto'
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
@@ -10,6 +11,7 @@ import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/
 import { EstimatedGasDataForIntentInitiation } from '@/intent-initiation/interfaces/estimated-gas-data-for-intent-initiation.interface'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
 import { FulfillmentLog } from '@/contracts/inbox'
+import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
 import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
 import { GaslessIntentExecutionResponseEntryDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response-entry.dto'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
@@ -126,7 +128,7 @@ export class IntentInitiationService implements OnModuleInit {
   }
 
   private checkGaslessIntentSupported(
-    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+    gaslessIntentRequestDTO: BaseGaslessIntentRequestDTO,
   ): EcoResponse<void> {
     const { dAppID } = gaslessIntentRequestDTO
 
@@ -577,11 +579,7 @@ export class IntentInitiationService implements OnModuleInit {
   async generateGaslessIntentTransactions(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<GaslessIntentTransactions>> {
-    const {
-      intentGroupID,
-      intents,
-      gaslessIntentData: { permitData },
-    } = gaslessIntentRequestDTO
+    const { intentGroupID, intents, gaslessIntentData } = gaslessIntentRequestDTO
 
     // Mapping chain ids to permit transactions
     const permitDataPerChain = new Map<number, PermitResult>()
@@ -605,7 +603,7 @@ export class IntentInitiationService implements OnModuleInit {
         const { response: permitData, error: permitError } = await this.generatePermitTxs(
           chainId,
           quote,
-          gaslessIntentRequestDTO,
+          gaslessIntentData,
         )
 
         if (permitError || !permitData) {
@@ -644,7 +642,7 @@ export class IntentInitiationService implements OnModuleInit {
     // Save the permit data to the database
     await this.groupedIntentRepository.addIntent({
       intentGroupID,
-      ...permitData!,
+      ...gaslessIntentData.permitData!,
     })
 
     return {
@@ -745,9 +743,9 @@ export class IntentInitiationService implements OnModuleInit {
   private async generatePermitTxs(
     chainId: number,
     quote: QuoteIntentModel,
-    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+    gaslessIntentData: GaslessIntentDataDTO,
   ): Promise<EcoResponse<PermitResult>> {
-    const permitData = gaslessIntentRequestDTO.gaslessIntentData.permitData || {}
+    const permitData = gaslessIntentData.permitData || {}
     const { permit = [], permit2 = [], permit3 } = permitData
     const { reward } = quote
 

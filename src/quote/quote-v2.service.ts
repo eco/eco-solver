@@ -29,6 +29,24 @@ export class QuoteV2Service implements OnModuleInit {
     )
   }
 
+  async getQuote(v2Request: QuoteV2RequestDTO): Promise<EcoResponse<QuoteV2ResponseDTO>> {
+    // Transform V2 request to QuoteIntentDataDTO
+    const { response: quoteIntentDataDTO, error: transformError } =
+      this.transformToQuoteIntent(v2Request)
+
+    if (transformError) {
+      return { error: transformError }
+    }
+
+    const { response: quote, error } = await this.quoteService.getQuote(quoteIntentDataDTO!)
+
+    if (error) {
+      return { error }
+    }
+
+    return this.transformToV2(quote!, quoteIntentDataDTO!)
+  }
+
   async getReverseQuote(v2Request: QuoteV2RequestDTO): Promise<EcoResponse<QuoteV2ResponseDTO>> {
     // Transform V2 request to QuoteIntentDataDTO
     const { response: quoteIntentDataDTO, error: transformError } =
