@@ -51,7 +51,6 @@ export class QuotesService {
     if (!quoteResult.valid) {
       const failedResponse: FailedQuoteResponse = {
         validations: {
-          passed: quoteResult.validationResults.filter((v) => v.passed).map((v) => v.validation),
           failed: quoteResult.validationResults
             .filter((v) => !v.passed)
             .map((v) => ({

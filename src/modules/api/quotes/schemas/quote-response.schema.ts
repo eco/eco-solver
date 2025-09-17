@@ -132,10 +132,6 @@ export const FailedQuoteResponseSchema = extendApi(
   z.object({
     validations: extendApi(
       z.object({
-        passed: extendApi(z.array(z.string()), {
-          description: 'List of validations that passed',
-          example: ['chain-support', 'expiration'],
-        }),
         failed: extendApi(z.array(ValidationErrorSchema), {
           description: 'List of validations that failed with reasons',
         }),
