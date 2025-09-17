@@ -134,8 +134,8 @@ export default {
       hyperlane_duration_seconds: 3600,
       metalayer_duration_seconds: 7200,
     },
-    intentFundedRetries: 3,
-    intentFundedRetryDelayMs: 500,
+    intentFundedRetries: 5,
+    intentFundedRetryDelayMs: 1500,
     // Gas overhead is the intent creation gas cost for the source chain, i.e. the cost of calling publishAndFund on IntentSource.
     // This is the default gas overhead
     defaultGasOverhead: 145_000,
