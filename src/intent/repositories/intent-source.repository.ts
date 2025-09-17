@@ -43,7 +43,15 @@ export class IntentSourceRepository {
     reward: QuoteRewardDataType,
   ) {
     try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
+      const {
+        salt,
+        source,
+        destination,
+        inbox,
+        tokens: routeTokens,
+        calls,
+        deadline: routeDeadline,
+      } = route as RouteType & { deadline: bigint } // TODO: Must be update to use V2 contracts
       const { creator, prover, deadline, nativeValue } = reward
       const rewardTokens = reward.tokens as RewardTokensInterface[]
       const intentHash = hashIntent({ route, reward }).intentHash
@@ -79,6 +87,7 @@ export class IntentSourceRepository {
         creator,
         prover,
         deadline,
+        routeDeadline,
         nativeValue,
         rewardTokens,
         logIndex: 0,
