@@ -25,6 +25,7 @@ export interface CreateIntentDataModelParams {
   creator: Hex
   prover: Hex
   deadline: bigint
+  routeDeadline: bigint
   nativeValue: bigint
   rewardTokens: RewardTokensInterface[]
   logIndex: number
@@ -69,6 +70,7 @@ export class IntentDataModel implements IntentType {
       creator,
       prover,
       deadline,
+      routeDeadline,
       nativeValue,
       rewardTokens,
       logIndex,
@@ -103,7 +105,7 @@ export class IntentDataModel implements IntentType {
         call.target = getAddress(call.target)
         return call
       }),
-      deadline,
+      routeDeadline,
       inbox,
       nativeValue,
     )
@@ -157,6 +159,7 @@ export class IntentDataModel implements IntentType {
       creator: e.creator,
       prover: e.prover,
       deadline: e.rewardDeadline,
+      routeDeadline: route.deadline,
       nativeValue: e.rewardNativeAmount,
       rewardTokens: e.rewardTokens as Mutable<typeof e.rewardTokens>,
       logIndex,
