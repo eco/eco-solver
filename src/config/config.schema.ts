@@ -7,6 +7,7 @@ import {
   DataDogSchema,
   EvmSchema,
   FulfillmentSchema,
+  LeaderElectionSchema,
   MongoDBSchema,
   OpenTelemetrySchema,
   QueueSchema,
@@ -25,6 +26,7 @@ export {
   DataDogSchema,
   EvmSchema,
   FulfillmentSchema,
+  LeaderElectionSchema,
   MongoDBSchema,
   OpenTelemetrySchema,
   QueueSchema,
@@ -54,6 +56,7 @@ export const ConfigSchema = z
     withdrawal: WithdrawalSchema,
     bullBoard: BullBoardSchema.optional(),
     quotes: QuotesSchema.optional(),
+    leaderElection: LeaderElectionSchema.optional(),
   })
   .extend(BaseSchema.shape);
 

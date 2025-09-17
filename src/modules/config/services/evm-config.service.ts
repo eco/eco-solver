@@ -38,6 +38,10 @@ export class EvmConfigService implements IBlockchainConfigService {
     return 'basic';
   }
 
+  get listenersEnabled(): boolean {
+    return this.configService.get<boolean>('evm.listenersEnabled') ?? true;
+  }
+
   getSupportedChainIds(): number[] {
     return this.supportedChainIds;
   }

@@ -16,6 +16,7 @@ import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-co
 import { SvmEventParser } from '@/modules/blockchain/svm/utils/svm-event-parser';
 import { SolanaConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
+import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -29,6 +30,7 @@ export class SolanaListener extends BaseChainListener {
   constructor(
     private solanaConfigService: SolanaConfigService,
     private eventsService: EventsService,
+    private fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {
@@ -105,9 +107,18 @@ export class SolanaListener extends BaseChainListener {
                 'svm.prover': intent.reward.prover,
               });
 
-              // Emit the event within the span context to propagate trace context
-              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-                this.eventsService.emit('intent.discovered', { intent });
+              // Submit intent directly to fulfillment service within the span context
+              api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
+                try {
+                  await this.fulfillmentService.submitIntent(intent);
+                  this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+                } catch (error) {
+                  this.logger.error(
+                    `Failed to submit intent ${intent.intentHash}:`,
+                    toError(error),
+                  );
+                  span.recordException(toError(error));
+                }
               });
 
               span.addEvent('intent.emitted');

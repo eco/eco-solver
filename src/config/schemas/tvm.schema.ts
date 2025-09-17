@@ -97,6 +97,7 @@ export const TvmSchema = z.object({
   networks: z.array(TvmNetworkSchema).default([]),
   wallets: WalletsSchema,
   transactionSettings: TvmTransactionSettingsSchema.default({}),
+  listenersEnabled: z.boolean().default(true),
 });
 
 export type TvmConfig = z.infer<typeof TvmSchema>;

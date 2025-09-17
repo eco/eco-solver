@@ -45,6 +45,7 @@ export const SolanaSchema = z.object({
   claimant: SvmAddressSchema, // Solana public key as base58 string (required)
   tokens: z.array(SvmTokenSchema).default([]),
   fee: AssetsFeeSchema,
+  listenersEnabled: z.boolean().default(true),
 });
 
 export type SolanaConfig = z.infer<typeof SolanaSchema>;

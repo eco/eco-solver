@@ -5,6 +5,7 @@ export * from './datadog.schema';
 export * from './evm.schema';
 export * from './fee.schema';
 export * from './fulfillment.schema';
+export * from './leader-election.schema';
 export * from './mongodb.schema';
 export * from './opentelemetry.schema';
 export * from './queue.schema';

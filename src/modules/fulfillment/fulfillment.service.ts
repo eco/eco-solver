@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
 
-import { EventMap } from '@/common/events';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { FulfillmentConfigService } from '@/modules/config/services';
 import { DataDogService } from '@/modules/datadog';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
@@ -28,6 +27,7 @@ export class FulfillmentService {
     private readonly dataDogService: DataDogService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly fulfillmentConfigService: FulfillmentConfigService,
     // New specialized services
     private readonly submissionService: IntentSubmissionService,
     private readonly processingService: IntentProcessingService,
@@ -40,7 +40,10 @@ export class FulfillmentService {
    * Submit an intent for fulfillment
    * Maintains backward compatibility while delegating to IntentSubmissionService
    */
-  async submitIntent(intent: Intent, strategy: FulfillmentStrategyName): Promise<Intent> {
+  async submitIntent(
+    intent: Intent,
+    strategy: FulfillmentStrategyName = this.fulfillmentConfigService.defaultStrategy,
+  ): Promise<Intent> {
     const span = this.otelService.startSpan('intent.submit', {
       attributes: {
         'intent.hash': intent.intentHash,
@@ -129,15 +132,7 @@ export class FulfillmentService {
     }
   }
 
-  /**
-   * Handle intent discovered event
-   */
-  @OnEvent('intent.discovered')
-  async handleIntentDiscovered(payload: EventMap['intent.discovered']) {
-    // TODO: Get default strategy from configuration
-    const { intent, strategy = 'standard' } = payload;
-    await this.submitIntent(intent, strategy);
-  }
+  // Removed @OnEvent handler - listeners now submit directly to fulfillment service
 
   /**
    * Get a strategy by name

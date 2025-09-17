@@ -19,6 +19,7 @@ import {
 } from '@/modules/config/services';
 import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
 import { BullBoardConfigService } from '@/modules/config/services/bull-board-config.service';
+import { LeaderElectionConfigService } from '@/modules/config/services/leader-election-config.service';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 
@@ -40,6 +41,7 @@ const configProviders = [
   TokenConfigService,
   WithdrawalConfigService,
   QuotesConfigService,
+  LeaderElectionConfigService,
 ];
 
 @Global()

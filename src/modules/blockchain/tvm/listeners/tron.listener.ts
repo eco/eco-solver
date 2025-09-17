@@ -19,6 +19,7 @@ import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser'
 import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
+import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -104,12 +105,54 @@ export class TronListener extends BaseChainListener {
     private readonly config: TvmNetworkConfig,
     private readonly transactionSettings: TvmTransactionSettings,
     private readonly eventsService: EventsService,
+    private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly tvmConfigService: TvmConfigService,
   ) {
     super();
     this.metrics = this.initializeMetrics();
+  }
+
+  /**
+   * Starts the blockchain listener with RxJS polling
+   */
+  async start(): Promise<void> {
+    try {
+      await this.initialize();
+      this.startRxJSPolling();
+      this.logger.log('TronListener started successfully with RxJS polling', {
+        chainId: this.config.chainId,
+        pollInterval: this.transactionSettings.listenerPollInterval,
+        proverCount: this.proverAddresses.size,
+      });
+    } catch (error) {
+      this.logger.error('Failed to start TronListener', toError(error));
+      throw error;
+    }
+  }
+
+  /**
+   * Stops the blockchain listener gracefully
+   */
+  async stop(): Promise<void> {
+    this.isRunning = false;
+
+    if (this.pollingSubscription) {
+      this.pollingSubscription.unsubscribe();
+      this.pollingSubscription = null;
+    }
+
+    if (this.proverPollingSubscription) {
+      this.proverPollingSubscription.unsubscribe();
+      this.proverPollingSubscription = null;
+    }
+
+    if (this.tronWebClient) {
+      this.tronWebClient = null;
+    }
+
+    this.logger.warn('TronListener stopped', { chainId: this.config.chainId });
   }
 
   /**
@@ -136,24 +179,6 @@ export class TronListener extends BaseChainListener {
         description: 'Total number of event processing errors',
       }),
     };
-  }
-
-  /**
-   * Starts the blockchain listener with RxJS polling
-   */
-  async start(): Promise<void> {
-    try {
-      await this.initialize();
-      this.startRxJSPolling();
-      this.logger.log('TronListener started successfully with RxJS polling', {
-        chainId: this.config.chainId,
-        pollInterval: this.transactionSettings.listenerPollInterval,
-        proverCount: this.proverAddresses.size,
-      });
-    } catch (error) {
-      this.logger.error('Failed to start TronListener', toError(error));
-      throw error;
-    }
   }
 
   /**
@@ -318,29 +343,6 @@ export class TronListener extends BaseChainListener {
         }, 10000);
       },
     });
-  }
-
-  /**
-   * Stops the blockchain listener gracefully
-   */
-  async stop(): Promise<void> {
-    this.isRunning = false;
-
-    if (this.pollingSubscription) {
-      this.pollingSubscription.unsubscribe();
-      this.pollingSubscription = null;
-    }
-
-    if (this.proverPollingSubscription) {
-      this.proverPollingSubscription.unsubscribe();
-      this.proverPollingSubscription = null;
-    }
-
-    if (this.tronWebClient) {
-      this.tronWebClient = null;
-    }
-
-    this.logger.warn('TronListener stopped', { chainId: this.config.chainId });
   }
 
   /**
@@ -830,7 +832,16 @@ export class TronListener extends BaseChainListener {
     });
 
     try {
-      this.emitEventWithContext(span, 'intent.discovered', { intent });
+      // Submit intent directly to fulfillment service
+      await api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
+        try {
+          await this.fulfillmentService.submitIntent(intent);
+          this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+        } catch (error) {
+          this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
+          span.recordException(toError(error));
+        }
+      });
       span.setStatus({ code: api.SpanStatusCode.OK });
 
       this.logger.log('Intent discovered', {

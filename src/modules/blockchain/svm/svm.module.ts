@@ -5,6 +5,7 @@ import { EventsModule } from '@/modules/events/events.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
 import { ProverModule } from '@/modules/prover/prover.module';
+import { RedisModule } from '@/modules/redis/redis.module';
 
 import { SolanaListener } from './listeners/solana.listener';
 import { SvmListenersManagerService } from './listeners/svm-listeners-manager.service';
@@ -20,6 +21,7 @@ import { BasicWalletModule } from './wallets/basic-wallet';
     BasicWalletModule,
     EventsModule,
     OpenTelemetryModule,
+    RedisModule,
     forwardRef(() => ProverModule),
   ],
   providers: [

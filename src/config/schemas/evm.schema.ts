@@ -146,6 +146,7 @@ const EvmNetworkSchema = z.object({
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
   wallets: WalletsSchema,
+  listenersEnabled: z.boolean().default(true),
 });
 
 export type EvmConfig = z.infer<typeof EvmSchema>;

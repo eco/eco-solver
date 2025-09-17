@@ -11,6 +11,7 @@ import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-trans
 import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
+import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -24,6 +25,7 @@ export class ChainListener extends BaseChainListener {
     private readonly config: EvmChainConfig,
     private readonly transportService: EvmTransportService,
     private readonly eventsService: EventsService,
+    private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
@@ -79,9 +81,15 @@ export class ChainListener extends BaseChainListener {
               'evm.prover': log.args.prover,
             });
 
-            // Emit the event within the span context to propagate trace context
-            api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-              this.eventsService.emit('intent.discovered', { intent });
+            // Submit intent directly to fulfillment service within the span context
+            api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
+              try {
+                await this.fulfillmentService.submitIntent(intent);
+                this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+              } catch (error) {
+                this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
+                span.recordException(toError(error));
+              }
             });
 
             span.addEvent('intent.emitted');

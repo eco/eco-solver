@@ -43,6 +43,10 @@ export class TvmConfigService implements IBlockchainConfigService {
     return 'basic';
   }
 
+  get listenersEnabled(): boolean {
+    return this.configService.get<boolean>('tvm.listenersEnabled') ?? true;
+  }
+
   getSupportedChainIds(): number[] {
     return this.supportedChainIds;
   }

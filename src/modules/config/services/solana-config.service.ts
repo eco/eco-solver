@@ -43,6 +43,10 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return this.configService.get<SvmAddress>('svm.portalProgramId')!;
   }
 
+  get listenersEnabled(): boolean {
+    return this.configService.get<boolean>('svm.listenersEnabled') ?? true;
+  }
+
   isConfigured(): boolean {
     // Check if essential Solana configuration is present
     const config = this.configService.get('svm');
