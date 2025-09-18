@@ -1,30 +1,29 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
-import { IntentOperationLogger } from '@/common/logging/loggers'
-import { LogOperation, LogContext } from '@/common/logging/decorators'
-import { QUEUES } from '../common/redis/constants'
-import { JobsOptions, Queue } from 'bullmq'
-import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceModel } from './schemas/intent-source.schema'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
-import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
 import {
   CallDataInterface,
   decodeCreateIntentLog,
   IntentCreatedLog,
   RewardTokensInterface,
 } from '../contracts'
-import { IntentDataModel } from './schemas/intent-data.schema'
-import { FlagService } from '../flags/flags.service'
 import { deserialize, Serialize } from '@/common/utils/serialize'
+import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { EcoResponse } from '@/common/eco-response'
+import { FlagService } from '../flags/flags.service'
+import { getIntentJobId } from '../common/utils/strings'
+import { Hex } from 'viem'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { IntentDataModel } from './schemas/intent-data.schema'
+import { IntentSourceModel } from './schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { JobsOptions, Queue } from 'bullmq'
+import { QUEUES } from '../common/redis/constants'
+import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
+import { IntentOperationLogger } from '@/common/logging'
 import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
 import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
-import { EcoResponse } from '@/common/eco-response'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoAnalyticsService } from '@/analytics'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -38,7 +37,7 @@ export class CreateIntentService implements OnModuleInit {
 
   constructor(
     @InjectQueue(QUEUES.SOURCE_INTENT.queue) private readonly intentQueue: Queue,
-    @InjectModel(IntentSourceModel.name) private intentModel: Model<IntentSourceModel>,
+    private readonly intentSourceRepository: IntentSourceRepository,
     private readonly validSmartWalletService: ValidSmartWalletService,
     private readonly flagService: FlagService,
     private readonly ecoConfigService: EcoConfigService,
@@ -64,10 +63,8 @@ export class CreateIntentService implements OnModuleInit {
     const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
-      //check db if the intent is already filled
-      const model = await this.intentModel.findOne({
-        'intent.hash': intent.hash,
-      })
+      // Check db if the intent is already filled
+      const model = await this.intentSourceRepository.getIntent(intent.hash)
 
       if (model) {
         // Log business event for duplicate detection
@@ -83,8 +80,8 @@ export class CreateIntentService implements OnModuleInit {
           )
         : true
 
-      //create db record
-      await this.intentModel.create({
+      // Create db record
+      await this.intentSourceRepository.create({
         event: intentWs,
         intent: intent,
         receipt: null,
@@ -151,7 +148,7 @@ export class CreateIntentService implements OnModuleInit {
         funder,
       })
 
-      await this.intentModel.create({
+      await this.intentSourceRepository.create({
         // event: null,
         intent,
         receipt: null,
@@ -176,7 +173,7 @@ export class CreateIntentService implements OnModuleInit {
 
   /**
    * Fetch an intent from the db
-   * @param query for fetching the intent
+   * @param hash for fetching the intent
    * @returns the intent or an error
    */
   @LogOperation('intent_hash_lookup', IntentOperationLogger)
@@ -208,7 +205,7 @@ export class CreateIntentService implements OnModuleInit {
   @LogOperation('intent_fetch', IntentOperationLogger)
   async fetchIntent(@LogContext query: object): Promise<EcoResponse<IntentSourceModel>> {
     try {
-      const intent = await this.intentModel.findOne(query)
+      const intent = await this.intentSourceRepository.queryIntent(query)
 
       if (!intent) {
         const error = EcoError.IntentNotFound

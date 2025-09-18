@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
-import { IsNotEmpty, IsNumberString, IsEthereumAddress } from 'class-validator'
+import { IsEthereumAddress, IsNotEmpty, IsNumberString } from 'class-validator'
+import { Transform } from 'class-transformer'
 
 export class Permit2TypedDataDetailsDTO {
   @IsNotEmpty()
@@ -9,9 +10,9 @@ export class Permit2TypedDataDetailsDTO {
   token: Hex
 
   @IsNotEmpty()
-  @IsNumberString({ no_symbols: true })
   @ApiProperty()
-  amount: string // string of a bigint
+  @Transform(({ value }) => BigInt(value))
+  amount: bigint
 
   @IsNotEmpty()
   @IsNumberString({ no_symbols: true })
@@ -21,5 +22,5 @@ export class Permit2TypedDataDetailsDTO {
   @IsNotEmpty()
   @IsNumberString({ no_symbols: true })
   @ApiProperty()
-  nonce: string // string of a bigint
+  nonce: string
 }

@@ -3,31 +3,30 @@ import { LoggerModule } from 'nestjs-pino'
 import { MongooseModule } from '@nestjs/mongoose'
 import { BullModule } from '@nestjs/bullmq'
 import { LiquidityManagerModule } from '@/liquidity-manager/liquidity-manager.module'
+import { AnalyticsModule } from '@/analytics/analytics.module'
 import { ApiModule } from '@/api/api.module'
-import { WatchModule } from '@/watch/watch.module'
-import { IntervalModule } from '@/intervals/interval.module'
-import { QuoteModule } from '@/quote/quote.module'
-import { FeeModule } from '@/fee/fee.module'
-import { KmsModule } from '@/kms/kms.module'
-import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
 import { BalanceModule } from '@/balance/balance.module'
 import { ChainMonitorModule } from '@/chain-monitor/chain-monitor.module'
 import { EcoConfigModule } from '@/eco-configs/eco-config.module'
-import { FlagsModule } from '@/flags/flags.module'
-import { HealthModule } from '@/health/health.module'
-import { IntentModule } from '@/intent/intent.module'
-import { SignModule } from '@/sign/sign.module'
-import { ProcessorModule } from '@/bullmq/processors/processor.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RedisConnectionUtils } from '@/common/redis/redis-connection-utils'
-import { AnalyticsModule } from '@/analytics/analytics.module'
+import { FeeModule } from '@/fee/fee.module'
+import { FlagsModule } from '@/flags/flags.module'
 import { getCurrentEnvironment } from '@/analytics/utils'
-import { ProverModule } from '@/prover/prover.module'
-import { SolverModule } from '@/solver/solver.module'
-import { PermitProcessingModule } from '@/permit-processing/permit-processing.module'
-import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
-import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
+import { HealthModule } from '@/health/health.module'
 import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
+import { IntentInitiationModule } from '@/intent-initiation/intent-initiation.module'
+import { IntentModule } from '@/intent/intent.module'
+import { IntentProcessorModule } from '@/intent-processor/intent-processor.module'
+import { IntervalModule } from '@/intervals/interval.module'
+import { KmsModule } from '@/kms/kms.module'
+import { ProcessorModule } from '@/bullmq/processors/processor.module'
+import { ProverModule } from '@/prover/prover.module'
+import { QuoteModule } from '@/quote/quote.module'
+import { SignModule } from '@/sign/sign.module'
+import { SolverModule } from '@/solver/solver.module'
+import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
+import { WatchModule } from '@/watch/watch.module'
 
 @Module({
   imports: [
@@ -70,7 +69,6 @@ import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment
     FlagsModule,
     HealthModule,
     IntentModule,
-    PermitProcessingModule,
     IntentInitiationModule,
     SolverRegistrationModule,
     KmsModule,

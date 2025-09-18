@@ -25,11 +25,11 @@ import { EthereumProvider } from 'permissionless/utils/toOwner'
 import { TransactionLogger } from '@/common/logging/loggers'
 import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { SignerKmsService } from '@/sign/signer-kms.service'
-import { EcoError } from '@/common/errors/eco-error'
-import { EcoResponse } from '@/common/eco-response'
-import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
 import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { EcoResponse } from '@/common/eco-response'
 import { KernelExecuteAbi } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
+import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
 
 @Injectable()
 export class KernelAccountClientServiceBase<
@@ -149,11 +149,14 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
       })
 
       const gasPrice = await clientKernel.getGasPrice()
+      const gasCost = gasEstimate * gasPrice
 
       return {
         response: {
+          chainID,
           gasEstimate,
           gasPrice,
+          gasCost,
         },
       }
     } catch (ex) {

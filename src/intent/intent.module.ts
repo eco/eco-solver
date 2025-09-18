@@ -1,23 +1,25 @@
-import { forwardRef, Module } from '@nestjs/common'
-import { QUEUES } from '../common/redis/constants'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
-import { IntentSourceModel, IntentSourceSchema } from './schemas/intent-source.schema'
-import { ValidateIntentService } from './validate-intent.service'
-import { FeasableIntentService } from './feasable-intent.service'
-import { CreateIntentService } from './create-intent.service'
-import { UtilsIntentService } from './utils-intent.service'
-import { BalanceModule } from '../balance/balance.module'
-import { FulfillIntentService } from './fulfill-intent.service'
-import { ProverModule } from '../prover/prover.module'
-import { TransactionModule } from '../transaction/transaction.module'
-import { MongooseModule } from '@nestjs/mongoose'
-import { SolverModule } from '../solver/solver.module'
-import { FlagsModule } from '../flags/flags.module'
-import { ValidationService } from '@/intent/validation.sevice'
-import { FeeModule } from '@/fee/fee.module'
-import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
+import { BalanceModule } from '@/balance/balance.module'
+import { CreateIntentService } from '@/intent/create-intent.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { FeasableIntentService } from '@/intent/feasable-intent.service'
+import { FeeModule } from '@/fee/fee.module'
+import { FlagsModule } from '@/flags/flags.module'
+import { forwardRef, Module } from '@nestjs/common'
+import { FulfillIntentService } from '@/intent/fulfill-intent.service'
+import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { IntentFulfilledService } from '@/intent/intent-fulfilled.service'
 import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment.module'
+import { IntentSourceModel, IntentSourceSchema } from '@/intent/schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { MongooseModule } from '@nestjs/mongoose'
+import { ProverModule } from '@/prover/prover.module'
+import { QUEUES } from '@/common/redis/constants'
+import { SolverModule } from '@/solver/solver.module'
+import { TransactionModule } from '@/transaction/transaction.module'
+import { UtilsIntentService } from '@/intent/utils-intent.service'
+import { ValidateIntentService } from '@/intent/validate-intent.service'
+import { ValidationService } from '@/intent/validation.sevice'
+import { WalletFulfillService } from '@/intent/wallet-fulfill.service'
 
 @Module({
   imports: [
@@ -33,6 +35,7 @@ import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment
   ],
   providers: [
     CreateIntentService,
+    IntentSourceRepository,
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
@@ -40,16 +43,19 @@ import { IntentFulfillmentModule } from '@/intent-fulfillment/intent-fulfillment
     UtilsIntentService,
     ValidationService,
     WalletFulfillService,
+    IntentFulfilledService,
   ],
   // controllers: [IntentSourceController],
   exports: [
     CreateIntentService,
+    IntentSourceRepository,
     ValidateIntentService,
     FeasableIntentService,
     FulfillIntentService,
     CrowdLiquidityService,
     UtilsIntentService,
     ValidationService,
+    IntentFulfilledService,
     MongooseModule, //add IntentSourceModel to the rest of the modules that import intents
   ],
 })
