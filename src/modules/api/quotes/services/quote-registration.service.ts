@@ -11,7 +11,10 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { minutes, now } from '@/common/utils/time';
-import { SolverRegistrationRequestBody } from '@/modules/api/quotes/types/quote-registration.types';
+import {
+  SolverRegistrationRequestBody,
+  SolverRegistrationResponseBody,
+} from '@/modules/api/quotes/types/quote-registration.types';
 import { BlockchainConfigService, QuotesConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging';
 
@@ -54,13 +57,17 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
       const headers = await this.getRequestHeaders(registrationDto);
 
       const response = await firstValueFrom(
-        this.httpService.post(this.quotesConfigService.apiUrl, registrationDto, { headers }),
+        this.httpService.post<{ data: SolverRegistrationResponseBody }>(
+          this.quotesConfigService.apiUrl,
+          registrationDto,
+          { headers },
+        ),
       );
 
-      if (response.data.success) {
-        this.logger.log(`Successfully registered with ID: ${response.data.solverId || 'N/A'}`);
+      if ('quotesUrl' in response.data.data) {
+        this.logger.log(`Successfully registered with ID: ${response.data.data.solverID || 'N/A'}`);
       } else {
-        this.logger.error(`Registration failed: ${response.data.message || 'Unknown error'}`);
+        this.logger.error(`Registration failed`);
       }
     } catch (error) {
       this.handleRegistrationError(error);
