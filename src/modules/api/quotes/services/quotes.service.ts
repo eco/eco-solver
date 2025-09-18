@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import * as crypto from 'node:crypto';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
 
@@ -6,8 +6,9 @@ import { Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { denormalize } from '@/common/tokens/normalize';
+import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { hours, now } from '@/common/utils/time';
@@ -63,7 +64,7 @@ export class QuotesService {
     }
 
     if (!quoteResult.fees) {
-      throw new BadRequestException();
+      throw new BadRequestException('Quote validation failed: fees not available');
     }
 
     // Build a successful response - sourceChainId should be present after validation
@@ -84,7 +85,8 @@ export class QuotesService {
       );
     }
 
-    // TODO: Validate contracts field in the request object
+    // Validate contracts if provided in the request
+    this.validateContracts(request, sourceChainId, destinationChainId, sourcePortalAddressUA);
 
     // Extract token information from intent
     const sourceToken = intent.reward.tokens[0].token;
@@ -253,5 +255,104 @@ export class QuotesService {
     const randomBytes = new Uint8Array(32);
     crypto.randomFillSync(randomBytes);
     return ('0x' + Buffer.from(randomBytes).toString('hex')) as Hex;
+  }
+
+  /**
+   * Validates contract addresses provided in the request against solver configuration
+   * @param request - The quote request potentially containing contract addresses
+   * @param sourceChainId - Source chain ID
+   * @param destinationChainId - Destination chain ID
+   * @param sourcePortalAddressUA - Expected source portal address from configuration
+   * @throws BadRequestException if any contract address doesn't match configuration
+   */
+  private validateContracts(
+    request: QuoteRequest,
+    sourceChainId: number,
+    destinationChainId: number,
+    sourcePortalAddressUA: UniversalAddress,
+  ): void {
+    // Skip validation if no contracts provided
+    if (!request.contracts) {
+      return;
+    }
+
+    const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+    const destinationChainType = ChainTypeDetector.detect(destinationChainId);
+
+    // Validate sourcePortal
+    this.validatePortal(
+      request.contracts.sourcePortal,
+      sourcePortalAddressUA,
+      sourceChainType,
+      'source',
+    );
+
+    // Validate destinationPortal
+    const destinationPortalUA = request.contracts.destinationPortal
+      ? this.blockchainConfigService.getPortalAddress(destinationChainId)
+      : undefined;
+    this.validatePortal(
+      request.contracts.destinationPortal,
+      destinationPortalUA,
+      destinationChainType,
+      'destination',
+      destinationChainId,
+    );
+
+    // Validate prover
+    this.validateProver(request.contracts.prover, sourceChainId, sourceChainType);
+  }
+
+  private validatePortal(
+    providedPortal: string | undefined,
+    expectedPortalUA: UniversalAddress | undefined,
+    chainType: ChainType,
+    portalType: 'source' | 'destination',
+    chainId?: number,
+  ): void {
+    if (!providedPortal) return;
+
+    if (!expectedPortalUA) {
+      const chainInfo = chainId ? ` for ${portalType} chain ${chainId}` : '';
+      throw new BadRequestException(`Portal address not configured${chainInfo}`);
+    }
+
+    const normalizedProvidedPortal = AddressNormalizer.normalize(
+      providedPortal as BlockchainAddress,
+      chainType,
+    );
+
+    if (normalizedProvidedPortal !== expectedPortalUA) {
+      const expectedDenormalized = AddressNormalizer.denormalize(expectedPortalUA, chainType);
+      throw new BadRequestException(
+        `Invalid ${portalType}Portal: expected ${expectedDenormalized}, got ${providedPortal}`,
+      );
+    }
+  }
+
+  private validateProver(
+    providedProver: string | undefined,
+    chainId: number,
+    chainType: ChainType,
+  ): void {
+    if (!providedProver) return;
+
+    const defaultProver = this.blockchainConfigService.getDefaultProver(chainId);
+    const expectedProverUA = this.blockchainConfigService.getProverAddress(chainId, defaultProver);
+
+    if (!expectedProverUA) {
+      throw new BadRequestException(`Prover ${defaultProver} not configured for chain ${chainId}`);
+    }
+
+    const normalizedProvidedProver = AddressNormalizer.normalize(
+      providedProver as BlockchainAddress,
+      chainType,
+    );
+    if (normalizedProvidedProver !== expectedProverUA) {
+      const expectedDenormalized = AddressNormalizer.denormalize(expectedProverUA, chainType);
+      throw new BadRequestException(
+        `Invalid prover: expected ${expectedDenormalized}, got ${providedProver}`,
+      );
+    }
   }
 }

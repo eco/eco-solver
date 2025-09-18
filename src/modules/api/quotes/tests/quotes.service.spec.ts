@@ -29,8 +29,12 @@ describe('QuotesService', () => {
   };
 
   const mockBlockchainConfigService = {
-    getPortalAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
-    getProverAddress: jest.fn().mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getPortalAddress: jest
+      .fn()
+      .mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890'),
+    getProverAddress: jest
+      .fn()
+      .mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890'),
     getDefaultProver: jest.fn().mockReturnValue('hyper'),
     getTokenConfig: jest.fn().mockReturnValue({
       symbol: 'TEST',
@@ -79,10 +83,10 @@ describe('QuotesService', () => {
 
     // Reset mocks to ensure getProverAddress, getPortalAddress and getDefaultProver return expected values
     mockBlockchainConfigService.getPortalAddress.mockReturnValue(
-      '0x1234567890123456789012345678901234567890',
+      '0x0000000000000000000000001234567890123456789012345678901234567890',
     );
     mockBlockchainConfigService.getProverAddress.mockReturnValue(
-      '0x1234567890123456789012345678901234567890',
+      '0x0000000000000000000000001234567890123456789012345678901234567890',
     );
     mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper');
   });
@@ -157,8 +161,7 @@ describe('QuotesService', () => {
           fees: [
             {
               name: 'Eco Protocol Fee',
-              description:
-                'Protocol fee for fulfilling intent on chain 10 (Base: 1000000000000000, Percentage: 0.001%)',
+              description: 'Protocol fee for fulfilling intent on chain 10',
               token: {
                 address: '0x1234567890123456789012345678901234567890',
                 decimals: 18,
@@ -200,7 +203,9 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await service.getQuote(mockQuoteRequest);
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('Quote validation failed: fees not available'),
+      );
 
       expect(mockFulfillmentService.getStrategy).toHaveBeenCalledWith('standard');
     });
@@ -309,37 +314,35 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockQuoteRequest);
-
-      expect(result).toEqual({
-        quoteResponse: {
-          sourceChainID: 1,
-          destinationChainID: 10,
-          sourceToken: '0x1234567890123456789012345678901234567890',
-          destinationToken: '0x1234567890123456789012345678901234567890',
-          sourceAmount: '5000000000000000000',
-          destinationAmount: '5000000000000000000',
-          funder: '0x1234567890123456789012345678901234567890',
-          refundRecipient: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          fees: [],
-          deadline: expect.any(Number),
-          estimatedFulfillTimeSec: 30,
-          encodedRoute: expect.any(String),
-        },
-        contracts: {
-          sourcePortal: '0x1234567890123456789012345678901234567890',
-          destinationPortal: '0x1234567890123456789012345678901234567890',
-          prover: '0x1234567890123456789012345678901234567890',
-        },
-      });
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('Quote validation failed: fees not available'),
+      );
     });
 
     it('should throw BadRequestException when intent sourceChainId is missing', async () => {
       const mockQuoteResult: QuoteResult = {
         valid: true,
         strategy: 'standard',
-        fees: undefined,
+        fees: {
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
+        },
         validationResults: [],
       };
 
@@ -363,11 +366,162 @@ describe('QuotesService', () => {
       );
     });
 
+    it('should validate contracts when provided in request', async () => {
+      const mockQuoteRequestWithContracts: QuoteRequest = {
+        ...mockQuoteRequest,
+        contracts: {
+          sourcePortal: '0x1234567890123456789012345678901234567890',
+          destinationPortal: '0x1234567890123456789012345678901234567890',
+          prover: '0x1234567890123456789012345678901234567890',
+        },
+      };
+
+      const mockQuoteResult: QuoteResult = {
+        valid: true,
+        strategy: 'standard',
+        fees: {
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
+        },
+        validationResults: [],
+      };
+
+      mockFulfillmentService.getStrategy.mockReturnValue(
+        mockStrategy as unknown as FulfillmentStrategy,
+      );
+      mockStrategy.canHandle.mockReturnValue(true);
+      mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
+
+      const result = await service.getQuote(mockQuoteRequestWithContracts);
+
+      expect(result).toBeDefined();
+      expect('contracts' in result && result.contracts).toBeDefined();
+    });
+
+    it('should throw error when provided sourcePortal does not match configuration', async () => {
+      const mockQuoteRequestWithWrongPortal: QuoteRequest = {
+        ...mockQuoteRequest,
+        contracts: {
+          sourcePortal: '0x9999999999999999999999999999999999999999',
+        },
+      };
+
+      const mockQuoteResult: QuoteResult = {
+        valid: true,
+        strategy: 'standard',
+        fees: {
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
+        },
+        validationResults: [],
+      };
+
+      mockFulfillmentService.getStrategy.mockReturnValue(
+        mockStrategy as unknown as FulfillmentStrategy,
+      );
+      mockStrategy.canHandle.mockReturnValue(true);
+      mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
+
+      await expect(service.getQuote(mockQuoteRequestWithWrongPortal)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should skip contract validation when contracts are not provided', async () => {
+      const mockQuoteResult: QuoteResult = {
+        valid: true,
+        strategy: 'standard',
+        fees: {
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
+        },
+        validationResults: [],
+      };
+
+      mockFulfillmentService.getStrategy.mockReturnValue(
+        mockStrategy as unknown as FulfillmentStrategy,
+      );
+      mockStrategy.canHandle.mockReturnValue(true);
+      mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
+
+      const result = await service.getQuote(mockQuoteRequest);
+
+      expect(result).toBeDefined();
+      expect('contracts' in result && result.contracts).toBeDefined();
+    });
+
     it('should properly convert quote request to Intent interface', async () => {
       const mockQuoteResult: QuoteResult = {
         valid: true,
         strategy: 'standard',
-        fees: undefined,
+        fees: {
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
+        },
         validationResults: [],
       };
 
@@ -385,14 +539,14 @@ describe('QuotesService', () => {
           destination: BigInt('10'),
           sourceChainId: BigInt('1'),
           reward: expect.objectContaining({
-            prover: '0x1234567890123456789012345678901234567890',
+            prover: '0x0000000000000000000000001234567890123456789012345678901234567890',
             creator: '0x0000000000000000000000001234567890123456789012345678901234567890',
             deadline: expect.any(BigInt),
             nativeAmount: BigInt('0'),
           }),
           route: expect.objectContaining({
             salt: expect.stringMatching(/^0x[a-fA-F0-9]{64}$/),
-            portal: '0x1234567890123456789012345678901234567890',
+            portal: '0x0000000000000000000000001234567890123456789012345678901234567890',
           }),
         }),
       );

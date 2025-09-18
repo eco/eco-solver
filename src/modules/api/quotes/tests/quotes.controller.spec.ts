@@ -74,6 +74,7 @@ describe('QuotesController', () => {
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
+          encodedRoute: '0x',
           fees: [
             {
               name: 'Eco Protocol Fee',
@@ -129,6 +130,7 @@ describe('QuotesController', () => {
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
+          encodedRoute: '0x',
           fees: [],
           deadline: 1735689600,
           estimatedFulfillTimeSec: 30,

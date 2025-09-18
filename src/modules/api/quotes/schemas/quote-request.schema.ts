@@ -3,6 +3,20 @@ import { z } from 'zod';
 
 import { zodBigIntString, zodBlockchainAddress } from '@/common/utils/zod-to-swagger.util';
 
+// Contracts schema for optional validation
+const ContractsSchema = extendApi(
+  z.object({
+    sourcePortal: zodBlockchainAddress('Portal contract address on source chain').optional(),
+    destinationPortal: zodBlockchainAddress(
+      'Portal contract address on destination chain',
+    ).optional(),
+    prover: zodBlockchainAddress('Prover contract address on source chain').optional(),
+  }),
+  {
+    description: 'Optional contract addresses to validate against solver configuration',
+  },
+);
+
 // Inner quote request schema
 const QuoteRequestInnerSchema = extendApi(
   z.object({
@@ -27,6 +41,7 @@ export const QuoteRequestSchema = extendApi(
       example: 'my-dapp-v1',
     }),
     quoteRequest: QuoteRequestInnerSchema,
+    contracts: ContractsSchema.optional(),
   }),
   {
     description: 'Request body for getting a quote for a cross-chain token swap',
