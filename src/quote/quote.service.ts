@@ -30,7 +30,7 @@ import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
@@ -58,7 +58,7 @@ export class QuoteService implements OnModuleInit {
 
   private quotesConfig: QuotesConfig
   private gasEstimationsConfig: GasEstimationsConfig
-  private intentInitiationService: IntentInitiationService
+  private intentInitiationService: IntentInitiationV2Service
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
@@ -73,7 +73,7 @@ export class QuoteService implements OnModuleInit {
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
     this.gasEstimationsConfig = this.ecoConfigService.getGasEstimationsConfig()
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
+    this.intentInitiationService = this.moduleRef.get(IntentInitiationV2Service, {
       strict: false,
     })
   }
@@ -276,14 +276,16 @@ export class QuoteService implements OnModuleInit {
   }
 
   private getGaslessIntentRequest(quoteIntentDataDTO: QuoteIntentDataDTO): GaslessIntentRequestDTO {
-    return {
-      quoteID: quoteIntentDataDTO.quoteID,
-      dAppID: quoteIntentDataDTO.dAppID,
-      salt: ZERO_SALT,
-      route: quoteIntentDataDTO.route,
-      reward: quoteIntentDataDTO.reward,
-      gaslessIntentData: quoteIntentDataDTO.gaslessIntentData!,
-    }
+    const gaslessIntentRequest = new GaslessIntentRequestDTO()
+    gaslessIntentRequest.dAppID = quoteIntentDataDTO.dAppID
+    gaslessIntentRequest.intents = [
+      {
+        quoteID: quoteIntentDataDTO.quoteID,
+        salt: ZERO_SALT,
+      },
+    ]
+    gaslessIntentRequest.gaslessIntentData = quoteIntentDataDTO.gaslessIntentData!
+    return gaslessIntentRequest
   }
 
   /**
@@ -469,8 +471,7 @@ export class QuoteService implements OnModuleInit {
     )
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quoteIntent, isReverseQuote } = params
-    const gaslessIntentRequest = GaslessIntentRequestDTO.fromJSON(params.gaslessIntentRequest)
+    const { quoteIntent, isReverseQuote, gaslessIntentRequest } = params
 
     const { response: quoteDataEntry, error } = await this.generateBaseQuote(
       quoteIntent,
@@ -486,11 +487,9 @@ export class QuoteService implements OnModuleInit {
     // todo: figure out what extra fee should be added to the base quote to cover our gas costs for the gasless intent
     // await this.intentInitiationService.calculateGasQuoteForIntent(gaslessIntentRequest)
 
+    const sourceChainID = Number(quoteIntent.route.source)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const flatFee = await this.estimateFlatFee(
-      gaslessIntentRequest.getSourceChainID!(),
-      quoteDataEntry!,
-    )
+    const flatFee = await this.estimateFlatFee(sourceChainID, quoteDataEntry!)
 
     return { response: quoteDataEntry }
   }

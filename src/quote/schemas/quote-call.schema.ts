@@ -10,6 +10,14 @@ export class QuoteRouteCallDataModel implements CallDataInterface {
   data: Hex
   @Prop({ required: true, type: BigInt })
   value: bigint
+
+  getCallDataInterface?(): CallDataInterface {
+    return {
+      target: this.target,
+      data: this.data,
+      value: this.value,
+    }
+  }
 }
 
 export const QuoteRouteCallDataSchema = SchemaFactory.createForClass(QuoteRouteCallDataModel)

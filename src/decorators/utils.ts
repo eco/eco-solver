@@ -14,9 +14,25 @@
  * // Result: '{"balance":{"__type":"BigInt","value":"1000"},"nested":{"amount":{"__type":"BigInt","value":"500"}}}'
  */
 export function serializeWithBigInt(obj: unknown): string {
-  return JSON.stringify(obj, (_key, value) =>
-    typeof value === 'bigint' ? { __type: 'BigInt', value: value.toString() } : value,
-  )
+  const replace = (v: any): any => {
+    if (typeof v === 'bigint') {
+      return { __type: 'BigInt', value: v.toString() }
+    }
+    if (v instanceof Date) {
+      return v.toISOString()
+    }
+    if (v instanceof RegExp) {
+      return {} // or maybe { __type: 'RegExp', source: v.source, flags: v.flags }
+    }
+    if (Array.isArray(v)) {
+      return v.map(replace)
+    }
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, replace(val)]))
+    }
+    return v
+  }
+  return JSON.stringify(replace(obj))
 }
 
 /**

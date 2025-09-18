@@ -1,20 +1,21 @@
-import { Network } from '@/common/alchemy/network'
-import { ClusterNode } from 'ioredis'
-import { Params as PinoParams } from 'nestjs-pino'
-import * as Redis from 'ioredis'
-import { Settings } from 'redlock'
-import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
-import { LDOptions } from '@launchdarkly/node-server-sdk'
-import { CacheModuleOptions } from '@nestjs/cache-manager'
-import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
-import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
-import { ConfigRegex } from '@eco-foundation/chains'
-import { Strategy } from '@/liquidity-manager/types/types'
 import { AnalyticsConfig } from '@/analytics'
+import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { ClusterNode } from 'ioredis'
+import { ConfigRegex } from '@eco-foundation/chains'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { JobsOptions, RepeatOptions } from 'bullmq'
+import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { Network } from '@/common/alchemy/network'
+import { Params as PinoParams } from 'nestjs-pino'
+import { Settings } from 'redlock'
+import { Strategy } from '@/liquidity-manager/types/types'
+import * as Redis from 'ioredis'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  port: number
   analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
@@ -367,16 +368,22 @@ export const ProverEcoRoutesProverAppend = 'append'
 export class IntentSource {
   // The network that the prover is on
   network: Network
+
   // The chain ID of the network
   chainID: number
+
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
+
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
   inbox: Hex
+
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]
+
   // The addresses of the provers that we support
   provers: Hex[]
+
   // custom configs for the intent source
   config?: {
     // Defaults to append, @eco-foundation/routes-ts provers will append to the provers in configs
