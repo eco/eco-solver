@@ -14,11 +14,12 @@ import { RedisConfigService } from '../config/services';
 import { LeaderElectionService } from './leader-election.service';
 import { RedisService } from './redis.service';
 import { RedisCacheService } from './redis-cache.service';
+import { RedisConnectionFactory } from './redis-connection.factory';
 
 @Module({
   imports: [ConfigModule, LoggingModule, EventEmitterModule, OpenTelemetryModule],
-  providers: [RedisService, RedisCacheService, LeaderElectionService],
-  exports: [RedisService, RedisCacheService, LeaderElectionService],
+  providers: [RedisService, RedisCacheService, LeaderElectionService, RedisConnectionFactory],
+  exports: [RedisService, RedisCacheService, LeaderElectionService, RedisConnectionFactory],
 })
 export class RedisModule {
   static forRootRedisAsync(): DynamicModule {

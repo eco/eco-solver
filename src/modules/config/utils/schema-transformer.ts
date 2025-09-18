@@ -81,6 +81,7 @@ export function envVarToPath(envVar: string): string[] {
     { parts: ['route', 'enablement'], combined: 'routeEnablement' },
     { parts: ['leader', 'election'], combined: 'leaderElection' },
     { parts: ['secret', 'name'], combined: 'secretName' },
+    { parts: ['enable', 'cluster'], combined: 'enableCluster' },
   ];
 
   // Sort patterns by length (descending) to match longer patterns first
