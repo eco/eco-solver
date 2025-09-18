@@ -15,6 +15,7 @@ import { WithdrawalJobData } from './interfaces/withdrawal-job.interface';
 import { WithdrawalService } from './withdrawal.service';
 
 @Processor(QueueNames.INTENT_WITHDRAWAL, {
+  prefix: `{${QueueNames.INTENT_WITHDRAWAL}}`,
   concurrency: 5, // Will be overridden by constructor
 })
 export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {

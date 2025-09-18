@@ -16,7 +16,9 @@ import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 
 import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 
-@Processor(QueueNames.INTENT_FULFILLMENT)
+@Processor(QueueNames.INTENT_FULFILLMENT, {
+  prefix: `{${QueueNames.INTENT_FULFILLMENT}}`,
+})
 export class FulfillmentProcessor extends WorkerHost {
   constructor(
     private fulfillmentService: FulfillmentService,

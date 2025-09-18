@@ -13,6 +13,7 @@ import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 
 @Processor(QueueNames.INTENT_EXECUTION, {
+  prefix: `{${QueueNames.INTENT_EXECUTION}}`,
   concurrency: 10, // Will be overridden by constructor
 })
 export class BlockchainProcessor extends WorkerHost implements OnModuleInit {

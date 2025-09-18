@@ -14,12 +14,15 @@ import { QueueMetricsService } from '@/modules/queue/queue-metrics.service';
     BullModule.registerQueue(
       {
         name: QueueNames.INTENT_FULFILLMENT,
+        prefix: `{${QueueNames.INTENT_FULFILLMENT}}`,
       },
       {
         name: QueueNames.INTENT_EXECUTION,
+        prefix: `{${QueueNames.INTENT_EXECUTION}}`,
       },
       {
         name: QueueNames.INTENT_WITHDRAWAL,
+        prefix: `{${QueueNames.INTENT_WITHDRAWAL}}`,
       },
     ),
   ],
