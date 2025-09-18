@@ -40,11 +40,8 @@ export const configurationFactory = async () => {
     // Fetch secrets from AWS using the merged config
     const secrets = await awsSecretsService.getSecrets(awsConfig);
 
-    // Transform flat secrets to nested configuration structure using schema
-    const nestedSecrets = transformEnvVarsToConfig(secrets, ConfigSchema);
-
     // Merge AWS secrets into the configuration
-    mergedConfig = merge({}, mergedConfig, nestedSecrets);
+    mergedConfig = merge({}, mergedConfig, secrets);
   }
 
   if (mergedConfig.useEcoPackageConfig) {
