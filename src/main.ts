@@ -19,7 +19,7 @@ import { TraceInterceptor } from '@/modules/opentelemetry';
 async function bootstrap() {
   // Determine environment for winston configuration
   const env = process.env.ENV || process.env.NODE_ENV || 'development';
-  const isProduction = env === 'production';
+  const isProduction = env !== 'development';
 
   // Configure winston transports
   const format = winston.format.combine(
