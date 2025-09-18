@@ -41,7 +41,6 @@ General application settings.
 interface AppConfig {
   env: 'development' | 'staging' | 'production';
   port: number;
-  apiKeys: string[];
   cors: {
     enabled: boolean;
     origins: string[];

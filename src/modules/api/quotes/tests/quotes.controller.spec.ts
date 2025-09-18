@@ -16,9 +16,7 @@ describe('QuotesController', () => {
     getQuote: jest.fn(),
   };
 
-  const mockAppConfigService = {
-    apiKeys: [],
-  };
+  const mockAppConfigService = {};
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
