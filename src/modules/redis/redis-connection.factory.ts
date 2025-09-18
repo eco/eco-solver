@@ -54,9 +54,7 @@ export class RedisConnectionFactory {
       { host: this.redisConfig.host, port: this.redisConfig.port },
     ];
 
-    this.logger.log(
-      `Creating Redis cluster connection for processor with ${clusterNodes.length} nodes`,
-    );
+    this.logger.log(`Creating Redis cluster connection with ${clusterNodes.length} nodes`);
 
     return new Redis.Cluster(clusterNodes, {
       redisOptions: {
@@ -72,7 +70,7 @@ export class RedisConnectionFactory {
 
   private createStandaloneConnection(): Redis {
     this.logger.log(
-      `Creating Redis standalone connection for processor at ${this.redisConfig.host}:${this.redisConfig.port}`,
+      `Creating Redis standalone connection at ${this.redisConfig.host}:${this.redisConfig.port}`,
     );
 
     return new Redis({
@@ -83,6 +81,12 @@ export class RedisConnectionFactory {
       tls: this.redisConfig.tls,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      retryStrategy: (times: number) => {
+        this.logger.error(
+          `Failed to connect to Redis (attempt ${times}): ${this.redisConfig.host}:${this.redisConfig.port}`,
+        );
+        return Math.min(times * 50, 2000);
+      },
     });
   }
 }
