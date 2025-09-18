@@ -33,7 +33,6 @@ export class QuoteV2Controller {
       }),
     )
 
-    // Get reverse quote using existing service (V2 uses reverse quote logic)
     const { response: v2Response, error } = await this.quoteV2Service.getQuote(v2Request)
     const processingTime = Date.now() - startTime
 

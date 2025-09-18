@@ -74,6 +74,7 @@ export type IntentFundedEventLog = DecodeEventLogReturnType<typeof portalAbi, 'I
 
 export type V2IntentType = ContractFunctionArgs<typeof portalAbi, 'pure', 'getIntentHash'>[number]
 export type V2RouteType = Extract<V2IntentType, { route: any }>['route']
+export type V2RewardType = Extract<V2IntentType, { reward: any }>['reward']
 
 export const intentStructAbiItem = getAbiItem({
   abi: portalAbi,

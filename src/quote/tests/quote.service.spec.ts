@@ -18,7 +18,7 @@ import {
   SolverUnsupported,
 } from '@/quote/errors'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { Model } from 'mongoose'
@@ -72,7 +72,7 @@ describe('QuotesService', () => {
       providers: [
         QuoteService,
         QuoteRepository,
-        IntentInitiationService,
+        IntentInitiationV2Service,
         IntentSourceRepository,
         GroupedIntentRepository,
         PermitValidationService,

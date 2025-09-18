@@ -2,14 +2,14 @@ import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { ModuleRef } from '@nestjs/core'
 import { UtilsIntentService } from '@/intent/utils-intent.service'
 
 @Injectable()
 export class IntentFulfilledService implements OnModuleInit {
   private logger = new EcoLogger(IntentFulfilledService.name)
-  private intentInitiationService: IntentInitiationService
+  private intentInitiationService: IntentInitiationV2Service
 
   constructor(
     private readonly utilsIntentService: UtilsIntentService,
@@ -17,7 +17,7 @@ export class IntentFulfilledService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, { strict: false })
+    this.intentInitiationService = this.moduleRef.get(IntentInitiationV2Service, { strict: false })
 
     this.logger.debug(
       EcoLogMessage.fromDefault({

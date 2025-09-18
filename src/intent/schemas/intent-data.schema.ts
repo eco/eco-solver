@@ -81,10 +81,10 @@ export class IntentDataModel implements IntentType {
       throw EcoError.IntentSourceDataInvalidParams
     }
 
-    if (
-      (rewardTokens.length == 0 || routeTokens.length == 0) &&
-      !IntentDataModel.isNativeIntent(params)
-    ) {
+    const isMissingTokens = rewardTokens.length === 0 || routeTokens.length === 0
+    const isNotNativeIntent = !IntentDataModel.isNativeIntent(params)
+
+    if (isMissingTokens && isNotNativeIntent) {
       throw EcoError.IntentSourceDataInvalidParams
     }
 
@@ -92,23 +92,23 @@ export class IntentDataModel implements IntentType {
     this.quoteID = quoteID
     this.hash = hash
 
-    this.route = new RouteDataModel(
+    this.route = new RouteDataModel({
       salt,
       source,
       destination,
-      getAddress(inbox),
-      routeTokens.map((token) => {
+      inbox: getAddress(inbox),
+      routeTokens: routeTokens.map((token) => {
         token.token = getAddress(token.token)
         return token
       }),
-      calls.map((call) => {
+      calls: calls.map((call) => {
         call.target = getAddress(call.target)
         return call
       }),
-      routeDeadline,
-      inbox,
-      nativeValue,
-    )
+      deadline: routeDeadline,
+      portal: inbox,
+      nativeAmount: nativeValue,
+    })
 
     this.reward = new RewardDataModel(
       getAddress(creator),
@@ -148,12 +148,13 @@ export class IntentDataModel implements IntentType {
     route: V2RouteType,
   ): IntentDataModel {
     const e = event.args
+
     return new IntentDataModel({
       hash: e.intentHash,
       salt: route.salt,
       source: sourceChainID,
       destination: e.destination,
-      inbox: route.portal,
+      inbox: route.portal, // portal
       routeTokens: route.tokens as Mutable<typeof route.tokens>,
       calls: route.calls as Mutable<typeof route.calls>,
       creator: e.creator,

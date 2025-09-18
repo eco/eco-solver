@@ -110,6 +110,7 @@ describe('QuoteV2Controller', () => {
       ],
       deadline: 1234567890,
       estimatedFulfillTimeSec: 60,
+      encodedRoute: '0xabcdef',
     },
     contracts: {
       sourcePortal: '0x0000000000000000000000000000000000000000',
