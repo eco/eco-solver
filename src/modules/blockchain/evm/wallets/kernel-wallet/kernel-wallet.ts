@@ -260,6 +260,13 @@ export class KernelWallet extends BaseEvmWallet {
     return this.kernelAccount.address;
   }
 
+  async getMetadata(): Promise<Record<string, string>> {
+    return {
+      signer: this.signer.address,
+      mode: this.getExecutionMode(),
+    };
+  }
+
   /**
    * Get current execution mode
    * @returns Current execution mode based on executor status

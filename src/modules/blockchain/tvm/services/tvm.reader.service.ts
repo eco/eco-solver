@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
@@ -7,9 +7,11 @@ import { decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } f
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
+import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { getChainName } from '@/common/utils/chain-name.utils';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { TvmConfigService } from '@/modules/config/services';
@@ -18,15 +20,43 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 
 import { TvmClientUtils, TvmErrorHandler } from '../utils';
 
+import { TvmWalletManagerService } from './tvm-wallet-manager.service';
+
 @Injectable()
 export class TvmReaderService extends BaseChainReader {
   constructor(
     private tvmConfigService: TvmConfigService,
     protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @Optional() private tvmWalletManager?: TvmWalletManagerService,
   ) {
     super();
     this.logger.setContext(TvmReaderService.name);
+  }
+
+  async getChainInfo(chainId: number): Promise<ChainInfo> {
+    const wallets = [];
+
+    if (this.tvmWalletManager) {
+      try {
+        const wallet = this.tvmWalletManager.createWallet(chainId, 'basic');
+        const address = await wallet.getAddress();
+        wallets.push({
+          type: 'basic',
+          address: address.toString(),
+        });
+      } catch (error) {
+        // Wallet might not be configured for this chain
+        this.logger.debug(`Wallet not configured for TVM chain ${chainId}`);
+      }
+    }
+
+    return {
+      chainId,
+      chainName: getChainName(chainId, ChainType.TVM),
+      chainType: 'TVM',
+      wallets,
+    };
   }
 
   /**

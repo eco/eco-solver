@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Address, decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
@@ -6,10 +6,12 @@ import { Address, decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
+import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { getChainName } from '@/common/utils/chain-name.utils';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmReward } from '@/common/utils/intent-converter';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
@@ -18,6 +20,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from './evm-transport.service';
+import { EvmWalletManager } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmReaderService extends BaseChainReader {
@@ -26,9 +29,47 @@ export class EvmReaderService extends BaseChainReader {
     private evmConfigService: EvmConfigService,
     protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @Optional() private evmWalletManager?: EvmWalletManager,
   ) {
     super();
     this.logger.setContext(EvmReaderService.name);
+  }
+
+  async getChainInfo(chainId: number): Promise<ChainInfo> {
+    const wallets = [];
+
+    if (this.evmWalletManager) {
+      const walletTypes = this.evmWalletManager.getWalletTypes();
+
+      for (const walletType of walletTypes) {
+        try {
+          const wallet = this.evmWalletManager.getWallet(walletType, chainId);
+          const address = await wallet.getAddress();
+          const metadata = await wallet.getMetadata?.();
+
+          const walletInfo: any = {
+            type: walletType,
+            address,
+          };
+
+          if (metadata) {
+            walletInfo.metadata = metadata;
+          }
+
+          wallets.push(walletInfo);
+        } catch (error) {
+          // Wallet type might not be configured for this chain
+          this.logger.debug(`Wallet type ${walletType} not configured for EVM chain ${chainId}`);
+        }
+      }
+    }
+
+    return {
+      chainId,
+      chainName: getChainName(chainId, ChainType.EVM),
+      chainType: 'EVM',
+      wallets,
+    };
   }
 
   async getBalance(address: UniversalAddress, chainId: number): Promise<bigint> {

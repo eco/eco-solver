@@ -16,6 +16,8 @@ export interface WriteContractsOptions {
 export interface IEvmWallet {
   getAddress(): Promise<Address>;
 
+  getMetadata?(): Promise<Record<string, string> | undefined>;
+
   writeContract(params: EvmCall): Promise<Hash>;
 
   writeContracts(params: EvmCall[], options?: WriteContractsOptions): Promise<Hash[]>;

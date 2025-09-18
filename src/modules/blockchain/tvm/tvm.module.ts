@@ -23,6 +23,6 @@ import { TvmExecutorService, TvmReaderService, TvmWalletManagerService } from '.
     TvmWalletManagerService,
     TvmListenersManagerService,
   ],
-  exports: [TvmReaderService, TvmExecutorService],
+  exports: [TvmReaderService, TvmExecutorService, TvmWalletManagerService],
 })
 export class TvmModule {}

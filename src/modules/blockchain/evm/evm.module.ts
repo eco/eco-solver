@@ -26,6 +26,6 @@ import { EvmCoreModule } from './evm-core.module';
     KernelWalletModule,
   ],
   providers: [EvmExecutorService, EvmReaderService, EvmWalletManager, EvmListenersManagerService],
-  exports: [EvmExecutorService, EvmReaderService],
+  exports: [EvmExecutorService, EvmReaderService, EvmWalletManager],
 })
 export class EvmModule {}

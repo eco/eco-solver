@@ -3,6 +3,7 @@ import { Injectable, Optional } from '@nestjs/common';
 import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
+import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
@@ -155,6 +156,15 @@ export class BlockchainReaderService {
     amount: bigint,
   ): Call {
     return this.getReaderForChain(chainId).buildTokenTransferCalldata(recipient, token, amount);
+  }
+
+  /**
+   * Get chain information including wallets for a specific chain
+   * @param chainId The chain ID
+   * @returns ChainInfo object with chain details and configured wallets
+   */
+  async getChainInfo(chainId: number): Promise<ChainInfo | ChainInfo[]> {
+    return this.getReaderForChain(chainId).getChainInfo(chainId);
   }
 
   private initializeReaders() {

@@ -1,11 +1,14 @@
 import { Hex } from 'viem';
 
+import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 export abstract class BaseChainReader {
   protected abstract readonly logger: SystemLoggerService;
+
+  abstract getChainInfo(chainId: number): Promise<ChainInfo | ChainInfo[]>;
 
   abstract getBalance(address: UniversalAddress, chainId?: number): Promise<bigint>;
 

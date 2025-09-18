@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { web3 } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
@@ -15,9 +15,11 @@ import { Hex } from 'viem';
 
 // Types for route and reward are now from the SVMIntent conversion
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
+import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { getChainName } from '@/common/utils/chain-name.utils';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { CalldataWithAccountsInstruction } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
@@ -29,6 +31,8 @@ import { SolanaConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
+import { SvmWalletManagerService } from './svm-wallet-manager.service';
+
 @Injectable()
 export class SvmReaderService extends BaseChainReader {
   private readonly connection: Connection;
@@ -37,11 +41,36 @@ export class SvmReaderService extends BaseChainReader {
     private solanaConfigService: SolanaConfigService,
     protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @Optional() private svmWalletManager?: SvmWalletManagerService,
   ) {
     super();
     this.logger.setContext(SvmReaderService.name);
     const rpcUrl = this.solanaConfigService.rpcUrl;
     this.connection = new Connection(rpcUrl, 'confirmed');
+  }
+
+  async getChainInfo(chainId: number): Promise<ChainInfo> {
+    const wallets = [];
+
+    if (this.svmWalletManager) {
+      try {
+        const wallet = this.svmWalletManager.getWallet('basic', chainId);
+        const address = await wallet.getAddress();
+        wallets.push({
+          type: 'basic',
+          address: address.toString(),
+        });
+      } catch (error) {
+        this.logger.error(`Failed to get SVM wallet: ${error}`);
+      }
+    }
+
+    return {
+      chainId,
+      chainName: getChainName(chainId, ChainType.SVM),
+      chainType: 'SVM',
+      wallets,
+    };
   }
 
   async getBalance(address: UniversalAddress, _chainId?: number): Promise<bigint> {
