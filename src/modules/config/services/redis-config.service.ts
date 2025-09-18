@@ -26,4 +26,16 @@ export class RedisConfigService {
   get tls(): RedisConfig['tls'] {
     return this.configService.get('redis.tls');
   }
+
+  get enableCluster(): RedisConfig['enableCluster'] {
+    return this.configService.get<boolean>('redis.enableCluster')!;
+  }
+
+  get clusterNodes(): RedisConfig['clusterNodes'] {
+    return this.configService.get('redis.clusterNodes');
+  }
+
+  get clusterOptions(): RedisConfig['clusterOptions'] {
+    return this.configService.get('redis.clusterOptions');
+  }
 }

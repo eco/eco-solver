@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import Redis from 'ioredis';
+import Redis, { Cluster } from 'ioredis';
 
 import { LeaderElectionConfigService } from '@/modules/config/services/leader-election-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -24,7 +24,7 @@ import { RedisService } from './redis.service';
  */
 @Injectable()
 export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
-  private redis?: Redis;
+  private redis?: Redis | Cluster;
   private instanceId: string;
   private isLeader = false;
   private heartbeatInterval?: NodeJS.Timeout;
