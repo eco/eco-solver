@@ -77,7 +77,7 @@ const operationStack = new OperationStackImpl()
  * Generate unique operation ID
  */
 function generateOperationId(): string {
-  return `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  return `op_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
 /**
@@ -431,7 +431,17 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
         const operationId = generateOperationId()
         const startTime = performance.now()
 
-        // Inherit parent context
+        // Create sub-operation context
+        const subOperationContext: DecoratorOperationContext = {
+          operationId,
+          operationType: subOperationType,
+          parentOperationId: parentOperation.operationId,
+          startTime,
+          level: parentOperation.level + 1,
+          context: parentOperation.context,
+        }
+
+        // Inherit parent context with sub-operation details
         const enhancedContext = {
           ...parentOperation.context,
           operation: {
@@ -442,9 +452,13 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
             level: parentOperation.level + 1,
             method_name: String(propertyName),
             status: 'started',
-            correlation_id: parentOperation.operationId,
+            correlation_id:
+              parentOperation.context.operation?.correlation_id || parentOperation.operationId,
           },
         }
+
+        // Push sub-operation to stack for proper hierarchy
+        operationStack.push(subOperationContext)
 
         try {
           // Entry logging for sub-operation
@@ -536,6 +550,9 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
           }
 
           throw error
+        } finally {
+          // Pop sub-operation from stack
+          operationStack.pop()
         }
       }
     } else {
@@ -559,7 +576,17 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
         const operationId = generateOperationId()
         const startTime = performance.now()
 
-        // Inherit parent context
+        // Create sub-operation context
+        const subOperationContext: DecoratorOperationContext = {
+          operationId,
+          operationType: subOperationType,
+          parentOperationId: parentOperation.operationId,
+          startTime,
+          level: parentOperation.level + 1,
+          context: parentOperation.context,
+        }
+
+        // Inherit parent context with sub-operation details
         const enhancedContext = {
           ...parentOperation.context,
           operation: {
@@ -570,9 +597,13 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
             level: parentOperation.level + 1,
             method_name: String(propertyName),
             status: 'started',
-            correlation_id: parentOperation.operationId,
+            correlation_id:
+              parentOperation.context.operation?.correlation_id || parentOperation.operationId,
           },
         }
+
+        // Push sub-operation to stack for proper hierarchy
+        operationStack.push(subOperationContext)
 
         try {
           // Entry logging for sub-operation
@@ -664,6 +695,9 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
           }
 
           throw error
+        } finally {
+          // Pop sub-operation from stack
+          operationStack.pop()
         }
       }
     }
