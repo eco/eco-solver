@@ -125,7 +125,7 @@ export class TvmConfigService implements IBlockchainConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType {
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType | undefined {
     const network = this.getChain(chainId);
     return network.fee;
   }

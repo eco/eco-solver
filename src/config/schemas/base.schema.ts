@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const BaseSchema = z.object({
   env: z.enum(['development', 'test', 'production', 'preproduction']).default('development'),
   port: z.coerce.number().int().positive().default(3000),
-  skipEcoPackageConfig: z.boolean().optional(),
+  useEcoPackageConfig: z.boolean().optional(),
   configFiles: z
     .union([z.string(), z.array(z.string())])
     .default('config.yaml')

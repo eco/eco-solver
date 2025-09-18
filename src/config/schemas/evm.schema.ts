@@ -128,7 +128,7 @@ const EvmNetworkSchema = z.object({
   chainId: z.coerce.number().int().positive(),
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   tokens: z.array(EvmTokenSchema).default([]),
-  fee: AssetsFeeSchema,
+  fee: AssetsFeeSchema.optional(),
   provers: z.record(z.enum(ProverTypeValues), EvmAddressSchema),
   defaultProver: z.enum(ProverTypeValues),
   contracts: z.object({

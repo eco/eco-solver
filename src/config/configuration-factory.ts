@@ -47,7 +47,7 @@ export const configurationFactory = async () => {
     mergedConfig = merge({}, mergedConfig, nestedSecrets);
   }
 
-  if (!mergedConfig.skipEcoPackageConfig) {
+  if (mergedConfig.useEcoPackageConfig) {
     const npmPackageConfig = getEcoNpmPackageConfig(mergedConfig);
 
     mergedConfig = merge({}, mergedConfig, npmPackageConfig);

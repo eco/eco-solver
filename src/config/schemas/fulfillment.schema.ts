@@ -55,13 +55,13 @@ export const FulfillmentSchema = z.object({
     .default(FULFILLMENT_STRATEGY_NAMES.STANDARD),
   strategies: FulfillmentStrategiesSchema.default({
     standard: { enabled: true },
-    crowdLiquidity: { enabled: true },
-    nativeIntents: { enabled: true },
-    negativeIntents: { enabled: true },
-    rhinestone: { enabled: true },
+    crowdLiquidity: { enabled: false },
+    nativeIntents: { enabled: false },
+    negativeIntents: { enabled: false },
+    rhinestone: { enabled: false },
   }),
   validations: ValidationsSchema.default({}),
-  defaultFee: AssetsFeeSchema.optional(), // Global default fee configuration (lowest priority)
+  defaultFee: AssetsFeeSchema, // Global default fee configuration (lowest priority)
 });
 
 export type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;

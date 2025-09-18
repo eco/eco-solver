@@ -70,7 +70,7 @@ const TvmNetworkSchema = z.object({
   chainId: z.coerce.number().int().positive(),
   rpc: TvmRpcSchema,
   tokens: z.array(TvmTokenSchema).default([]),
-  fee: AssetsFeeSchema,
+  fee: AssetsFeeSchema.optional(),
   provers: z.record(z.enum(ProverTypeValues), TronAddressSchema),
   defaultProver: z.enum(ProverTypeValues),
   contracts: z.object({

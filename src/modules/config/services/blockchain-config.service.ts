@@ -103,7 +103,7 @@ export class BlockchainConfigService {
    * Gets fee configuration for any chain ID
    * Automatically detects chain type and retrieves from appropriate config
    */
-  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType {
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType | undefined {
     const chainType = ChainTypeDetector.detect(chainId);
     const configService = this.getConfigService(chainType);
     return configService.getFeeLogic(chainId);

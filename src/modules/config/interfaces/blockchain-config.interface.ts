@@ -65,7 +65,7 @@ export interface IBlockchainConfigService {
    * Gets the fee configuration for the chain
    * @param chainId Chain identifier
    */
-  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType;
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType | undefined;
 
   /**
    * Gets the prover contract address for the chain

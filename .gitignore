@@ -53,6 +53,7 @@ config.yml
 !config.example.yaml
 
 CLAUDE.md
+config*
 
 # Secret detection
 # Note: .secretlintrc.json and .secretlintignore are tracked to share configuration with the team
