@@ -6,7 +6,7 @@ import { parseUnits } from 'viem';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { sum } from '@/common/utils/math';
-import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -18,8 +18,7 @@ import { FeeCalculationValidation, FeeDetails } from './fee-calculation.interfac
 @Injectable()
 export class StandardFeeValidation implements FeeCalculationValidation {
   constructor(
-    private blockchainConfigService: BlockchainConfigService,
-    private fulfillmentConfigService: FulfillmentConfigService,
+    private readonly feeResolverService: FeeResolverService,
     private readonly tokenConfigService: TokenConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {}
@@ -96,8 +95,27 @@ export class StandardFeeValidation implements FeeCalculationValidation {
   }
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
-    // Get fee logic for the destination chain
-    const feeConfig = this.blockchainConfigService.getFeeLogic(intent.destination);
+    // Ensure there's exactly one token in the route
+    if (intent.route.tokens.length > 1) {
+      throw new ValidationError(
+        `Standard fee validation only supports single token routes, but found ${intent.route.tokens.length} tokens`,
+        ValidationErrorType.PERMANENT,
+        StandardFeeValidation.name,
+      );
+    }
+    if (intent.route.tokens.length === 0) {
+      throw new ValidationError(
+        `Standard fee validation required a route token`,
+        ValidationErrorType.PERMANENT,
+        StandardFeeValidation.name,
+      );
+    }
+
+    // Get the single token address from the route
+    const tokenAddress = intent.route.tokens[0].token;
+
+    // Get fee logic using the hierarchical resolver (token > network > fulfillment)
+    const feeConfig = this.feeResolverService.resolveFee(intent.destination, tokenAddress);
     const baseFee = normalize(parseUnits(feeConfig.tokens.flatFee.toString(), 18), 18);
 
     // Calculate reward values

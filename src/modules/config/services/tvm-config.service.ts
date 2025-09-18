@@ -15,7 +15,7 @@ import { TvmWalletType } from '@/modules/blockchain/tvm/services';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
-import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
+import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
 @Injectable()
 export class TvmConfigService implements IBlockchainConfigService {
@@ -69,12 +69,7 @@ export class TvmConfigService implements IBlockchainConfigService {
     return network.rpc;
   }
 
-  getSupportedTokens(chainId: ChainIdentifier): Array<{
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  }> {
+  getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
     const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
     const network = this.getChain(numChainId);
     return network.tokens.map((token) => ({
@@ -82,6 +77,7 @@ export class TvmConfigService implements IBlockchainConfigService {
       decimals: token.decimals,
       symbol: token.symbol,
       limit: token.limit,
+      fee: token.fee,
     }));
   }
 
@@ -99,15 +95,7 @@ export class TvmConfigService implements IBlockchainConfigService {
     return tokens.some((token) => token.address === normalizedAddress);
   }
 
-  getTokenConfig(
-    chainId: ChainIdentifier,
-    tokenAddress: UniversalAddress,
-  ): {
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  } {
+  getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     const tokens = this.getTvmSupportedTokens(chainId);
     const denormalizedAddress = AddressNormalizer.denormalizeToTvm(tokenAddress);
     const tokenConfig = tokens.find((token) => token.address === denormalizedAddress);
@@ -119,6 +107,7 @@ export class TvmConfigService implements IBlockchainConfigService {
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
+      fee: tokenConfig.fee,
     };
   }
 

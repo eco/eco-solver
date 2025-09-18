@@ -6,7 +6,7 @@ import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
-import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
+import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
 import { EvmConfigService } from './evm-config.service';
 import { SolanaConfigService } from './solana-config.service';
@@ -113,12 +113,7 @@ export class BlockchainConfigService {
    * Gets supported tokens for any chain ID
    * Returns array of token configurations with address, decimals, and symbol
    */
-  getSupportedTokens(chainId: ChainIdentifier): Array<{
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  }> {
+  getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
     const chainType = ChainTypeDetector.detect(chainId);
     const configService = this.getConfigService(chainType);
     return configService.getSupportedTokens(chainId);
@@ -128,17 +123,9 @@ export class BlockchainConfigService {
    * Gets token configuration for a specific token on any chain
    * @param chainId Chain identifier
    * @param tokenAddress Token contract address
-   * @returns Token configuration with address, decimals, and symbol
+   * @returns Token configuration with address, decimals, symbol, and optional fee
    */
-  getTokenConfig(
-    chainId: ChainIdentifier,
-    tokenAddress: UniversalAddress,
-  ): {
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  } {
+  getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     const chainType = ChainTypeDetector.detect(chainId);
     const configService = this.getConfigService(chainType);
     return configService.getTokenConfig(chainId, tokenAddress);

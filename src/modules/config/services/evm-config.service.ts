@@ -10,7 +10,7 @@ import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/sch
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
-import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
+import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
 @Injectable()
 export class EvmConfigService implements IBlockchainConfigService {
@@ -62,17 +62,13 @@ export class EvmConfigService implements IBlockchainConfigService {
     return network;
   }
 
-  getSupportedTokens(chainId: ChainIdentifier): Array<{
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  }> {
+  getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
     return this.getEvmSupportedTokens(chainId).map((token) => ({
       address: AddressNormalizer.normalizeEvm(token.address),
       decimals: token.decimals,
       symbol: token.symbol,
       limit: token.limit,
+      fee: token.fee,
     }));
   }
 
@@ -88,21 +84,14 @@ export class EvmConfigService implements IBlockchainConfigService {
     return tokens.some((token) => isAddressEqual(token.address, normalizedAddress));
   }
 
-  getTokenConfig(
-    chainId: ChainIdentifier,
-    tokenAddress: UniversalAddress,
-  ): {
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  } {
+  getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     const tokenConfig = this.getEvmTokenConfig(chainId, tokenAddress);
     return {
       address: AddressNormalizer.normalizeEvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
+      fee: tokenConfig.fee,
     };
   }
 

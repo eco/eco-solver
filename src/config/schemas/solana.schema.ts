@@ -26,6 +26,7 @@ const SvmTokenSchema = z.object({
         }),
     ])
     .optional(),
+  fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
 });
 
 /**

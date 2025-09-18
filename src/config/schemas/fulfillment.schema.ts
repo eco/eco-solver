@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
@@ -60,6 +61,7 @@ export const FulfillmentSchema = z.object({
     rhinestone: { enabled: true },
   }),
   validations: ValidationsSchema.default({}),
+  defaultFee: AssetsFeeSchema.optional(), // Global default fee configuration (lowest priority)
 });
 
 export type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;
