@@ -34,7 +34,7 @@ import { PermitProcessor } from '@/common/permit/permit-processor'
 import { PermitValidationService } from '@/intent-initiation/permit-validation/permit-validation.service'
 import { QuoteIntentModel } from '@/quote/schemas/quote-intent.schema'
 import { QuoteRepository } from '@/quote/quote.repository'
-import { RouteType, hashRoute, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { RouteType, hashRoute, IntentSourceAbi, hashIntent } from '@eco-foundation/routes-ts'
 import { StandardMerkleBuilder } from '@/common/permit/standard-merkle-builder'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
@@ -700,6 +700,7 @@ export class IntentInitiationService implements OnModuleInit {
       intentGroupID,
       quoteID,
       funder,
+      hashIntent({ route: routeWithSalt, reward: quoteReward }).intentHash,
       routeWithSalt,
       quoteReward,
     )

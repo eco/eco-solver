@@ -9,7 +9,7 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { RewardTokensInterface, CallDataInterface } from '@/contracts'
-import { RouteType, hashIntent } from '@eco-foundation/routes-ts'
+import { RouteType } from '@eco-foundation/routes-ts'
 
 @Injectable()
 export class IntentSourceRepository {
@@ -39,6 +39,7 @@ export class IntentSourceRepository {
     intentGroupID: string,
     quoteID: string,
     funder: Hex,
+    intentHash: Hex,
     route: RouteType,
     reward: QuoteRewardDataType,
   ) {
@@ -54,7 +55,7 @@ export class IntentSourceRepository {
       } = route as RouteType & { deadline: bigint } // TODO: Must be update to use V2 contracts
       const { creator, prover, deadline, nativeValue } = reward
       const rewardTokens = reward.tokens as RewardTokensInterface[]
-      const intentHash = hashIntent({ route, reward }).intentHash
+      // const intentHash = hashIntent({ route, reward }).intentHash
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
@@ -87,7 +88,7 @@ export class IntentSourceRepository {
         creator,
         prover,
         deadline,
-        routeDeadline,
+        routeDeadline: routeDeadline || deadline,
         nativeValue,
         rewardTokens,
         logIndex: 0,
@@ -119,6 +120,7 @@ export class IntentSourceRepository {
             error: ex.message,
           },
         }),
+        ex.stack,
       )
 
       // Track gasless intent creation failure with complete context

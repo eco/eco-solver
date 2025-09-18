@@ -690,15 +690,6 @@ export class IntentInitiationV2Service implements OnModuleInit {
     const chainConfig = getChainConfig(Number(quoteRoute.source))
     const intentSourceContract = chainConfig.IntentSource
 
-    // Update intent db
-    await this.intentSourceRepository.createIntentFromIntentInitiation(
-      intentGroupID,
-      quoteID,
-      funder,
-      routeWithSalt,
-      quoteReward,
-    )
-
     const quoteRouteV2: V2RouteType = {
       salt: routeWithSalt.salt,
       deadline: quoteReward.deadline,
@@ -725,7 +716,26 @@ export class IntentInitiationV2Service implements OnModuleInit {
     }
 
     const allowPartial = false
-    const { routeHash } = PortalHashUtils.getIntentHash(intent)
+    const { intentHash, routeHash } = PortalHashUtils.getIntentHash(intent)
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getIntentFundForTx`,
+        properties: {
+          intentHash,
+        },
+      }),
+    )
+
+    // Update intent db
+    await this.intentSourceRepository.createIntentFromIntentInitiation(
+      intentGroupID,
+      quoteID,
+      funder,
+      intentHash,
+      routeWithSalt,
+      quoteReward,
+    )
 
     // function fundFor(
     //   uint64 destination,
