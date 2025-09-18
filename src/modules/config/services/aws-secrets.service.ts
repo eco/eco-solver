@@ -5,6 +5,7 @@ import {
   SecretsManagerClient,
   SecretsManagerClientConfig,
 } from '@aws-sdk/client-secrets-manager';
+import * as yaml from 'js-yaml';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { AwsConfig } from '@/config/schemas';
@@ -51,8 +52,34 @@ export class AwsSecretsService {
         throw new Error('Secret value is empty');
       }
 
-      // Parse the JSON string
-      const secrets = JSON.parse(response.SecretString);
+      // Try to parse the secret string - first as JSON, then as YAML
+      let secrets: Record<string, any>;
+      try {
+        // First try JSON parsing (for backward compatibility)
+        secrets = JSON.parse(response.SecretString);
+        this.logger.log(
+          `Successfully parsed secrets as JSON from AWS Secrets Manager: ${awsConfig.secretName}`,
+        );
+      } catch (jsonError) {
+        // If JSON parsing fails, try YAML parsing
+        try {
+          secrets = yaml.load(response.SecretString) as Record<string, any>;
+          this.logger.log(
+            `Successfully parsed secrets as YAML from AWS Secrets Manager: ${awsConfig.secretName}`,
+          );
+        } catch (yamlError) {
+          throw new Error(
+            `Failed to parse secrets from AWS Secrets Manager as JSON or YAML. ` +
+              `JSON error: ${getErrorMessage(jsonError)}. ` +
+              `YAML error: ${getErrorMessage(yamlError)}`,
+          );
+        }
+      }
+
+      // Validate that the parsed result is an object
+      if (!secrets || typeof secrets !== 'object') {
+        throw new Error('Parsed secrets must be an object');
+      }
 
       // Cache the secrets
       this.secretsCache[awsConfig.secretName] = secrets;
