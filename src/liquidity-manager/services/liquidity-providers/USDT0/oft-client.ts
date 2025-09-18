@@ -1,5 +1,5 @@
 import { Hex, encodeFunctionData, pad } from 'viem'
-import { oftV2Abi, erc20ApproveAbi } from './constants/abis'
+import { oftV2Abi, erc20ApproveAbi } from '@/contracts/OFTV2.abi'
 
 export type SendParam = {
   dstEid: number

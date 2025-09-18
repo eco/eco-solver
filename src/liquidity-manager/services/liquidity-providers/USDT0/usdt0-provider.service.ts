@@ -6,7 +6,7 @@ import { Hex, parseUnits, isAddressEqual } from 'viem'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 import { buildApproveCalldata, buildSendCalldata, toBytes32Address } from './oft-client'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { oftV2Abi } from './constants/abis'
+import { oftV2Abi } from '@/contracts/OFTV2.abi'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,

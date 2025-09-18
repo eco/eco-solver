@@ -11,7 +11,6 @@ import { Queue, UnrecoverableError } from 'bullmq'
 import { Hex } from 'viem'
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
@@ -33,9 +32,6 @@ export type CheckOFTDeliveryJob = LiquidityManagerJob<
 export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<CheckOFTDeliveryJob> {
   @AutoInject(EcoConfigService)
   private ecoConfigService: EcoConfigService
-
-  @AutoInject(MultichainPublicClientService)
-  private publicClientService: MultichainPublicClientService
 
   @AutoInject(RebalanceRepository)
   private rebalanceRepository: RebalanceRepository
@@ -61,118 +57,17 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
       EcoLogMessage.withId({
         message: 'USDT0: CheckOFTDeliveryJob: Start',
         id: job.data.id,
-        properties: {
-          job,
-        },
+        properties: { job },
       }),
     )
 
     const cfg = this.ecoConfigService.getUSDT0()
-    const dst = cfg.chains.find((c) => c.chainId === job.data.destinationChainId)
-    if (!dst) {
-      processor.logger.error(
-        EcoLogMessage.withId({
-          message: 'USDT0: CheckOFTDeliveryJob: Destination chain not configured',
-          id: job.data.id,
-          properties: { destinationChainId: job.data.destinationChainId },
-        }),
-      )
-      throw new UnrecoverableError(
-        `Destination chain ${job.data.destinationChainId} not configured`,
-      )
-    }
+    const dst = this.requireDestinationChain(cfg, job, processor)
 
     try {
-      const cfgUSDT0 = this.ecoConfigService.getUSDT0()
-      const src = cfgUSDT0.chains.find((c) => c.chainId === job.data.sourceChainId)
-
-      // Use LayerZero Scan API as the primary confirmation source
-      const baseUrl = cfgUSDT0.scanApiBaseUrl
-      const fetchFn: any = (globalThis as any).fetch
-      const url = `${baseUrl}/messages/tx/${job.data.txHash}`
-
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'USDT0: CheckOFTDeliveryJob: Querying LayerZero Scan',
-          id: job.data.id,
-          properties: {
-            url,
-            baseUrl,
-            sourceChainId: job.data.sourceChainId,
-            destinationChainId: job.data.destinationChainId,
-            srcEid: src?.eid,
-            dstEid: dst.eid,
-          },
-        }),
-      )
-
-      try {
-        const res = await fetchFn(url)
-        if (res?.ok) {
-          const body = await res.json()
-          const messages: any[] = body?.data ?? []
-
-          const filtered = messages.filter((m) => {
-            const pathway = m?.pathway ?? {}
-            const srcOk = src?.eid ? pathway.srcEid === src.eid : true
-            const dstOk = pathway.dstEid === dst.eid
-            return srcOk && dstOk
-          })
-          const message = filtered[0] ?? messages[0]
-          const dest = message?.destination
-          const destStatus: string | undefined = dest?.status
-          const topLevelStatus: string | undefined = message?.status?.name
-          const dstTxHash: Hex | undefined = dest?.tx?.txHash
-
-          processor.logger.debug(
-            EcoLogMessage.withId({
-              message: 'USDT0: CheckOFTDeliveryJob: Scan status',
-              id: job.data.id,
-              properties: {
-                topLevelStatus,
-                destinationStatus: destStatus,
-                dstTxHash,
-                matched: Boolean(message),
-              },
-            }),
-          )
-
-          // Consider delivered when top-level status is DELIVERED or destination.status indicates success
-          if (
-            topLevelStatus === 'DELIVERED' ||
-            destStatus === 'SUCCEEDED' ||
-            destStatus === 'DELIVERED'
-          ) {
-            return { status: 'complete' }
-          }
-
-          if (topLevelStatus === 'FAILED' || destStatus === 'FAILED') {
-            throw new UnrecoverableError('LayerZero message status FAILED')
-          }
-
-          // PAYLOAD_STORED, BLOCKED, VERIFIED, INFLIGHT, CONFIRMING → keep pending
-        } else {
-          processor.logger.warn(
-            EcoLogMessage.withId({
-              message: 'USDT0: CheckOFTDeliveryJob: Scan query non-OK response',
-              id: job.data.id,
-              properties: { status: res?.status, statusText: res?.statusText },
-            }),
-          )
-        }
-      } catch (apiError) {
-        if (apiError instanceof UnrecoverableError) {
-          // Bubble up final failures so the job is not retried
-          throw apiError
-        }
-        processor.logger.warn(
-          EcoLogMessage.withErrorAndId({
-            message: 'USDT0: CheckOFTDeliveryJob: Scan query failed (will retry)',
-            id: job.data.id,
-            error: apiError as any,
-            properties: { url },
-          }),
-        )
+      const result = await this.checkLayerZeroScanAPI(cfg, dst, job, processor)
+      if (result === 'complete') {
+        return { status: 'complete' }
       }
     } catch (error) {
       processor.logger.error(
@@ -190,6 +85,146 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
 
     await this.delay(job, 10_000)
     return { status: 'pending' }
+  }
+
+  private requireDestinationChain(
+    cfgUSDT0: ReturnType<EcoConfigService['getUSDT0']>,
+    job: CheckOFTDeliveryJob,
+    processor: LiquidityManagerProcessor,
+  ) {
+    const dst = cfgUSDT0.chains.find((c) => c.chainId === job.data.destinationChainId)
+    if (!dst) {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message: 'USDT0: CheckOFTDeliveryJob: Destination chain not configured',
+          id: job.data.id,
+          properties: { destinationChainId: job.data.destinationChainId },
+        }),
+      )
+      throw new UnrecoverableError(
+        `Destination chain ${job.data.destinationChainId} not configured`,
+      )
+    }
+    return dst
+  }
+
+  private buildScanContext(
+    cfgUSDT0: ReturnType<EcoConfigService['getUSDT0']>,
+    job: CheckOFTDeliveryJob,
+  ) {
+    const src = cfgUSDT0.chains.find((c) => c.chainId === job.data.sourceChainId)
+    const baseUrl = cfgUSDT0.scanApiBaseUrl
+    const fetchFn: any = (globalThis as any).fetch
+    const url = `${baseUrl}/messages/tx/${job.data.txHash}`
+    return { src, baseUrl, fetchFn, url }
+  }
+
+  private async checkLayerZeroScanAPI(
+    cfgUSDT0: ReturnType<EcoConfigService['getUSDT0']>,
+    dst: any,
+    job: CheckOFTDeliveryJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<'pending' | 'complete'> {
+    const { src, baseUrl, fetchFn, url } = this.buildScanContext(cfgUSDT0, job)
+    processor.logger.debug(
+      EcoLogMessage.withId({
+        message: 'USDT0: CheckOFTDeliveryJob: Querying LayerZero Scan',
+        id: job.data.id,
+        properties: {
+          url,
+          baseUrl,
+          sourceChainId: job.data.sourceChainId,
+          destinationChainId: job.data.destinationChainId,
+          srcEid: src?.eid,
+          dstEid: dst.eid,
+        },
+      }),
+    )
+
+    try {
+      const res = await fetchFn(url)
+      if (!res?.ok) {
+        processor.logger.warn(
+          EcoLogMessage.withId({
+            message: 'USDT0: CheckOFTDeliveryJob: Scan query non-OK response',
+            id: job.data.id,
+            properties: { status: res?.status, statusText: res?.statusText },
+          }),
+        )
+        return 'pending'
+      }
+
+      const body = await res.json()
+      const messages: any[] = body?.data ?? []
+
+      const message = this.selectRelevantMessage(messages, src?.eid, dst.eid)
+      const dest = message?.destination
+      const destStatus: string | undefined = dest?.status
+      const topLevelStatus: string | undefined = message?.status?.name
+      const dstTxHash: Hex | undefined = dest?.tx?.txHash
+
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0: CheckOFTDeliveryJob: Scan status',
+          id: job.data.id,
+          properties: {
+            topLevelStatus,
+            destinationStatus: destStatus,
+            dstTxHash,
+            matched: Boolean(message),
+          },
+        }),
+      )
+
+      const evalResult = this.evaluateScanStatuses(topLevelStatus, destStatus)
+      if (evalResult === 'complete') {
+        return 'complete'
+      }
+      if (evalResult === 'failed') {
+        throw new UnrecoverableError('LayerZero message status FAILED')
+      }
+      return 'pending'
+    } catch (apiError) {
+      if (apiError instanceof UnrecoverableError) {
+        throw apiError
+      }
+      processor.logger.warn(
+        EcoLogMessage.withErrorAndId({
+          message: 'USDT0: CheckOFTDeliveryJob: Scan query failed (will retry)',
+          id: job.data.id,
+          error: apiError as any,
+          properties: { url },
+        }),
+      )
+      return 'pending'
+    }
+  }
+
+  private selectRelevantMessage(messages: any[], srcEid: number | undefined, dstEid: number) {
+    const filtered = messages.filter((m) => {
+      const pathway = m?.pathway ?? {}
+      const srcOk = srcEid ? pathway.srcEid === srcEid : true
+      const dstOk = pathway.dstEid === dstEid
+      return srcOk && dstOk
+    })
+    return filtered[0] ?? messages[0]
+  }
+
+  private evaluateScanStatuses(
+    topLevelStatus: string | undefined,
+    destStatus: string | undefined,
+  ): 'pending' | 'complete' | 'failed' {
+    if (
+      topLevelStatus === 'DELIVERED' ||
+      destStatus === 'SUCCEEDED' ||
+      destStatus === 'DELIVERED'
+    ) {
+      return 'complete'
+    }
+    if (topLevelStatus === 'FAILED' || destStatus === 'FAILED') {
+      return 'failed'
+    }
+    return 'pending'
   }
 
   async onComplete(job: CheckOFTDeliveryJob, processor: LiquidityManagerProcessor): Promise<void> {
