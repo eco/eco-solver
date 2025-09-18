@@ -10,7 +10,7 @@ import { PermitDTO } from '@/quote/dto/permit/permit.dto'
 import { PermitParams } from '@/intent-initiation/permit-validation/interfaces/permit-params.interface'
 import { PermitValidationArgs } from '@/intent-initiation/permit-validation/interfaces/permit-validation-args.interface'
 import { PermitValidator } from '@/intent-initiation/permit-validation/permit-validator'
-import { PublicClient, publicActions, isAddressEqual, Address, Hex } from 'viem'
+import { PublicClient, publicActions, isAddressEqual, Address } from 'viem'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
 import { ValidateVaultFundingArgs } from '@/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
 import { VaultFundingValidator } from '@/intent-initiation/permit-validation/vault-funding-validator'
@@ -31,16 +31,16 @@ export class PermitValidationService {
   }
 
   async validatePermits(validationArgs: PermitValidationArgs): Promise<EcoResponse<void>> {
-    const { chainId, permits, permit2, reward, spender, owner, expectedVault } = validationArgs
+    const { chainId, permits, permit2s, reward } = validationArgs
 
     // 1. Validate vault
-    if (expectedVault) {
-      const { error } = this.isValidVaultAddress(spender, expectedVault)
+    // if (expectedVault) {
+    //   const { error } = this.isValidVaultAddress(spender, expectedVault)
 
-      if (error) {
-        return { error }
-      }
-    }
+    //   if (error) {
+    //     return { error }
+    //   }
+    // }
 
     const client = await this.getClient(chainId)
     let permitSimulationParams: PermitParams[] = []
@@ -48,7 +48,7 @@ export class PermitValidationService {
 
     // 2. Verify permits
     if (_.size(permits) > 0) {
-      permitSimulationParams = this.getPermitSimulationParams(permits!, owner, reward, spender)
+      permitSimulationParams = this.getPermitSimulationParams(permits!, reward)
 
       const { error: permitValidationError } = await PermitValidator.validatePermits(
         client,
@@ -60,8 +60,8 @@ export class PermitValidationService {
       }
     }
 
-    if (permit2) {
-      permit2SimulationParams = this.getPermit2SimulationParams(permit2, owner, reward)
+    if (_.size(permit2s) > 0) {
+      permit2SimulationParams = this.getPermit2SimulationParams(permit2s!, reward)
 
       const { error: permit2ValidationError } = await Permit2Validator.validatePermits(
         client,
@@ -137,9 +137,7 @@ export class PermitValidationService {
 
   private getPermitSimulationParams(
     permits: PermitDTO[],
-    owner: Hex,
     reward: QuoteRewardDataDTO,
-    vaultAddress: Hex,
   ): PermitParams[] {
     const permitMap: Record<string, PermitDTO> = {}
 
@@ -155,16 +153,14 @@ export class PermitValidationService {
       const tokenPermit = permitMap[token.token.toLowerCase()]
 
       if (tokenPermit) {
-        const {
-          data: { signature, deadline },
-        } = tokenPermit
+        const { signature, deadline, spender, funder } = tokenPermit
 
         permitSimulations.push({
           tokenAddress: token.token,
           signature: signature,
           deadline,
-          owner,
-          spender: vaultAddress,
+          owner: funder,
+          spender,
           value: BigInt(token.amount),
         })
       }
@@ -174,28 +170,32 @@ export class PermitValidationService {
   }
 
   private getPermit2SimulationParams(
-    permit: Permit2DTO,
-    owner: Hex,
+    permit2s: Permit2DTO[],
     reward: QuoteRewardDataDTO,
   ): Permit2Params[] {
-    reward = QuoteRewardDataDTO.fromJSON(reward)
-    const { permitData } = permit
-    const { singlePermitData, batchPermitData } = permitData
+    const simulationParams: Permit2Params[] = []
 
-    if (!singlePermitData && !batchPermitData) {
-      return []
+    for (const permit of permit2s) {
+      const permitSimulation = this.getPermit2SimulationParamsForPermit(permit, reward)
+
+      if (permitSimulation.details.length > 0) {
+        simulationParams.push(permitSimulation)
+      }
     }
 
-    const spender = permitData.getSpender()
-    const sigDeadline = permitData.getSigDeadline()
-    const details = singlePermitData
-      ? [singlePermitData.typedData.details]
-      : batchPermitData!.typedData.details
+    return simulationParams
+  }
+
+  private getPermit2SimulationParamsForPermit(
+    permit: Permit2DTO,
+    reward: QuoteRewardDataDTO,
+  ): Permit2Params {
+    reward = QuoteRewardDataDTO.fromJSON(reward)
+    const { details, spender, funder, sigDeadline } = permit
 
     const permitSimulation: Permit2Params = {
       permit2Address: permit.permitContract,
-      owner,
-      // owner: funder,
+      owner: funder,
       spender,
       sigDeadline,
       details: [],
@@ -213,7 +213,7 @@ export class PermitValidationService {
       }
     }
 
-    return [permitSimulation]
+    return permitSimulation
   }
 
   private isValidVaultAddress(spender: Address, expectedVault: Address): EcoResponse<void> {

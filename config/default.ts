@@ -1,4 +1,5 @@
 export default {
+  port: 3000,
   aws: [
     {
       region: 'us-east-2',
@@ -97,7 +98,13 @@ export default {
     intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
   },
 
-  gaslessIntentdAppIDs: ['token-pair-validation', 'matrix-test', 'test', 'sdk-demo'],
+  gaslessIntentdAppIDs: [
+    'token-pair-validation',
+    'matrix-test',
+    'test',
+    'sdk-demo',
+    'eco-checkout-spa',
+  ],
 
   intentConfigs: {
     defaultFee: {

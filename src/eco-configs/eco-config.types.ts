@@ -1,20 +1,21 @@
-import { Network } from '@/common/alchemy/network'
-import { ClusterNode } from 'ioredis'
-import { Params as PinoParams } from 'nestjs-pino'
-import * as Redis from 'ioredis'
-import { Settings } from 'redlock'
-import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
-import { LDOptions } from '@launchdarkly/node-server-sdk'
-import { CacheModuleOptions } from '@nestjs/cache-manager'
-import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
-import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
-import { ConfigRegex } from '@eco-foundation/chains'
-import { Strategy } from '@/liquidity-manager/types/types'
 import { AnalyticsConfig } from '@/analytics'
+import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { ClusterNode } from 'ioredis'
+import { ConfigRegex } from '@eco-foundation/chains'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { JobsOptions, RepeatOptions } from 'bullmq'
+import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { Network } from '@/common/alchemy/network'
+import { Params as PinoParams } from 'nestjs-pino'
+import { Settings } from 'redlock'
+import { Strategy } from '@/liquidity-manager/types/types'
+import * as Redis from 'ioredis'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  port: number
   analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
