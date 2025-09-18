@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
 import { Hex, LocalAccount } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -13,6 +13,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../../services/evm-transport.service';
+import { EvmWalletManager } from '../../services/evm-wallet-manager.service';
 
 @Injectable()
 export class KernelWalletFactory implements IWalletFactory {
@@ -25,6 +26,8 @@ export class KernelWalletFactory implements IWalletFactory {
     private transportService: EvmTransportService,
     private logger: SystemLoggerService,
     private otelService: OpenTelemetryService,
+    @Inject(forwardRef(() => EvmWalletManager))
+    private evmWalletManager: EvmWalletManager,
   ) {
     this.logger.setContext(KernelWalletFactory.name);
 
@@ -52,6 +55,7 @@ export class KernelWalletFactory implements IWalletFactory {
       this.transportService,
       this.logger,
       this.otelService,
+      this.evmWalletManager,
     );
 
     await kernelWallet.init();

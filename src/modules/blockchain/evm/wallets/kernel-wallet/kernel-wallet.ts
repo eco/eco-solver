@@ -26,6 +26,7 @@ import { sum } from '@/common/utils/math';
 import { minutes, now } from '@/common/utils/time';
 import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
+import { EvmWalletManager } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { ecdsaExecutorAbi } from '@/modules/blockchain/evm/wallets/kernel-wallet/constants/ecdsa-executor.abi';
 import {
   encodeKernelExecuteCallData,
@@ -58,6 +59,7 @@ export class KernelWallet extends BaseEvmWallet {
     private readonly transportService: EvmTransportService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly evmWalletManager: EvmWalletManager,
   ) {
     super();
 
@@ -487,15 +489,15 @@ export class KernelWallet extends BaseEvmWallet {
         throw new Error(`${msg}: ${getErrorMessage(error)}`);
       }
 
+      // Get BasicWallet instance from EvmWalletManager
+      const basicWallet = this.evmWalletManager.getWallet('basic', this.chainId);
+
       let hash: Hash;
       try {
-        // Send transaction using the signer wallet client
-        hash = await this.signerWalletClient.writeContract({
-          address: this.ecdsaExecutorAddr!,
+        // Encode the transaction data
+        const txData = encodeFunctionData({
           abi: ecdsaExecutorAbi,
           functionName: 'execute',
-          value: totalValue,
-          gas: _options?.gas,
           args: [
             this.kernelAccount.address,
             execution.mode,
@@ -504,7 +506,22 @@ export class KernelWallet extends BaseEvmWallet {
             expiration,
             signature,
           ],
-        } as any);
+        });
+
+        // Send transaction using BasicWallet - use writeContracts with single call to support gas option
+        const hashes = await basicWallet.writeContracts(
+          [
+            {
+              to: this.ecdsaExecutorAddr!,
+              data: txData,
+              value: totalValue,
+            },
+          ],
+          {
+            gas: _options?.gas,
+          },
+        );
+        hash = hashes[0];
       } catch (error) {
         // Check if error is due to executor issues
         const errorMessage = getErrorMessage(error).toLowerCase();
