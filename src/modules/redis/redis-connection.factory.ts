@@ -54,18 +54,71 @@ export class RedisConnectionFactory {
       { host: this.redisConfig.host, port: this.redisConfig.port },
     ];
 
-    this.logger.log(`Creating Redis cluster connection with ${clusterNodes.length} nodes`);
+    this.logger.log(
+      `Creating Redis cluster connection with ${clusterNodes.length} nodes: ${JSON.stringify(
+        clusterNodes,
+      )}`,
+    );
 
-    return new Redis.Cluster(clusterNodes, {
+    // Check if we're using TLS (ElastiCache in-transit encryption)
+    const isTLS = Boolean(this.redisConfig.tls);
+    if (isTLS) {
+      this.logger.log('TLS configuration detected for Redis cluster');
+    }
+
+    // ElastiCache specific cluster configuration
+    const cluster = new Redis.Cluster(clusterNodes, {
+      dnsLookup: (address, callback) => callback(null, address),
+      enableReadyCheck: true,
+      enableOfflineQueue: true,
+      maxRetriesPerRequest: null,
+      retryDelayOnFailover: 100,
+      retryDelayOnClusterDown: 300,
+      retryDelayOnTryAgain: 100,
+      slotsRefreshTimeout: 10000,
+      slotsRefreshInterval: 60000,
+      clusterRetryStrategy: (times: number, reason?: Error) => {
+        this.logger.warn(
+          `Retrying cluster connection (attempt ${times}): ${reason?.message || 'Unknown error'}`,
+        );
+        return Math.min(100 * times, 2000);
+      },
       redisOptions: {
         username: this.redisConfig.username,
         password: this.redisConfig.password,
-        tls: this.redisConfig.tls,
+        tls: isTLS
+          ? {
+              ...this.redisConfig.tls,
+              // ElastiCache specific TLS settings
+              rejectUnauthorized: false, // ElastiCache uses self-signed certs
+              checkServerIdentity: () => undefined, // Skip hostname verification for ElastiCache
+            }
+          : undefined,
+        connectTimeout: 10000,
+        enableReadyCheck: true,
         maxRetriesPerRequest: null,
-        enableReadyCheck: false,
       },
       ...this.redisConfig.clusterOptions,
     });
+
+    // Add error event handlers for better debugging
+    cluster.on('error', (error) => {
+      this.logger.error(`Redis cluster error: ${error.message}`, error.stack);
+    });
+
+    cluster.on('node error', (error, address) => {
+      this.logger.error(`Redis node error at ${address}: ${error.message}`);
+    });
+
+    cluster.on('+node', (node) => {
+      this.logger.log(`Redis cluster node added: ${node.options.host}:${node.options.port}`);
+    });
+
+    cluster.on('-node', (node) => {
+      this.logger.warn(`Redis cluster node removed: ${node.options.host}:${node.options.port}`);
+    });
+
+    return cluster;
   }
 
   private createStandaloneConnection(): Redis {
