@@ -48,7 +48,7 @@ import { WatchModule } from '@/watch/watch.module'
     }),
     BalanceModule,
     ChainMonitorModule,
-    EcoConfigModule.withAWS(),
+    EcoConfigModule.withAll(),
     FeeModule,
     FlagsModule,
     HealthModule,

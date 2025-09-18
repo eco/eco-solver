@@ -50,9 +50,9 @@ export class EcoConfigService {
   private ecoChains: EcoChains
 
   constructor(private readonly sources: ConfigSource[]) {
-    this.sources.reduce((prev, curr) => {
+    this.externalConfigs = this.sources.reduce((prev, curr) => {
       return config.util.extendDeep(prev, curr.getConfig())
-    }, this.externalConfigs)
+    }, {})
 
     this.ecoConfig = config
     this.initConfigs()
@@ -76,8 +76,8 @@ export class EcoConfigService {
       }),
     )
 
-    // Merge the secrets with the existing config, the external configs will be overwritten by the internal ones
-    this.ecoConfig = config.util.extendDeep(this.externalConfigs, this.ecoConfig)
+    // Merge the external configs with the static config, static configs have higher priority
+    this.ecoConfig = config.util.extendDeep(this.externalConfigs, config)
 
     // Set the eco chain rpc token api keys
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
