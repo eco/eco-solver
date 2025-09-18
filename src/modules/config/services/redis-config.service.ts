@@ -7,16 +7,16 @@ import { RedisConfig } from '@/config/schemas';
 export class RedisConfigService {
   constructor(private configService: ConfigService) {}
 
-  get url(): RedisConfig['url'] {
-    return this.configService.get<string>('redis.url')!;
-  }
-
   get host(): RedisConfig['host'] {
     return this.configService.get<string>('redis.host')!;
   }
 
   get port(): RedisConfig['port'] {
     return this.configService.get<number>('redis.port')!;
+  }
+
+  get username(): RedisConfig['username'] {
+    return this.configService.get<string>('redis.username');
   }
 
   get password(): RedisConfig['password'] {

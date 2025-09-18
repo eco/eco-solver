@@ -9,15 +9,12 @@ export class RedisService implements OnModuleDestroy {
   private client: Redis;
 
   constructor(private redisConfig: RedisConfigService) {
-    if (this.redisConfig.url) {
-      this.client = new Redis(this.redisConfig.url);
-    } else {
-      this.client = new Redis({
-        host: this.redisConfig.host,
-        port: this.redisConfig.port,
-        password: this.redisConfig.password,
-      });
-    }
+    this.client = new Redis({
+      host: this.redisConfig.host,
+      port: this.redisConfig.port,
+      username: this.redisConfig.username,
+      password: this.redisConfig.password,
+    });
   }
 
   getClient(): Redis {

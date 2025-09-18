@@ -7,6 +7,7 @@ export const RedisSchema = z.object({
   url: z.string().optional(),
   host: z.string().default('localhost'),
   port: z.coerce.number().int().positive().default(6379),
+  username: z.string().optional(),
   password: z.string().optional(),
 });
 
