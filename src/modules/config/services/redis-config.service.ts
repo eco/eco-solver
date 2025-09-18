@@ -22,4 +22,8 @@ export class RedisConfigService {
   get password(): RedisConfig['password'] {
     return this.configService.get<string>('redis.password');
   }
+
+  get tls(): RedisConfig['tls'] {
+    return this.configService.get('redis.tls');
+  }
 }

@@ -31,7 +31,9 @@ export class RedisModule {
             connection: {
               host: redisConfig.host,
               port: redisConfig.port,
+              username: redisConfig.username,
               password: redisConfig.password,
+              tls: redisConfig.tls,
               maxRetriesPerRequest: null,
               retryStrategy: (times: number) => {
                 logger.error(

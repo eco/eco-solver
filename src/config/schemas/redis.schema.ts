@@ -9,6 +9,7 @@ export const RedisSchema = z.object({
   port: z.coerce.number().int().positive().default(6379),
   username: z.string().optional(),
   password: z.string().optional(),
+  tls: z.record(z.string()).optional(),
 });
 
 export type RedisConfig = z.infer<typeof RedisSchema>;

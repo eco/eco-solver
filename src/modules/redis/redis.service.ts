@@ -14,6 +14,7 @@ export class RedisService implements OnModuleDestroy {
       port: this.redisConfig.port,
       username: this.redisConfig.username,
       password: this.redisConfig.password,
+      tls: this.redisConfig.tls,
     });
   }
 
