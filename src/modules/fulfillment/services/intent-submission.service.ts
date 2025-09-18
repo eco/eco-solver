@@ -8,7 +8,7 @@ import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-na
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 /**
  * Service responsible for intent submission and queueing
@@ -18,7 +18,7 @@ import { QueueService } from '@/modules/queue/interfaces/queue-service.interface
 export class IntentSubmissionService {
   constructor(
     private readonly logger: SystemLoggerService,
-    @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
+    @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(IntentSubmissionService.name);

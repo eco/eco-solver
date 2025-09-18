@@ -23,7 +23,7 @@ import {
 } from '@/modules/fulfillment/validations';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
@@ -36,7 +36,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
     protected readonly blockchainExecutor: BlockchainExecutorService,
     protected readonly blockchainReader: BlockchainReaderService,
     protected readonly otelService: OpenTelemetryService,
-    @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
+    @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     // Inject all validations needed for a standard strategy
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,

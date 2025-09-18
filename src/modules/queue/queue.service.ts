@@ -16,39 +16,42 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
-import { QueueService as IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
 export class QueueService implements IQueueService, OnApplicationBootstrap, OnModuleDestroy {
+  private readonly queues: Map<string, Queue>;
+
   constructor(
     @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     private readonly logger: SystemLoggerService,
     private readonly queueConfig: QueueConfigService,
     @Optional() private readonly queueTracing?: QueueTracingService,
   ) {
     this.logger.setContext(QueueService.name);
+
+    // Initialize queue map for easier management
+    this.queues = new Map([
+      [QueueNames.INTENT_FULFILLMENT, this.fulfillmentQueue],
+      [QueueNames.INTENT_EXECUTION, this.executionQueue],
+      [QueueNames.INTENT_WITHDRAWAL, this.withdrawalQueue],
+    ]);
   }
 
   async onApplicationBootstrap() {
     this.logger.log('Checking queue states on startup...');
 
-    // Check and resume fulfillment queue if paused
-    const fulfillmentPaused = await this.fulfillmentQueue.isPaused();
-    if (fulfillmentPaused) {
-      await this.fulfillmentQueue.resume();
-      this.logger.log('Resumed paused fulfillment queue on startup');
-    } else {
-      this.logger.log('Fulfillment queue is already running');
-    }
-
-    // Check and resume execution queue if paused
-    const executionPaused = await this.executionQueue.isPaused();
-    if (executionPaused) {
-      await this.executionQueue.resume();
-      this.logger.log('Resumed paused execution queue on startup');
-    } else {
-      this.logger.log('Execution queue is already running');
+    // Check and resume all queues if paused
+    for (const [queueName, queue] of this.queues) {
+      const isPaused = await queue.isPaused();
+      if (isPaused) {
+        await queue.resume();
+        this.logger.log(`Resumed paused ${queueName} queue on startup`);
+      } else {
+        this.logger.log(`${queueName} queue is already running`);
+      }
     }
   }
 
@@ -110,8 +113,21 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     }
   }
 
-  async getQueueStatus(queueName: string): Promise<any> {
-    const queue = queueName === 'fulfillment' ? this.fulfillmentQueue : this.executionQueue;
+  async getQueueStatus(queueName: string): Promise<{
+    waiting: number;
+    active: number;
+    completed: number;
+    failed: number;
+  }> {
+    // Support both short names and full queue names
+    const queueMap: Record<string, string> = {
+      fulfillment: QueueNames.INTENT_FULFILLMENT,
+      execution: QueueNames.INTENT_EXECUTION,
+      withdrawal: QueueNames.INTENT_WITHDRAWAL,
+    };
+
+    const fullQueueName = queueMap[queueName] || queueName;
+    const queue = this.queues.get(fullQueueName) || this.fulfillmentQueue;
 
     const [waiting, active, completed, failed] = await Promise.all([
       queue.getWaitingCount(),
@@ -123,9 +139,67 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     return { waiting, active, completed, failed };
   }
 
+  async getAllQueueStatuses(): Promise<
+    Record<
+      string,
+      {
+        waiting: number;
+        active: number;
+        completed: number;
+        failed: number;
+      }
+    >
+  > {
+    const statuses: Record<string, any> = {};
+
+    for (const [queueName, queue] of this.queues) {
+      const [waiting, active, completed, failed] = await Promise.all([
+        queue.getWaitingCount(),
+        queue.getActiveCount(),
+        queue.getCompletedCount(),
+        queue.getFailedCount(),
+      ]);
+
+      statuses[queueName] = { waiting, active, completed, failed };
+    }
+
+    return statuses;
+  }
+
+  /**
+   * Check health of all queues
+   * Returns true if all queues are connected and not paused
+   */
+  async checkQueuesHealth(): Promise<{
+    healthy: boolean;
+    details: Record<string, { connected: boolean; paused: boolean }>;
+  }> {
+    const details: Record<string, { connected: boolean; paused: boolean }> = {};
+    let allHealthy = true;
+
+    for (const [queueName, queue] of this.queues) {
+      try {
+        const isPaused = await queue.isPaused();
+        const client = await queue.client;
+        const isConnected = client.status === 'ready';
+
+        details[queueName] = { connected: isConnected, paused: isPaused };
+
+        if (isPaused || !isConnected) {
+          allHealthy = false;
+        }
+      } catch (error) {
+        this.logger.error(`Failed to check health for queue ${queueName}:`, toError(error));
+        details[queueName] = { connected: false, paused: false };
+        allHealthy = false;
+      }
+    }
+
+    return { healthy: allHealthy, details };
+  }
+
   async addJob(queueName: string, data: any, options?: any): Promise<void> {
-    const queue =
-      queueName === QueueNames.INTENT_FULFILLMENT ? this.fulfillmentQueue : this.executionQueue;
+    const queue = this.queues.get(queueName) || this.fulfillmentQueue;
     const serializedData = BigintSerializer.serialize(data);
     await queue.add(queueName, serializedData, options);
   }
@@ -134,28 +208,29 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     this.logger.log('Gracefully shutting down queues...');
 
     try {
-      // Pause queues to prevent new jobs from being processed
-      await Promise.all([this.fulfillmentQueue.pause(), this.executionQueue.pause()]);
+      // Pause all queues to prevent new jobs from being processed
+      await Promise.all(Array.from(this.queues.values()).map((queue) => queue.pause()));
 
       // Wait for active jobs to complete (with timeout)
       const timeout = 15000; // 15 seconds
       const startTime = Date.now();
 
       while (Date.now() - startTime < timeout) {
-        const [fulfillmentActive, executionActive] = await Promise.all([
-          this.fulfillmentQueue.getActiveCount(),
-          this.executionQueue.getActiveCount(),
-        ]);
+        const activeCounts = await Promise.all(
+          Array.from(this.queues.values()).map((queue) => queue.getActiveCount()),
+        );
 
-        if (fulfillmentActive === 0 && executionActive === 0) {
+        const totalActive = activeCounts.reduce((sum, count) => sum + count, 0);
+
+        if (totalActive === 0) {
           break;
         }
 
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Close queue connections
-      await Promise.all([this.fulfillmentQueue.close(), this.executionQueue.close()]);
+      // Close all queue connections
+      await Promise.all(Array.from(this.queues.values()).map((queue) => queue.close()));
 
       this.logger.log('Queues shutdown completed');
     } catch (error) {

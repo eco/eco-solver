@@ -18,6 +18,9 @@ import { QueueMetricsService } from '@/modules/queue/queue-metrics.service';
       {
         name: QueueNames.INTENT_EXECUTION,
       },
+      {
+        name: QueueNames.INTENT_WITHDRAWAL,
+      },
     ),
   ],
   providers: [

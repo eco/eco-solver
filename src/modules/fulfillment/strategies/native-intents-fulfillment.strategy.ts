@@ -9,7 +9,7 @@ import {
 } from '@/modules/fulfillment/types/strategy-name.type';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import {
   ChainSupportValidation,
@@ -37,7 +37,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     protected readonly blockchainExecutor: BlockchainExecutorService,
     protected readonly blockchainReader: BlockchainReaderService,
     protected readonly otelService: OpenTelemetryService,
-    @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
+    @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     // Inject all validations needed for native intents strategy
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,
