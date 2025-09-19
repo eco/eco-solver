@@ -15,6 +15,9 @@ import {
 import { extractContextFromEntity, mergeContexts } from './context-extractors'
 import { BaseStructuredLogger } from '../loggers/base-structured-logger'
 
+// Name of the process for logging and identification purposes
+export const PROCESS_NAME = 'eco-solver'
+
 /**
  * Context-isolated operation stack for nested operation tracking
  * Uses AsyncLocalStorage to ensure each async execution context has its own operation stack
@@ -93,10 +96,10 @@ function formatForDatadog(structure: any, level: string, context: string): any {
   return {
     '@timestamp': new Date().toISOString(),
     message: structure.message || 'Operation log',
-    service: context,
+    service: PROCESS_NAME, // Use consistent service name across all logs
     status: level,
     ddsource: 'nodejs',
-    ddtags: `env:${process.env.NODE_ENV || 'development'},service:${context}`,
+    ddtags: `env:${process.env.NODE_ENV || 'development'},service:${PROCESS_NAME}`,
     env: process.env.NODE_ENV || 'development',
     version: process.env.APP_VERSION || '1.0.0',
     'logger.name': context,
