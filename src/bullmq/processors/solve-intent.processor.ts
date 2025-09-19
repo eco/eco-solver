@@ -1,8 +1,9 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { FeasableIntentService } from '@/intent/feasable-intent.service'
 import { ValidateIntentService } from '@/intent/validate-intent.service'
 import { CreateIntentService } from '@/intent/create-intent.service'
@@ -16,7 +17,7 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 @Injectable()
 @Processor(QUEUES.SOURCE_INTENT.queue, { concurrency: 300 })
 export class SolveIntentProcessor extends WorkerHost {
-  private logger = new Logger(SolveIntentProcessor.name)
+  private logger = new GenericOperationLogger('SolveIntentProcessor')
 
   constructor(
     private readonly createIntentService: CreateIntentService,
@@ -28,20 +29,12 @@ export class SolveIntentProcessor extends WorkerHost {
     super()
   }
 
+  @LogOperation('processor_job_start', GenericOperationLogger)
   async process(
-    job: Job<any, any, string>,
+    @LogContext job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
     const startTime = Date.now()
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `SolveIntentProcessor: process`,
-        properties: {
-          job: job.name,
-        },
-      }),
-    )
 
     // Track job start
     this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.JOB.STARTED, {
@@ -96,36 +89,17 @@ export class SolveIntentProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  onJobFailed(job: Job<any, any, string>, error: Error) {
-    this.logger.error(
-      EcoLogMessage.withError({
-        message: `SolveIntentProcessor: Error processing job`,
-        error,
-        properties: { job },
-      }),
-    )
-  }
+  @LogOperation('processor_job_failed', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onJobFailed(@LogContext job: Job<any, any, string>, @LogContext error: Error) {}
 
   @OnWorkerEvent('stalled')
-  onStalled(jobId: string, prev?: string) {
-    this.logger.warn(
-      EcoLogMessage.fromDefault({
-        message: `SolveIntentProcessor: Job stalled`,
-        properties: {
-          jobId,
-          prev,
-        },
-      }),
-    )
-  }
+  @LogOperation('processor_job_stalled', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onStalled(@LogContext jobId: string, @LogContext prev?: string) {}
 
   @OnWorkerEvent('error')
-  onWorkerError(error: Error) {
-    this.logger.error(
-      EcoLogMessage.withError({
-        message: `SolveIntentProcessor: Worker error`,
-        error,
-      }),
-    )
-  }
+  @LogOperation('processor_error', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onWorkerError(@LogContext error: Error) {}
 }

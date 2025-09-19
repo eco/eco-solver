@@ -9,7 +9,6 @@ import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chai
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
@@ -23,6 +22,8 @@ import {
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SigningService } from '../../request-signing/signing.service'
+import { LogOperation } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 
 @Injectable()
@@ -41,6 +42,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     private readonly moduleRef: ModuleRef,
   ) {}
 
+  @LogOperation('module_init', GenericOperationLogger)
   onModuleInit() {
     this.serverConfig = this.ecoConfigService.getServer()
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
@@ -55,21 +57,10 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       this.solverRegistrationConfig.apiOptions,
       this.logger,
     )
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${SolverRegistrationService.name}.onModuleInit()`,
-      }),
-    )
   }
 
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `${SolverRegistrationService.name}.onApplicationBootstrap()`,
-      }),
-    )
-
     await this.registerSolver()
   }
 
@@ -78,18 +69,12 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     return this.signingService.getHeaders(payload, expiryTime)
   }
 
+  @LogOperation('register_solver', GenericOperationLogger)
   async registerSolver(): Promise<EcoResponse<void>> {
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `${SolverRegistrationService.name}.registerSolver()`,
-          properties: { solverRegistrationDTO },
-        }),
-      )
-
-      const { response, error } = await this.apiRequestExecutor.executeRequest<void>({
+      const { error } = await this.apiRequestExecutor.executeRequest<void>({
         method: 'post',
         endPoint: '/api/v1/solverRegistry/registerSolver',
         body: solverRegistrationDTO,
@@ -97,35 +82,25 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       })
 
       if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `Error registering solver`,
-            properties: {
-              error,
-            },
-          }),
-        )
+        this.logger.error(`Error registering solver`, {
+          service: 'solver-registration-service',
+          operation: 'register_solver',
+          error: error,
+          quotes_url: this.quotesConfig
+            ? `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`
+            : undefined,
+        })
 
         return { error }
       }
 
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `${SolverRegistrationService.name}.registerSolver(): Solver has been registered`,
-          properties: { response },
-        }),
-      )
-
       return {}
     } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Exception registering solver`,
-          properties: {
-            error: ex.message,
-          },
-        }),
-      )
+      this.logger.error(`Exception registering solver`, {
+        service: 'solver-registration-service',
+        operation: 'register_solver',
+        error: ex.message,
+      })
 
       return { error: EcoError.SolverRegistrationError }
     }

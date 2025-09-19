@@ -1,6 +1,5 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { CCTPLiFiDestinationSwapJobData } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import { LiFiStrategyContext } from '../types/types'
 import {
@@ -15,6 +14,8 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface ExecuteCCTPMintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
@@ -64,13 +65,18 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     return job.name === LiquidityManagerJobName.EXECUTE_CCTP_MINT
   }
 
-  async process(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor): Promise<Hex> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: ExecuteCCTPMintJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<Hex> {
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: `CCTP: ExecuteCCTPMintJob: Processing`,
+      { operationType: 'job_execution' },
+      'CCTP: ExecuteCCTPMintJob: Processing',
+      {
         id: job.data.id,
-        properties: { job },
-      }),
+        job,
+      },
     )
 
     const { destinationChainId, messageBody, attestation } = job.data
@@ -91,21 +97,21 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     return txHash as Hex
   }
 
-  async onComplete(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onComplete(@LogContext job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor) {
     const { groupID, rebalanceJobID, cctpLiFiContext } = job.data
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: `CCTP: ExecuteCCTPMintJob: Completed!`,
+      { operationType: 'job_execution', status: 'completed' },
+      'CCTP: ExecuteCCTPMintJob: Completed!',
+      {
         id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          chainId: job.data.destinationChainId,
-          txHash: job.returnvalue,
-          messageHash: job.data.messageHash,
-        },
-      }),
+        groupID,
+        rebalanceJobID,
+        chainId: job.data.destinationChainId,
+        txHash: job.returnvalue,
+        messageHash: job.data.messageHash,
+      },
     )
 
     if (!(cctpLiFiContext && cctpLiFiContext.destinationSwapQuote)) {
@@ -114,15 +120,14 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
     }
 
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
+      { operationType: 'job_execution' },
+      'CCTP: ExecuteCCTPMintJob: Queuing CCTPLiFi destination swap',
+      {
         id: job.data.id,
-        properties: {
-          messageHash: job.data.messageHash,
-          destinationChainId: job.data.destinationChainId,
-          walletAddress: cctpLiFiContext.walletAddress,
-        },
-      }),
+        messageHash: job.data.messageHash,
+        destinationChainId: job.data.destinationChainId,
+        walletAddress: cctpLiFiContext.walletAddress,
+      },
     )
 
     // Import dynamically to avoid circular dependency
@@ -150,28 +155,22 @@ export class ExecuteCCTPMintJobManager extends LiquidityManagerJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  async onFailed(job: ExecuteCCTPMintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onFailed(
+    @LogContext job: ExecuteCCTPMintJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: unknown,
+  ) {
     const isFinal = this.isFinalAttempt(job, error)
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
     const { rebalanceJobID } = jobData
 
-    const errorMessage = isFinal
-      ? 'CCTP: ExecuteCCTPMintJob: FINAL FAILURE'
-      : 'CCTP: ExecuteCCTPMintJob: Failed: Retrying...'
-
-    processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: errorMessage,
-        id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
-    )
-
     if (isFinal) {
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
     }
+
+    // Error details are automatically captured by the decorator
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    throw errorObj
   }
 }

@@ -3,7 +3,6 @@ import { MultichainPublicClientService } from '../../transaction/multichain-publ
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { Hex } from 'viem'
 import { EntryPointAbi_v6 } from '../../contracts/EntryPoint.V6.contract'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
 
 @Injectable()
 export class ValidSmartWalletService implements OnModuleInit {
@@ -44,14 +43,15 @@ export class ValidSmartWalletService implements OnModuleInit {
         deployedEvents && deployedEvents.some((event) => event.args.factory === this.factoryAddress)
       )
     } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `RPC: getContractEvents error`,
-          properties: {
-            error,
-          },
-        }),
-      )
+      this.logger.error(`RPC: getContractEvents error`, {
+        service: 'valid-smart-wallet-service',
+        operation: 'validate_smart_wallet',
+        smart_wallet_address: smartWalletAddress,
+        chain_id: chainID.toString(),
+        entry_point_address: this.entryPointAddress,
+        factory_address: this.factoryAddress,
+        error: error instanceof Error ? error.message : String(error),
+      })
       return false
     }
   }

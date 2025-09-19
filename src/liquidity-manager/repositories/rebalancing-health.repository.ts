@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { Injectable } from '@nestjs/common'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { RebalanceRepository } from './rebalance.repository'
 import { RebalanceQuoteRejectionRepository } from './rebalance-quote-rejection.repository'
 
@@ -61,7 +61,7 @@ export interface HealthMetrics {
  */
 @Injectable()
 export class RebalancingHealthRepository {
-  private logger = new Logger(RebalancingHealthRepository.name)
+  private logger = new HealthOperationLogger('RebalancingHealthRepository')
 
   constructor(
     private readonly rebalanceRepository: RebalanceRepository,
@@ -79,9 +79,10 @@ export class RebalancingHealthRepository {
   async checkRebalancingHealth(): Promise<HealthStatus> {
     try {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Checking rebalancing health status',
-        }),
+        {
+          healthCheck: 'rebalancing-system',
+        },
+        'Checking rebalancing health status',
       )
 
       const [hasRejections, hasSuccesses, rejectionCount, successCount] = await Promise.all([
@@ -109,19 +110,33 @@ export class RebalancingHealthRepository {
       }
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Rebalancing health status calculated',
-          properties: healthStatus,
-        }),
+        {
+          healthCheck: 'rebalancing-system',
+          status: healthStatus.isHealthy ? 'healthy' : 'unhealthy',
+        },
+        'Rebalancing health status calculated',
+        {
+          isHealthy: healthStatus.isHealthy,
+          successCount: healthStatus.successCount,
+          rejectionCount: healthStatus.rejectionCount,
+          lastHourHasRejections: healthStatus.lastHourHasRejections,
+          lastHourHasSuccesses: healthStatus.lastHourHasSuccesses,
+          healthReason: healthStatus.healthReason,
+        },
       )
 
       return healthStatus
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to check rebalancing health',
-          properties: { error: error.message },
-        }),
+        {
+          healthCheck: 'rebalancing-system',
+          status: 'unhealthy',
+        },
+        'Failed to check rebalancing health',
+        error,
+        {
+          errorMessage: error.message,
+        },
       )
 
       return {
@@ -170,10 +185,13 @@ export class RebalancingHealthRepository {
   async getHealthMetrics(timeRangeMinutes: number = 60): Promise<HealthMetrics> {
     try {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Getting health metrics',
-          properties: { timeRangeMinutes },
-        }),
+        {
+          healthCheck: 'rebalancing-metrics',
+        },
+        'Getting health metrics',
+        {
+          timeRangeMinutes,
+        },
       )
 
       const [successCount, rejectionCount] = await Promise.all([
@@ -206,19 +224,34 @@ export class RebalancingHealthRepository {
       }
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Health metrics calculated',
-          properties: metrics,
-        }),
+        {
+          healthCheck: 'rebalancing-metrics',
+          status: metrics.isHealthy ? 'healthy' : 'unhealthy',
+        },
+        'Health metrics calculated',
+        {
+          timeRangeMinutes: metrics.timeRangeMinutes,
+          successCount: metrics.successCount,
+          rejectionCount: metrics.rejectionCount,
+          successRate: metrics.successRate,
+          isHealthy: metrics.isHealthy,
+          healthReason: metrics.healthReason,
+        },
       )
 
       return metrics
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to get health metrics',
-          properties: { timeRangeMinutes, error: error.message },
-        }),
+        {
+          healthCheck: 'rebalancing-metrics',
+          status: 'unhealthy',
+        },
+        'Failed to get health metrics',
+        error,
+        {
+          timeRangeMinutes,
+          errorMessage: error.message,
+        },
       )
 
       return {

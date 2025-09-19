@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import * as ld from '@launchdarkly/node-server-sdk'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
 import { waitForInitialization } from './utils'
 
 export type LaunchDarklyFlags = {
@@ -63,14 +62,12 @@ export class FlagService implements OnModuleInit {
         }),
       )
       lock.initialized = true
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `FlagService ready`,
-          properties: {
-            flags: this.flagValues,
-          },
-        }),
-      )
+      this.logger.log(`FlagService ready`, {
+        service: 'flag-service',
+        operation: 'init_launch_darkly',
+        flags: this.flagValues,
+        context_key: this.context.key,
+      })
     })
     // Wait for the flags to be initialized
     await waitForInitialization(lock)
@@ -82,14 +79,12 @@ export class FlagService implements OnModuleInit {
   private registerFlagListeners() {
     this.flagsClient.on('update', async (param) => {
       if (!FlagService.isSupportedFlag(param.key)) {
-        this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: `FlagService update: unsupported flag`,
-            properties: {
-              flagName: param.key,
-            },
-          }),
-        )
+        this.logger.log(`FlagService update: unsupported flag`, {
+          service: 'flag-service',
+          operation: 'register_flag_listeners',
+          flag_name: param.key,
+          supported_flags: Object.keys(FlagVariationKeys),
+        })
         return
       }
       const flag = param.key
@@ -98,15 +93,12 @@ export class FlagService implements OnModuleInit {
         this.context,
         this.flagValues[flag],
       )
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `FlagService update`,
-          properties: {
-            flagName: flag,
-            flag: this.flagValues[flag],
-          },
-        }),
-      )
+      this.logger.log(`FlagService update`, {
+        service: 'flag-service',
+        operation: 'register_flag_listeners',
+        flag_name: flag,
+        flag_value: this.flagValues[flag],
+      })
     })
   }
 }

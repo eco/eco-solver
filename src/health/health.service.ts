@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 
 import { HealthCheckService } from '@nestjs/terminus'
 
@@ -6,13 +6,13 @@ import { BalanceHealthIndicator } from './indicators/balance.indicator'
 import { EcoRedisHealthIndicator } from './indicators/eco-redis.indicator'
 import { MongoDBHealthIndicator } from './indicators/mongodb.indicator'
 import { RebalanceHealthIndicator } from './indicators/rebalance-health.indicator'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { GitCommitHealthIndicator } from './indicators/git-commit.indicator'
 import { EcoAnalyticsService } from '@/analytics'
 
 @Injectable()
 export class HealthService {
-  private logger = new Logger(HealthService.name)
+  private logger = new HealthOperationLogger('HealthService')
 
   constructor(
     private readonly health: HealthCheckService,
@@ -33,12 +33,15 @@ export class HealthService {
       () => this.rebalanceHealthIndicator.checkRebalancingHealth(),
     ])
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `HealthService.checkHealth()`,
-        properties: {
-          healthCheck: healthCheck,
-        },
-      }),
+      {
+        healthCheck: 'comprehensive',
+        status: healthCheck.status,
+        dependencies: Object.keys(healthCheck.details || {}),
+      },
+      'Comprehensive health check completed',
+      {
+        healthCheck: healthCheck,
+      },
     )
     return healthCheck
   }

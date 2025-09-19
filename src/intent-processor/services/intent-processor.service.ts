@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq'
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import * as _ from 'lodash'
 import {
   Chain,
@@ -12,7 +12,8 @@ import {
   Transport,
 } from 'viem'
 import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IndexerService } from '@/indexer/services/indexer.service'
@@ -24,13 +25,14 @@ import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
 } from '@/intent-processor/queues/intent-processor.queue'
+import { QUEUES } from '@/common/redis/constants'
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { getChainConfig } from '@/eco-configs/utils'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
-  private logger = new Logger(IntentProcessorService.name)
+  private logger = new IntentOperationLogger('IntentProcessorService')
 
   private config: {
     sendBatch: SendBatchConfig
@@ -40,7 +42,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   private readonly intentProcessorQueue: IntentProcessorQueue
 
   constructor(
-    @InjectQueue(IntentProcessorQueue.queueName)
+    @InjectQueue(QUEUES.INTENT_PROCESSOR.queue)
     queue: IntentProcessorQueueType,
     private readonly ecoConfigService: EcoConfigService,
     private readonly indexerService: IndexerService,
@@ -49,6 +51,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     this.intentProcessorQueue = new IntentProcessorQueue(queue)
   }
 
+  @LogOperation('application_bootstrap', IntentOperationLogger)
   async onApplicationBootstrap() {
     this.config = {
       sendBatch: this.ecoConfigService.getSendBatch(),
@@ -61,57 +64,21 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     await this.intentProcessorQueue.startSendBatchCronJobs(this.config.sendBatch.intervalDuration)
   }
 
+  @LogOperation('intent_processing', IntentOperationLogger)
   async getNextBatchWithdrawals() {
     const intentSourceAddrs = this.getIntentSource()
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Intent source addresses`,
-        properties: {
-          intentSourceAddrs,
-          count: intentSourceAddrs.length,
-        },
-      }),
-    )
 
     const batches = await Promise.all(
       intentSourceAddrs.map(async (addr) => {
         const withdrawals = await this.indexerService.getNextBatchWithdrawals(addr)
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Per address result`,
-            properties: {
-              addr,
-              withdrawalsCount: withdrawals.length,
-            },
-          }),
-        )
         return withdrawals.map((withdrawal) => ({ ...withdrawal, intentSourceAddr: addr }))
       }),
     )
     const batchWithdrawals = batches.flat()
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Flattened results`,
-        properties: {
-          totalWithdrawals: batchWithdrawals.length,
-        },
-      }),
-    )
     const batchWithdrawalsPerSource = _.groupBy(
       batchWithdrawals,
       (withdrawal) => withdrawal.intent.source,
-    )
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Withdrawals`,
-        properties: {
-          intentSourceAddrs,
-          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.intent.hash),
-        },
-      }),
     )
 
     const jobsData: ExecuteWithdrawsJobData[] = []
@@ -140,58 +107,32 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       })
     }
 
+    // Log business event for batch withdrawal processing
+    batchWithdrawals.forEach((withdrawal) => {
+      this.logger.logIntentStatusTransition(
+        withdrawal.intent.hash,
+        'pending',
+        'queued_for_withdrawal',
+        'batch_processing_scheduled',
+      )
+    })
+
     this.intentProcessorQueue.addExecuteWithdrawalsJobs(jobsData)
   }
 
+  @LogOperation('intent_processing', IntentOperationLogger)
   async getNextSendBatch() {
     const intentSourceAddrs = this.getIntentSource()
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getNextSendBatch(): Intent source addresses`,
-        properties: {
-          intentSourceAddrs,
-          count: intentSourceAddrs.length,
-        },
-      }),
-    )
 
     const allProvesWithAddr = await Promise.all(
       intentSourceAddrs.map(async (addr) => {
         const proves = await this.indexerService.getNextSendBatch(addr)
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `${IntentProcessorService.name}.getNextSendBatch(): Per address result`,
-            properties: {
-              addr,
-              provesCount: proves.length,
-            },
-          }),
-        )
         return proves.map((prove) => ({ ...prove, intentSourceAddr: addr }))
       }),
     )
     const proves = allProvesWithAddr.flat()
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getNextSendBatch(): Flattened results`,
-        properties: {
-          totalProves: proves.length,
-        },
-      }),
-    )
     const batchProvesPerChain = _.groupBy(proves, (prove) => prove.destinationChainId)
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getNextSendBatch(): Send batches`,
-        properties: {
-          intentSourceAddrs,
-          intentHashes: _.map(proves, (prove) => prove.hash),
-        },
-      }),
-    )
 
     const jobsData: ExecuteSendBatchJobData[] = []
 
@@ -231,22 +172,22 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }
     }
 
+    // Log business event for send batch processing
+    proves.forEach((prove) => {
+      this.logger.logIntentStatusTransition(
+        prove.hash,
+        'proven',
+        'queued_for_send_batch',
+        'send_batch_processing_scheduled',
+      )
+    })
+
     await this.intentProcessorQueue.addExecuteSendBatchJobs(jobsData)
   }
 
-  async executeWithdrawals(data: ExecuteWithdrawsJobData) {
+  @LogOperation('intent_processing', IntentOperationLogger)
+  async executeWithdrawals(@LogContext data: ExecuteWithdrawsJobData) {
     const { intents, intentSourceAddr, chainId } = data
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.executeWithdrawals(): Withdrawals`,
-        properties: {
-          chainId: data.chainId,
-          intentSourceAddr: data.intentSourceAddr,
-          routeHash: data.intents,
-        },
-      }),
-    )
 
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
@@ -258,28 +199,22 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       functionName: 'batchWithdraw',
     })
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.executeWithdrawals(): Transaction sent`,
-        properties: {
-          chainId: data.chainId,
-          transactionHash: txHash,
-        },
-      }),
-    )
+    // Log business event for withdrawal execution
+    intents.forEach((intent: any) => {
+      this.logger.logIntentStatusTransition(
+        intent.hash || 'unknown',
+        'queued_for_withdrawal',
+        'withdrawal_executed',
+        `transaction_sent_${txHash}`,
+      )
+    })
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
   }
 
-  async executeSendBatch(data: ExecuteSendBatchJobData) {
+  @LogOperation('intent_processing', IntentOperationLogger)
+  async executeSendBatch(@LogContext data: ExecuteSendBatchJobData) {
     const { proves, chainId, inbox: inboxAddr } = data
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.executeSendBatch(): Send batch`,
-        properties: { chainId, routeHash: _.map(proves, 'hash') },
-      }),
-    )
 
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
@@ -293,26 +228,19 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }),
     )
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.executeSendBatch(): Send batch transactions`,
-        properties: { sendBatchTransactions, groups: Object.keys(batches) },
-      }),
-    )
-
     const transaction = batchTransactionsWithMulticall(chainId, sendBatchTransactions)
 
     const txHash = await walletClient.sendTransaction(transaction)
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.executeSendBatch(): Transaction sent`,
-        properties: {
-          chainId: data.chainId,
-          transactionHash: txHash,
-        },
-      }),
-    )
+    // Log business event for send batch execution
+    proves.forEach((prove) => {
+      this.logger.logIntentStatusTransition(
+        prove.hash,
+        'queued_for_send_batch',
+        'send_batch_executed',
+        `transaction_sent_${txHash}`,
+      )
+    })
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
   }
@@ -356,11 +284,11 @@ export class IntentProcessorService implements OnApplicationBootstrap {
    * @private
    */
   private async getSendBatchTransaction(
-    publicClient: PublicClient<Transport, Chain>,
-    inbox: Hex,
-    prover: Hex,
-    source: number,
-    intentHashes: Hex[],
+    @LogContext publicClient: PublicClient<Transport, Chain>,
+    @LogContext inbox: Hex,
+    @LogContext prover: Hex,
+    @LogContext source: number,
+    @LogContext intentHashes: Hex[],
   ): Promise<TransactionRequest> {
     const { claimant } = this.ecoConfigService.getEth()
     const message = Hyperlane.getMessageData(claimant, intentHashes)
@@ -372,17 +300,6 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       source,
       message,
       intentHashes.length,
-    )
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${IntentProcessorService.name}.getSendBatchTransaction(): Message gas limit`,
-        properties: {
-          numIntents: intentHashes.length,
-          messageDestination: source,
-          messageGasLimit: messageGasLimit.toString(),
-        },
-      }),
     )
 
     const metadata = Hyperlane.getMetadata(0n, messageGasLimit)
@@ -427,28 +344,15 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   }
 
   private async estimateMessageGas(
-    inbox: Hex,
-    prover: Hex,
-    origin: number,
-    source: number,
-    messageData: Hex,
-    intentCount: number,
+    @LogContext inbox: Hex,
+    @LogContext prover: Hex,
+    @LogContext origin: number,
+    @LogContext source: number,
+    @LogContext messageData: Hex,
+    @LogContext intentCount: number,
   ): Promise<bigint> {
     try {
       const { mailbox } = Hyperlane.getChainMetadata(this.config.hyperlane, source)
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `${IntentProcessorService.name}.estimateMessageGas(): Simulate`,
-          properties: {
-            chainId: source,
-            origin,
-            handler: prover,
-            sender: inbox,
-            messageData,
-          },
-        }),
-      )
 
       const publicClient = await this.walletClientDefaultSignerService.getPublicClient(source)
       return await Hyperlane.estimateMessageGas(
@@ -460,11 +364,11 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         messageData,
       )
     } catch (error) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `${IntentProcessorService.name}.estimateMessageGas(): Failed to estimate message gas.`,
-          properties: { error: error.message },
-        }),
+      // Log business event for gas estimation failure
+      this.logger.logFeasibilityCheckFailure(
+        { hash: 'gas_estimation', source, destination: origin },
+        'final_feasibility',
+        error,
       )
 
       // Estimate 25k gas per intent

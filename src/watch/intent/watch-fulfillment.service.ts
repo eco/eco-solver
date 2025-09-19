@@ -5,7 +5,6 @@ import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
 import { getIntentJobId } from '@/common/utils/strings'
 import { Solver } from '@/eco-configs/eco-config.types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { PublicClient, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
@@ -15,6 +14,9 @@ import { WatchEventService } from '@/watch/intent/watch-event.service'
 import { FulfillmentLog } from '@/contracts/inbox'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { LogOperation, LogSubOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { IntentOperationLogger } from '@/common/logging/loggers/intent-operation-logger'
 
 /**
  * This service subscribes to Inbox contracts for Fulfillment events. It subscribes on all
@@ -38,6 +40,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
    * Subscribes to all Inbox constacts for Fulfillment events. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */
+  @LogOperation('fulfillment_watching_subscription', IntentOperationLogger)
   async subscribe(): Promise<void> {
     const subscribeTasks = entries(this.ecoConfigService.getSolvers()).map(async ([, solver]) => {
       const client = await this.publicClientService.getClient(solver.chainID)
@@ -46,13 +49,9 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     await Promise.all(subscribeTasks)
   }
 
-  async unsubscribe() {
+  @LogSubOperation('unsubscribe')
+  async unsubscribe(): Promise<void> {
     super.unsubscribe()
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch fulfillment: unsubscribe`,
-      }),
-    )
   }
 
   /**
@@ -63,16 +62,8 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
     return this.ecoConfigService.getIntentSources().map((source) => BigInt(source.chainID))
   }
 
-  async subscribeTo(client: PublicClient, solver: Solver) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch fulfillment event: subscribeToFulfillment`,
-        properties: {
-          solver,
-        },
-      }),
-    )
-
+  @LogOperation('fulfillment_subscription', IntentOperationLogger)
+  async subscribeTo(@LogContext client: PublicClient, @LogContext solver: Solver): Promise<void> {
     const sourceChains = this.getSupportedChains()
     this.unwatch[solver.chainID] = client.watchContractEvent({
       address: solver.inboxAddress,
@@ -83,12 +74,16 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
         // restrict by acceptable chains, chain ids must be bigints
         _sourceChainID: sourceChains,
       },
-      onLogs: this.addJob(solver),
+      onLogs: async (logs) => {
+        const addJobFunction = await this.addJob(solver)
+        await addJobFunction(logs)
+      },
       onError: (error) => this.onError(error, client, solver),
     })
   }
 
-  addJob(solver?: Solver) {
+  @LogSubOperation('process_fulfillment_logs')
+  addJob(@LogContext solver?: Solver) {
     return async (logs: FulfillmentLog[]) => {
       // Track batch of fulfillment events detected
       if (logs.length > 0 && solver) {
@@ -105,15 +100,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
             fulfillment.args._hash ?? zeroHash,
             fulfillment.logIndex ?? 0,
           )
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `watch fulfillment`,
-              properties: {
-                fulfillment,
-                jobId,
-              },
-            }),
-          )
+          // Fulfillment event context automatically logged by parent operation decorator
 
           try {
             // add to processing queue

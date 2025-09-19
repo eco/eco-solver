@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { ViemMultichainClientService } from '../../viem_multichain_client.service'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
   Account,
   Chain,
+  encodeFunctionData,
   Hex,
   LocalAccount,
   OneOf,
@@ -21,8 +22,14 @@ import {
 } from './create.kernel.account'
 import { KernelAccountClient } from './kernel-account.client'
 import { EthereumProvider } from 'permissionless/utils/toOwner'
-import { EcoLogMessage } from '../../../common/logging/eco-log-message'
+import { TransactionLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { SignerKmsService } from '@/sign/signer-kms.service'
+import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.types'
+import { EcoResponse } from '@/common/eco-response'
+import { KernelExecuteAbi } from '@/contracts'
+import { EcoError } from '@/common/errors/eco-error'
+import { EstimatedGasData } from '@/transaction/smart-wallets/kernel/interfaces/estimated-gas-data.interface'
 
 @Injectable()
 export class KernelAccountClientServiceBase<
@@ -35,7 +42,7 @@ export class KernelAccountClientServiceBase<
   KernelAccountClient<entryPointVersion>,
   KernelAccountClientConfig<entryPointVersion, kernelVersion, owner>
 > {
-  protected logger = new Logger(KernelAccountClientServiceBase.name)
+  protected logger = new TransactionLogger('KernelAccountClientService')
 
   constructor(
     readonly ecoConfigService: EcoConfigService,
@@ -50,13 +57,16 @@ export class KernelAccountClientServiceBase<
     const { client, args } = await createKernelAccountClient(configs)
     if (args && args.deployReceipt) {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Deploying Kernel Account`,
-          properties: {
-            ...args,
-            kernelAccount: client.kernelAccount.address,
-          },
-        }),
+        {
+          transactionHash: args.deployReceipt,
+          operationType: 'smart_wallet_deploy',
+          status: 'completed',
+          walletAddress: client.kernelAccount.address,
+        },
+        'Deploying Kernel Account',
+        {
+          kernelAccount: client.kernelAccount.address,
+        },
       )
     }
     const owner = this.ecoConfigService.getSafe().owner
@@ -107,5 +117,50 @@ export class KernelAccountClientService extends KernelAccountClientServiceBase<
 > {
   constructor(ecoConfigService: EcoConfigService, signerService: SignerKmsService) {
     super(ecoConfigService, signerService)
+  }
+
+  @LogOperation('gas_estimation', TransactionLogger)
+  async estimateGasForKernelExecution(
+    @LogContext chainID: number,
+    @LogContext transactions: ExecuteSmartWalletArg[],
+  ): Promise<EcoResponse<EstimatedGasData>> {
+    try {
+      const clientKernel = await this.getClient(chainID)
+      const kernelAddress = clientKernel.kernelAccount?.address
+
+      // Encode the execute function call with the batch of transactions
+      const callData = encodeFunctionData({
+        abi: KernelExecuteAbi,
+        functionName: 'executeBatch',
+        args: [
+          transactions.map((tx) => ({
+            to: tx.to,
+            value: tx.value ?? 0n,
+            data: tx.data ?? '0x',
+          })),
+        ],
+      })
+
+      // Simulate the contract execution to estimate gas
+      const gasEstimate = await clientKernel.estimateGas({
+        account: kernelAddress,
+        to: kernelAddress,
+        data: callData,
+      })
+
+      const gasPrice = await clientKernel.getGasPrice()
+      const gasCost = gasEstimate * gasPrice
+
+      return {
+        response: {
+          chainID,
+          gasEstimate,
+          gasPrice,
+          gasCost,
+        },
+      }
+    } catch (ex) {
+      return { error: EcoError.GasEstimationError }
+    }
   }
 }

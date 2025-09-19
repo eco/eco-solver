@@ -4,7 +4,10 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { getQueueToken } from '@nestjs/bullmq'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { IndexerService } from '@/indexer/services/indexer.service'
-import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
+import {
+  INTENT_PROCESSOR_QUEUE_NAME,
+  IntentProcessorQueue,
+} from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import { Network } from '@/common/alchemy/network'
 import { Queue } from 'bullmq'
@@ -145,7 +148,7 @@ describe('IntentProcessorService', () => {
           },
         },
         {
-          provide: getQueueToken(IntentProcessorQueue.queueName),
+          provide: getQueueToken(INTENT_PROCESSOR_QUEUE_NAME),
           useValue: queue,
         },
       ],

@@ -1,29 +1,29 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { RetryInfeasableIntentsService } from '@/intervals/retry-infeasable-intents.service'
 
 @Injectable()
 @Processor(QUEUES.INTERVAL.queue)
 export class IntervalProcessor extends WorkerHost {
-  private logger = new Logger(IntervalProcessor.name)
+  private logger = new GenericOperationLogger('IntervalProcessor')
   constructor(private readonly retryInfeasableIntentsService: RetryInfeasableIntentsService) {
     super()
   }
 
+  @LogOperation('processor_job_start', GenericOperationLogger)
   async process(
-    job: Job<any, any, string>,
+    @LogContext job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `IntervalProcessor: process`,
-        properties: {
-          job: job.name,
-        },
-      }),
+    // Business event logging for job start
+    this.logger.logProcessorJobStart(
+      'IntervalProcessor',
+      job.id || 'unknown',
+      job.data?.intentHash || 'unknown',
     )
 
     switch (job.name) {
@@ -31,45 +31,40 @@ export class IntervalProcessor extends WorkerHost {
         return await this.retryInfeasableIntentsService.retryInfeasableIntents()
       default:
         this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `IntervalProcessor: Invalid job type ${job.name}`,
-          }),
+          { operationType: 'processor_error', status: 'failed' },
+          `IntervalProcessor: Invalid job type ${job.name}`,
+          undefined,
+          { jobName: job.name, jobId: job.id },
         )
         return Promise.reject('Invalid job type')
     }
   }
 
   @OnWorkerEvent('failed')
-  onJobFailed(job: Job<any, any, string>, error: Error) {
-    this.logger.error(
-      EcoLogMessage.withError({
-        message: `IntervalProcessor: Error processing job`,
-        error,
-        properties: { job },
-      }),
-    )
+  @LogOperation('processor_job_failed', GenericOperationLogger)
+  onJobFailed(@LogContext job: Job<any, any, string>, error: Error) {
+    // Business event logging for job failure
+    this.logger.logProcessorJobFailed('IntervalProcessor', job.id || 'unknown', error)
   }
 
   @OnWorkerEvent('stalled')
-  onStalled(jobId: string, prev?: string) {
+  @LogOperation('processor_stalled', GenericOperationLogger)
+  onStalled(@LogContext jobId: string, prev?: string) {
     this.logger.warn(
-      EcoLogMessage.fromDefault({
-        message: `IntervalProcessor: Job stalled`,
-        properties: {
-          jobId,
-          prev,
-        },
-      }),
+      { operationType: 'processor_stalled', status: 'warning' },
+      `IntervalProcessor: Job stalled`,
+      { jobId, prev },
     )
   }
 
   @OnWorkerEvent('error')
+  @LogOperation('processor_error', GenericOperationLogger)
   onWorkerError(error: Error) {
     this.logger.error(
-      EcoLogMessage.withError({
-        message: `IntervalProcessor: Worker error`,
-        error,
-      }),
+      { operationType: 'processor_error', status: 'error' },
+      `IntervalProcessor: Worker error`,
+      error,
+      { errorName: error.name, errorMessage: error.message },
     )
   }
 }

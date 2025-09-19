@@ -5,7 +5,8 @@ import { IntentFulfillmentJobName } from '@/intent-fulfillment/queues/intent-ful
 import { serialize, Serialize, deserialize } from '@/common/utils/serialize'
 import { getIntentJobId } from '@/common/utils/strings'
 import { IntentFulfillmentProcessor } from '@/intent-fulfillment/processors/intent-fulfillment.processor'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export type FulfillIntentJobData = {
   intentHash: Hex
@@ -48,44 +49,27 @@ export class FulfillIntentJobManager extends IntentFulfillmentJobManager {
     return job.name === IntentFulfillmentJobName.FULFILL_INTENT
   }
 
-  async process(job: FulfillIntentJob, processor: IntentFulfillmentProcessor): Promise<void> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: FulfillIntentJob,
+    processor: IntentFulfillmentProcessor,
+  ): Promise<void> {
     if (this.is(job)) {
       const jobData = deserialize(job.data)
-      processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `[START] Fulfilling job`,
-          properties: {
-            jobId: job.id,
-            intentHash: jobData.intentHash,
-            chainId: jobData.chainId,
-          },
-        }),
-      )
-
       await processor.fulfillIntentService.fulfill(jobData.intentHash)
-
-      processor.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `[END] Fulfilling job`,
-          properties: {
-            jobId: job.id,
-            intentHash: jobData.intentHash,
-            chainId: jobData.chainId,
-          },
-        }),
-      )
     }
   }
 
-  onFailed(job: FulfillIntentJob, processor: IntentFulfillmentProcessor, error: Error) {
-    processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${FulfillIntentJobManager.name}: Failed`,
-        properties: {
-          job: { id: job.id, data: deserialize(job.data) },
-          error: error.message,
-        },
-      }),
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  onFailed(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext job: FulfillIntentJob,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    processor: IntentFulfillmentProcessor,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext error: Error,
+  ) {
+    // Error details are automatically captured by the decorator
+    // No need to re-throw the error as it's already been processed
   }
 }

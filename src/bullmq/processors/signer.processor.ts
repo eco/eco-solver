@@ -1,29 +1,29 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '../../common/redis/constants'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { EcoLogMessage } from '../../common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { NonceService } from '../../sign/nonce.service'
 
 @Injectable()
 @Processor(QUEUES.SIGNER.queue)
 export class SignerProcessor extends WorkerHost {
-  private logger = new Logger(SignerProcessor.name)
+  private logger = new GenericOperationLogger('SignerProcessor')
   constructor(private readonly nonceService: NonceService) {
     super()
   }
 
+  @LogOperation('processor_job_start', GenericOperationLogger)
   async process(
-    job: Job<any, any, string>,
+    @LogContext job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `SignerProcessor: process`,
-        properties: {
-          job: job.name,
-        },
-      }),
+    // Business event logging for job start
+    this.logger.logProcessorJobStart(
+      'SignerProcessor',
+      job.id || 'unknown',
+      job.data?.intentHash || 'unknown',
     )
 
     switch (job.name) {
@@ -31,45 +31,40 @@ export class SignerProcessor extends WorkerHost {
         return this.nonceService.syncNonces()
       default:
         this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `SignerProcessor: Invalid job type ${job.name}`,
-          }),
+          { operationType: 'processor_error', status: 'failed' },
+          `SignerProcessor: Invalid job type ${job.name}`,
+          undefined,
+          { jobName: job.name, jobId: job.id },
         )
         return Promise.reject('Invalid job type')
     }
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job<any, any, string>, error: Error) {
-    this.logger.error(
-      EcoLogMessage.withError({
-        message: `SignerProcessor: Error processing job`,
-        error,
-        properties: { job },
-      }),
-    )
+  @LogOperation('processor_job_failed', GenericOperationLogger)
+  onFailed(@LogContext job: Job<any, any, string>, error: Error) {
+    // Business event logging for job failure
+    this.logger.logProcessorJobFailed('SignerProcessor', job.id || 'unknown', error)
   }
 
   @OnWorkerEvent('stalled')
-  onStalled(jobId: string, prev?: string) {
+  @LogOperation('processor_stalled', GenericOperationLogger)
+  onStalled(@LogContext jobId: string, prev?: string) {
     this.logger.warn(
-      EcoLogMessage.fromDefault({
-        message: `SignerProcessor: Job stalled`,
-        properties: {
-          jobId,
-          prev,
-        },
-      }),
+      { operationType: 'processor_stalled', status: 'warning' },
+      `SignerProcessor: Job stalled`,
+      { jobId, prev },
     )
   }
 
   @OnWorkerEvent('error')
+  @LogOperation('processor_error', GenericOperationLogger)
   onWorkerError(error: Error) {
     this.logger.error(
-      EcoLogMessage.withError({
-        message: `SignerProcessor: Worker error`,
-        error,
-      }),
+      { operationType: 'processor_error', status: 'error' },
+      `SignerProcessor: Worker error`,
+      error,
+      { errorName: error.name, errorMessage: error.message },
     )
   }
 }
