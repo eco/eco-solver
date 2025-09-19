@@ -87,6 +87,7 @@ export type EcoConfigType = {
   everclear: EverclearConfig
   gateway: GatewayConfig
   watch: WatchConfig
+  usdt0: USDT0Config
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -468,6 +469,29 @@ export interface CCTPConfig {
     tokenMessenger: Hex
     messageTransmitter: Hex
   }[]
+}
+
+// --------------------------- USDT0 (OFT v2) ----------------------------
+
+export type USDT0ChainType = 'adapter' | 'oft'
+
+export interface USDT0ChainConfig {
+  chainId: number
+  eid: number
+  type: USDT0ChainType
+  contract: Hex
+  decimals: 6
+  // ERC20 token address on the chain that represents USDT/USDT0 balances.
+  // For Ethereum (adapter), this is the native USDT token and is provided via `underlyingToken`.
+  // For other EVMs, this may be the chain's USDT token (extension) address. Optional to keep
+  // backwards compatibility; when present, we validate quotes and use it for delivery checks.
+  token?: Hex
+  underlyingToken?: Hex // Ethereum adapter only
+}
+
+export interface USDT0Config {
+  scanApiBaseUrl: string
+  chains: USDT0ChainConfig[]
 }
 
 export interface CCTPV2Config {

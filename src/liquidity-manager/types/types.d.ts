@@ -51,6 +51,16 @@ type GatewayStrategyContext = {
   id?: string
 }
 
+// USDT0 context (minimal)
+type USDT0StrategyContext = {
+  sourceChainId: number
+  sourceEid: number
+  destinationEid: number
+  to: Hex
+  amountLD: bigint
+  minAmountLD?: bigint
+}
+
 interface CCTPV2StrategyContext {
   transferType: 'standard' | 'fast'
   fee: bigint
@@ -92,6 +102,7 @@ type Strategy =
   | 'CCTPV2'
   | 'Everclear'
   | 'Gateway'
+  | 'USDT0'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -112,7 +123,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
                   ? EverclearStrategyContext
                   : S extends 'Gateway'
                     ? GatewayStrategyContext
-                    : never
+                    : S extends 'USDT0'
+                      ? USDT0StrategyContext
+                      : never
 
 // Quote
 

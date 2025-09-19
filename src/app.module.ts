@@ -25,6 +25,8 @@ import { SignModule } from '@/sign/sign.module'
 import { SolverModule } from '@/solver/solver.module'
 import { SolverRegistrationModule } from '@/solver-registration/solver-registration.module'
 import { WatchModule } from '@/watch/watch.module'
+import { ModuleRef } from '@nestjs/core'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 
 @Module({
   imports: [
@@ -96,6 +98,16 @@ import { WatchModule } from '@/watch/watch.module'
     ...getPino(),
   ],
   controllers: [],
+  providers: [
+    {
+      provide: 'ModuleRefProviderInit',
+      inject: [ModuleRef],
+      useFactory: (moduleRef: ModuleRef) => {
+        ModuleRefProvider.setModuleRef(moduleRef)
+        return true
+      },
+    },
+  ],
 })
 export class AppModule {}
 
