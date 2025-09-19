@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 import { performance } from 'perf_hooks'
+import { AsyncLocalStorage } from 'async_hooks'
 import {
   LogOperationOptions,
   LoggerConstructor,
@@ -15,69 +16,105 @@ import { extractContextFromEntity, mergeContexts } from './context-extractors'
 import { BaseStructuredLogger } from '../loggers/base-structured-logger'
 
 /**
- * Helper logger that exposes structured logging for decorators
+ * Context-isolated operation stack for nested operation tracking
+ * Uses AsyncLocalStorage to ensure each async execution context has its own operation stack
  */
-class DecoratorLogger extends BaseStructuredLogger {
-  constructor(context: string) {
-    super(context)
-  }
+class AsyncOperationStack {
+  private asyncStorage = new AsyncLocalStorage<DecoratorOperationContext[]>()
 
-  // Expose the protected method as public for decorators
-  public logMessage(structure: any, level: 'debug' | 'info' | 'warn' | 'error' = 'info'): void {
-    // Ensure the structure conforms to DatadogLogStructure
-    const datadogStructure = this.formatForDatadog(structure, level)
-    this.logStructured(datadogStructure, level)
+  /**
+   * Get the current operation context for this async execution
+   */
+  current(): DecoratorOperationContext | null {
+    const stack = this.asyncStorage.getStore() || []
+    return stack.length > 0 ? stack[stack.length - 1] : null
   }
 
   /**
-   * Format log structure to conform to DatadogLogStructure interface
+   * Push an operation context to the current async execution's stack
    */
-  private formatForDatadog(structure: any, level: string): any {
-    return {
-      '@timestamp': new Date().toISOString(),
-      message: structure.message || 'Operation log',
-      service: this.context,
-      status: level,
-      ddsource: 'nodejs',
-      ddtags: `env:${process.env.NODE_ENV || 'development'},service:${this.context}`,
-      env: process.env.NODE_ENV || 'development',
-      version: process.env.APP_VERSION || '1.0.0',
-      'logger.name': this.context,
-      ...structure,
+  push(operation: DecoratorOperationContext): void {
+    const stack = this.asyncStorage.getStore() || []
+    stack.push(operation)
+  }
+
+  /**
+   * Pop an operation context from the current async execution's stack
+   */
+  pop(): DecoratorOperationContext | null {
+    const stack = this.asyncStorage.getStore() || []
+    return stack.pop() || null
+  }
+
+  /**
+   * Clear the current async execution's stack (mainly for testing)
+   */
+  clear(): void {
+    const stack = this.asyncStorage.getStore()
+    if (stack) {
+      stack.length = 0
     }
   }
-}
 
-/**
- * Global operation stack for nested operation tracking
- */
-class OperationStackImpl {
-  private stack: DecoratorOperationContext[] = []
-
-  current(): DecoratorOperationContext | null {
-    return this.stack.length > 0 ? this.stack[this.stack.length - 1] : null
+  /**
+   * Run a function within an isolated async context with its own operation stack
+   */
+  run<R>(callback: () => R): R {
+    return this.asyncStorage.run([], callback)
   }
 
-  push(operation: DecoratorOperationContext): void {
-    this.stack.push(operation)
-  }
-
-  pop(): DecoratorOperationContext | null {
-    return this.stack.pop() || null
-  }
-
-  clear(): void {
-    this.stack = []
+  /**
+   * Get or create the stack for the current async context
+   */
+  private getOrCreateStack(): DecoratorOperationContext[] {
+    let stack = this.asyncStorage.getStore()
+    if (!stack) {
+      // If no stack exists, create one for this execution context
+      stack = []
+      this.asyncStorage.enterWith(stack)
+    }
+    return stack
   }
 }
 
-const operationStack = new OperationStackImpl()
+const operationStack = new AsyncOperationStack()
 
 /**
  * Generate unique operation ID
  */
 function generateOperationId(): string {
   return `op_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+/**
+ * Format log structure to conform to DatadogLogStructure interface
+ */
+function formatForDatadog(structure: any, level: string, context: string): any {
+  return {
+    '@timestamp': new Date().toISOString(),
+    message: structure.message || 'Operation log',
+    service: context,
+    status: level,
+    ddsource: 'nodejs',
+    ddtags: `env:${process.env.NODE_ENV || 'development'},service:${context}`,
+    env: process.env.NODE_ENV || 'development',
+    version: process.env.APP_VERSION || '1.0.0',
+    'logger.name': context,
+    ...structure,
+  }
+}
+
+/**
+ * Helper to log with proper Datadog formatting
+ */
+function logWithFormatting(
+  logger: BaseStructuredLogger,
+  structure: any,
+  level: 'debug' | 'info' | 'warn' | 'error',
+  context: string,
+): void {
+  const formatted = formatForDatadog(structure, level, context)
+  logger.logStructured(formatted, level)
 }
 
 /**
@@ -251,137 +288,158 @@ export function LogOperation(
         startTime,
         level: parentOperation ? parentOperation.level + 1 : 0,
         context: extractedContext,
+        loggerClass,
       }
 
-      // Enhanced context with operation metadata
-      const enhancedContext = {
-        ...extractedContext,
-        operation: {
-          ...extractedContext.operation,
-          id: operationId,
-          type: operationType,
-          parent_id: parentOperation?.operationId,
-          level: operationContext.level,
-          method_name: String(propertyName),
-          status: 'started',
-          correlation_id: operationId,
-        },
-      }
+      // Define the operation execution logic
+      const executeOperation = async () => {
+        // Enhanced context with operation metadata
+        const enhancedContext = {
+          ...extractedContext,
+          operation: {
+            ...extractedContext.operation,
+            id: operationId,
+            type: operationType,
+            parent_id: parentOperation?.operationId,
+            level: operationContext.level,
+            method_name: String(propertyName),
+            status: 'started',
+            correlation_id: operationId,
+          },
+        }
 
-      // Push to operation stack
-      operationStack.push(operationContext)
+        // Push to operation stack
+        operationStack.push(operationContext)
 
-      try {
-        // Entry logging
-        if (options.logEntry !== false && shouldSample(options, 'info')) {
-          const decoratorLogger = new DecoratorLogger(target.constructor.name)
-          decoratorLogger.logMessage(
-            {
-              message: `${operationType} started`,
+        try {
+          // Entry logging
+          if (options.logEntry !== false && shouldSample(options, 'info')) {
+            const decoratorLogger = new loggerClass(target.constructor.name)
+            logWithFormatting(
+              decoratorLogger,
+              {
+                message: `${operationType} started`,
+                ...enhancedContext,
+              },
+              'info',
+              target.constructor.name,
+            )
+          }
+
+          // Execute original method
+          const result = await originalMethod.apply(this, args)
+          const duration = performance.now() - startTime
+
+          // Success logging
+          if (options.logExit !== false && shouldSample(options, 'info')) {
+            const successContext = {
               ...enhancedContext,
-            },
-            'info',
-          )
-        }
+              operation: {
+                ...enhancedContext.operation,
+                status: 'completed',
+                duration_ms: Math.round(duration * 100) / 100,
+              },
+              performance: {
+                ...enhancedContext.performance,
+                duration_ms: Math.round(duration * 100) / 100,
+                response_time_ms: Math.round(duration * 100) / 100,
+              },
+            }
 
-        // Execute original method
-        const result = await originalMethod.apply(this, args)
-        const duration = performance.now() - startTime
-
-        // Success logging
-        if (options.logExit !== false && shouldSample(options, 'info')) {
-          const successContext = {
-            ...enhancedContext,
-            operation: {
-              ...enhancedContext.operation,
-              status: 'completed',
-              duration_ms: Math.round(duration * 100) / 100,
-            },
-            performance: {
-              ...enhancedContext.performance,
-              duration_ms: Math.round(duration * 100) / 100,
-              response_time_ms: Math.round(duration * 100) / 100,
-            },
+            const decoratorLogger = new loggerClass(target.constructor.name)
+            logWithFormatting(
+              decoratorLogger,
+              {
+                message: `${operationType} completed successfully`,
+                ...successContext,
+                result: sanitizeResult(result),
+              },
+              'info',
+              target.constructor.name,
+            )
           }
 
-          const decoratorLogger = new DecoratorLogger(target.constructor.name)
-          decoratorLogger.logMessage(
-            {
-              message: `${operationType} completed successfully`,
-              ...successContext,
-              result: sanitizeResult(result),
-            },
-            'info',
-          )
-        }
+          return result
+        } catch (error) {
+          const duration = performance.now() - startTime
 
-        return result
-      } catch (error) {
-        const duration = performance.now() - startTime
+          // Check if this is a DelayedError from BullMQ - this is expected behavior, not a failure
+          const isDelayedError = error instanceof Error && error.constructor.name === 'DelayedError'
 
-        // Check if this is a DelayedError from BullMQ - this is expected behavior, not a failure
-        const isDelayedError = error instanceof Error && error.constructor.name === 'DelayedError'
+          // Error logging (skip logging DelayedError as it's expected BullMQ behavior)
+          if (options.logErrors !== false && !isDelayedError) {
+            const errorContext = {
+              ...enhancedContext,
+              operation: {
+                ...enhancedContext.operation,
+                status: 'failed',
+                duration_ms: Math.round(duration * 100) / 100,
+              },
+              performance: {
+                ...enhancedContext.performance,
+                duration_ms: Math.round(duration * 100) / 100,
+                response_time_ms: Math.round(duration * 100) / 100,
+              },
+              error: {
+                kind: error instanceof Error ? error.constructor.name : 'UnknownError',
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                recoverable: isRecoverableError(error),
+              },
+            }
 
-        // Error logging (skip logging DelayedError as it's expected BullMQ behavior)
-        if (options.logErrors !== false && !isDelayedError) {
-          const errorContext = {
-            ...enhancedContext,
-            operation: {
-              ...enhancedContext.operation,
-              status: 'failed',
-              duration_ms: Math.round(duration * 100) / 100,
-            },
-            performance: {
-              ...enhancedContext.performance,
-              duration_ms: Math.round(duration * 100) / 100,
-              response_time_ms: Math.round(duration * 100) / 100,
-            },
-            error: {
-              kind: error instanceof Error ? error.constructor.name : 'UnknownError',
-              message: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              recoverable: isRecoverableError(error),
-            },
+            const decoratorLogger = new loggerClass(target.constructor.name)
+            logWithFormatting(
+              decoratorLogger,
+              {
+                message: `${operationType} failed`,
+                ...errorContext,
+              },
+              'error',
+              target.constructor.name,
+            )
+          } else if (isDelayedError) {
+            // Log DelayedError as debug information, not as an error
+            const delayContext = {
+              ...enhancedContext,
+              operation: {
+                ...enhancedContext.operation,
+                status: 'delayed',
+                duration_ms: Math.round(duration * 100) / 100,
+              },
+              performance: {
+                ...enhancedContext.performance,
+                duration_ms: Math.round(duration * 100) / 100,
+                response_time_ms: Math.round(duration * 100) / 100,
+              },
+            }
+
+            const decoratorLogger = new loggerClass(target.constructor.name)
+            logWithFormatting(
+              decoratorLogger,
+              {
+                message: `${operationType} delayed`,
+                ...delayContext,
+              },
+              'debug',
+              target.constructor.name,
+            )
           }
 
-          const decoratorLogger = new DecoratorLogger(target.constructor.name)
-          decoratorLogger.logMessage(
-            {
-              message: `${operationType} failed`,
-              ...errorContext,
-            },
-            'error',
-          )
-        } else if (isDelayedError) {
-          // Log DelayedError as debug information, not as an error
-          const delayContext = {
-            ...enhancedContext,
-            operation: {
-              ...enhancedContext.operation,
-              status: 'delayed',
-              duration_ms: Math.round(duration * 100) / 100,
-            },
-            performance: {
-              ...enhancedContext.performance,
-              duration_ms: Math.round(duration * 100) / 100,
-              response_time_ms: Math.round(duration * 100) / 100,
-            },
-          }
-
-          const decoratorLogger = new DecoratorLogger(target.constructor.name)
-          decoratorLogger.logMessage(
-            {
-              message: `${operationType} delayed`,
-              ...delayContext,
-            },
-            'debug',
-          )
+          throw error
+        } finally {
+          // Pop from operation stack
+          operationStack.pop()
         }
+      }
 
-        throw error
-      } finally {
-        // Pop from operation stack
-        operationStack.pop()
+      // If this is a root operation (no parent), run in isolated async context
+      // This ensures concurrent operations don't interfere with each other
+      if (!parentOperation) {
+        return operationStack.run(executeOperation)
+      } else {
+        // For nested operations, execute within existing context
+        return executeOperation()
       }
     }
 
@@ -425,8 +483,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
           return await originalMethod.apply(this, args)
         }
 
-        // Use DecoratorLogger for sub-operations
-        const logger = new DecoratorLogger(target.constructor.name)
+        // Use the same logger class as the parent operation
+        const logger = new parentOperation.loggerClass(target.constructor.name)
 
         const operationId = generateOperationId()
         const startTime = performance.now()
@@ -439,6 +497,7 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
           startTime,
           level: parentOperation.level + 1,
           context: parentOperation.context,
+          loggerClass: parentOperation.loggerClass,
         }
 
         // Inherit parent context with sub-operation details
@@ -463,12 +522,14 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
         try {
           // Entry logging for sub-operation
           if (shouldSample(options, 'debug')) {
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} started`,
                 ...enhancedContext,
               },
               'debug',
+              target.constructor.name,
             )
           }
 
@@ -477,7 +538,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
 
           // Success logging for sub-operation
           if (shouldSample(options, 'debug')) {
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} completed`,
                 ...enhancedContext,
@@ -493,6 +555,7 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
                 },
               },
               'debug',
+              target.constructor.name,
             )
           }
 
@@ -505,7 +568,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
 
           // Error logging for sub-operation (skip DelayedError)
           if (!isDelayedError) {
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} failed`,
                 ...enhancedContext,
@@ -527,10 +591,12 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
                 },
               },
               'error',
+              target.constructor.name,
             )
           } else {
             // Log DelayedError as debug information
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} delayed`,
                 ...enhancedContext,
@@ -546,6 +612,7 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
                 },
               },
               'debug',
+              target.constructor.name,
             )
           }
 
@@ -570,8 +637,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
           return originalMethod.apply(this, args)
         }
 
-        // Use DecoratorLogger for sub-operations
-        const logger = new DecoratorLogger(target.constructor.name)
+        // Use the same logger class as the parent operation
+        const logger = new parentOperation.loggerClass(target.constructor.name)
 
         const operationId = generateOperationId()
         const startTime = performance.now()
@@ -584,6 +651,7 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
           startTime,
           level: parentOperation.level + 1,
           context: parentOperation.context,
+          loggerClass: parentOperation.loggerClass,
         }
 
         // Inherit parent context with sub-operation details
@@ -608,12 +676,14 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
         try {
           // Entry logging for sub-operation
           if (shouldSample(options, 'debug')) {
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} started`,
                 ...enhancedContext,
               },
               'debug',
+              target.constructor.name,
             )
           }
 
@@ -622,7 +692,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
 
           // Success logging for sub-operation
           if (shouldSample(options, 'debug')) {
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} completed`,
                 ...enhancedContext,
@@ -638,6 +709,7 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
                 },
               },
               'debug',
+              target.constructor.name,
             )
           }
 
@@ -650,7 +722,8 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
 
           // Error logging for sub-operation (skip DelayedError)
           if (!isDelayedError) {
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} failed`,
                 ...enhancedContext,
@@ -672,10 +745,12 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
                 },
               },
               'error',
+              target.constructor.name,
             )
           } else {
             // Log DelayedError as debug information
-            logger.logMessage(
+            logWithFormatting(
+              logger,
               {
                 message: `${subOperationType} delayed`,
                 ...enhancedContext,
@@ -691,6 +766,7 @@ export function LogSubOperation(subOperationType: string, options: LogOperationO
                 },
               },
               'debug',
+              target.constructor.name,
             )
           }
 

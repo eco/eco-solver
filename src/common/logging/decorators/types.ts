@@ -95,6 +95,7 @@ export interface DecoratorOperationContext {
   startTime: number
   level: number
   context: ExtractedContext
+  loggerClass: LoggerConstructor
 }
 
 /**
