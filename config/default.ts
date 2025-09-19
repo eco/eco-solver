@@ -99,6 +99,7 @@ export default {
   },
 
   gaslessIntentdAppIDs: [
+    'portal',
     'token-pair-validation',
     'matrix-test',
     'test',
