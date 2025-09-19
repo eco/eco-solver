@@ -129,15 +129,29 @@ function shouldLog(options: LogOperationOptions): boolean {
 
 /**
  * Check if sampling allows this log
+ * Applies sampling to the specified level and all lower priority levels
  */
 function shouldSample(options: LogOperationOptions, level: string): boolean {
   if (!options.sampling) return true
 
   const { rate, level: samplingLevel = 'debug' } = options.sampling
 
-  // Only apply sampling to the specified level or lower priority levels
-  if (level !== samplingLevel) return true
+  // Define level hierarchy (lower index = lower priority)
+  const levels = ['debug', 'info', 'warn', 'error']
+  const currentLevelIndex = levels.indexOf(level)
+  const samplingLevelIndex = levels.indexOf(samplingLevel)
 
+  // Handle invalid levels gracefully
+  if (currentLevelIndex === -1 || samplingLevelIndex === -1) {
+    return true // Don't sample unknown levels
+  }
+
+  // Only apply sampling to the specified level or lower priority levels
+  if (currentLevelIndex > samplingLevelIndex) {
+    return true // Skip sampling for higher priority levels
+  }
+
+  // Apply sampling to current level and lower priority levels
   return Math.random() < rate
 }
 
