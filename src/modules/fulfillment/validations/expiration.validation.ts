@@ -22,22 +22,19 @@ export class ExpirationValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.ExpirationValidation', {
-        attributes: {
-          'validation.name': 'ExpirationValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'ExpirationValidation',
+      'intent.hash': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination?.toString(),
+    });
 
     try {
       const currentTimestamp = BigInt(now());
 
-      span.setAttributes({
+      span?.setAttributes({
         'expiration.current_timestamp': currentTimestamp.toString(),
         'expiration.deadline': intent.reward.deadline?.toString() || 'none',
       });
@@ -51,10 +48,10 @@ export class ExpirationValidation implements Validation {
       }
 
       const timeUntilDeadline = intent.reward.deadline - currentTimestamp;
-      span.setAttribute('expiration.time_until_deadline', timeUntilDeadline.toString());
+      span?.setAttribute('expiration.time_until_deadline', timeUntilDeadline.toString());
 
       if (intent.reward.deadline <= currentTimestamp) {
-        span.setAttribute('expiration.expired', true);
+        span?.setAttribute('expiration.expired', true);
         throw new ValidationError(
           `Intent deadline ${intent.reward.deadline} has expired. Current time: ${currentTimestamp}`,
           ValidationErrorType.PERMANENT,
@@ -73,7 +70,7 @@ export class ExpirationValidation implements Validation {
 
       const bufferSeconds = prover.getDeadlineBuffer();
 
-      span.setAttributes({
+      span?.setAttributes({
         'expiration.required_buffer': bufferSeconds.toString(),
         'expiration.has_sufficient_buffer': timeUntilDeadline > bufferSeconds,
       });
@@ -86,20 +83,12 @@ export class ExpirationValidation implements Validation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

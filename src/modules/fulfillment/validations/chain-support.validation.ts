@@ -19,17 +19,14 @@ export class ChainSupportValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.ChainSupportValidation', {
-        attributes: {
-          'validation.name': 'ChainSupportValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'ChainSupportValidation',
+      'intent.hash': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination?.toString(),
+    });
 
     try {
       if (!intent.sourceChainId) {
@@ -48,11 +45,11 @@ export class ChainSupportValidation implements Validation {
         );
       }
 
-      span.setAttribute('chain.source.id', intent.sourceChainId.toString());
-      span.setAttribute('chain.destination.id', intent.destination.toString());
+      span?.setAttribute('chain.source.id', intent.sourceChainId.toString());
+      span?.setAttribute('chain.destination.id', intent.destination.toString());
 
       const sourceSupported = this.blockchainService.isChainSupported(intent.sourceChainId);
-      span.setAttribute('chain.source.supported', sourceSupported);
+      span?.setAttribute('chain.source.supported', sourceSupported);
 
       if (!sourceSupported) {
         throw new ValidationError(
@@ -63,7 +60,7 @@ export class ChainSupportValidation implements Validation {
       }
 
       const destSupported = this.blockchainService.isChainSupported(intent.destination);
-      span.setAttribute('chain.destination.supported', destSupported);
+      span?.setAttribute('chain.destination.supported', destSupported);
 
       if (!destSupported) {
         throw new ValidationError(
@@ -73,20 +70,12 @@ export class ChainSupportValidation implements Validation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

@@ -81,102 +81,98 @@ export class SolanaListener extends BaseChainListener {
   private async handleProgramLogs(logs: Logs): Promise<void> {
     try {
       for (const ev of this.parser.parseLogs(logs.logs)) {
-        const span = this.otelService.startSpan('svm.listener.processEvent', {
-          attributes: {
-            'svm.chain_id': this.solanaConfigService.chainId.toString(),
-            'svm.event_name': ev.name,
-            'portal.program_id': this.programId.toString(),
-            'svm.signature': logs.signature || 'unknown',
+        await this.otelService.tracer.startActiveSpan(
+          'svm.listener.processEvent',
+          {
+            attributes: {
+              'svm.chain_id': this.solanaConfigService.chainId.toString(),
+              'svm.event_name': ev.name,
+              'portal.program_id': this.programId.toString(),
+              'svm.signature': logs.signature || 'unknown',
+            },
           },
-        });
-
-        try {
-          switch (ev.name) {
-            case 'IntentPublished':
-              const intent = SvmEventParser.parseIntentPublishEvent(
-                ev.data as IntentPublishedInstruction,
-                logs,
-                this.solanaConfigService.chainId,
-              );
-
-              span.setAttributes({
-                'svm.intent_hash': intent.intentHash,
-                'svm.source_chain': intent.sourceChainId?.toString(),
-                'svm.destination_chain': intent.destination.toString(),
-                'svm.creator': intent.reward.creator,
-                'svm.prover': intent.reward.prover,
-              });
-
-              // Submit intent directly to fulfillment service within the span context
-              api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
-                try {
-                  await this.fulfillmentService.submitIntent(intent);
-                  this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
-                } catch (error) {
-                  this.logger.error(
-                    `Failed to submit intent ${intent.intentHash}:`,
-                    toError(error),
+          async (span) => {
+            try {
+              switch (ev.name) {
+                case 'IntentPublished':
+                  const intent = SvmEventParser.parseIntentPublishEvent(
+                    ev.data as IntentPublishedInstruction,
+                    logs,
+                    this.solanaConfigService.chainId,
                   );
-                  span.recordException(toError(error));
-                }
-              });
 
-              span.addEvent('intent.emitted');
-              break;
+                  span.setAttributes({
+                    'svm.intent_hash': intent.intentHash,
+                    'svm.source_chain': intent.sourceChainId?.toString(),
+                    'svm.destination_chain': intent.destination.toString(),
+                    'svm.creator': intent.reward.creator,
+                    'svm.prover': intent.reward.prover,
+                  });
 
-            case 'IntentFulfilled':
-              const fulfilledEvent = SvmEventParser.parseIntentFulfilledEvent(
-                ev.data as IntentFulfilledInstruction,
-                logs,
-                this.solanaConfigService.chainId,
-              );
+                  // Submit intent directly to fulfillment service (span context is automatically propagated)
+                  try {
+                    await this.fulfillmentService.submitIntent(intent);
+                    this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+                  } catch (error) {
+                    this.logger.error(
+                      `Failed to submit intent ${intent.intentHash}:`,
+                      toError(error),
+                    );
+                    span.recordException(toError(error));
+                  }
 
-              span.setAttributes({
-                'svm.intent_hash': fulfilledEvent.intentHash,
-                'svm.claimant': fulfilledEvent.claimant || 'unknown',
-              });
+                  span.addEvent('intent.emitted');
+                  break;
 
-              // Emit the event within the span context to propagate trace context
-              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-                this.eventsService.emit('intent.fulfilled', fulfilledEvent);
-              });
+                case 'IntentFulfilled':
+                  const fulfilledEvent = SvmEventParser.parseIntentFulfilledEvent(
+                    ev.data as IntentFulfilledInstruction,
+                    logs,
+                    this.solanaConfigService.chainId,
+                  );
 
-              span.addEvent('intent.fulfilled.emitted');
-              break;
+                  span.setAttributes({
+                    'svm.intent_hash': fulfilledEvent.intentHash,
+                    'svm.claimant': fulfilledEvent.claimant || 'unknown',
+                  });
 
-            case 'IntentWithdrawn':
-              const withdrawnEvent = SvmEventParser.parseIntentWithdrawnFromLogs(
-                ev.data as IntentWithdrawnInstruction,
-                logs,
-                this.solanaConfigService.chainId,
-              );
+                  // Emit the event (span context is automatically propagated)
+                  this.eventsService.emit('intent.fulfilled', fulfilledEvent);
+                  span.addEvent('intent.fulfilled.emitted');
+                  break;
 
-              span.setAttributes({
-                'svm.intent_hash': withdrawnEvent.intentHash,
-                'svm.claimant': withdrawnEvent.claimant || 'unknown',
-              });
+                case 'IntentWithdrawn':
+                  const withdrawnEvent = SvmEventParser.parseIntentWithdrawnFromLogs(
+                    ev.data as IntentWithdrawnInstruction,
+                    logs,
+                    this.solanaConfigService.chainId,
+                  );
 
-              // Emit the event within the span context to propagate trace context
-              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-                this.eventsService.emit('intent.withdrawn', withdrawnEvent);
-              });
+                  span.setAttributes({
+                    'svm.intent_hash': withdrawnEvent.intentHash,
+                    'svm.claimant': withdrawnEvent.claimant || 'unknown',
+                  });
 
-              span.addEvent('intent.withdrawn.emitted');
-              break;
+                  // Emit the event (span context is automatically propagated)
+                  this.eventsService.emit('intent.withdrawn', withdrawnEvent);
+                  span.addEvent('intent.withdrawn.emitted');
+                  break;
 
-            default:
-              this.logger.debug(`Unknown event type: ${ev.name}`, ev);
-              span.setAttribute('svm.unknown_event', true);
-          }
+                default:
+                  this.logger.debug(`Unknown event type: ${ev.name}`, ev);
+                  span.setAttribute('svm.unknown_event', true);
+              }
 
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        } catch (eventError) {
-          this.logger.error(`Error processing ${ev.name} event:`, toError(eventError));
-          span.recordException(toError(eventError));
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-        } finally {
-          span.end();
-        }
+              span.setStatus({ code: api.SpanStatusCode.OK });
+            } catch (eventError) {
+              this.logger.error(`Error processing ${ev.name} event:`, toError(eventError));
+              span.recordException(toError(eventError));
+              span.setStatus({ code: api.SpanStatusCode.ERROR });
+            } finally {
+              span.end();
+            }
+          },
+        );
       }
     } catch (error) {
       this.logger.error('Error handling Solana program logs:', toError(error));

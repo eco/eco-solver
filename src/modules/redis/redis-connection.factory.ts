@@ -4,6 +4,7 @@ import Redis, { Cluster } from 'ioredis';
 
 import { RedisConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging';
+import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 
 /**
  * Factory service for creating Redis connections for BullMQ processors.
@@ -15,6 +16,7 @@ export class RedisConnectionFactory {
   constructor(
     private redisConfig: RedisConfigService,
     private logger: SystemLoggerService,
+    private bullMQOtelFactory: BullMQOtelFactory,
   ) {
     this.logger.setContext(RedisConnectionFactory.name);
   }
@@ -33,20 +35,44 @@ export class RedisConnectionFactory {
 
   /**
    * Gets queue configuration options for BullMQ queue registration.
-   * Returns configuration with prefix and optional cluster connection.
+   * Returns configuration with prefix, telemetry, and optional cluster connection.
    */
   getQueueConfig(queueName: string): any {
     const prefix = `{${queueName}}`;
+    const telemetry = this.bullMQOtelFactory.getInstance();
+
+    const config: any = {
+      prefix,
+      ...(telemetry && { telemetry }),
+    };
 
     if (this.redisConfig.enableCluster) {
       this.logger.log(`Configuring ${queueName} queue with Redis cluster`);
-      return {
-        prefix,
-        connection: this.createClusterConnection(),
-      };
+      config.connection = this.createClusterConnection();
     }
 
-    return { prefix };
+    return config;
+  }
+
+  /**
+   * Gets processor configuration options for BullMQ worker registration.
+   * Returns configuration with prefix, telemetry, and optional cluster connection.
+   */
+  getProcessorConfig(queueName: string): any {
+    const prefix = `{${queueName}}`;
+    const telemetry = this.bullMQOtelFactory.getInstance();
+
+    const config: any = {
+      prefix,
+      ...(telemetry && { telemetry }),
+    };
+
+    if (this.redisConfig.enableCluster) {
+      this.logger.log(`Configuring ${queueName} processor with Redis cluster`);
+      config.connection = this.createClusterConnection();
+    }
+
+    return config;
   }
 
   private createClusterConnection(): Cluster {

@@ -1,3 +1,4 @@
+import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
 import { Abi, ContractFunctionName, getAbiItem, toFunctionSignature } from 'viem';
 
@@ -54,69 +55,74 @@ export class BasicWallet implements ITvmWallet {
     parameter: ContractFunctionParameter[],
     options?: TvmTransactionOptions,
   ): Promise<string> {
-    const span = this.otelService.startSpan('tvm.wallet.triggerSmartContract', {
-      attributes: {
-        'tvm.contract_address': contractAddress,
-        'tvm.function_name': functionName,
-        'tvm.operation': 'triggerSmartContract',
-        'tvm.has_call_value': !!options?.callValue,
-        'tvm.fee_limit': options?.feeLimit || this.transactionSettings.defaultFeeLimit,
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan(
+      'tvm.wallet.triggerSmartContract',
+      {
+        attributes: {
+          'tvm.contract_address': contractAddress,
+          'tvm.function_name': functionName,
+          'tvm.operation': 'triggerSmartContract',
+          'tvm.has_call_value': !!options?.callValue,
+          'tvm.fee_limit': options?.feeLimit || this.transactionSettings.defaultFeeLimit,
+        },
       },
-    });
+      async (span: api.Span) => {
+        try {
+          const abiItem = getAbiItem({ abi, name: functionName } as any);
+          const functionSelector = toFunctionSignature(abiItem as any);
 
-    try {
-      const abiItem = getAbiItem({ abi, name: functionName } as any);
-      const functionSelector = toFunctionSignature(abiItem as any);
+          const fromAddress = await this.getAddress();
+          span.setAttribute('tvm.from_address', fromAddress);
 
-      const fromAddress = await this.getAddress();
-      span.setAttribute('tvm.from_address', fromAddress);
+          // Default options
+          const txOptions = {
+            feeLimit: options?.feeLimit || this.transactionSettings.defaultFeeLimit,
+            callValue: options?.callValue || 0,
+            tokenValue: options?.tokenValue,
+            tokenId: options?.tokenId?.toString(),
+            permissionId: options?.permissionId,
+          };
 
-      // Default options
-      const txOptions = {
-        feeLimit: options?.feeLimit || this.transactionSettings.defaultFeeLimit,
-        callValue: options?.callValue || 0,
-        tokenValue: options?.tokenValue,
-        tokenId: options?.tokenId?.toString(),
-        permissionId: options?.permissionId,
-      };
+          // Trigger smart contract
+          const result = await this.tronWeb.transactionBuilder.triggerSmartContract(
+            contractAddress,
+            functionSelector,
+            txOptions,
+            parameter,
+            fromAddress,
+          );
 
-      // Trigger smart contract
-      const result = await this.tronWeb.transactionBuilder.triggerSmartContract(
-        contractAddress,
-        functionSelector,
-        txOptions,
-        parameter,
-        fromAddress,
-      );
+          if (!result.result.result) {
+            throw new Error(`Contract call failed: ${result.result.message || 'Unknown error'}`);
+          }
 
-      if (!result.result.result) {
-        throw new Error(`Contract call failed: ${result.result.message || 'Unknown error'}`);
-      }
+          // Sign transaction
+          const signedTransaction = await this.tronWeb.trx.sign(result.transaction);
 
-      // Sign transaction
-      const signedTransaction = await this.tronWeb.trx.sign(result.transaction);
+          // Broadcast transaction
+          const broadcastResult = await this.tronWeb.trx.sendRawTransaction(signedTransaction);
 
-      // Broadcast transaction
-      const broadcastResult = await this.tronWeb.trx.sendRawTransaction(signedTransaction);
+          if (!broadcastResult.result) {
+            throw new Error(
+              `Transaction broadcast failed: ${broadcastResult.message || 'Unknown error'}`,
+            );
+          }
 
-      if (!broadcastResult.result) {
-        throw new Error(
-          `Transaction broadcast failed: ${broadcastResult.message || 'Unknown error'}`,
-        );
-      }
+          const txId = broadcastResult.txid;
+          span.setAttribute('tvm.transaction_id', txId);
+          span.setStatus({ code: api.SpanStatusCode.OK });
 
-      const txId = broadcastResult.txid;
-      span.setAttribute('tvm.transaction_id', txId);
-      span.setStatus({ code: 0 }); // OK
-
-      this.logger.log(`Smart contract transaction sent: ${txId}`);
-      return txId;
-    } catch (error) {
-      span.recordException(toError(error));
-      span.setStatus({ code: 2, message: getErrorMessage(error) }); // ERROR
-      throw error;
-    } finally {
-      span.end();
-    }
+          this.logger.log(`Smart contract transaction sent: ${txId}`);
+          return txId;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR, message: getErrorMessage(error) });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 }

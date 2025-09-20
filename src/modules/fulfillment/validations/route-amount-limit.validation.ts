@@ -22,18 +22,15 @@ export class RouteAmountLimitValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.RouteAmountLimitValidation', {
-        attributes: {
-          'validation.name': 'RouteAmountLimitValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
-          'route.tokens.count': intent.route.tokens?.length || 0,
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'RouteAmountLimitValidation',
+      'intent.hash': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination?.toString(),
+      'route.tokens.count': intent.route.tokens?.length || 0,
+    });
 
     try {
       // Calculate total value being transferred
@@ -42,7 +39,7 @@ export class RouteAmountLimitValidation implements Validation {
         intent.route.tokens,
       );
       const totalValue = sum(normalizedTokens, 'amount');
-      span.setAttribute('route.total_value', totalValue.toString());
+      span?.setAttribute('route.total_value', totalValue.toString());
 
       // Get the smallest token limit from configuration
       const tokenLimits = intent.route.tokens.map((token, index) => {
@@ -55,36 +52,34 @@ export class RouteAmountLimitValidation implements Validation {
         if (!limit?.max) {
           // If no limit is set, return a very large number (effectively no limit)
           limitWei = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
-          span.setAttribute(`route.token.${index}.limit`, 'unlimited');
+          span?.setAttribute(`route.token.${index}.limit`, 'unlimited');
         } else {
           // Extract max value from either number or object format
           limitWei = parseUnits(limit.max.toString(), decimals);
-          span.setAttributes({
+          span?.setAttributes({
             [`route.token.${index}.limit`]: limit.max.toString(),
             [`route.token.${index}.limit_wei`]: limitWei.toString(),
           });
         }
 
         const normalizedLimit = normalize(limitWei, decimals);
-        span.setAttribute(`route.token.${index}.normalized_limit`, normalizedLimit.toString());
+        span?.setAttribute(`route.token.${index}.normalized_limit`, normalizedLimit.toString());
 
         return normalizedLimit;
       });
 
       // If no tokens in route, validation passes
       if (tokenLimits.length === 0) {
-        span.setAttributes({
+        span?.setAttributes({
           'route.has_tokens': false,
           'route.within_limit': true,
         });
-        if (!activeSpan) {
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        }
+        span?.setStatus({ code: api.SpanStatusCode.OK });
         return true;
       }
 
       const limit = min(tokenLimits);
-      span.setAttributes({
+      span?.setAttributes({
         'route.effective_limit': limit.toString(),
         'route.within_limit': totalValue <= limit,
       });
@@ -100,20 +95,12 @@ export class RouteAmountLimitValidation implements Validation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

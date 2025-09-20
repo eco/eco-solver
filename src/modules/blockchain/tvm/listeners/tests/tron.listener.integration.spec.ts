@@ -66,23 +66,26 @@ describe('TronListener Integration - Real Blockchain Events', () => {
 
   // Mock OpenTelemetry with logging
   const mockOtelService = {
-    startSpan: jest.fn().mockImplementation((name, attrs) => {
-      console.log(`[OTEL] Starting span: ${name}`, attrs);
-      return {
-        setAttribute: jest.fn().mockImplementation((key, value) => {
-          console.log(`[OTEL] Set attribute: ${key} = ${value}`);
-        }),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn().mockImplementation((event, attrs) => {
-          console.log(`[OTEL] Event: ${event}`, attrs);
-        }),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn().mockImplementation(() => {
-          console.log(`[OTEL] Ending span: ${name}`);
-        }),
-      };
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        console.log(`[OTEL] Starting span: ${name}`, options);
+        const span = {
+          setAttribute: jest.fn().mockImplementation((key, value) => {
+            console.log(`[OTEL] Set attribute: ${key} = ${value}`);
+          }),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn().mockImplementation((event, attrs) => {
+            console.log(`[OTEL] Event: ${event}`, attrs);
+          }),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn().mockImplementation(() => {
+            console.log(`[OTEL] Ending span: ${name}`);
+          }),
+        };
+        return fn(span);
+      }),
+    },
     getMeter: jest.fn().mockReturnValue({
       createCounter: jest.fn().mockReturnValue({
         add: jest.fn(),
@@ -189,7 +192,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       });
 
       // Log OpenTelemetry span attributes
-      const spanCalls = mockOtelService.startSpan.mock.calls;
+      const spanCalls = mockOtelService.tracer.startActiveSpan.mock.calls;
       console.log('\nOpenTelemetry span attributes:');
       spanCalls.forEach((call) => {
         console.log(`Span: ${call[0]}`);
@@ -253,7 +256,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
             destination: e.intent.destination.toString(),
           },
         })),
-        otelSpans: mockOtelService.startSpan.mock.calls.map((call) => ({
+        otelSpans: mockOtelService.tracer.startActiveSpan.mock.calls.map((call) => ({
           name: call[0],
           attributes: call[1],
         })),

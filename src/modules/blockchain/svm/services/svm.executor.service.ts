@@ -51,10 +51,9 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.executor.fulfill', {
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.fulfill',
+      {
         attributes: {
           'svm.intent_hash': intent.intentHash,
           'svm.source_chain': intent.sourceChainId?.toString(),
@@ -62,93 +61,90 @@ export class SvmExecutorService extends BaseChainExecutor {
           'svm.operation': 'fulfill',
           'svm.wallet_id': _walletId || 'default',
         },
-      });
+      },
+      async (span) => {
+        // Lazy initialization of Portal program
+        if (!this.isInitialized) {
+          try {
+            await this.initializeProgram();
+            this.isInitialized = true;
+          } catch (error) {
+            this.logger.error(
+              'Failed to initialize Portal program during fulfill:',
+              toError(error),
+            );
+            span.recordException(toError(error));
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+            span.end();
+            throw error;
+          }
+        }
 
-    // Lazy initialization of Portal program
-    if (!this.isInitialized) {
-      try {
-        await this.initializeProgram();
-        this.isInitialized = true;
-      } catch (error) {
-        this.logger.error('Failed to initialize Portal program during fulfill:', toError(error));
-        if (!activeSpan) {
+        if (!this.portalProgram || !this.keypair) {
+          const error = new Error('Portal program or keypair not properly initialized');
+          span.recordException(error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          span.end();
+          throw error;
+        }
+
+        try {
+          // Add compute budget instruction to increase CU limit
+          // The transaction is consuming ~395k CUs, so we'll set the limit to 600k for safety margin
+          // TODO: Move units to SvmConfig
+          const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+            units: 600_000,
+          });
+
+          // Generate the fulfillment instruction for the Portal program
+          const { fulfillmentIx, transferInstructions } = await this.generateFulfillIx(intent);
+
+          span.setAttribute('svm.transfer_instruction_count', transferInstructions.length);
+
+          // TODO: Must create a proveIx to prove intents
+
+          const transaction = new Transaction()
+            .add(computeBudgetIx)
+            .add(...transferInstructions)
+            .add(fulfillmentIx);
+
+          span.addEvent('svm.transaction.submitting', {
+            instruction_count: 1 + transferInstructions.length + 1, // compute budget + transfers + fulfill
+            compute_unit_limit: 600_000,
+          });
+
+          // Get wallet from manager for transaction execution
+          const wallet = this.walletManager.getWallet();
+          const signature = await wallet.sendTransaction(transaction, {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
+
+          span.setAttribute('svm.transaction_signature', signature);
+          span.addEvent('svm.transaction.submitted');
+
+          this.logger.log(`Intent ${intent.intentHash} fulfilled with signature: ${signature}`);
+
+          span.addEvent('svm.transaction.confirmed');
+          span.setStatus({ code: api.SpanStatusCode.OK });
+
+          return {
+            success: true,
+            txHash: signature,
+          };
+        } catch (error) {
+          this.logger.error('Solana execution error:', toError(error));
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
+          return {
+            success: false,
+            error: getErrorMessage(error),
+          };
+        } finally {
+          span.end();
         }
-        throw error;
-      }
-    }
-
-    if (!this.portalProgram || !this.keypair) {
-      const error = new Error('Portal program or keypair not properly initialized');
-      if (!activeSpan) {
-        span.recordException(error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw error;
-    }
-
-    try {
-      // Add compute budget instruction to increase CU limit
-      // The transaction is consuming ~395k CUs, so we'll set the limit to 600k for safety margin
-      // TODO: Move units to SvmConfig
-      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 600_000,
-      });
-
-      // Generate the fulfillment instruction for the Portal program
-      const { fulfillmentIx, transferInstructions } = await this.generateFulfillIx(intent);
-
-      span.setAttribute('svm.transfer_instruction_count', transferInstructions.length);
-
-      // TODO: Must create a proveIx to prove intents
-
-      const transaction = new Transaction()
-        .add(computeBudgetIx)
-        .add(...transferInstructions)
-        .add(fulfillmentIx);
-
-      span.addEvent('svm.transaction.submitting', {
-        instruction_count: 1 + transferInstructions.length + 1, // compute budget + transfers + fulfill
-        compute_unit_limit: 600_000,
-      });
-
-      // Get wallet from manager for transaction execution
-      const wallet = this.walletManager.getWallet();
-      const signature = await wallet.sendTransaction(transaction, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
-
-      span.setAttribute('svm.transaction_signature', signature);
-      span.addEvent('svm.transaction.submitted');
-
-      this.logger.log(`Intent ${intent.intentHash} fulfilled with signature: ${signature}`);
-
-      span.addEvent('svm.transaction.confirmed');
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
-
-      return {
-        success: true,
-        txHash: signature,
-      };
-    } catch (error) {
-      this.logger.error('Solana execution error:', toError(error));
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      return {
-        success: false,
-        error: getErrorMessage(error),
-      };
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
-    }
+      },
+    );
   }
 
   async getBalance(address: string, _chainId: number): Promise<bigint> {
@@ -188,25 +184,33 @@ export class SvmExecutorService extends BaseChainExecutor {
     _withdrawalData: any,
     _walletId?: string,
   ): Promise<string> {
-    const span = this.otelService.startSpan('svm.executor.batchWithdraw', {
-      attributes: {
-        'svm.chain_id': _chainId.toString(),
-        'svm.wallet_id': _walletId || 'default',
-        'svm.operation': 'batchWithdraw',
-        'svm.status': 'not_implemented',
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.batchWithdraw',
+      {
+        attributes: {
+          'svm.chain_id': _chainId.toString(),
+          'svm.wallet_id': _walletId || 'default',
+          'svm.operation': 'batchWithdraw',
+          'svm.status': 'not_implemented',
+        },
       },
-    });
-
-    try {
-      this.logger.warn('Batch withdrawal not yet implemented for Solana');
-      // TODO: Implement Solana batch withdrawal when Portal contract supports it
-      const error = new Error('Batch withdrawal not yet implemented for Solana');
-      span.recordException(error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
-    }
+      (span) => {
+        try {
+          this.logger.warn('Batch withdrawal not yet implemented for Solana');
+          // TODO: Implement Solana batch withdrawal when Portal contract supports it
+          const error = new Error('Batch withdrawal not yet implemented for Solana');
+          span.recordException(error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   private async generateFulfillIx(intent: Intent) {

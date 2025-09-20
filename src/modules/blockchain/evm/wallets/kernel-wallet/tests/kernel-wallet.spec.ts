@@ -111,13 +111,18 @@ describe('KernelWallet', () => {
 
       // Mock OpenTelemetry service
       mockOtelService = {
-        startSpan: jest.fn().mockReturnValue({
-          setAttribute: jest.fn(),
-          setAttributes: jest.fn(),
-          setStatus: jest.fn(),
-          recordException: jest.fn(),
-          end: jest.fn(),
-        }),
+        tracer: {
+          startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+            const span = {
+              setAttribute: jest.fn(),
+              setAttributes: jest.fn(),
+              setStatus: jest.fn(),
+              recordException: jest.fn(),
+              end: jest.fn(),
+            };
+            return fn(span);
+          }),
+        },
       };
 
       // Mock transport service
@@ -278,13 +283,18 @@ describe('KernelWallet', () => {
 
     // Mock OpenTelemetry service
     mockOtelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     };
 
     // Create wallet instance

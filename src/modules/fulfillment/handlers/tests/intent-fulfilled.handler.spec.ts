@@ -35,12 +35,19 @@ describe('IntentFulfilledHandler', () => {
         {
           provide: OpenTelemetryService,
           useValue: {
-            startSpan: jest.fn().mockReturnValue({
-              setStatus: jest.fn(),
-              addEvent: jest.fn(),
-              recordException: jest.fn(),
-              end: jest.fn(),
-            }),
+            tracer: {
+              startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+                const span = {
+                  setAttribute: jest.fn(),
+                  setAttributes: jest.fn(),
+                  setStatus: jest.fn(),
+                  addEvent: jest.fn(),
+                  recordException: jest.fn(),
+                  end: jest.fn(),
+                };
+                return fn(span);
+              }),
+            },
           },
         },
       ],

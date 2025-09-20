@@ -37,48 +37,46 @@ export class BasicWallet implements ISvmWallet {
   async signTransaction(
     transaction: Transaction | VersionedTransaction,
   ): Promise<Transaction | VersionedTransaction> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.wallet.signTransaction', {
+    return this.otelService.tracer.startActiveSpan(
+      'svm.wallet.signTransaction',
+      {
         attributes: {
           'svm.wallet_address': this.keypair.publicKey.toString(),
           'svm.transaction_type': transaction instanceof Transaction ? 'legacy' : 'versioned',
           'svm.operation': 'signTransaction',
         },
-      });
+      },
+      async (span) => {
+        try {
+          if (transaction instanceof Transaction) {
+            transaction.sign(this.keypair);
+            span.addEvent('svm.transaction.signed_legacy');
+          } else {
+            // For versioned transactions
+            transaction.sign([this.keypair]);
+            span.addEvent('svm.transaction.signed_versioned');
+          }
 
-    try {
-      if (transaction instanceof Transaction) {
-        transaction.sign(this.keypair);
-        span.addEvent('svm.transaction.signed_legacy');
-      } else {
-        // For versioned transactions
-        transaction.sign([this.keypair]);
-        span.addEvent('svm.transaction.signed_versioned');
-      }
-
-      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
-      return transaction;
-    } catch (error) {
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw error;
-    } finally {
-      if (!activeSpan) span.end();
-    }
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return transaction;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   async sendTransaction(
     transaction: Transaction | VersionedTransaction,
     options?: SvmTransactionOptions,
   ): Promise<string> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.wallet.sendTransaction', {
+    return this.otelService.tracer.startActiveSpan(
+      'svm.wallet.sendTransaction',
+      {
         attributes: {
           'svm.wallet_address': this.keypair.publicKey.toString(),
           'svm.transaction_type': transaction instanceof Transaction ? 'legacy' : 'versioned',
@@ -86,64 +84,65 @@ export class BasicWallet implements ISvmWallet {
           'svm.commitment': options?.commitment || 'confirmed',
           'svm.skip_preflight': options?.skipPreflight || false,
         },
-      });
+      },
+      async (span) => {
+        try {
+          if (transaction instanceof Transaction) {
+            span.addEvent('svm.transaction.submitting_legacy');
 
-    try {
-      if (transaction instanceof Transaction) {
-        span.addEvent('svm.transaction.submitting_legacy');
+            // For legacy transactions, use sendAndConfirmTransaction
+            const signature = await sendAndConfirmTransaction(
+              this.connection,
+              transaction,
+              [this.keypair],
+              {
+                commitment: options?.commitment || 'confirmed',
+                preflightCommitment: options?.preflightCommitment || 'confirmed',
+                skipPreflight: options?.skipPreflight || false,
+                maxRetries: options?.maxRetries,
+              },
+            );
 
-        // For legacy transactions, use sendAndConfirmTransaction
-        const signature = await sendAndConfirmTransaction(
-          this.connection,
-          transaction,
-          [this.keypair],
-          {
-            commitment: options?.commitment || 'confirmed',
-            preflightCommitment: options?.preflightCommitment || 'confirmed',
-            skipPreflight: options?.skipPreflight || false,
-            maxRetries: options?.maxRetries,
-          },
-        );
+            span.setAttribute('svm.transaction_signature', signature);
+            span.addEvent('svm.transaction.confirmed');
+            span.setStatus({ code: api.SpanStatusCode.OK });
 
-        span.setAttribute('svm.transaction_signature', signature);
-        span.addEvent('svm.transaction.confirmed');
-        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+            return signature;
+          } else {
+            span.addEvent('svm.transaction.submitting_versioned');
 
-        return signature;
-      } else {
-        span.addEvent('svm.transaction.submitting_versioned');
+            // For versioned transactions
+            transaction.sign([this.keypair]);
+            const signature = await this.connection.sendTransaction(transaction, {
+              skipPreflight: options?.skipPreflight || false,
+              preflightCommitment: options?.preflightCommitment || 'confirmed',
+              maxRetries: options?.maxRetries,
+            });
 
-        // For versioned transactions
-        transaction.sign([this.keypair]);
-        const signature = await this.connection.sendTransaction(transaction, {
-          skipPreflight: options?.skipPreflight || false,
-          preflightCommitment: options?.preflightCommitment || 'confirmed',
-          maxRetries: options?.maxRetries,
-        });
+            span.setAttribute('svm.transaction_signature', signature);
+            span.addEvent('svm.transaction.submitted');
 
-        span.setAttribute('svm.transaction_signature', signature);
-        span.addEvent('svm.transaction.submitted');
+            // Wait for confirmation if not skipping
+            if (!options?.skipPreflight) {
+              await this.connection.confirmTransaction(
+                signature,
+                options?.commitment || 'confirmed',
+              );
+              span.addEvent('svm.transaction.confirmed');
+            }
 
-        // Wait for confirmation if not skipping
-        if (!options?.skipPreflight) {
-          await this.connection.confirmTransaction(signature, options?.commitment || 'confirmed');
-          span.addEvent('svm.transaction.confirmed');
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return signature;
+          }
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
+        } finally {
+          span.end();
         }
-
-        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
-        return signature;
-      }
-    } catch (error) {
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
-    }
+      },
+    );
   }
 
   async getBalance(): Promise<bigint> {

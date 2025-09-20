@@ -370,35 +370,36 @@ export class TronListener extends BaseChainListener {
       'tvm.event_type': 'prover',
     };
 
-    const span = this.otelService.startSpan('tvm.listener.poll.prover', { attributes });
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan('tvm.listener.poll.prover', { attributes }, async (span) => {
+      try {
+        this.metrics.pollCounter.add(1, attributes);
 
-    try {
-      this.metrics.pollCounter.add(1, attributes);
+        const result = await this.executeProverPollCycle();
 
-      const result = await this.executeProverPollCycle();
+        span.setAttributes({
+          'tvm.events.processed': result.eventsProcessed,
+          'tvm.events.errors': result.errors.length,
+          'tvm.last_timestamp': result.lastTimestamp,
+        });
 
-      span.setAttributes({
-        'tvm.events.processed': result.eventsProcessed,
-        'tvm.events.errors': result.errors.length,
-        'tvm.last_timestamp': result.lastTimestamp,
-      });
+        if (result.errors.length > 0) {
+          this.metrics.pollErrorCounter.add(result.errors.length, attributes);
+          result.errors.forEach((error) => span.recordException(error));
+        }
 
-      if (result.errors.length > 0) {
-        this.metrics.pollErrorCounter.add(result.errors.length, attributes);
-        result.errors.forEach((error) => span.recordException(error));
+        span.setStatus({ code: api.SpanStatusCode.OK });
+        return result;
+      } catch (error) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+        throw error;
+      } finally {
+        const duration = Date.now() - startTime;
+        this.metrics.pollDurationHistogram.record(duration, attributes);
+        span.end();
       }
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
-      return result;
-    } catch (error) {
-      span.recordException(toError(error));
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      const duration = Date.now() - startTime;
-      this.metrics.pollDurationHistogram.record(duration, attributes);
-      span.end();
-    }
+    });
   }
 
   /**
@@ -412,35 +413,36 @@ export class TronListener extends BaseChainListener {
     const startTime = Date.now();
     const attributes = { 'tvm.chain_id': this.config.chainId.toString() };
 
-    const span = this.otelService.startSpan('tvm.listener.poll', { attributes });
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan('tvm.listener.poll', { attributes }, async (span) => {
+      try {
+        this.metrics.pollCounter.add(1, attributes);
 
-    try {
-      this.metrics.pollCounter.add(1, attributes);
+        const result = await this.executePortalPollCycle();
 
-      const result = await this.executePortalPollCycle();
+        span.setAttributes({
+          'tvm.events.processed': result.eventsProcessed,
+          'tvm.events.errors': result.errors.length,
+          'tvm.last_timestamp': result.lastTimestamp,
+        });
 
-      span.setAttributes({
-        'tvm.events.processed': result.eventsProcessed,
-        'tvm.events.errors': result.errors.length,
-        'tvm.last_timestamp': result.lastTimestamp,
-      });
+        if (result.errors.length > 0) {
+          this.metrics.pollErrorCounter.add(result.errors.length, attributes);
+          result.errors.forEach((error) => span.recordException(error));
+        }
 
-      if (result.errors.length > 0) {
-        this.metrics.pollErrorCounter.add(result.errors.length, attributes);
-        result.errors.forEach((error) => span.recordException(error));
+        span.setStatus({ code: api.SpanStatusCode.OK });
+        return result;
+      } catch (error) {
+        span.recordException(toError(error));
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+        throw error;
+      } finally {
+        const duration = Date.now() - startTime;
+        this.metrics.pollDurationHistogram.record(duration, attributes);
+        span.end();
       }
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
-      return result;
-    } catch (error) {
-      span.recordException(toError(error));
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      const duration = Date.now() - startTime;
-      this.metrics.pollDurationHistogram.record(duration, attributes);
-      span.end();
-    }
+    });
   }
 
   /**
@@ -749,38 +751,46 @@ export class TronListener extends BaseChainListener {
       return { success: false, error: new Error('TronWeb client not available') };
     }
 
-    const span = this.otelService.startSpan('tvm.listener.processTransaction', {
-      attributes: {
-        'tvm.transaction_id': txId,
-        'tvm.chain_id': this.config.chainId.toString(),
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan(
+      'tvm.listener.processTransaction',
+      {
+        attributes: {
+          'tvm.transaction_id': txId,
+          'tvm.chain_id': this.config.chainId.toString(),
+        },
       },
-    });
+      async (span: api.Span) => {
+        try {
+          if (!this.tronWebClient) {
+            throw new Error('TronWeb client not initialized');
+          }
+          const txInfo = await this.tronWebClient.trx.getTransactionInfo(txId);
 
-    try {
-      const txInfo = await this.tronWebClient.trx.getTransactionInfo(txId);
+          if (!this.hasValidTransactionLogs(txInfo)) {
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return { success: true };
+          }
 
-      if (!this.hasValidTransactionLogs(txInfo)) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        return { success: true };
-      }
+          const intent = this.extractIntentFromTransaction(txInfo);
+          if (intent) {
+            intent.publishTxHash = txInfo.id;
+            await this.processIntentEvent(intent);
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return { success: true, intentHash: intent.intentHash };
+          }
 
-      const intent = this.extractIntentFromTransaction(txInfo);
-      if (intent) {
-        intent.publishTxHash = txInfo.id;
-        await this.processIntentEvent(intent);
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        return { success: true, intentHash: intent.intentHash };
-      }
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
-      return { success: true };
-    } catch (error) {
-      span.recordException(toError(error));
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      return { success: false, error: toError(error) };
-    } finally {
-      span.end();
-    }
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return { success: true };
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          return { success: false, error: toError(error) };
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   /**
@@ -824,37 +834,42 @@ export class TronListener extends BaseChainListener {
    * Process discovered intent
    */
   private async processIntentEvent(intent: Intent): Promise<void> {
-    const span = this.otelService.startSpan('tvm.listener.processIntentEvent', {
-      attributes: {
-        'tvm.intent_hash': intent.intentHash,
-        'tvm.chain_id': this.config.chainId.toString(),
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan(
+      'tvm.listener.processIntentEvent',
+      {
+        attributes: {
+          'tvm.intent_hash': intent.intentHash,
+          'tvm.chain_id': this.config.chainId.toString(),
+        },
       },
-    });
-
-    try {
-      // Submit intent directly to fulfillment service
-      await api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
+      async (span: api.Span) => {
         try {
-          await this.fulfillmentService.submitIntent(intent);
-          this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
-        } catch (error) {
-          this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
-          span.recordException(toError(error));
-        }
-      });
-      span.setStatus({ code: api.SpanStatusCode.OK });
+          // Submit intent directly to fulfillment service
+          await api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
+            try {
+              await this.fulfillmentService.submitIntent(intent);
+              this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+            } catch (error) {
+              this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
+              span.recordException(toError(error));
+            }
+          });
+          span.setStatus({ code: api.SpanStatusCode.OK });
 
-      this.logger.log('Intent discovered', {
-        intentHash: intent.intentHash,
-        source: this.config.chainId,
-        destination: intent.destination.toString(),
-      });
-    } catch (error) {
-      this.handleEventError(span, error, 'IntentPublished');
-      throw error;
-    } finally {
-      span.end();
-    }
+          this.logger.log('Intent discovered', {
+            intentHash: intent.intentHash,
+            source: this.config.chainId,
+            destination: intent.destination.toString(),
+          });
+        } catch (error) {
+          this.handleEventError(span, error, 'IntentPublished');
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   // Utility methods
@@ -863,7 +878,8 @@ export class TronListener extends BaseChainListener {
    * Create a span for event processing
    */
   private createEventSpan(eventName: string, event: TvmEvent): api.Span {
-    return this.otelService.startSpan(`tvm.listener.process${eventName}`, {
+    const tracer = this.otelService.tracer;
+    return tracer.startSpan(`tvm.listener.process${eventName}`, {
       attributes: {
         'tvm.chain_id': this.config.chainId.toString(),
         'tvm.event_name': eventName,

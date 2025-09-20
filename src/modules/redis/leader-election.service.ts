@@ -124,71 +124,76 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
    * Try to become the leader
    */
   private async tryBecomeLeader() {
-    const span = this.otelService.startSpan('leader.election.attempt', {
-      attributes: {
-        'instance.id': this.instanceId,
-        'current.leader': this.isLeader,
+    await this.otelService.tracer.startActiveSpan(
+      'leader.election.attempt',
+      {
+        attributes: {
+          'instance.id': this.instanceId,
+          'current.leader': this.isLeader,
+        },
       },
-    });
+      async (span) => {
+        try {
+          if (!this.redis) {
+            throw new Error('Redis connection not initialized');
+          }
 
-    try {
-      if (!this.redis) {
-        throw new Error('Redis connection not initialized');
-      }
+          // Try to acquire the lock with SET NX EX
+          const result = await this.redis.set(
+            this.leaderElectionConfig.lockKey,
+            this.instanceId,
+            'EX',
+            this.leaderElectionConfig.lockTtlSeconds,
+            'NX',
+          );
 
-      // Try to acquire the lock with SET NX EX
-      const result = await this.redis.set(
-        this.leaderElectionConfig.lockKey,
-        this.instanceId,
-        'EX',
-        this.leaderElectionConfig.lockTtlSeconds,
-        'NX',
-      );
+          if (result === 'OK') {
+            // We successfully became the leader
+            if (!this.isLeader) {
+              this.isLeader = true;
+              this.logger.log(`Instance ${this.instanceId} became the leader`);
 
-      if (result === 'OK') {
-        // We successfully became the leader
-        if (!this.isLeader) {
-          this.isLeader = true;
-          this.logger.log(`Instance ${this.instanceId} became the leader`);
+              // Emit leadership gained event
+              this.eventEmitter.emit('leader.gained', { instanceId: this.instanceId });
 
-          // Emit leadership gained event
-          this.eventEmitter.emit('leader.gained', { instanceId: this.instanceId });
+              // Start heartbeat to maintain leadership
+              this.startHeartbeat();
 
-          // Start heartbeat to maintain leadership
-          this.startHeartbeat();
+              span.setAttributes({
+                'leader.acquired': true,
+                'leader.instance': this.instanceId,
+              });
+            }
+          } else {
+            // Another instance is the leader
+            const currentLeader = await this.getCurrentLeader();
+            if (this.isLeader && currentLeader !== this.instanceId) {
+              // We lost leadership
+              this.handleLeadershipLoss();
+            }
 
-          span.setAttributes({
-            'leader.acquired': true,
-            'leader.instance': this.instanceId,
-          });
+            span.setAttributes({
+              'leader.acquired': false,
+              'current.leader.instance': currentLeader || 'unknown',
+            });
+          }
+
+          span.setStatus({ code: 0 });
+        } catch (error) {
+          this.logger.error('Error during leader election:', error as Error);
+          span.recordException(error as Error);
+          span.setStatus({ code: 2, message: (error as Error).message });
+
+          // If we can't connect to Redis, we should not be leader
+          if (this.isLeader) {
+            this.handleLeadershipLoss();
+          }
+          throw error;
+        } finally {
+          span.end();
         }
-      } else {
-        // Another instance is the leader
-        const currentLeader = await this.getCurrentLeader();
-        if (this.isLeader && currentLeader !== this.instanceId) {
-          // We lost leadership
-          this.handleLeadershipLoss();
-        }
-
-        span.setAttributes({
-          'leader.acquired': false,
-          'current.leader.instance': currentLeader || 'unknown',
-        });
-      }
-
-      span.setStatus({ code: 0 });
-    } catch (error) {
-      this.logger.error('Error during leader election:', error as Error);
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: (error as Error).message });
-
-      // If we can't connect to Redis, we should not be leader
-      if (this.isLeader) {
-        this.handleLeadershipLoss();
-      }
-    } finally {
-      span.end();
-    }
+      },
+    );
   }
 
   /**
@@ -211,15 +216,17 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
    * Renew leadership by extending the lock TTL
    */
   private async renewLeadership() {
-    const span = this.otelService.startSpan('leader.heartbeat', {
-      attributes: {
-        'instance.id': this.instanceId,
+    await this.otelService.tracer.startActiveSpan(
+      'leader.heartbeat',
+      {
+        attributes: {
+          'instance.id': this.instanceId,
+        },
       },
-    });
-
-    try {
-      // Use Lua script for atomic check and renew
-      const script = `
+      async (span) => {
+        try {
+          // Use Lua script for atomic check and renew
+          const script = `
         local key = KEYS[1]
         local instanceId = ARGV[1]
         local ttl = ARGV[2]
@@ -231,39 +238,40 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
         end
       `;
 
-      if (!this.redis) {
-        throw new Error('Redis connection not initialized');
-      }
+          if (!this.redis) {
+            throw new Error('Redis connection not initialized');
+          }
 
-      const result = await this.redis.eval(
-        script,
-        1,
-        this.leaderElectionConfig.lockKey,
-        this.instanceId,
-        this.leaderElectionConfig.lockTtlSeconds,
-      );
+          const result = await this.redis.eval(
+            script,
+            1,
+            this.leaderElectionConfig.lockKey,
+            this.instanceId,
+            this.leaderElectionConfig.lockTtlSeconds,
+          );
 
-      if (result === 1) {
-        // Successfully renewed
-        span.setAttributes({ 'heartbeat.success': true });
-      } else {
-        // Lost leadership
-        this.logger.warn(`Failed to renew leadership for ${this.instanceId}`);
-        this.handleLeadershipLoss();
-        span.setAttributes({ 'heartbeat.success': false });
-      }
+          if (result === 1) {
+            // Successfully renewed
+            span.setAttributes({ 'heartbeat.success': true });
+          } else {
+            // Lost leadership
+            this.logger.warn(`Failed to renew leadership for ${this.instanceId}`);
+            this.handleLeadershipLoss();
+            span.setAttributes({ 'heartbeat.success': false });
+          }
 
-      span.setStatus({ code: 0 });
-    } catch (error) {
-      this.logger.error('Error renewing leadership:', error as Error);
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: (error as Error).message });
+          span.setStatus({ code: 0 });
+        } catch (error) {
+          this.logger.error('Error renewing leadership:', error as Error);
+          span.recordException(error as Error);
+          span.setStatus({ code: 2, message: (error as Error).message });
 
-      // Assume we lost leadership on error
-      this.handleLeadershipLoss();
-    } finally {
-      span.end();
-    }
+          // Assume we lost leadership on error
+          this.handleLeadershipLoss();
+          throw error;
+        }
+      },
+    );
   }
 
   /**
@@ -289,15 +297,17 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
    * Explicitly release leadership
    */
   private async releaseLeadership() {
-    const span = this.otelService.startSpan('leader.release', {
-      attributes: {
-        'instance.id': this.instanceId,
+    await this.otelService.tracer.startActiveSpan(
+      'leader.release',
+      {
+        attributes: {
+          'instance.id': this.instanceId,
+        },
       },
-    });
-
-    try {
-      // Use Lua script to atomically check and delete
-      const script = `
+      async (span) => {
+        try {
+          // Use Lua script to atomically check and delete
+          const script = `
         local key = KEYS[1]
         local instanceId = ARGV[1]
 
@@ -308,30 +318,31 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
         end
       `;
 
-      if (!this.redis) {
-        return;
-      }
+          if (!this.redis) {
+            return;
+          }
 
-      const result = await this.redis.eval(
-        script,
-        1,
-        this.leaderElectionConfig.lockKey,
-        this.instanceId,
-      );
+          const result = await this.redis.eval(
+            script,
+            1,
+            this.leaderElectionConfig.lockKey,
+            this.instanceId,
+          );
 
-      if (result === 1) {
-        this.logger.log(`Instance ${this.instanceId} released leadership`);
-        span.setAttributes({ 'release.success': true });
-      }
+          if (result === 1) {
+            this.logger.log(`Instance ${this.instanceId} released leadership`);
+            span.setAttributes({ 'release.success': true });
+          }
 
-      this.handleLeadershipLoss();
-      span.setStatus({ code: 0 });
-    } catch (error) {
-      this.logger.error('Error releasing leadership:', error as Error);
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: (error as Error).message });
-    } finally {
-      span.end();
-    }
+          this.handleLeadershipLoss();
+          span.setStatus({ code: 0 });
+        } catch (error) {
+          this.logger.error('Error releasing leadership:', error as Error);
+          span.recordException(error as Error);
+          span.setStatus({ code: 2, message: (error as Error).message });
+          throw error;
+        }
+      },
+    );
   }
 }

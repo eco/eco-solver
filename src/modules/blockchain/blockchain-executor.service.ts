@@ -1,8 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
 
+import { SpanStatusCode } from '@opentelemetry/api';
+
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
@@ -64,70 +66,67 @@ export class BlockchainExecutorService {
   }
 
   async executeIntent(intent: Intent, walletId?: WalletType): Promise<void> {
-    const span = this.otelService.startSpan('intent.blockchain.execute', {
-      attributes: {
-        'intent.hash': intent.intentHash,
-        'intent.destination_chain': intent.destination.toString(),
-        'intent.wallet_type': walletId || 'default',
-        'intent.route.tokens_count': intent.route.tokens.length,
-        'intent.route.calls_count': intent.route.calls.length,
+    return this.otelService.tracer.startActiveSpan(
+      'intent.blockchain.execute',
+      {
+        attributes: {
+          'intent.hash': intent.intentHash,
+          'intent.destination_chain': intent.destination.toString(),
+          'intent.wallet_type': walletId || 'default',
+          'intent.route.tokens_count': intent.route.tokens.length,
+          'intent.route.calls_count': intent.route.calls.length,
+        },
       },
-    });
+      async (span) => {
+        try {
+          // Validate wallet type for the destination chain
+          const executor = this.getExecutorForChain(intent.destination);
+          span.addEvent('intent.executor.selected', {
+            executor: executor.constructor.name,
+          });
 
-    try {
-      // Validate wallet type for the destination chain
-      const chainType = ChainTypeDetector.detect(intent.destination);
-      if (chainType === ChainType.TVM && walletId === 'kernel') {
-        throw new Error(
-          'Kernel wallet is not supported for TVM chains. Please use basic wallet type.',
-        );
-      }
+          const result = await executor.fulfill(intent, walletId);
 
-      const executor = this.getExecutorForChain(intent.destination);
-      span.addEvent('intent.executor.selected', {
-        executor: executor.constructor.name,
-      });
+          if (result.success) {
+            await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
+            this.logger.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
 
-      const result = await executor.fulfill(intent, walletId);
+            span.setAttributes({
+              'intent.tx_hash': result.txHash,
+              'intent.fulfilled': true,
+            });
+            span.addEvent('intent.fulfilled', {
+              txHash: result.txHash,
+              chainId: intent.destination.toString(),
+            });
+            span.setStatus({ code: 0 }); // OK
+          } else {
+            await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+            this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
 
-      if (result.success) {
-        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
-        this.logger.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
+            span.setAttributes({
+              'intent.error': result.error,
+              'intent.fulfilled': false,
+            });
+            span.addEvent('intent.failed', {
+              error: result.error,
+            });
+            span.setStatus({ code: SpanStatusCode.ERROR, message: result.error });
+            span.end();
+            throw new Error(result.error);
+          }
+        } catch (error) {
+          this.logger.error(`Error executing intent ${intent.intentHash}:`, getErrorMessage(error));
+          await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
 
-        span.setAttributes({
-          'intent.tx_hash': result.txHash,
-          'intent.fulfilled': true,
-        });
-        span.addEvent('intent.fulfilled', {
-          txHash: result.txHash,
-          chainId: intent.destination.toString(),
-        });
-        span.setStatus({ code: 0 }); // OK
-      } else {
-        await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-        this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
-
-        span.setAttributes({
-          'intent.error': result.error,
-          'intent.fulfilled': false,
-        });
-        span.addEvent('intent.failed', {
-          error: result.error,
-        });
-        span.setStatus({ code: 2, message: result.error });
-        span.end();
-        throw new Error(result.error);
-      }
-
-      span.end();
-    } catch (error) {
-      this.logger.error(`Error executing intent ${intent.intentHash}:`, getErrorMessage(error));
-      await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-
-      span.recordException(error as Error);
-      span.setStatus({ code: 2, message: (error as Error).message });
-      span.end();
-    }
+          span.recordException(error as Error);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });
+          throw error; // Re-throw to trigger BullMQ retry
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   private initializeExecutors() {

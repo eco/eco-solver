@@ -19,23 +19,20 @@ export class ProverSupportValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.ProverSupportValidation', {
-        attributes: {
-          'validation.name': 'ProverSupportValidation',
-          'intent.id': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'ProverSupportValidation',
+      'intent.id': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination.toString(),
+    });
 
     try {
       // Validate that the prover supports this route
       const proverResult = await this.proverService.validateIntentRoute(intent);
 
-      span.setAttributes({
+      span?.setAttributes({
         'prover.validation.isValid': proverResult.isValid,
         'prover.validation.reason': proverResult.reason || 'Success',
       });
@@ -48,20 +45,12 @@ export class ProverSupportValidation implements Validation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

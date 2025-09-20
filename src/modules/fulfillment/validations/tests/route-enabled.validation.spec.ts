@@ -51,7 +51,19 @@ describe('RouteEnabledValidation', () => {
         {
           provide: OpenTelemetryService,
           useValue: {
-            startSpan: jest.fn().mockReturnValue(mockSpan),
+            tracer: {
+              startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+                const span = {
+                  setAttribute: jest.fn(),
+                  setAttributes: jest.fn(),
+                  addEvent: jest.fn(),
+                  setStatus: jest.fn(),
+                  recordException: jest.fn(),
+                  end: jest.fn(),
+                };
+                return fn(span);
+              }),
+            },
           },
         },
       ],
@@ -458,7 +470,7 @@ describe('RouteEnabledValidation', () => {
       const intent = createMockIntent();
       await validation.validate(intent, context);
 
-      expect(otelService.startSpan).not.toHaveBeenCalled();
+      expect(otelService.tracer.startActiveSpan).not.toHaveBeenCalled();
       expect(mockSpan.end).not.toHaveBeenCalled();
     });
 
@@ -468,14 +480,18 @@ describe('RouteEnabledValidation', () => {
       const intent = createMockIntent();
       await validation.validate(intent, context);
 
-      expect(otelService.startSpan).toHaveBeenCalledWith('validation.RouteEnabledValidation', {
-        attributes: {
-          'validation.name': 'RouteEnabledValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
+      expect(otelService.tracer.startActiveSpan).toHaveBeenCalledWith(
+        'validation.RouteEnabledValidation',
+        {
+          attributes: {
+            'validation.name': 'RouteEnabledValidation',
+            'intent.hash': intent.intentHash,
+            'intent.source_chain': intent.sourceChainId?.toString(),
+            'intent.destination_chain': intent.destination?.toString(),
+          },
         },
-      });
+        expect.any(Function),
+      );
       expect(mockSpan.end).toHaveBeenCalled();
     });
 

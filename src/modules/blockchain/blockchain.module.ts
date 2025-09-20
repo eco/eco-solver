@@ -4,7 +4,9 @@ import { configurationFactory } from '@/config/configuration-factory';
 import { ConfigModule } from '@/modules/config/config.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
+import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
 import { QueueModule } from '@/modules/queue/queue.module';
+import { RedisModule } from '@/modules/redis/redis.module';
 
 import { EvmModule } from './evm/evm.module';
 import { SvmModule } from './svm/svm.module';
@@ -19,7 +21,14 @@ export class BlockchainModule {
   static async forRootAsync(): Promise<DynamicModule> {
     const configFactory = await configurationFactory();
 
-    const imports = [ConfigModule, IntentsModule, LoggingModule, QueueModule];
+    const imports = [
+      ConfigModule,
+      IntentsModule,
+      LoggingModule,
+      OpenTelemetryModule,
+      QueueModule,
+      RedisModule,
+    ];
 
     // Only import EVM module if configured with networks
     if (configFactory.evm?.networks?.length > 0) {

@@ -34,6 +34,7 @@ import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
 import { ProverModule } from '@/modules/prover/prover.module';
 import { QueueModule } from '@/modules/queue/queue.module';
+import { RedisModule } from '@/modules/redis/redis.module';
 
 import { IntentProcessingService } from './services/intent-processing.service';
 // New specialized services
@@ -48,6 +49,7 @@ import { StrategyManagementService } from './services/strategy-management.servic
     IntentsModule,
     ProverModule,
     QueueModule,
+    RedisModule,
     OpenTelemetryModule,
     DataDogModule,
   ],

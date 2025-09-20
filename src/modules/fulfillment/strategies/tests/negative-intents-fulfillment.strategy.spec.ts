@@ -17,25 +17,19 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
   OpenTelemetryService: jest.fn().mockImplementation(() => ({
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
-    getActiveSpan: jest.fn(),
-    withSpan: jest.fn().mockImplementation((name, fn) =>
-      fn({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
       }),
-    ),
+    },
   })),
 }));
 
@@ -91,25 +85,19 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       addIntentToExecutionQueue: jest.fn(),
     };
     const mockOtelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
-      getActiveSpan: jest.fn(),
-      withSpan: jest.fn().mockImplementation((name, fn) =>
-        fn({
-          setAttribute: jest.fn(),
-          setAttributes: jest.fn(),
-          addEvent: jest.fn(),
-          setStatus: jest.fn(),
-          recordException: jest.fn(),
-          end: jest.fn(),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            addEvent: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
         }),
-      ),
+      },
     };
 
     // Create mock validations

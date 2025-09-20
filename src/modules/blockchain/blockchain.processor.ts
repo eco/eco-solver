@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit, Optional } from '@nestjs/common';
+import { Inject, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
@@ -8,13 +8,13 @@ import { toError } from '@/common/utils/error-handler';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
+import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 
 @Processor(QueueNames.INTENT_EXECUTION, {
   prefix: `{${QueueNames.INTENT_EXECUTION}}`,
-  concurrency: 10, // Will be overridden by constructor
 })
 export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
   private chainLocks: Map<string, Promise<void>> = new Map();
@@ -22,7 +22,8 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     private blockchainService: BlockchainExecutorService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
     private readonly logger: SystemLoggerService,
-    @Optional() private readonly queueTracing?: QueueTracingService,
+    @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
+    private readonly otelService: OpenTelemetryService,
   ) {
     super();
     this.logger.setContext(BlockchainProcessor.name);
@@ -32,57 +33,74 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
     // Set concurrency from configuration after worker is initialized
     if (this.worker) {
       this.worker.concurrency = this.queueConfig.executionConcurrency;
+
+      // Add telemetry if available
+      const telemetry = this.bullMQOtelFactory.getInstance();
+      if (telemetry && !this.worker.opts.telemetry) {
+        this.worker.opts.telemetry = telemetry;
+        this.logger.log('Added BullMQOtel telemetry to BlockchainProcessor worker');
+      }
     }
   }
 
   async process(job: Job<string>) {
-    const processFn = async (j: Job<string>) => {
-      const jobData = BigintSerializer.deserialize<ExecutionJobData>(j.data);
-      const { intent, strategy, chainId, walletId } = jobData;
-      const chainKey = chainId.toString();
+    const jobData = BigintSerializer.deserialize<ExecutionJobData>(job.data);
+    const { intent, strategy, chainId, walletId } = jobData;
+    const chainKey = chainId.toString();
 
-      this.logger.log(
-        `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
-      );
+    this.logger.log(
+      `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
+    );
 
-      // Ensure sequential processing per chain
-      const currentLock = this.chainLocks.get(chainKey) || Promise.resolve();
+    // Break context and start a new trace for execution stage
+    return this.otelService.startNewTraceWithCorrelation(
+      'execution.process',
+      intent.intentHash,
+      'execution',
+      async (span) => {
+        span.setAttributes({
+          'execution.strategy': strategy,
+          'execution.chain_id': chainKey,
+          'execution.wallet_id': walletId || 'default',
+          'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
+          'intent.destination_chain': intent.destination.toString(),
+        });
 
-      // Create a new lock for this chain
-      const newLock = currentLock.then(async () => {
-        try {
-          this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
-          await this.blockchainService.executeIntent(intent, walletId);
-          this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
-        } catch (error) {
-          this.logger.error(
-            `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
-            toError(error),
-          );
-          throw error;
+        // Ensure sequential processing per chain
+        const currentLock = this.chainLocks.get(chainKey) || Promise.resolve();
+
+        // Create a new lock for this chain
+        const newLock = currentLock.then(async () => {
+          try {
+            this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
+            span.addEvent('execution.started');
+            await this.blockchainService.executeIntent(intent, walletId);
+            span.addEvent('execution.completed');
+            this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
+          } catch (error) {
+            this.logger.error(
+              `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
+              toError(error),
+            );
+            span.recordException(toError(error));
+            throw error;
+          }
+        });
+
+        // Update the lock for this chain
+        this.chainLocks.set(chainKey, newLock);
+
+        // Wait for execution to complete
+        await newLock;
+
+        // Clean up completed locks to prevent memory leaks
+        if (this.chainLocks.get(chainKey) === newLock) {
+          this.chainLocks.delete(chainKey);
         }
-      });
-
-      // Update the lock for this chain
-      this.chainLocks.set(chainKey, newLock);
-
-      // Wait for execution to complete
-      await newLock;
-
-      // Clean up completed locks to prevent memory leaks
-      if (this.chainLocks.get(chainKey) === newLock) {
-        this.chainLocks.delete(chainKey);
-      }
-    };
-
-    if (this.queueTracing) {
-      return this.queueTracing.wrapProcessor(
-        'BlockchainProcessor',
-        QueueNames.INTENT_EXECUTION,
-        processFn,
-      )(job);
-    } else {
-      return processFn(job);
-    }
+      },
+      {
+        'execution.job_id': job.id,
+      },
+    );
   }
 }

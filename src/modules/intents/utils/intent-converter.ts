@@ -41,6 +41,7 @@ export class IntentConverter {
   static toInterface(schema: IntentSchema): IntentInterface {
     return {
       intentHash: schema.intentHash as Hex,
+      publishTxHash: schema.publishTxHash,
       reward: {
         prover: schema.reward.prover,
         creator: schema.reward.creator,

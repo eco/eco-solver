@@ -5,8 +5,8 @@ import { OpenTelemetryConfigService } from '@/modules/config/services';
 import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { BlockchainTracingService } from './blockchain-tracing.service';
+import { BullMQOtelFactory } from './bullmq-otel.factory';
 import { OpenTelemetryService } from './opentelemetry.service';
-import { QueueTracingService } from './queue-tracing.service';
 import { TraceInterceptor } from './trace.interceptor';
 
 @Global()
@@ -19,7 +19,7 @@ export class OpenTelemetryModule {
       providers: [
         OpenTelemetryService,
         BlockchainTracingService,
-        QueueTracingService,
+        BullMQOtelFactory,
         TraceInterceptor,
         {
           provide: 'OTEL_ENABLED',
@@ -30,7 +30,7 @@ export class OpenTelemetryModule {
       exports: [
         OpenTelemetryService,
         BlockchainTracingService,
-        QueueTracingService,
+        BullMQOtelFactory,
         TraceInterceptor,
       ],
     };

@@ -81,13 +81,19 @@ describe('BlockchainExecutorService', () => {
     } as any;
 
     otelService = {
-      startSpan: jest.fn().mockReturnValue({
-        addEvent: jest.fn(),
-        setAttributes: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            addEvent: jest.fn(),
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     } as any;
 
     evmExecutor = {

@@ -57,7 +57,8 @@ export class TvmTracingUtils {
       }
     });
 
-    return otelService.startSpan(name, { attributes: spanAttributes });
+    const tracer = otelService.tracer;
+    return tracer.startSpan(name, { attributes: spanAttributes });
   }
 
   /**
@@ -93,28 +94,48 @@ export class TvmTracingUtils {
     attributes: TvmSpanAttributes,
     operation: (span: api.Span) => Promise<T>,
   ): Promise<T> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span = activeSpan || this.createSpan(otelService, name, attributes);
+    const tracer = otelService.tracer;
+    const spanAttributes: Record<string, any> = {};
 
-    try {
-      const result = await operation(span);
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
+    // Add common attributes with tvm prefix
+    if (attributes.chainId !== undefined) {
+      spanAttributes['tvm.chain_id'] = attributes.chainId.toString();
+    }
+    if (attributes.address) {
+      spanAttributes['tvm.address'] = attributes.address;
+    }
+    if (attributes.intentHash) {
+      spanAttributes['tvm.intent_hash'] = attributes.intentHash;
+    }
+    if (attributes.transactionHash) {
+      spanAttributes['tvm.transaction_hash'] = attributes.transactionHash;
+    }
+    if (attributes.operation) {
+      spanAttributes['tvm.operation'] = attributes.operation;
+    }
+
+    // Add any additional attributes
+    Object.entries(attributes).forEach(([key, value]) => {
+      if (!['chainId', 'address', 'intentHash', 'transactionHash', 'operation'].includes(key)) {
+        spanAttributes[`tvm.${key}`] = value?.toString();
       }
-      return result;
-    } catch (error) {
-      if (!activeSpan) {
+    });
+
+    return tracer.startActiveSpan(name, { attributes: spanAttributes }, async (span) => {
+      try {
+        const result = await operation(span);
+        span.setStatus({ code: api.SpanStatusCode.OK });
+        return result;
+      } catch (error) {
         span.recordException(error as Error);
         span.setStatus({
           code: api.SpanStatusCode.ERROR,
           message: (error as Error).message,
         });
-      }
-      throw error;
-    } finally {
-      if (!activeSpan) {
+        throw error;
+      } finally {
         span.end();
       }
-    }
+    });
   }
 }

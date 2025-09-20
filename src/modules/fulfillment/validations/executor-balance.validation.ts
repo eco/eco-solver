@@ -24,17 +24,14 @@ export class ExecutorBalanceValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.ExecutorBalanceValidation', {
-        attributes: {
-          'validation.name': 'ExecutorBalanceValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.destination?.toString(),
-          'route.tokens.count': intent.route.tokens?.length || 0,
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'ExecutorBalanceValidation',
+      'intent.hash': intent.intentHash,
+      'intent.destination_chain': intent.destination?.toString(),
+      'route.tokens.count': intent.route.tokens?.length || 0,
+    });
 
     try {
       // This should verify that the executor has enough funds to execute the fulfillment
@@ -45,7 +42,7 @@ export class ExecutorBalanceValidation implements Validation {
       const checkRequests = intent.route.tokens.map(async ({ token, amount }, index) => {
         const balance = await context.getWalletBalance(chainID, token);
 
-        span.setAttributes({
+        span?.setAttributes({
           [`executor.balance.${index}.token`]: token,
           [`executor.balance.${index}.required`]: amount.toString(),
           [`executor.balance.${index}.actual`]: balance.toString(),
@@ -76,7 +73,7 @@ export class ExecutorBalanceValidation implements Validation {
           })
           .join(', ');
 
-        span.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
+        span?.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
         throw new ValidationError(
           `Not enough token balance on chain ${chainID} for wallet ${walletAddress}. Insufficient tokens: ${balanceDetails}`,
           ValidationErrorType.PERMANENT,
@@ -84,20 +81,12 @@ export class ExecutorBalanceValidation implements Validation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

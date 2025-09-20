@@ -5,6 +5,7 @@ import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi'
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
+import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
@@ -58,52 +59,59 @@ export class ChainListener extends BaseChainListener {
       strict: true,
       onLogs: (logs) => {
         logs.forEach((log) => {
-          const span = this.otelService.startSpan('evm.listener.processIntentEvent', {
-            attributes: {
-              'evm.chain_id': evmConfig.chainId,
-              'evm.event_name': 'IntentPublished',
-              'portal.address': portalAddress,
-              'evm.block_number': log.blockNumber?.toString(),
-              'evm.transaction_hash': log.transactionHash,
+          // Start the first trace using startActiveSpan (listener stage)
+          this.otelService.tracer.startActiveSpan(
+            'evm.listener.processIntentEvent',
+            {
+              attributes: {
+                'trace.correlation.id': log.args.intentHash,
+                'trace.stage': 'listener',
+                'evm.chain_id': evmConfig.chainId,
+                'evm.event_name': 'IntentPublished',
+                'portal.address': portalAddress,
+                'evm.block_number': log.blockNumber?.toString(),
+                'evm.transaction_hash': log.transactionHash,
+              },
             },
-          });
+            async (span) => {
+              let intent: Intent;
+              try {
+                intent = EvmEventParser.parseIntentPublish(BigInt(evmConfig.chainId), log);
+                // Add the transaction hash to the intent
+                intent.publishTxHash = log.transactionHash;
 
-          try {
-            const intent = EvmEventParser.parseIntentPublish(BigInt(evmConfig.chainId), log);
-            // Add the transaction hash to the intent
-            intent.publishTxHash = log.transactionHash;
+                span.setAttributes({
+                  'evm.intent_hash': intent.intentHash,
+                  'evm.source_chain': evmConfig.chainId.toString(),
+                  'evm.destination_chain': log.args.destination.toString(),
+                  'evm.creator': log.args.creator,
+                  'evm.prover': log.args.prover,
+                });
+              } catch (error) {
+                this.logger.error(
+                  `Error processing intent event: ${getErrorMessage(error)}`,
+                  toError(error),
+                );
+                span.recordException(toError(error));
+                span.setStatus({ code: api.SpanStatusCode.ERROR });
+                span.end();
+                return;
+              }
 
-            span.setAttributes({
-              'evm.intent_hash': intent.intentHash,
-              'evm.source_chain': evmConfig.chainId.toString(),
-              'evm.destination_chain': log.args.destination.toString(),
-              'evm.creator': log.args.creator,
-              'evm.prover': log.args.prover,
-            });
-
-            // Submit intent directly to fulfillment service within the span context
-            api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
               try {
                 await this.fulfillmentService.submitIntent(intent);
                 this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+                span.addEvent('intent.submitted');
+                span.setStatus({ code: api.SpanStatusCode.OK });
               } catch (error) {
                 this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
                 span.recordException(toError(error));
+                span.setStatus({ code: api.SpanStatusCode.ERROR });
+              } finally {
+                span.end();
               }
-            });
-
-            span.addEvent('intent.emitted');
-            span.setStatus({ code: api.SpanStatusCode.OK });
-          } catch (error) {
-            this.logger.error(
-              `Error processing intent event: ${getErrorMessage(error)}`,
-              toError(error),
-            );
-            span.recordException(toError(error));
-            span.setStatus({ code: api.SpanStatusCode.ERROR });
-          } finally {
-            span.end();
-          }
+            },
+          );
         });
       },
     });

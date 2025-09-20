@@ -156,14 +156,19 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
   // Mock OpenTelemetry
   const mockOtelService = {
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    },
   };
 
   // Mock BlockchainConfigService
@@ -363,6 +368,6 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     expect(proverCall[1]).toBe(testIntent.reward.prover);
 
     // Verify OpenTelemetry span was created
-    expect(mockOtelService.startSpan).toHaveBeenCalled();
+    expect(mockOtelService.tracer.startActiveSpan).toHaveBeenCalled();
   });
 });

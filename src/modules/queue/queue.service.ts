@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -13,7 +13,6 @@ import {
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { QueueTracingService } from '@/modules/opentelemetry/queue-tracing.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -23,12 +22,11 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
   private readonly queues: Map<string, Queue>;
 
   constructor(
-    @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
-    @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
-    @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     private readonly logger: SystemLoggerService,
     private readonly queueConfig: QueueConfigService,
-    @Optional() private readonly queueTracing?: QueueTracingService,
+    @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
+    @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
   ) {
     this.logger.setContext(QueueService.name);
 
@@ -65,52 +63,30 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       chainId: Number(intent.destination),
     };
 
+    // Use maximum retry attempts from config to allow for TEMPORARY error retries
+    // The processor will control actual retry behavior based on error type
+    const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
     const serializedData = BigintSerializer.serialize(jobData);
-
-    const addJob = async () => {
-      // Use maximum retry attempts from config to allow for TEMPORARY error retries
-      // The processor will control actual retry behavior based on error type
-      const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
-      await this.fulfillmentQueue.add('process-intent', serializedData, {
-        attempts, // Default 5 attempts for TEMPORARY errors
-        backoff: {
-          type: 'exponential',
-          delay: backoffMs || 5000,
-        },
-      });
-    };
-
-    if (this.queueTracing) {
-      await this.queueTracing.traceQueueAdd(
-        QueueNames.INTENT_FULFILLMENT,
-        'process-intent',
-        jobData,
-        addJob,
-      );
-    } else {
-      await addJob();
-    }
+    await this.fulfillmentQueue.add('process-intent', serializedData, {
+      attempts,
+      backoff: {
+        type: 'exponential',
+        delay: backoffMs || 5000,
+      },
+    });
   }
 
   async addIntentToExecutionQueue(jobData: ExecutionJobData): Promise<void> {
-    const serializedData = BigintSerializer.serialize(jobData);
     const jobName = `${QueueNames.INTENT_EXECUTION}-chain-${jobData.chainId}`;
 
-    const addJob = async () => {
-      await this.executionQueue.add(jobName, serializedData, {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      });
-    };
-
-    if (this.queueTracing) {
-      await this.queueTracing.traceQueueAdd(QueueNames.INTENT_EXECUTION, jobName, jobData, addJob);
-    } else {
-      await addJob();
-    }
+    const serializedData = BigintSerializer.serialize(jobData);
+    await this.executionQueue.add(jobName, serializedData, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+    });
   }
 
   async getQueueStatus(queueName: string): Promise<{

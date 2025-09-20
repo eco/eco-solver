@@ -19,21 +19,18 @@ export class NativeFeeValidation implements FeeCalculationValidation {
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.NativeFeeValidation', {
-        attributes: {
-          'validation.name': 'NativeFeeValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.destination?.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'NativeFeeValidation',
+      'intent.hash': intent.intentHash,
+      'intent.destination_chain': intent.destination?.toString(),
+    });
 
     try {
       // Native fee validation should only apply to intents with pure native rewards
       if (intent.reward.tokens && intent.reward.tokens.length > 0) {
-        span.setAttributes({
+        span?.setAttributes({
           'validation.failed': true,
           'validation.reason': 'reward_tokens_present',
           'reward.tokens.count': intent.reward.tokens.length,
@@ -47,7 +44,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
 
       const feeDetails = await this.calculateFee(intent, context);
 
-      span.setAttributes({
+      span?.setAttributes({
         'fee.base': feeDetails.fee.base.toString(),
         'fee.percentage': feeDetails.fee.percentage.toString(),
         'fee.total': feeDetails.fee.total.toString(),
@@ -65,20 +62,12 @@ export class NativeFeeValidation implements FeeCalculationValidation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 

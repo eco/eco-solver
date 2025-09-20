@@ -24,22 +24,19 @@ export class StandardFeeValidation implements FeeCalculationValidation {
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.StandardFeeValidation', {
-        attributes: {
-          'validation.name': 'StandardFeeValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'StandardFeeValidation',
+      'intent.hash': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination?.toString(),
+    });
 
     if (context.quoting) {
       // Skip validation when is quoting
-      span.setAttribute('validation.skipped', true);
-      span.setAttribute('validation.quoting', true);
+      span?.setAttribute('validation.skipped', true);
+      span?.setAttribute('validation.quoting', true);
       return true;
     }
 
@@ -59,7 +56,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
       const feeDetails = await this.calculateFee(intent, context);
 
-      span.setAttributes({
+      span?.setAttributes({
         'fee.base': feeDetails.fee.base.toString(),
         'fee.percentage': feeDetails.fee.percentage.toString(),
         'fee.total': feeDetails.fee.total.toString(),
@@ -77,20 +74,12 @@ export class StandardFeeValidation implements FeeCalculationValidation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 

@@ -53,106 +53,99 @@ export class RouteEnabledValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.RouteEnabledValidation', {
+    return this.otelService.tracer.startActiveSpan(
+      'validation.RouteEnabledValidation',
+      {
         attributes: {
           'validation.name': 'RouteEnabledValidation',
           'intent.hash': intent.intentHash,
           'intent.source_chain': intent.sourceChainId?.toString(),
           'intent.destination_chain': intent.destination?.toString(),
         },
-      });
+      },
+      (span: api.Span) => {
+        try {
+          // Get configuration - strategy-specific takes precedence
+          const strategyName = context.getStrategyName();
+          const config =
+            this.configService.getStrategyRouteEnablementConfig(strategyName) ||
+            this.configService.routeEnablementConfig;
 
-    try {
-      // Get configuration - strategy-specific takes precedence
-      const strategyName = context.getStrategyName();
-      const config =
-        this.configService.getStrategyRouteEnablementConfig(strategyName) ||
-        this.configService.routeEnablementConfig;
+          // If no configuration, all routes are enabled
+          if (!config) {
+            span.setAttribute('route.config.exists', false);
+            span.setAttribute('route.enabled', true);
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return true;
+          }
 
-      // If no configuration, all routes are enabled
-      if (!config) {
-        span.setAttribute('route.config.exists', false);
-        span.setAttribute('route.enabled', true);
-        if (!activeSpan) {
+          span.setAttribute('route.config.mode', config.mode);
+          span.setAttribute('route.config.strategy', strategyName);
+
+          // Validate source and destination chains exist
+          if (!intent.sourceChainId) {
+            throw new ValidationError(
+              'Intent must have source chain ID',
+              ValidationErrorType.PERMANENT,
+              'RouteEnabledValidation',
+            );
+          }
+
+          if (!intent.destination) {
+            throw new ValidationError(
+              'Intent must have destination chain ID',
+              ValidationErrorType.PERMANENT,
+              'RouteEnabledValidation',
+            );
+          }
+
+          // Get chain types
+          const sourceChainType = ChainTypeDetector.detect(intent.sourceChainId);
+          const destChainType = ChainTypeDetector.detect(intent.destination);
+
+          span.setAttribute('route.source.type', sourceChainType);
+          span.setAttribute('route.destination.type', destChainType);
+
+          // Check if route matches any configured route
+          const routeMatches = this.isRouteMatch(
+            intent.sourceChainId,
+            intent.destination,
+            sourceChainType,
+            destChainType,
+            config.routes,
+          );
+
+          span.setAttribute('route.matches', routeMatches);
+
+          // Apply whitelist/blacklist logic
+          const isEnabled = config.mode === 'whitelist' ? routeMatches : !routeMatches;
+
+          span.setAttribute('route.enabled', isEnabled);
+
+          if (!isEnabled) {
+            const errorMessage =
+              config.mode === 'whitelist'
+                ? `Route ${intent.sourceChainId}:${intent.destination} is not in whitelist`
+                : `Route ${intent.sourceChainId}:${intent.destination} is blacklisted`;
+
+            throw new ValidationError(
+              errorMessage,
+              ValidationErrorType.PERMANENT,
+              'RouteEnabledValidation',
+            );
+          }
+
           span.setStatus({ code: api.SpanStatusCode.OK });
+          return true;
+        } catch (error) {
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
         }
-        return true;
-      }
-
-      span.setAttribute('route.config.mode', config.mode);
-      span.setAttribute('route.config.strategy', strategyName);
-
-      // Validate source and destination chains exist
-      if (!intent.sourceChainId) {
-        throw new ValidationError(
-          'Intent must have source chain ID',
-          ValidationErrorType.PERMANENT,
-          'RouteEnabledValidation',
-        );
-      }
-
-      if (!intent.destination) {
-        throw new ValidationError(
-          'Intent must have destination chain ID',
-          ValidationErrorType.PERMANENT,
-          'RouteEnabledValidation',
-        );
-      }
-
-      // Get chain types
-      const sourceChainType = ChainTypeDetector.detect(intent.sourceChainId);
-      const destChainType = ChainTypeDetector.detect(intent.destination);
-
-      span.setAttribute('route.source.type', sourceChainType);
-      span.setAttribute('route.destination.type', destChainType);
-
-      // Check if route matches any configured route
-      const routeMatches = this.isRouteMatch(
-        intent.sourceChainId,
-        intent.destination,
-        sourceChainType,
-        destChainType,
-        config.routes,
-      );
-
-      span.setAttribute('route.matches', routeMatches);
-
-      // Apply whitelist/blacklist logic
-      const isEnabled = config.mode === 'whitelist' ? routeMatches : !routeMatches;
-
-      span.setAttribute('route.enabled', isEnabled);
-
-      if (!isEnabled) {
-        const errorMessage =
-          config.mode === 'whitelist'
-            ? `Route ${intent.sourceChainId}:${intent.destination} is not in whitelist`
-            : `Route ${intent.sourceChainId}:${intent.destination} is blacklisted`;
-
-        throw new ValidationError(
-          errorMessage,
-          ValidationErrorType.PERMANENT,
-          'RouteEnabledValidation',
-        );
-      }
-
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
-      return true;
-    } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
-    }
+      },
+    );
   }
 
   /**

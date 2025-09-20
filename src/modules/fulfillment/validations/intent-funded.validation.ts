@@ -24,34 +24,32 @@ export class IntentFundedValidation implements Validation {
   }
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.IntentFundedValidation', {
-        attributes: {
-          'validation.name': 'IntentFundedValidation',
-          'intent.id': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
-          'intent.destination_chain': intent.destination.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'IntentFundedValidation',
+      'intent.id': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
+      'intent.destination_chain': intent.destination.toString(),
+    });
 
     if (context.quoting) {
       // Skip validation when is quoting
-      span.setAttribute('validation.skipped', true);
-      span.setAttribute('validation.quoting', true);
+      span?.setAttribute('validation.skipped', true);
+      span?.setAttribute('validation.quoting', true);
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     }
 
     const sourceChainId = intent.sourceChainId;
 
     try {
-      span.setAttribute('funding.checking_chain', sourceChainId.toString());
+      span?.setAttribute('funding.checking_chain', sourceChainId.toString());
 
       // Always perform on-chain verification for intent funding status
       const isFunded = await this.blockchainReader.isIntentFunded(sourceChainId, intent);
 
-      span.setAttributes({
+      span?.setAttributes({
         'funding.is_funded': isFunded,
         'funding.source_chain': sourceChainId.toString(),
         'funding.method': 'on_chain_check',
@@ -67,15 +65,11 @@ export class IntentFundedValidation implements Validation {
 
       this.logger.debug(`Intent ${intent.intentHash} is funded on chain ${sourceChainId}`);
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(toError(error));
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
 
       // If it's already our error message, re-throw it
       if (getErrorMessage(error).includes('is not funded')) {
@@ -92,10 +86,6 @@ export class IntentFundedValidation implements Validation {
         ValidationErrorType.TEMPORARY,
         'IntentFundedValidation',
       );
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }
