@@ -14,6 +14,7 @@ export const EvmAddressSchema = z
  */
 export const EvmRpcSchema = z.object({
   urls: z.array(z.string().url()),
+  pollingInterval: z.coerce.number().int().positive().optional(),
   options: z
     .object({
       batch: z
@@ -38,6 +39,7 @@ export const EvmRpcSchema = z.object({
  */
 export const EvmWsSchema = z.object({
   urls: z.array(z.string().regex(/^wss?:/)),
+  http: EvmRpcSchema.optional(),
   options: z
     .object({
       timeout: z.coerce.number().int().positive().optional(),

@@ -2,11 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { Address, isAddressEqual } from 'viem';
+import { z } from 'zod';
 
 import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/schemas';
+import {
+  EvmNetworkConfig,
+  EvmRpcSchema,
+  EvmTokenConfig,
+  EvmWalletsConfig,
+  EvmWsSchema,
+} from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
@@ -156,6 +163,39 @@ export class EvmConfigService implements IBlockchainConfigService {
   getDefaultProver(chainId: ChainIdentifier): TProverType {
     const network = this.getChain(Number(chainId));
     return network.defaultProver;
+  }
+
+  /**
+   * Gets the HTTP configuration for a network with WebSocket transport.
+   * If the http field is not defined in the WebSocket config, creates a default
+   * by converting WebSocket URLs to HTTPS with a 60-second polling interval.
+   * @param network The network configuration
+   * @returns The HTTP RPC configuration or undefined if not a WebSocket network
+   */
+  getHttpConfigForWebSocket(network: EvmNetworkConfig): z.infer<typeof EvmRpcSchema> | undefined {
+    const wsOptions = EvmWsSchema.safeParse(network.rpc);
+
+    if (!wsOptions.success) {
+      // Not a WebSocket configuration
+      return undefined;
+    }
+
+    const { urls, http: httpConfig } = wsOptions.data;
+
+    if (httpConfig) {
+      // HTTP config is explicitly defined - already validated by schema
+      return httpConfig;
+    }
+
+    // Create default HTTP config from WebSocket URLs
+    const httpUrls = urls.map((url) => url.replace(/^wss?:/, 'https:'));
+    const defaultHttpConfig = {
+      urls: httpUrls,
+      pollingInterval: 60_000, // 60 seconds default for HTTP fallback
+    };
+
+    // Parse and validate using EvmRpcSchema
+    return EvmRpcSchema.parse(defaultHttpConfig);
   }
 
   private initializeNetworks(): void {
