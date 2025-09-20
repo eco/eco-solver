@@ -15,10 +15,7 @@ import {
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SvmEventParser } from '@/modules/blockchain/svm/utils/svm-event-parser';
 import { SolanaConfigService } from '@/modules/config/services';
-import { EventsService } from '@/modules/events/events.service';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
 @Injectable()
@@ -30,10 +27,7 @@ export class SolanaListener extends BaseChainListener {
 
   constructor(
     private solanaConfigService: SolanaConfigService,
-    private eventsService: EventsService,
-    private fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
-    private readonly otelService: OpenTelemetryService,
     private readonly queueService: QueueService,
   ) {
     super();

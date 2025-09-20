@@ -83,7 +83,6 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
           network,
           this.tvmConfigService.getTransactionSettings(),
           this.eventsService,
-          this.fulfillmentService,
           listenerLogger,
           this.otelService,
           this.tvmConfigService,

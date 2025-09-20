@@ -21,7 +21,7 @@ export class RouteCallsValidation implements Validation {
 
     span?.setAttributes({
       'validation.name': 'RouteCallsValidation',
-      'intent.id': intent.intentHash,
+      'intent.hash': intent.intentHash,
       'intent.destination_chain': intent.destination.toString(),
       'route.calls.count': intent.route.calls?.length || 0,
       'route.portal': intent.route.portal,

@@ -23,7 +23,7 @@ export class ProverSupportValidation implements Validation {
 
     span?.setAttributes({
       'validation.name': 'ProverSupportValidation',
-      'intent.id': intent.intentHash,
+      'intent.hash': intent.intentHash,
       'intent.source_chain': intent.sourceChainId?.toString(),
       'intent.destination_chain': intent.destination.toString(),
     });

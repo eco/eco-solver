@@ -97,10 +97,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     try {
       const listener = new SolanaListener(
         this.solanaConfigService,
-        this.eventsService,
-        this.fulfillmentService,
         listenerLogger,
-        this.otelService,
         this.queueService,
       );
 

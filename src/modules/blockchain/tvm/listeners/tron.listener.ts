@@ -17,7 +17,6 @@ import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { TvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
@@ -104,7 +103,6 @@ export class TronListener extends BaseChainListener {
     private readonly config: TvmNetworkConfig,
     private readonly transactionSettings: TvmTransactionSettings,
     private readonly eventsService: EventsService,
-    private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly tvmConfigService: TvmConfigService,

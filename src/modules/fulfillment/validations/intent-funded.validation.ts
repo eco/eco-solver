@@ -28,7 +28,7 @@ export class IntentFundedValidation implements Validation {
 
     span?.setAttributes({
       'validation.name': 'IntentFundedValidation',
-      'intent.id': intent.intentHash,
+      'intent.hash': intent.intentHash,
       'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
       'intent.destination_chain': intent.destination.toString(),
     });

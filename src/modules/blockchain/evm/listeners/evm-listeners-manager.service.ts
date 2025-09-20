@@ -8,10 +8,7 @@ import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { ChainListener } from '@/modules/blockchain/evm/listeners/chain.listener';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { EventsService } from '@/modules/events/events.service';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
@@ -25,10 +22,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   constructor(
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
-    private eventsService: EventsService,
-    private fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
-    private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
@@ -77,6 +71,10 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     }
   }
 
+  async onModuleDestroy(): Promise<void> {
+    await this.stopListeners();
+  }
+
   private async startListeners(): Promise<void> {
     if (this.isListening) {
       return; // Already listening
@@ -98,10 +96,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         const listener = new ChainListener(
           config,
           this.transportService,
-          this.eventsService,
-          this.fulfillmentService,
           listenerLogger,
-          this.otelService,
           this.blockchainConfigService,
           this.evmConfigService,
           this.queueService,
@@ -118,10 +113,6 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         );
       }
     }
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.stopListeners();
   }
 
   private async stopListeners(): Promise<void> {

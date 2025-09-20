@@ -7,13 +7,9 @@ import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
-import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { EventsService } from '@/modules/events/events.service';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
 export class ChainListener extends BaseChainListener {
@@ -23,10 +19,7 @@ export class ChainListener extends BaseChainListener {
   constructor(
     private readonly config: EvmChainConfig,
     private readonly transportService: EvmTransportService,
-    private readonly eventsService: EventsService,
-    private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
-    private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
     private readonly evmConfigService: EvmConfigService,
     private readonly queueService: QueueService,
@@ -176,21 +169,18 @@ export class ChainListener extends BaseChainListener {
    * Handles IntentPublished event
    */
   private async handleIntentPublishedEvent(
-    log: Log,
+    log: Log<bigint, number, false, undefined, true, typeof portalAbi, 'IntentPublished'>,
     evmConfig: EvmChainConfig,
     portalAddress: string,
   ): Promise<void> {
     try {
-      // Parse the intent hash first for job ID
-      const intent = EvmEventParser.parseIntentPublish(BigInt(evmConfig.chainId), log);
-
       // Queue the event for processing
       const eventJob: BlockchainEventJob = {
         eventType: 'IntentPublished',
         chainId: evmConfig.chainId,
         chainType: 'evm',
         contractName: 'portal',
-        intentHash: intent.intentHash,
+        intentHash: log.args.intentHash,
         eventData: log,
         metadata: {
           txHash: log.transactionHash || undefined,
@@ -202,7 +192,7 @@ export class ChainListener extends BaseChainListener {
 
       await this.queueService.addBlockchainEvent(eventJob);
       this.logger.debug(
-        `Queued IntentPublished event for intent ${intent.intentHash} from chain ${evmConfig.chainId}`,
+        `Queued IntentPublished event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
       );
     } catch (error) {
       this.logger.error(
@@ -216,21 +206,18 @@ export class ChainListener extends BaseChainListener {
    * Handles IntentFulfilled event
    */
   private async handleIntentFulfilledEvent(
-    log: Log<bigint, number, false>,
+    log: Log<bigint, number, false, undefined, true, typeof portalAbi, 'IntentFulfilled'>,
     evmConfig: EvmChainConfig,
     portalAddress: string,
   ): Promise<void> {
     try {
-      // Parse the event to get intent hash
-      const event = EvmEventParser.parseIntentFulfilled(BigInt(evmConfig.chainId), log);
-
       // Queue the event for processing
       const eventJob: BlockchainEventJob = {
         eventType: 'IntentFulfilled',
         chainId: evmConfig.chainId,
         chainType: 'evm',
         contractName: 'portal',
-        intentHash: event.intentHash,
+        intentHash: log.args.intentHash,
         eventData: log,
         metadata: {
           txHash: log.transactionHash || undefined,
@@ -242,7 +229,7 @@ export class ChainListener extends BaseChainListener {
 
       await this.queueService.addBlockchainEvent(eventJob);
       this.logger.debug(
-        `Queued IntentFulfilled event for intent ${event.intentHash} from chain ${evmConfig.chainId}`,
+        `Queued IntentFulfilled event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
       );
     } catch (error) {
       this.logger.error(
@@ -256,21 +243,18 @@ export class ChainListener extends BaseChainListener {
    * Handles IntentWithdrawn event
    */
   private async handleIntentWithdrawnEvent(
-    log: Log<bigint, number, false>,
+    log: Log<bigint, number, false, undefined, true, typeof portalAbi, 'IntentWithdrawn'>,
     evmConfig: EvmChainConfig,
     portalAddress: string,
   ): Promise<void> {
     try {
-      // Parse the event to get intent hash
-      const event = EvmEventParser.parseIntentWithdrawn(evmConfig.chainId, log);
-
       // Queue the event for processing
       const eventJob: BlockchainEventJob = {
         eventType: 'IntentWithdrawn',
         chainId: evmConfig.chainId,
         chainType: 'evm',
         contractName: 'portal',
-        intentHash: event.intentHash,
+        intentHash: log.args.intentHash,
         eventData: log,
         metadata: {
           txHash: log.transactionHash || undefined,
@@ -282,7 +266,7 @@ export class ChainListener extends BaseChainListener {
 
       await this.queueService.addBlockchainEvent(eventJob);
       this.logger.debug(
-        `Queued IntentWithdrawn event for intent ${event.intentHash} from chain ${evmConfig.chainId}`,
+        `Queued IntentWithdrawn event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
       );
     } catch (error) {
       this.logger.error(
@@ -296,22 +280,19 @@ export class ChainListener extends BaseChainListener {
    * Handles IntentProven event
    */
   private async handleIntentProvenEvent(
-    log: Log<bigint, number, false>,
+    log: Log<bigint, number, false, undefined, true, typeof messageBridgeProverAbi, 'IntentProven'>,
     evmConfig: EvmChainConfig,
     proverType: string,
     proverAddress: string,
   ): Promise<void> {
     try {
-      // Parse the event to get intent hash
-      const event = EvmEventParser.parseIntentProven(evmConfig.chainId, log);
-
       // Queue the event for processing
       const eventJob: BlockchainEventJob = {
         eventType: 'IntentProven',
         chainId: evmConfig.chainId,
         chainType: 'evm',
         contractName: 'prover',
-        intentHash: event.intentHash,
+        intentHash: log.args.intentHash,
         eventData: log,
         metadata: {
           txHash: log.transactionHash || undefined,
@@ -324,7 +305,7 @@ export class ChainListener extends BaseChainListener {
 
       await this.queueService.addBlockchainEvent(eventJob);
       this.logger.debug(
-        `Queued IntentProven event for intent ${event.intentHash} from ${proverType} prover on chain ${evmConfig.chainId}`,
+        `Queued IntentProven event for intent ${log.args.intentHash} from ${proverType} prover on chain ${evmConfig.chainId}`,
       );
     } catch (error) {
       this.logger.error(
