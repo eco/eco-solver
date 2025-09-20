@@ -14,8 +14,6 @@ TVM_NETWORKS_0_CHAIN_ID=728126428  # Tron mainnet numeric chain ID (0x2b6653dc)
 TVM_NETWORKS_0_RPC_FULL_NODE=https://api.trongrid.io
 TVM_NETWORKS_0_RPC_SOLIDITY_NODE=https://api.trongrid.io
 TVM_NETWORKS_0_RPC_EVENT_SERVER=https://api.trongrid.io
-TVM_NETWORKS_0_INTENT_SOURCE_ADDRESS=TYourIntentSourceContractAddress
-TVM_NETWORKS_0_INBOX_ADDRESS=TYourInboxContractAddress
 
 # TVM Fee Configuration
 TVM_NETWORKS_0_FEE_TOKENS_FLAT_FEE=1000000  # 1 TRX in SUN
@@ -75,7 +73,7 @@ To test your TVM configuration:
 
 Before using TVM support, you need to deploy:
 - IntentSource contract on Tron
-- Inbox contract on Tron
+- Portal contract on Tron
 - Any required prover contracts
 
 Make sure to use Tron-compatible versions of these contracts that account for TVM's differences from EVM.

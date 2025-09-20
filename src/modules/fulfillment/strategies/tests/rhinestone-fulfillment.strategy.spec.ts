@@ -299,7 +299,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
               value: BigInt(0),
             },
           ],
-          inbox: '0x4337000000000000000000000000000000000001' as any, // ERC-4337 sender
+          portal: '0x4337000000000000000000000000000000000001' as any, // ERC-4337 sender
         } as any,
       });
 

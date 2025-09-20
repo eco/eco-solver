@@ -43,7 +43,7 @@ export class Intent {
       source: { type: String, required: true }, // Store bigint as string
       destination: { type: String, required: true }, // Store bigint as string
       salt: { type: String, required: true },
-      inbox: { type: String, required: true },
+      portal: { type: String, required: true },
       deadline: { type: String, required: true }, // Store bigint as string
       nativeAmount: { type: String, required: true }, // Store bigint as string
       calls: [
@@ -66,7 +66,7 @@ export class Intent {
     source: string;
     destination: string;
     salt: string;
-    inbox: UniversalAddress;
+    portal: UniversalAddress;
     deadline: bigint;
     nativeAmount: bigint;
     calls: {

@@ -63,7 +63,7 @@ Validates an intent and returns a quote with fee requirements.
       "source": "1",
       "destination": "137",
       "salt": "0x1234567890abcdef",
-      "inbox": "0xInboxAddress1234567890123456789012345678901",
+      "portal": "0xInboxAddress1234567890123456789012345678901",
       "calls": [
         {
           "data": "0x095ea7b3",
@@ -99,7 +99,7 @@ Validates an intent and returns a quote with fee requirements.
   - **source**: Source chain ID as string
   - **destination**: Destination chain ID as string
   - **salt**: Hex value for intent uniqueness
-  - **inbox**: Inbox contract address on destination chain
+  - **portal**: Portal contract address on destination chain
   - **calls**: Array of function calls to execute
     - **data**: Encoded function call data
     - **target**: Target contract address
@@ -142,7 +142,7 @@ Validates an intent and returns a quote with fee requirements.
   "contracts": {
     "intentSource": "0xIntentSourceAddress123456789012345678901234",
     "prover": "0xProverAddress12345678901234567890123456789",
-    "inbox": "0xInboxAddress123456789012345678901234567890"
+    "portal": "0xInboxAddress123456789012345678901234567890"
   }
 }
 ```
@@ -351,7 +351,7 @@ curl -X POST http://localhost:3000/api/v1/quotes \
         "source": "1",
         "destination": "137",
         "salt": "0x1234567890abcdef",
-        "inbox": "0xInboxAddress1234567890123456789012345678901",
+        "portal": "0xInboxAddress1234567890123456789012345678901",
         "calls": [],
         "tokens": [
           {

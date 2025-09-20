@@ -49,7 +49,7 @@ const IntentSchema = new Schema({
     source: { type: String, required: true }, // BigInt as string
     destination: { type: String, required: true }, // BigInt as string
     salt: { type: String, required: true },
-    inbox: { type: String, required: true },
+    portal: { type: String, required: true },
     calls: [{
       data: { type: String, required: true },
       target: { type: String, required: true },
@@ -134,7 +134,7 @@ static toDomain(dbIntent: IntentDocument): Intent {
       source: BigInt(dbIntent.route.source),
       destination: BigInt(dbIntent.route.destination),
       salt: dbIntent.route.salt as Hex,
-      inbox: dbIntent.route.inbox as Address,
+      portal: dbIntent.route.portal as Address,
       calls: dbIntent.route.calls.map(c => ({
         data: c.data as Hex,
         target: c.target as Address,
@@ -170,7 +170,7 @@ static toDatabase(intent: Intent): IntentDbModel {
       source: intent.route.source.toString(),
       destination: intent.route.destination.toString(),
       salt: intent.route.salt,
-      inbox: intent.route.inbox,
+      portal: intent.route.portal,
       calls: intent.route.calls.map(c => ({
         data: c.data,
         target: c.target,
