@@ -21,7 +21,18 @@ import { createBullBoardAdapter } from './authenticated-express-adapter';
 
 @Module({})
 export class BullBoardDashboardModule implements NestModule, OnModuleInit {
+  private static readOnlyMode: boolean | undefined;
   private bullBoardConfig: BullBoardConfigService;
+
+  constructor(
+    private readonly bullBoardConfigService?: BullBoardConfigService,
+    private readonly loggerService?: SystemLoggerService,
+    private readonly appConfigService?: AppConfigService,
+  ) {
+    if (bullBoardConfigService) {
+      this.bullBoardConfig = bullBoardConfigService;
+    }
+  }
 
   static forRootAsync(): DynamicModule {
     return {
@@ -30,7 +41,10 @@ export class BullBoardDashboardModule implements NestModule, OnModuleInit {
         ConfigModule,
         BullBoardModule.forRootAsync({
           imports: [ConfigModule],
-          useFactory: (bullBoardConfig: BullBoardConfigService) => {
+          useFactory: (bullBoardConfig: BullBoardConfigService, appConfig: AppConfigService) => {
+            // Store read-only mode from AppConfigService for use in createQueueFeatures
+            BullBoardDashboardModule.readOnlyMode = appConfig.env !== 'development';
+
             // Check if Bull Board should be enabled
             if (!bullBoardConfig.isEnabled) {
               // Return minimal config that won't create routes
@@ -51,44 +65,43 @@ export class BullBoardDashboardModule implements NestModule, OnModuleInit {
               adapter: AdapterClass,
             };
           },
-          inject: [BullBoardConfigService],
+          inject: [BullBoardConfigService, AppConfigService],
         }),
-        BullBoardModule.forFeature({
-          name: QueueNames.INTENT_FULFILLMENT,
-          adapter: BullMQAdapter,
-        }),
-        BullBoardModule.forFeature({
-          name: QueueNames.INTENT_EXECUTION,
-          adapter: BullMQAdapter,
-        }),
-        BullBoardModule.forFeature({
-          name: QueueNames.INTENT_WITHDRAWAL,
-          adapter: BullMQAdapter,
-        }),
-        BullBoardModule.forFeature({
-          name: QueueNames.BLOCKCHAIN_EVENTS,
-          adapter: BullMQAdapter,
-        }),
+        ...BullBoardDashboardModule.createQueueFeatures(),
       ],
       providers: [BasicAuthMiddleware],
     };
   }
 
-  constructor(
-    private readonly bullBoardConfigService?: BullBoardConfigService,
-    private readonly loggerService?: SystemLoggerService,
-    private readonly appConfigService?: AppConfigService,
-  ) {
-    if (bullBoardConfigService) {
-      this.bullBoardConfig = bullBoardConfigService;
-    }
+  private static createQueueFeatures(): DynamicModule[] {
+    // Use the stored readOnlyMode value from AppConfigService
+    const readOnlyOptions = BullBoardDashboardModule.readOnlyMode
+      ? { readOnlyMode: true }
+      : undefined;
+
+    const queueNames = [
+      QueueNames.INTENT_FULFILLMENT,
+      QueueNames.INTENT_EXECUTION,
+      QueueNames.INTENT_WITHDRAWAL,
+      QueueNames.BLOCKCHAIN_EVENTS,
+    ];
+
+    return queueNames.map((name) =>
+      BullBoardModule.forFeature({
+        name,
+        adapter: BullMQAdapter,
+        options: readOnlyOptions,
+      }),
+    );
   }
 
   onModuleInit() {
-    if (this.bullBoardConfigService && this.loggerService) {
+    if (this.bullBoardConfigService && this.loggerService && this.appConfigService) {
       if (this.bullBoardConfigService.isEnabled) {
+        const readOnlyStatus =
+          this.appConfigService.env !== 'development' ? ' (read-only mode)' : '';
         this.loggerService.log(
-          `Bull Board dashboard enabled at /admin/queues (auth required: ${this.bullBoardConfigService.requiresAuth})`,
+          `Bull Board dashboard enabled at /admin/queues (auth required: ${this.bullBoardConfigService.requiresAuth})${readOnlyStatus}`,
         );
       } else {
         this.loggerService.log('Bull Board dashboard disabled');
