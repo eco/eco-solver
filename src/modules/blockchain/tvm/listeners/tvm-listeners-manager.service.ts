@@ -10,6 +10,7 @@ import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
+import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
 import { TronListener } from './tron.listener';
@@ -27,6 +28,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private readonly otelService: OpenTelemetryService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
+    private readonly queueService: QueueService,
   ) {
     this.logger.setContext(TvmListenersManagerService.name);
   }
@@ -85,6 +87,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
           listenerLogger,
           this.otelService,
           this.tvmConfigService,
+          this.queueService,
         );
 
         this.listeners.push(listener);

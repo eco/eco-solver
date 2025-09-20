@@ -6,6 +6,7 @@ import { Queue } from 'bullmq';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
+import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import {
@@ -27,6 +28,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
     @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
+    @InjectQueue(QueueNames.BLOCKCHAIN_EVENTS) private blockchainEventsQueue: Queue,
   ) {
     this.logger.setContext(QueueService.name);
 
@@ -35,6 +37,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       [QueueNames.INTENT_FULFILLMENT, this.fulfillmentQueue],
       [QueueNames.INTENT_EXECUTION, this.executionQueue],
       [QueueNames.INTENT_WITHDRAWAL, this.withdrawalQueue],
+      [QueueNames.BLOCKCHAIN_EVENTS, this.blockchainEventsQueue],
     ]);
   }
 
@@ -89,6 +92,23 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     });
   }
 
+  async addBlockchainEvent(job: BlockchainEventJob): Promise<void> {
+    // Generate deterministic job ID: contractName-eventType-intentHash
+    const jobId = `${job.contractName}-${job.eventType}-${job.intentHash}`;
+
+    const serializedData = BigintSerializer.serialize(job);
+
+    // Add job with deduplication ID
+    await this.blockchainEventsQueue.add('process-blockchain-event', serializedData, {
+      jobId,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+    });
+  }
+
   async getQueueStatus(queueName: string): Promise<{
     waiting: number;
     active: number;
@@ -100,6 +120,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       fulfillment: QueueNames.INTENT_FULFILLMENT,
       execution: QueueNames.INTENT_EXECUTION,
       withdrawal: QueueNames.INTENT_WITHDRAWAL,
+      events: QueueNames.BLOCKCHAIN_EVENTS,
     };
 
     const fullQueueName = queueMap[queueName] || queueName;

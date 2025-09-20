@@ -12,6 +12,7 @@ import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
 import { EvmTransportService } from '../services/evm-transport.service';
@@ -31,6 +32,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private readonly blockchainConfigService: BlockchainConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
+    private readonly queueService: QueueService,
   ) {
     this.logger.setContext(EvmListenersManagerService.name);
   }
@@ -102,6 +104,7 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
           this.otelService,
           this.blockchainConfigService,
           this.evmConfigService,
+          this.queueService,
         );
 
         await listener.start();

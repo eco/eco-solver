@@ -39,6 +39,14 @@ import { RedisConnectionFactory } from '@/modules/redis/redis-connection.factory
         },
         inject: [RedisConnectionFactory],
       },
+      {
+        name: QueueNames.BLOCKCHAIN_EVENTS,
+        imports: [RedisModule],
+        useFactory: (connectionFactory: RedisConnectionFactory) => {
+          return connectionFactory.getQueueConfig(QueueNames.BLOCKCHAIN_EVENTS);
+        },
+        inject: [RedisConnectionFactory],
+      },
     ),
   ],
   providers: [

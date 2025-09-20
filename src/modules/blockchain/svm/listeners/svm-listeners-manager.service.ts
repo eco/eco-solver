@@ -10,6 +10,7 @@ import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
 import { SolanaListener } from './solana.listener';
@@ -27,6 +28,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     private readonly otelService: OpenTelemetryService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
+    private readonly queueService: QueueService,
   ) {
     this.logger.setContext(SvmListenersManagerService.name);
   }
@@ -99,6 +101,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         this.fulfillmentService,
         listenerLogger,
         this.otelService,
+        this.queueService,
       );
 
       await listener.start();

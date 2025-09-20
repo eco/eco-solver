@@ -1,28 +1,20 @@
-import * as api from '@opentelemetry/api';
 import { Address, type Log, PublicClient } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
-import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
+import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-
-// Event name constants
-const EVENT_NAMES = {
-  INTENT_PUBLISHED: 'IntentPublished',
-  INTENT_FULFILLED: 'IntentFulfilled',
-  INTENT_WITHDRAWN: 'IntentWithdrawn',
-  INTENT_PROVEN: 'IntentProven',
-} as const;
+import { QueueService } from '@/modules/queue/queue.service';
 
 export class ChainListener extends BaseChainListener {
   // Single Map to store all subscription unsubscribe functions
@@ -37,6 +29,7 @@ export class ChainListener extends BaseChainListener {
     private readonly otelService: OpenTelemetryService,
     private readonly blockchainConfigService: BlockchainConfigService,
     private readonly evmConfigService: EvmConfigService,
+    private readonly queueService: QueueService,
   ) {
     super();
     // Context is already set by the manager when creating the logger instance
@@ -125,10 +118,10 @@ export class ChainListener extends BaseChainListener {
     const unsubscribeIntentFulfilled = publicClient.watchContractEvent({
       ...watchOptions,
       eventName: 'IntentFulfilled' as const,
-      onLogs: (logs) => {
-        logs.forEach((log) => {
-          this.handleIntentFulfilledEvent(log, evmConfig, portalAddress);
-        });
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          await this.handleIntentFulfilledEvent(log, evmConfig, portalAddress);
+        }
       },
     });
 
@@ -153,10 +146,10 @@ export class ChainListener extends BaseChainListener {
         abi: messageBridgeProverAbi,
         address: proverAddress,
         eventName: 'IntentProven',
-        onLogs: (logs) => {
-          logs.forEach((log) => {
-            this.handleIntentProvenEvent(log, evmConfig, proverType, proverAddress);
-          });
+        onLogs: async (logs) => {
+          for (const log of logs) {
+            await this.handleIntentProvenEvent(log, evmConfig, proverType, proverAddress);
+          }
         },
         strict: true,
       });
@@ -168,10 +161,10 @@ export class ChainListener extends BaseChainListener {
     const unsubscribeIntentWithdrawn = publicClient.watchContractEvent({
       ...watchOptions,
       eventName: 'IntentWithdrawn' as const,
-      onLogs: (logs) => {
-        logs.forEach((log) => {
-          this.handleIntentWithdrawnEvent(log, evmConfig, portalAddress);
-        });
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          await this.handleIntentWithdrawnEvent(log, evmConfig, portalAddress);
+        }
       },
     });
 
@@ -187,201 +180,157 @@ export class ChainListener extends BaseChainListener {
     evmConfig: EvmChainConfig,
     portalAddress: string,
   ): Promise<void> {
-    // Start the first trace using startActiveSpan (listener stage)
-    await this.otelService.tracer.startActiveSpan(
-      'evm.listener.processIntentEvent',
-      {
-        attributes: {
-          'trace.correlation.id': log.transactionHash || 'unknown',
-          'trace.stage': 'listener',
-          'evm.chain_id': evmConfig.chainId,
-          'evm.event_name': EVENT_NAMES.INTENT_PUBLISHED,
-          'portal.address': portalAddress,
-          'evm.block_number': log.blockNumber ? log.blockNumber.toString() : undefined,
-          'evm.transaction_hash': log.transactionHash ? log.transactionHash : undefined,
+    try {
+      // Parse the intent hash first for job ID
+      const intent = EvmEventParser.parseIntentPublish(BigInt(evmConfig.chainId), log);
+
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentPublished',
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        intentHash: intent.intentHash,
+        eventData: log,
+        metadata: {
+          txHash: log.transactionHash || undefined,
+          blockNumber: log.blockNumber || undefined,
+          logIndex: log.logIndex || undefined,
+          contractAddress: portalAddress,
         },
-      },
-      async (span) => {
-        let intent: Intent;
-        try {
-          intent = EvmEventParser.parseIntentPublish(BigInt(evmConfig.chainId), log);
-          // Add the transaction hash to the intent
-          intent.publishTxHash = log.transactionHash || undefined;
+      };
 
-          span.setAttributes({
-            'evm.intent_hash': intent.intentHash,
-            'evm.source_chain': evmConfig.chainId.toString(),
-            'evm.destination_chain': intent.destination.toString(),
-            'evm.creator': intent.reward.creator,
-            'evm.prover': intent.reward.prover,
-          });
-        } catch (error) {
-          this.logger.error(
-            `Error processing intent event: ${getErrorMessage(error)}`,
-            toError(error),
-          );
-          span.recordException(toError(error));
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-          span.end();
-          return;
-        }
-
-        try {
-          await this.fulfillmentService.submitIntent(intent);
-          this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
-          span.addEvent('intent.submitted');
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        } catch (error) {
-          this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
-          span.recordException(toError(error));
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-        } finally {
-          span.end();
-        }
-      },
-    );
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentPublished event for intent ${intent.intentHash} from chain ${evmConfig.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue IntentPublished event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+    }
   }
 
   /**
    * Handles IntentFulfilled event
    */
-  private handleIntentFulfilledEvent(
+  private async handleIntentFulfilledEvent(
     log: Log<bigint, number, false>,
     evmConfig: EvmChainConfig,
     portalAddress: string,
-  ): void {
-    return this.otelService.tracer.startActiveSpan(
-      'evm.listener.processIntentFulfilledEvent',
-      {
-        attributes: {
-          'evm.chain_id': evmConfig.chainId,
-          'evm.event_name': EVENT_NAMES.INTENT_FULFILLED,
-          'portal.address': portalAddress,
-          'evm.block_number': log.blockNumber?.toString(),
-          'evm.transaction_hash': log.transactionHash,
+  ): Promise<void> {
+    try {
+      // Parse the event to get intent hash
+      const event = EvmEventParser.parseIntentFulfilled(BigInt(evmConfig.chainId), log);
+
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentFulfilled',
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        intentHash: event.intentHash,
+        eventData: log,
+        metadata: {
+          txHash: log.transactionHash || undefined,
+          blockNumber: log.blockNumber || undefined,
+          logIndex: log.logIndex || undefined,
+          contractAddress: portalAddress,
         },
-      },
-      (span) => {
-        try {
-          const event = EvmEventParser.parseIntentFulfilled(BigInt(evmConfig.chainId), log);
+      };
 
-          span.setAttributes({
-            'evm.intent_hash': event.intentHash,
-            'evm.claimant': event.claimant,
-          });
-
-          this.eventsService.emit('intent.fulfilled', event);
-
-          span.addEvent('intent.fulfilled.emitted');
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        } catch (error) {
-          this.logger.error(
-            `Error processing IntentFulfilled event: ${getErrorMessage(error)}`,
-            toError(error),
-          );
-          span.recordException(toError(error));
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-        } finally {
-          span.end();
-        }
-      },
-    );
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentFulfilled event for intent ${event.intentHash} from chain ${evmConfig.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue IntentFulfilled event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+    }
   }
 
   /**
    * Handles IntentWithdrawn event
    */
-  private handleIntentWithdrawnEvent(
+  private async handleIntentWithdrawnEvent(
     log: Log<bigint, number, false>,
     evmConfig: EvmChainConfig,
     portalAddress: string,
-  ): void {
-    return this.otelService.tracer.startActiveSpan(
-      'evm.listener.processIntentWithdrawnEvent',
-      {
-        attributes: {
-          'evm.chain_id': evmConfig.chainId,
-          'evm.event_name': EVENT_NAMES.INTENT_WITHDRAWN,
-          'portal.address': portalAddress,
-          'evm.block_number': log.blockNumber ? log.blockNumber.toString() : undefined,
-          'evm.transaction_hash': log.transactionHash ? log.transactionHash : undefined,
+  ): Promise<void> {
+    try {
+      // Parse the event to get intent hash
+      const event = EvmEventParser.parseIntentWithdrawn(evmConfig.chainId, log);
+
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentWithdrawn',
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        intentHash: event.intentHash,
+        eventData: log,
+        metadata: {
+          txHash: log.transactionHash || undefined,
+          blockNumber: log.blockNumber || undefined,
+          logIndex: log.logIndex || undefined,
+          contractAddress: portalAddress,
         },
-      },
-      (span) => {
-        try {
-          const event = EvmEventParser.parseIntentWithdrawn(evmConfig.chainId, log);
+      };
 
-          span.setAttributes({
-            'evm.intent_hash': event.intentHash,
-            'evm.claimant': event.claimant,
-          });
-
-          this.eventsService.emit('intent.withdrawn', event);
-
-          span.addEvent('intent.withdrawn.emitted');
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        } catch (error) {
-          this.logger.error(
-            `Error processing IntentWithdrawn event: ${getErrorMessage(error)}`,
-            toError(error),
-          );
-          span.recordException(toError(error));
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-        } finally {
-          span.end();
-        }
-      },
-    );
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentWithdrawn event for intent ${event.intentHash} from chain ${evmConfig.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue IntentWithdrawn event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+    }
   }
 
   /**
    * Handles IntentProven event
    */
-  private handleIntentProvenEvent(
+  private async handleIntentProvenEvent(
     log: Log<bigint, number, false>,
     evmConfig: EvmChainConfig,
     proverType: string,
     proverAddress: string,
-  ): void {
-    return this.otelService.tracer.startActiveSpan(
-      'evm.listener.processIntentProvenEvent',
-      {
-        attributes: {
-          'evm.chain_id': evmConfig.chainId,
-          'evm.event_name': EVENT_NAMES.INTENT_PROVEN,
-          'prover.type': proverType,
-          'prover.address': proverAddress,
-          'evm.block_number': log.blockNumber?.toString(),
-          'evm.transaction_hash': log.transactionHash || undefined,
+  ): Promise<void> {
+    try {
+      // Parse the event to get intent hash
+      const event = EvmEventParser.parseIntentProven(evmConfig.chainId, log);
+
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentProven',
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'prover',
+        intentHash: event.intentHash,
+        eventData: log,
+        metadata: {
+          txHash: log.transactionHash || undefined,
+          blockNumber: log.blockNumber || undefined,
+          logIndex: log.logIndex || undefined,
+          contractAddress: proverAddress,
+          proverType,
         },
-      },
-      (span) => {
-        try {
-          const event = EvmEventParser.parseIntentProven(evmConfig.chainId, log);
-          const { intentHash, claimant } = event;
+      };
 
-          span.setAttributes({
-            'evm.intent_hash': intentHash,
-            'evm.claimant': claimant,
-          });
-
-          this.eventsService.emit('intent.proven', event);
-
-          this.logger.log(`IntentProven event processed from ${proverType} prover: ${intentHash}`);
-
-          span.addEvent('intent.proven.emitted');
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        } catch (error) {
-          this.logger.error(
-            `Error processing IntentProven event from ${proverType} prover: ${getErrorMessage(error)}`,
-            toError(error),
-          );
-          span.recordException(error as Error);
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-        } finally {
-          span.end();
-        }
-      },
-    );
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentProven event for intent ${event.intentHash} from ${proverType} prover on chain ${evmConfig.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue IntentProven event from ${proverType} prover: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+    }
   }
 }

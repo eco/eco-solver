@@ -7,21 +7,20 @@ import { getAbiItem, Hex, toEventHash } from 'viem';
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { executeWithRetry, pollWithRetry, RetryConfig } from '@/common/utils/rxjs-retry.util';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
+import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { TvmEvent, TvmEventResponse } from '@/modules/blockchain/tvm/types/events.type';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
-import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 import { TvmConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { QueueService } from '@/modules/queue/queue.service';
 
 // Constants for better maintainability
 const CONSTANTS = {
@@ -109,6 +108,7 @@ export class TronListener extends BaseChainListener {
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly tvmConfigService: TvmConfigService,
+    private readonly queueService: QueueService,
   ) {
     super();
     this.metrics = this.initializeMetrics();
@@ -669,35 +669,37 @@ export class TronListener extends BaseChainListener {
    * Process IntentFulfilled event with improved error handling
    */
   private async processIntentFulfilledEvent(event: TvmEvent): Promise<ProcessingResult> {
-    const span = this.createEventSpan('IntentFulfilled', event);
-
     try {
       const fulfilledEvent = TvmEventParser.parseTvmIntentFulfilled(
         BigInt(this.config.chainId),
         event,
       );
 
-      const claimant = AddressNormalizer.normalize(
-        TvmUtils.fromHex(fulfilledEvent.claimant),
-        ChainType.TVM,
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentFulfilled',
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        intentHash: fulfilledEvent.intentHash,
+        eventData: event,
+        metadata: {
+          txHash: event.transaction_id,
+          blockNumber: event.block_number ? BigInt(event.block_number) : undefined,
+          contractAddress: this.tvmConfigService.getPortalAddress(this.config.chainId),
+          timestamp: event.block_timestamp,
+        },
+      };
+
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentFulfilled event for intent ${fulfilledEvent.intentHash} from Tron`,
       );
 
-      this.emitEventWithContext(span, 'intent.fulfilled', {
-        intentHash: fulfilledEvent.intentHash,
-        claimant,
-        transactionHash: event.transaction_id,
-        blockNumber: BigInt(event.block_number || 0),
-        timestamp: new Date(event.block_timestamp || 0),
-        chainId: BigInt(this.config.chainId),
-      });
-
-      span.setStatus({ code: api.SpanStatusCode.OK });
       return { success: true, intentHash: fulfilledEvent.intentHash };
     } catch (error) {
-      this.handleEventError(span, error, 'IntentFulfilled');
+      this.logger.error(`Failed to queue IntentFulfilled event:`, toError(error));
       return { success: false, error: toError(error) };
-    } finally {
-      span.end();
     }
   }
 
@@ -705,20 +707,32 @@ export class TronListener extends BaseChainListener {
    * Process IntentProven event
    */
   private async processIntentProvenEvent(event: TvmEvent): Promise<ProcessingResult> {
-    const span = this.createEventSpan('IntentProven', event);
-
     try {
       const parsedEvent = TvmEventParser.parseIntentProvenEvent(event, this.config.chainId);
 
-      this.emitEventWithContext(span, 'intent.proven', parsedEvent);
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentProven',
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'prover',
+        intentHash: parsedEvent.intentHash,
+        eventData: event,
+        metadata: {
+          txHash: event.transaction_id,
+          blockNumber: event.block_number ? BigInt(event.block_number) : undefined,
+          contractAddress: event.contract_address,
+          timestamp: event.block_timestamp,
+        },
+      };
 
-      span.setStatus({ code: api.SpanStatusCode.OK });
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(`Queued IntentProven event for intent ${parsedEvent.intentHash} from Tron`);
+
       return { success: true, intentHash: parsedEvent.intentHash };
     } catch (error) {
-      this.handleEventError(span, error, 'IntentProven');
+      this.logger.error(`Failed to queue IntentProven event:`, toError(error));
       return { success: false, error: toError(error) };
-    } finally {
-      span.end();
     }
   }
 
@@ -726,20 +740,34 @@ export class TronListener extends BaseChainListener {
    * Process IntentWithdrawn event
    */
   private async processIntentWithdrawnEvent(event: TvmEvent): Promise<ProcessingResult> {
-    const span = this.createEventSpan('IntentWithdrawn', event);
-
     try {
       const parsedEvent = TvmEventParser.parseIntentWithdrawnEvent(event, this.config.chainId);
 
-      this.emitEventWithContext(span, 'intent.withdrawn', parsedEvent);
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentWithdrawn',
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        intentHash: parsedEvent.intentHash,
+        eventData: event,
+        metadata: {
+          txHash: event.transaction_id,
+          blockNumber: event.block_number ? BigInt(event.block_number) : undefined,
+          contractAddress: this.tvmConfigService.getPortalAddress(this.config.chainId),
+          timestamp: event.block_timestamp,
+        },
+      };
 
-      span.setStatus({ code: api.SpanStatusCode.OK });
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentWithdrawn event for intent ${parsedEvent.intentHash} from Tron`,
+      );
+
       return { success: true, intentHash: parsedEvent.intentHash };
     } catch (error) {
-      this.handleEventError(span, error, 'IntentWithdrawn');
+      this.logger.error(`Failed to queue IntentWithdrawn event:`, toError(error));
       return { success: false, error: toError(error) };
-    } finally {
-      span.end();
     }
   }
 
@@ -834,42 +862,31 @@ export class TronListener extends BaseChainListener {
    * Process discovered intent
    */
   private async processIntentEvent(intent: Intent): Promise<void> {
-    const tracer = this.otelService.tracer;
-    return tracer.startActiveSpan(
-      'tvm.listener.processIntentEvent',
-      {
-        attributes: {
-          'tvm.intent_hash': intent.intentHash,
-          'tvm.chain_id': this.config.chainId.toString(),
+    try {
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentPublished',
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        intentHash: intent.intentHash,
+        eventData: intent, // For Tron, we pass the parsed intent
+        metadata: {
+          txHash: intent.publishTxHash,
+          contractAddress: this.tvmConfigService.getPortalAddress(this.config.chainId),
         },
-      },
-      async (span: api.Span) => {
-        try {
-          // Submit intent directly to fulfillment service
-          await api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
-            try {
-              await this.fulfillmentService.submitIntent(intent);
-              this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
-            } catch (error) {
-              this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
-              span.recordException(toError(error));
-            }
-          });
-          span.setStatus({ code: api.SpanStatusCode.OK });
+      };
 
-          this.logger.log('Intent discovered', {
-            intentHash: intent.intentHash,
-            source: this.config.chainId,
-            destination: intent.destination.toString(),
-          });
-        } catch (error) {
-          this.handleEventError(span, error, 'IntentPublished');
-          throw error;
-        } finally {
-          span.end();
-        }
-      },
-    );
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentPublished event for intent ${intent.intentHash} from Tron chain ${this.config.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue IntentPublished event for intent ${intent.intentHash}:`,
+        toError(error),
+      );
+    }
   }
 
   // Utility methods

@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import { EventParser } from '@coral-xyz/anchor';
-import * as api from '@opentelemetry/api';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { toError } from '@/common/utils/error-handler';
+import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import {
   IntentFulfilledInstruction,
   IntentPublishedInstruction,
@@ -19,6 +19,7 @@ import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { QueueService } from '@/modules/queue/queue.service';
 
 @Injectable()
 export class SolanaListener extends BaseChainListener {
@@ -33,6 +34,7 @@ export class SolanaListener extends BaseChainListener {
     private fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly queueService: QueueService,
   ) {
     super();
     this.logger.setContext(SolanaListener.name);
@@ -81,98 +83,96 @@ export class SolanaListener extends BaseChainListener {
   private async handleProgramLogs(logs: Logs): Promise<void> {
     try {
       for (const ev of this.parser.parseLogs(logs.logs)) {
-        await this.otelService.tracer.startActiveSpan(
-          'svm.listener.processEvent',
-          {
-            attributes: {
-              'svm.chain_id': this.solanaConfigService.chainId.toString(),
-              'svm.event_name': ev.name,
-              'portal.program_id': this.programId.toString(),
-              'svm.signature': logs.signature || 'unknown',
-            },
-          },
-          async (span) => {
-            try {
-              switch (ev.name) {
-                case 'IntentPublished':
-                  const intent = SvmEventParser.parseIntentPublishEvent(
-                    ev.data as IntentPublishedInstruction,
-                    logs,
-                    this.solanaConfigService.chainId,
-                  );
+        try {
+          switch (ev.name) {
+            case 'IntentPublished':
+              const intent = SvmEventParser.parseIntentPublishEvent(
+                ev.data as IntentPublishedInstruction,
+                logs,
+                this.solanaConfigService.chainId,
+              );
 
-                  span.setAttributes({
-                    'svm.intent_hash': intent.intentHash,
-                    'svm.source_chain': intent.sourceChainId?.toString(),
-                    'svm.destination_chain': intent.destination.toString(),
-                    'svm.creator': intent.reward.creator,
-                    'svm.prover': intent.reward.prover,
-                  });
+              // Queue the event for processing
+              const publishedJob: BlockchainEventJob = {
+                eventType: 'IntentPublished',
+                chainId: this.solanaConfigService.chainId,
+                chainType: 'svm',
+                contractName: 'portal',
+                intentHash: intent.intentHash,
+                eventData: intent, // For Solana, we pass the parsed intent
+                metadata: {
+                  txHash: logs.signature || undefined,
+                  contractAddress: this.programId.toString(),
+                },
+              };
 
-                  // Submit intent directly to fulfillment service (span context is automatically propagated)
-                  try {
-                    await this.fulfillmentService.submitIntent(intent);
-                    this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
-                  } catch (error) {
-                    this.logger.error(
-                      `Failed to submit intent ${intent.intentHash}:`,
-                      toError(error),
-                    );
-                    span.recordException(toError(error));
-                  }
+              await this.queueService.addBlockchainEvent(publishedJob);
+              this.logger.debug(
+                `Queued IntentPublished event for intent ${intent.intentHash} from Solana`,
+              );
+              break;
 
-                  span.addEvent('intent.emitted');
-                  break;
+            case 'IntentFulfilled':
+              const fulfilledEvent = SvmEventParser.parseIntentFulfilledEvent(
+                ev.data as IntentFulfilledInstruction,
+                logs,
+                this.solanaConfigService.chainId,
+              );
 
-                case 'IntentFulfilled':
-                  const fulfilledEvent = SvmEventParser.parseIntentFulfilledEvent(
-                    ev.data as IntentFulfilledInstruction,
-                    logs,
-                    this.solanaConfigService.chainId,
-                  );
+              // Queue the event for processing
+              const fulfilledJob: BlockchainEventJob = {
+                eventType: 'IntentFulfilled',
+                chainId: this.solanaConfigService.chainId,
+                chainType: 'svm',
+                contractName: 'portal',
+                intentHash: fulfilledEvent.intentHash,
+                eventData: fulfilledEvent, // For Solana, we pass the parsed event
+                metadata: {
+                  txHash: logs.signature || undefined,
+                  contractAddress: this.programId.toString(),
+                },
+              };
 
-                  span.setAttributes({
-                    'svm.intent_hash': fulfilledEvent.intentHash,
-                    'svm.claimant': fulfilledEvent.claimant || 'unknown',
-                  });
+              await this.queueService.addBlockchainEvent(fulfilledJob);
+              this.logger.debug(
+                `Queued IntentFulfilled event for intent ${fulfilledEvent.intentHash} from Solana`,
+              );
+              break;
 
-                  // Emit the event (span context is automatically propagated)
-                  this.eventsService.emit('intent.fulfilled', fulfilledEvent);
-                  span.addEvent('intent.fulfilled.emitted');
-                  break;
+            case 'IntentWithdrawn':
+              const withdrawnEvent = SvmEventParser.parseIntentWithdrawnFromLogs(
+                ev.data as IntentWithdrawnInstruction,
+                logs,
+                this.solanaConfigService.chainId,
+              );
 
-                case 'IntentWithdrawn':
-                  const withdrawnEvent = SvmEventParser.parseIntentWithdrawnFromLogs(
-                    ev.data as IntentWithdrawnInstruction,
-                    logs,
-                    this.solanaConfigService.chainId,
-                  );
+              // Queue the event for processing
+              const withdrawnJob: BlockchainEventJob = {
+                eventType: 'IntentWithdrawn',
+                chainId: this.solanaConfigService.chainId,
+                chainType: 'svm',
+                contractName: 'portal',
+                intentHash: withdrawnEvent.intentHash,
+                eventData: withdrawnEvent, // For Solana, we pass the parsed event
+                metadata: {
+                  txHash: logs.signature || undefined,
+                  contractAddress: this.programId.toString(),
+                },
+              };
 
-                  span.setAttributes({
-                    'svm.intent_hash': withdrawnEvent.intentHash,
-                    'svm.claimant': withdrawnEvent.claimant || 'unknown',
-                  });
+              await this.queueService.addBlockchainEvent(withdrawnJob);
+              this.logger.debug(
+                `Queued IntentWithdrawn event for intent ${withdrawnEvent.intentHash} from Solana`,
+              );
+              break;
 
-                  // Emit the event (span context is automatically propagated)
-                  this.eventsService.emit('intent.withdrawn', withdrawnEvent);
-                  span.addEvent('intent.withdrawn.emitted');
-                  break;
-
-                default:
-                  this.logger.debug(`Unknown event type: ${ev.name}`, ev);
-                  span.setAttribute('svm.unknown_event', true);
-              }
-
-              span.setStatus({ code: api.SpanStatusCode.OK });
-            } catch (eventError) {
-              this.logger.error(`Error processing ${ev.name} event:`, toError(eventError));
-              span.recordException(toError(eventError));
-              span.setStatus({ code: api.SpanStatusCode.ERROR });
-            } finally {
-              span.end();
-            }
-          },
-        );
+            default:
+              this.logger.debug(`Unknown event type: ${ev.name}`, ev);
+              break;
+          }
+        } catch (eventError) {
+          this.logger.error(`Error processing ${ev.name} event:`, toError(eventError));
+        }
       }
     } catch (error) {
       this.logger.error('Error handling Solana program logs:', toError(error));

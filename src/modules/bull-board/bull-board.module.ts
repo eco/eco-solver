@@ -65,6 +65,10 @@ export class BullBoardDashboardModule implements NestModule, OnModuleInit {
           name: QueueNames.INTENT_WITHDRAWAL,
           adapter: BullMQAdapter,
         }),
+        BullBoardModule.forFeature({
+          name: QueueNames.BLOCKCHAIN_EVENTS,
+          adapter: BullMQAdapter,
+        }),
       ],
       providers: [BasicAuthMiddleware],
     };
