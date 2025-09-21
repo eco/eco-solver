@@ -1,7 +1,8 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
+import * as api from '@opentelemetry/api';
 import { TronWeb } from 'tronweb';
-import { erc20Abi } from 'viem';
+import { erc20Abi, maxUint256 } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 import {
@@ -21,7 +22,7 @@ import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { TvmTransactionError } from '../errors';
-import { TvmClientUtils, TvmTracingUtils, TvmTransactionUtils } from '../utils';
+import { TvmClientUtils, TvmTransactionUtils } from '../utils';
 
 import { TvmWalletManagerService, TvmWalletType } from './tvm-wallet-manager.service';
 
@@ -51,13 +52,23 @@ export class TvmExecutorService extends BaseChainExecutor {
     intent: Intent,
     walletId: TvmWalletType = this.tvmConfigService.defaultWallet,
   ): Promise<ExecutionResult> {
-    return TvmTracingUtils.withSpan(
-      this.otelService,
+    if (!intent.sourceChainId) {
+      throw new Error('intent sourceChainId is missing');
+    }
+
+    return this.otelService.tracer.startActiveSpan(
       'tvm.executor.fulfill',
       {
-        ...TvmTracingUtils.createIntentAttributes(intent),
-        wallet_type: walletId,
-        operation: 'fulfill',
+        attributes: {
+          'tvm.intent_hash': intent.intentHash,
+          'tvm.source_chain': intent.sourceChainId.toString(),
+          'tvm.destination_chain': intent.destination.toString(),
+          'tvm.has_tokens': intent.route.tokens.length > 0,
+          'tvm.has_calls': intent.route.calls.length > 0,
+          'tvm.reward_deadline': intent.reward.deadline.toString(),
+          'tvm.wallet_type': walletId,
+          'tvm.operation': 'fulfill',
+        },
       },
       async (span) => {
         try {
@@ -125,13 +136,12 @@ export class TvmExecutorService extends BaseChainExecutor {
               span.addEvent('tvm.token.approving', {
                 token_address: tokenAddress,
                 amount: amount.toString(),
+                allowance: allowance.toString(),
               });
-
-              // TODO: Make approve tokens to a large amount
 
               const txId = await wallet.triggerSmartContract(tokenAddress, erc20Abi, 'approve', [
                 { type: 'address', value: portalAddr },
-                { type: 'uint256', value: amount.toString() },
+                { type: 'uint256', value: maxUint256.toString() },
               ]);
 
               approvalTxIds.push(txId);
@@ -194,16 +204,24 @@ export class TvmExecutorService extends BaseChainExecutor {
 
           span.addEvent('tvm.transaction.confirmed');
 
+          span.setStatus({ code: api.SpanStatusCode.OK });
           return {
             success: true,
             txHash: fulfillTxId,
           };
         } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
           this.logger.error('TVM execution error:', toError(error));
           return {
             success: false,
             error: getErrorMessage(error),
           };
+        } finally {
+          span.end();
         }
       },
     );
@@ -227,22 +245,35 @@ export class TvmExecutorService extends BaseChainExecutor {
    * @returns True if transaction is confirmed, false otherwise
    */
   async isTransactionConfirmed(txHash: string, chainId: number): Promise<boolean> {
-    return TvmTracingUtils.withSpan(
-      this.otelService,
+    return this.otelService.tracer.startActiveSpan(
       'tvm.executor.isTransactionConfirmed',
       {
-        chainId,
-        transactionHash: txHash,
-        operation: 'isTransactionConfirmed',
+        attributes: {
+          'tvm.chain_id': chainId.toString(),
+          'tvm.transaction_hash': txHash,
+          'tvm.operation': 'isTransactionConfirmed',
+        },
       },
       async (span) => {
-        const client = this.createTronWebClient(chainId);
-        const txInfo = await client.trx.getTransactionInfo(txHash);
+        try {
+          const client = this.createTronWebClient(chainId);
+          const txInfo = await client.trx.getTransactionInfo(txHash);
 
-        const isConfirmed = txInfo && txInfo.blockNumber && txInfo.receipt?.result === 'SUCCESS';
+          const isConfirmed = txInfo && txInfo.blockNumber && txInfo.receipt?.result === 'SUCCESS';
 
-        span.setAttribute('tvm.transaction_confirmed', isConfirmed);
-        return Boolean(isConfirmed);
+          span.setAttribute('tvm.transaction_confirmed', isConfirmed);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return Boolean(isConfirmed);
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
       },
     );
   }
@@ -254,20 +285,33 @@ export class TvmExecutorService extends BaseChainExecutor {
    * @returns The balance in wei
    */
   async getBalance(address: string, chainId: number): Promise<bigint> {
-    return TvmTracingUtils.withSpan(
-      this.otelService,
+    return this.otelService.tracer.startActiveSpan(
       'tvm.executor.getBalance',
       {
-        chainId,
-        address,
-        operation: 'getBalance',
+        attributes: {
+          'tvm.chain_id': chainId.toString(),
+          'tvm.address': address,
+          'tvm.operation': 'getBalance',
+        },
       },
       async (span) => {
-        const client = this.createTronWebClient(chainId);
-        const balance = await client.trx.getBalance(address);
+        try {
+          const client = this.createTronWebClient(chainId);
+          const balance = await client.trx.getBalance(address);
 
-        span.setAttribute('tvm.balance', balance.toString());
-        return BigInt(balance);
+          span.setAttribute('tvm.balance', balance.toString());
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return BigInt(balance);
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
       },
     );
   }
@@ -284,14 +328,15 @@ export class TvmExecutorService extends BaseChainExecutor {
     withdrawalData: BatchWithdrawData,
     walletId: string = this.tvmConfigService.defaultWallet,
   ): Promise<string> {
-    return TvmTracingUtils.withSpan(
-      this.otelService,
+    return this.otelService.tracer.startActiveSpan(
       'tvm.executor.batchWithdraw',
       {
-        chainId: chainId.toString(),
-        wallet_type: walletId,
-        intent_count: withdrawalData.destinations.length,
-        operation: 'batchWithdraw',
+        attributes: {
+          'tvm.chain_id': chainId.toString(),
+          'tvm.wallet_type': walletId,
+          'tvm.intent_count': withdrawalData.destinations.length,
+          'tvm.operation': 'batchWithdraw',
+        },
       },
       async (span) => {
         try {
@@ -375,14 +420,21 @@ export class TvmExecutorService extends BaseChainExecutor {
             `Successfully executed batchWithdraw on TVM chain ${chainId}. TxHash: ${txHash}`,
           );
 
+          span.setStatus({ code: api.SpanStatusCode.OK });
           return txHash;
         } catch (error) {
           span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
           this.logger.error(
             `Failed to execute batchWithdraw on TVM chain ${chainId}: ${getErrorMessage(error)}`,
             toError(error),
           );
           throw error;
+        } finally {
+          span.end();
         }
       },
     );
@@ -403,25 +455,79 @@ export class TvmExecutorService extends BaseChainExecutor {
     chainId: number,
     maxAttempts?: number,
   ): Promise<boolean> {
-    const settings = this.tvmConfigService.getTransactionSettings();
-    const client = this.createTronWebClient(chainId);
-
-    return TvmTransactionUtils.waitForTransaction(
-      client,
-      txId,
+    return this.otelService.tracer.startActiveSpan(
+      'tvm.executor.waitForTransaction',
       {
-        ...settings,
-        maxTransactionAttempts: maxAttempts ?? settings.maxTransactionAttempts,
+        attributes: {
+          'tvm.transaction_id': txId,
+          'tvm.chain_id': chainId.toString(),
+          'tvm.max_attempts': maxAttempts?.toString() || 'default',
+        },
       },
-      this.logger,
+      async (span) => {
+        try {
+          const settings = this.tvmConfigService.getTransactionSettings();
+          const client = this.createTronWebClient(chainId);
+
+          const result = await TvmTransactionUtils.waitForTransaction(
+            client,
+            txId,
+            {
+              ...settings,
+              maxTransactionAttempts: maxAttempts ?? settings.maxTransactionAttempts,
+            },
+            this.logger,
+          );
+
+          span.setAttributes({
+            'tvm.transaction_confirmed': result,
+          });
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return result;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
     );
   }
 
   private async waitForTransactions(txIds: string[], chainId: number): Promise<void> {
-    const settings = this.tvmConfigService.getTransactionSettings();
-    const client = this.createTronWebClient(chainId);
+    return this.otelService.tracer.startActiveSpan(
+      'tvm.executor.waitForTransactions',
+      {
+        attributes: {
+          'tvm.transaction_count': txIds.length,
+          'tvm.chain_id': chainId.toString(),
+          'tvm.transaction_ids': txIds.join(','),
+        },
+      },
+      async (span) => {
+        try {
+          const settings = this.tvmConfigService.getTransactionSettings();
+          const client = this.createTronWebClient(chainId);
 
-    return TvmTransactionUtils.waitForTransactions(client, txIds, settings, this.logger);
+          await TvmTransactionUtils.waitForTransactions(client, txIds, settings, this.logger);
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   private getChainId(chainId: bigint | number): number {

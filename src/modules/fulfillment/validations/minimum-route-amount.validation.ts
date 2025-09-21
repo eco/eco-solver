@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { formatUnits, parseUnits } from 'viem';
+import { formatUnits, maxUint256, parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { denormalize, normalize } from '@/common/tokens/normalize';
@@ -11,8 +11,6 @@ import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-c
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { Validation } from './validation.interface';
-
-const MaxUint256 = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
 
 @Injectable()
 export class MinimumRouteAmountValidation implements Validation {
@@ -52,7 +50,7 @@ export class MinimumRouteAmountValidation implements Validation {
             if (!limit) {
               // If no limit is set, no minimum requirement (return max value to exclude from min calculation)
               span.setAttribute(`route.token.${index}.minimum`, 'none');
-              return MaxUint256;
+              return maxUint256;
             }
 
             // Extract min value from either number format (no min) or object format
@@ -61,7 +59,7 @@ export class MinimumRouteAmountValidation implements Validation {
             if (minLimit === 0) {
               // No minimum requirement (return max value to exclude from min calculation)
               span.setAttribute(`route.token.${index}.minimum`, 'none');
-              return MaxUint256;
+              return maxUint256;
             }
 
             const limitWei = parseUnits(minLimit.toString(), decimals);
@@ -80,7 +78,7 @@ export class MinimumRouteAmountValidation implements Validation {
           const minimumAmount = min(tokenMinimums);
 
           // If all tokens have no minimum (all returned max value), then no minimum requirement
-          if (minimumAmount === MaxUint256) {
+          if (minimumAmount === maxUint256) {
             span.setAttribute('route.has_minimum', false);
             span.setStatus({ code: api.SpanStatusCode.OK });
             return true;

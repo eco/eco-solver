@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { formatUnits, parseUnits } from 'viem';
+import { formatUnits, maxUint256, parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { denormalize, normalize } from '@/common/tokens/normalize';
@@ -51,7 +51,7 @@ export class RouteAmountLimitValidation implements Validation {
         let limitWei: bigint;
         if (!limit?.max) {
           // If no limit is set, return a very large number (effectively no limit)
-          limitWei = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
+          limitWei = maxUint256;
           span?.setAttribute(`route.token.${index}.limit`, 'unlimited');
         } else {
           // Extract max value from either number or object format
