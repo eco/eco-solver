@@ -12,8 +12,10 @@ import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getChainName } from '@/common/utils/chain-name.utils';
-import { ChainType } from '@/common/utils/chain-type-detector';
+import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { toEvmReward } from '@/common/utils/intent-converter';
+import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -223,39 +225,21 @@ export class TvmReaderService extends BaseChainReader {
           const contract = client.contract(portalAbi, portalAddr);
 
           // Structure route data for TronWeb contract call
-          const routeData: Parameters<typeof contract.isIntentFunded>[0][1] = [
-            intent.route.salt,
-            intent.route.deadline,
-            AddressNormalizer.denormalizeToTvm(intent.route.portal),
-            intent.route.nativeAmount,
-            intent.route.tokens.map((t) => [AddressNormalizer.denormalizeToTvm(t.token), t.amount]),
-            intent.route.calls.map((c) => [
-              AddressNormalizer.denormalizeToTvm(c.target),
-              c.data,
-              c.value,
-            ]),
-          ];
+          const sourceChainType = ChainTypeDetector.detect(intent.sourceChainId);
+          const encodedRoute = PortalEncoder.encode(intent.route, sourceChainType);
 
           // Structure route data for TronWeb contract call
-          const rewardData: Parameters<typeof contract.isIntentFunded>[0][2] = [
-            intent.reward.deadline,
-            AddressNormalizer.denormalizeToTvm(intent.reward.creator),
-            AddressNormalizer.denormalizeToTvm(intent.reward.prover),
-            intent.reward.nativeAmount,
-            intent.reward.tokens.map((t) => [
-              AddressNormalizer.denormalizeToTvm(t.token),
-              t.amount,
-            ]),
-          ];
-
-          const intentParam: Parameters<typeof contract.isIntentFunded>[0] = [
-            intent.destination,
-            routeData,
-            rewardData,
+          const evmReward = toEvmReward(intent.reward);
+          const rewardData: Parameters<typeof contract.isIntentFunded>[2] = [
+            evmReward.deadline,
+            evmReward.creator,
+            evmReward.prover,
+            evmReward.nativeAmount,
+            evmReward.tokens.map((t) => [t.token, t.amount]),
           ];
 
           const isFunded = await contract
-            .isIntentFunded(intentParam)
+            .isIntentFunded(intent.destination, encodedRoute, rewardData)
             .call({ from: AddressNormalizer.denormalizeToTvm(intent.reward.creator) });
 
           span.setAttributes({
