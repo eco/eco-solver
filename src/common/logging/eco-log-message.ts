@@ -106,13 +106,18 @@ export class EcoLogMessage {
       )
     }
 
-    // Validate log size
+    // Validate and truncate large arrays and objects
+    this.validateAndTruncateLargeObjects(validated)
+
+    // Validate log size after truncation
     const logSize = stringify(validated).length
     if (logSize > DATADOG_LIMITS.MAX_LOG_SIZE) {
       // eslint-disable-next-line no-console
       console.warn(
         `Log size (${logSize} bytes) exceeds ${DATADOG_LIMITS.MAX_LOG_SIZE} bytes limit. Consider reducing log data.`,
       )
+      // Apply aggressive truncation as last resort
+      this.applyAggressiveTruncation(validated)
     }
 
     return validated
@@ -133,9 +138,119 @@ export class EcoLogMessage {
     return count
   }
 
+  // Validate and truncate large objects to prevent size violations
+  private static validateAndTruncateLargeObjects(obj: any, path = '', depth = 0): void {
+    if (depth > DATADOG_LIMITS.MAX_NESTED_LEVELS || typeof obj !== 'object' || obj === null) {
+      return
+    }
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const currentPath = path ? `${path}.${key}` : key
+        const value = obj[key]
+
+        // Handle arrays that might be too large
+        if (Array.isArray(value)) {
+          const originalLength = value.length
+          const maxArrayItems = 10 // Limit arrays to 10 items to prevent size issues
+
+          if (originalLength > maxArrayItems) {
+            obj[key] = {
+              items: value.slice(0, maxArrayItems),
+              total_count: originalLength,
+              truncated: true,
+              truncated_count: originalLength - maxArrayItems,
+            }
+            // eslint-disable-next-line no-console
+            console.debug(
+              `Truncated array ${currentPath}: ${originalLength} -> ${maxArrayItems} items`,
+            )
+          } else {
+            // Validate individual array items
+            value.forEach((item, index) => {
+              if (typeof item === 'object' && item !== null) {
+                this.validateAndTruncateLargeObjects(item, `${currentPath}[${index}]`, depth + 1)
+              }
+            })
+          }
+        }
+        // Handle string values that might be too long
+        else if (
+          typeof value === 'string' &&
+          value.length > DATADOG_LIMITS.MAX_ATTRIBUTE_VALUE_LENGTH
+        ) {
+          const truncatedValue = value.substring(0, DATADOG_LIMITS.MAX_ATTRIBUTE_VALUE_LENGTH - 20)
+          obj[key] = {
+            value: truncatedValue,
+            original_length: value.length,
+            truncated: true,
+            suffix: '...truncated',
+          }
+          // eslint-disable-next-line no-console
+          console.debug(
+            `Truncated string ${currentPath}: ${value.length} -> ${truncatedValue.length} chars`,
+          )
+        }
+        // Handle nested objects
+        else if (typeof value === 'object' && value !== null) {
+          this.validateAndTruncateLargeObjects(value, currentPath, depth + 1)
+        }
+      }
+    }
+  }
+
+  // Apply aggressive truncation as last resort when log size still exceeds limits
+  private static applyAggressiveTruncation(obj: any): void {
+    // Remove non-essential fields to reduce size
+    const nonEssentialFields = ['stack', 'properties', 'event_context', 'additional_context']
+
+    for (const field of nonEssentialFields) {
+      if (obj[field]) {
+        delete obj[field]
+        // eslint-disable-next-line no-console
+        console.debug(`Removed non-essential field ${field} due to size constraints`)
+      }
+    }
+
+    // Truncate error messages and other large text fields
+    const textFields = ['message', 'error.message', 'error.stack']
+    for (const fieldPath of textFields) {
+      const value = this.getNestedValue(obj, fieldPath)
+      if (typeof value === 'string' && value.length > 500) {
+        this.setNestedValue(obj, fieldPath, value.substring(0, 500) + '...truncated')
+      }
+    }
+
+    // Final size check
+    const finalSize = stringify(obj).length
+    if (finalSize > DATADOG_LIMITS.MAX_LOG_SIZE) {
+      // eslint-disable-next-line no-console
+      console.warn(`Log still exceeds size limit after aggressive truncation: ${finalSize} bytes`)
+    }
+  }
+
+  // Helper to get nested object values
+  private static getNestedValue(obj: any, path: string): any {
+    return path.split('.').reduce((current, key) => current && current[key], obj)
+  }
+
+  // Helper to set nested object values
+  private static setNestedValue(obj: any, path: string, value: any): void {
+    const keys = path.split('.')
+    const lastKey = keys.pop()!
+    const target = keys.reduce((current, key) => {
+      if (!current[key] || typeof current[key] !== 'object') {
+        current[key] = {}
+      }
+      return current[key]
+    }, obj)
+    target[lastKey] = value
+  }
+
   // Create business context from operation params
   private static createEcoContext(params: {
     intentHash?: string
+    intentGroupId?: string
     quoteId?: string
     rebalanceId?: string
     walletAddress?: string
@@ -169,6 +284,7 @@ export class EcoLogMessage {
   }): EcoBusinessContext {
     return {
       ...(params.intentHash && { intent_hash: params.intentHash }),
+      ...(params.intentGroupId && { intent_group_id: params.intentGroupId }),
       ...(params.quoteId && { quote_id: params.quoteId }),
       ...(params.rebalanceId && { rebalance_id: params.rebalanceId }),
       ...(params.walletAddress && { wallet_address: params.walletAddress }),
@@ -325,11 +441,21 @@ export class EcoLogMessage {
       ...params.properties,
     }
 
-    // Add route tokens array if provided
+    // Add route tokens array if provided (with size validation)
     if (params.routeTokens && params.routeTokens.length > 0) {
+      const maxTokens = 5 // Limit to prevent size issues
+      const routeTokens =
+        params.routeTokens.length > maxTokens
+          ? params.routeTokens.slice(0, maxTokens)
+          : params.routeTokens
+
       enhancedStructure.route_analysis = {
-        route_tokens: params.routeTokens,
+        route_tokens: routeTokens,
         token_count: params.routeTokens.length,
+        ...(params.routeTokens.length > maxTokens && {
+          tokens_truncated: true,
+          tokens_truncated_count: params.routeTokens.length - maxTokens,
+        }),
         total_route_value: params.routeTokens.reduce((sum, token) => {
           const amount = parseFloat(token.amount) || 0
           return sum + amount
@@ -337,11 +463,21 @@ export class EcoLogMessage {
       }
     }
 
-    // Add reward tokens array if provided
+    // Add reward tokens array if provided (with size validation)
     if (params.rewardTokens && params.rewardTokens.length > 0) {
+      const maxTokens = 5 // Limit to prevent size issues
+      const rewardTokens =
+        params.rewardTokens.length > maxTokens
+          ? params.rewardTokens.slice(0, maxTokens)
+          : params.rewardTokens
+
       enhancedStructure.reward_analysis = {
-        reward_tokens: params.rewardTokens,
+        reward_tokens: rewardTokens,
         reward_token_count: params.rewardTokens.length,
+        ...(params.rewardTokens.length > maxTokens && {
+          tokens_truncated: true,
+          tokens_truncated_count: params.rewardTokens.length - maxTokens,
+        }),
         total_reward_value: params.rewardTokens.reduce((sum, token) => {
           const amount = parseFloat(token.amount) || 0
           return sum + amount
@@ -363,6 +499,16 @@ export class EcoLogMessage {
       sourceChainId: params.sourceChainId,
       destinationChainId: params.destinationChainId,
       rejectionReason: params.rejectionReason,
+      tokenInAddress: params.tokenInAddress,
+      tokenOutAddress: params.tokenOutAddress,
+      amountIn: params.amountIn,
+      amountOut: params.amountOut,
+      currentBalanceIn: params.currentBalanceIn,
+      targetBalanceIn: params.targetBalanceIn,
+      currentBalanceOut: params.currentBalanceOut,
+      targetBalanceOut: params.targetBalanceOut,
+      tokenInDecimals: params.tokenInDecimals,
+      tokenOutDecimals: params.tokenOutDecimals,
     })
     const metricsContext = this.createMetricsContext(params)
     const operationContext: OperationContext = {
@@ -370,12 +516,37 @@ export class EcoLogMessage {
       status: params.status,
     }
 
-    return this.createDatadogStructure(params.message, 'info', {
+    // Add enhanced token analysis for rebalancing operations
+    const enhancedStructure: any = {
       eco: ecoContext,
       metrics: Object.keys(metricsContext).length > 0 ? metricsContext : undefined,
       operation: operationContext,
       ...params.properties,
-    })
+    }
+
+    // Add token analysis if we have balance details
+    if (
+      params.currentBalanceIn ||
+      params.targetBalanceIn ||
+      params.currentBalanceOut ||
+      params.targetBalanceOut
+    ) {
+      enhancedStructure.token_analysis = {
+        ...(params.currentBalanceIn && { current_balance_in: params.currentBalanceIn }),
+        ...(params.targetBalanceIn && { target_balance_in: params.targetBalanceIn }),
+        ...(params.currentBalanceOut && { current_balance_out: params.currentBalanceOut }),
+        ...(params.targetBalanceOut && { target_balance_out: params.targetBalanceOut }),
+        ...(params.tokenInDecimals && { token_in_decimals: params.tokenInDecimals }),
+        ...(params.tokenOutDecimals && { token_out_decimals: params.tokenOutDecimals }),
+      }
+    }
+
+    // Add rejection details if provided
+    if (params.rejectionDetails) {
+      enhancedStructure.rejection_analysis = params.rejectionDetails
+    }
+
+    return this.createDatadogStructure(params.message, 'info', enhancedStructure)
   }
 
   /**

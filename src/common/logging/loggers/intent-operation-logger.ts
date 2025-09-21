@@ -19,6 +19,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
     const structure = EcoLogMessage.forIntentOperation({
       message,
       intentHash: context.intentHash,
+      intentGroupId: context.intentGroupId,
       quoteId: context.quoteId,
       creator: context.creator,
       dAppId: context.dAppId,
@@ -44,6 +45,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       const structure = EcoLogMessage.withEnhancedError(message, error, 'error', {
         eco: {
           intent_hash: context.intentHash,
+          intent_group_id: context.intentGroupId,
           quote_id: context.quoteId,
           creator: context.creator,
           d_app_id: context.dAppId,
@@ -58,6 +60,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       const structure = EcoLogMessage.forIntentOperation({
         message,
         intentHash: context.intentHash,
+        intentGroupId: context.intentGroupId,
         quoteId: context.quoteId,
         creator: context.creator,
         dAppId: context.dAppId,
@@ -79,6 +82,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       message,
       {
         intent_hash: context.intentHash,
+        intent_group_id: context.intentGroupId,
         quote_id: context.quoteId,
         creator: context.creator,
         d_app_id: context.dAppId,
@@ -99,6 +103,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
       message,
       {
         intent_hash: context.intentHash,
+        intent_group_id: context.intentGroupId,
         quote_id: context.quoteId,
         creator: context.creator,
         d_app_id: context.dAppId,
@@ -160,6 +165,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
     const structure = EcoLogMessage.forIntentOperation({
       message: 'Intent created successfully',
       intentHash: context.intentHash,
+      intentGroupId: context.intentGroupId,
       quoteId: context.quoteId,
       creator: context.creator,
       dAppId: context.dAppId,
@@ -185,6 +191,7 @@ export class IntentOperationLogger extends BaseStructuredLogger {
     const structure = EcoLogMessage.forIntentOperation({
       message: 'Intent fulfilled successfully',
       intentHash: context.intentHash,
+      intentGroupId: context.intentGroupId,
       quoteId: context.quoteId,
       creator: context.creator,
       dAppId: context.dAppId,

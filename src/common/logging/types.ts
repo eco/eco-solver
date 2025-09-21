@@ -6,6 +6,7 @@ import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enu
 export interface IntentOperationLogParams {
   message: string
   intentHash: string
+  intentGroupId?: string
   quoteId?: string
   creator?: string
   prover?: string
@@ -177,10 +178,17 @@ export interface LiquidityManagerLogContext {
   tokenInAddress?: string
   tokenOutAddress?: string
   groupId?: string
+  currentBalanceIn?: string
+  targetBalanceIn?: string
+  currentBalanceOut?: string
+  targetBalanceOut?: string
+  tokenInDecimals?: number
+  tokenOutDecimals?: number
 }
 
 export interface IntentOperationLogContext {
   intentHash: string
+  intentGroupId?: string
   quoteId?: string
   creator?: string
   dAppId?: string
@@ -281,6 +289,7 @@ export interface LifecycleTimestamps {
 export interface EcoBusinessContext {
   intent_hash?: string
   intent_hash_full?: string // Full value for high-cardinality optimization
+  intent_group_id?: string
   quote_id?: string
   quote_id_full?: string // Full value for high-cardinality optimization
   rebalance_id?: string
