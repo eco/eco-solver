@@ -1,6 +1,7 @@
 import * as api from '@opentelemetry/api';
 import { chunk, maxBy } from 'es-toolkit';
-import { interval, Subscription } from 'rxjs';
+import { EMPTY, from, Subscription, timer } from 'rxjs';
+import { catchError, exhaustMap } from 'rxjs/operators';
 import { TronWeb, Types as TronTypes } from 'tronweb';
 import { getAbiItem, Hex, toEventHash } from 'viem';
 
@@ -125,27 +126,38 @@ export class TronListener extends BaseChainListener {
    * Start polling for Portal events
    */
   private startPortalEventPolling(): void {
-    // Create interval-based polling
-    this.pollingSubscription = interval(this.transactionSettings.listenerPollInterval).subscribe({
-      next: () => {
-        this.pollForPortalEvents().catch((error) => {
-          this.logger.error(`Portal polling error`, toError(error));
-        });
-      },
-    });
+    // Use timer with exhaustMap to prevent overlapping fetches
+    this.pollingSubscription = timer(0, this.transactionSettings.listenerPollInterval)
+      .pipe(
+        exhaustMap(() =>
+          from(this.pollForPortalEvents()).pipe(
+            catchError((error) => {
+              this.logger.error(`Portal polling error`, toError(error));
+              return EMPTY; // Continue polling despite errors
+            }),
+          ),
+        ),
+      )
+      .subscribe();
   }
 
   /**
    * Start polling for Prover events with longer interval
    */
   private startProverEventPolling(): void {
-    this.pollingSubscription = interval(this.transactionSettings.proverListenerInterval).subscribe({
-      next: () => {
-        this.pollForProverEvents().catch((error) => {
-          this.logger.error(`Provers polling error`, toError(error));
-        });
-      },
-    });
+    // Use timer with exhaustMap to prevent overlapping fetches
+    this.proverPollingSubscription = timer(0, this.transactionSettings.proverListenerInterval)
+      .pipe(
+        exhaustMap(() =>
+          from(this.pollForProverEvents()).pipe(
+            catchError((error) => {
+              this.logger.error(`Provers polling error`, toError(error));
+              return EMPTY; // Continue polling despite errors
+            }),
+          ),
+        ),
+      )
+      .subscribe();
   }
 
   /**
@@ -172,6 +184,9 @@ export class TronListener extends BaseChainListener {
       .filter((item): item is number => !!item);
 
     const timestamp = timestamps.length ? Math.max(...timestamps) : undefined;
+    if (timestamp) {
+      this.lastProverBlockTimestamp = timestamp;
+    }
     return { timestamp };
   }
 
@@ -183,7 +198,11 @@ export class TronListener extends BaseChainListener {
     const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
     const minBlockTimestamp = this.lastBlockTimestamp + CONSTANTS.TIMESTAMP_OFFSET_MS;
 
-    return this.pollForEvents('portal', portalAddress, { minBlockTimestamp });
+    const result = await this.pollForEvents('portal', portalAddress, { minBlockTimestamp });
+    if (result.timestamp) {
+      this.lastBlockTimestamp = result.timestamp;
+    }
+    return result;
   }
 
   /**
@@ -216,7 +235,10 @@ export class TronListener extends BaseChainListener {
             throw new Error(`Failed to get ${contractName} events`);
           }
 
-          const events = eventsResponse.data || [];
+          const events =
+            eventsResponse.data?.filter(
+              (event) => event.block_timestamp >= opts.minBlockTimestamp,
+            ) || [];
 
           // Process events in batches
           const processingResults = await this.processEventsBatch(events);
@@ -248,44 +270,6 @@ export class TronListener extends BaseChainListener {
         }
       },
     );
-  }
-
-  /**
-   * Fetch prover events (IntentProven) from the blockchain
-   */
-  private async fetchProverEvents(): Promise<TvmEvent[]> {
-    const minBlockTimestamp = this.lastProverBlockTimestamp + CONSTANTS.TIMESTAMP_OFFSET_MS;
-    const allProverEvents: TvmEvent[] = [];
-
-    const network = this.tvmConfigService.getChain(this.config.chainId);
-    const provers = network.provers;
-
-    // Fetch events from all configured prover addresses
-    for (const [proverType, proverAddress] of Object.entries(provers)) {
-      try {
-        const proverEventsResponse = await this.tronWebClient.event.getEventsByContractAddress(
-          proverAddress,
-          {
-            eventName: CONSTANTS.EVENT_NAMES.INTENT_PROVEN,
-            onlyConfirmed: true,
-            minBlockTimestamp,
-            orderBy: 'block_timestamp,asc',
-            limit: CONSTANTS.DEFAULT_EVENT_LIMIT,
-          },
-        );
-
-        if (proverEventsResponse.data && proverEventsResponse.data.length) {
-          this.logger.debug(
-            `Found ${proverEventsResponse.data.length} IntentProven events from ${proverType} prover`,
-          );
-          allProverEvents.push(...proverEventsResponse.data);
-        }
-      } catch (error) {
-        this.logger.error(`Failed to fetch events from ${proverType} prover`, toError(error));
-      }
-    }
-
-    return allProverEvents;
   }
 
   /**
