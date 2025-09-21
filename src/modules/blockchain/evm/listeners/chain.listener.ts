@@ -59,7 +59,7 @@ export class ChainListener extends BaseChainListener {
           httpConfig?.pollingInterval,
         );
 
-        this.logger.log(`Listen for events using polling as backup`);
+        this.logger.log(`EVM Listeners for events using polling as backup`);
       }
     }
   }

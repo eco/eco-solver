@@ -6,8 +6,6 @@ import { Logger } from 'winston';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { TvmConfigService } from '@/modules/config/services';
-import { EventsService } from '@/modules/events/events.service';
-import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 import { QueueService } from '@/modules/queue/queue.service';
@@ -22,8 +20,6 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
   constructor(
     private readonly tvmConfigService: TvmConfigService,
-    private readonly eventsService: EventsService,
-    private readonly fulfillmentService: FulfillmentService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
@@ -33,8 +29,22 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     this.logger.setContext(TvmListenersManagerService.name);
   }
 
-  async onModuleInit() {
-    // Don't start listeners on init - wait for leader election
+  async onModuleInit(): Promise<void> {
+    // Check if listeners are enabled
+    if (!this.tvmConfigService.listenersEnabled) {
+      this.logger.log('TVM listeners are disabled via configuration');
+      return;
+    }
+
+    // If leader election is enabled, wait for leadership
+    if (this.leaderElectionService) {
+      if (!this.leaderElectionService.isCurrentLeader()) {
+        this.logger.log('TVM listeners waiting for leadership');
+        return;
+      }
+    }
+
+    await this.initializeListeners();
   }
 
   async onModuleDestroy() {
@@ -82,7 +92,6 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         const listener = new TronListener(
           network,
           this.tvmConfigService.getTransactionSettings(),
-          this.eventsService,
           listenerLogger,
           this.otelService,
           this.tvmConfigService,

@@ -1,22 +1,22 @@
 import * as api from '@opentelemetry/api';
 import { chunk, maxBy } from 'es-toolkit';
-import { Subscription } from 'rxjs';
-import { TronWeb } from 'tronweb';
+import { interval, Subscription } from 'rxjs';
+import { TronWeb, Types as TronTypes } from 'tronweb';
 import { getAbiItem, Hex, toEventHash } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { getErrorMessage, toError } from '@/common/utils/error-handler';
-import { executeWithRetry, pollWithRetry, RetryConfig } from '@/common/utils/rxjs-retry.util';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { toError } from '@/common/utils/error-handler';
 import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
-import { TvmEvent, TvmEventResponse } from '@/modules/blockchain/tvm/types/events.type';
+import { TronAddress } from '@/modules/blockchain/tvm/types';
+import { TvmEvent } from '@/modules/blockchain/tvm/types/events.type';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { TvmConfigService } from '@/modules/config/services';
-import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
@@ -26,13 +26,6 @@ const CONSTANTS = {
   TIMESTAMP_OFFSET_MS: 1, // Add 1ms to exclude already processed events
   DEFAULT_EVENT_LIMIT: 200, // TronWeb API limit
   BATCH_PROCESSING_SIZE: 10, // Process events in batches
-  METRICS: {
-    POLL_COUNT: 'tvm.poll.count',
-    EVENTS_FOUND: 'tvm.poll.events_found',
-    POLL_DURATION: 'tvm.poll.duration',
-    POLL_ERRORS: 'tvm.poll.errors',
-    EVENT_PROCESSING_ERRORS: 'tvm.event.processing.errors',
-  },
   EVENT_NAMES: {
     INTENT_FUNDED: 'IntentFunded',
     INTENT_FULFILLED: 'IntentFulfilled',
@@ -42,25 +35,10 @@ const CONSTANTS = {
   },
 } as const;
 
-// Type guards for better type safety
-function isValidEventResponse(response: unknown): response is TvmEventResponse {
-  return response !== null && typeof response === 'object' && 'data' in response;
-}
-
-function hasValidEventData(event: TvmEvent): boolean {
-  return !!(event?.event_name && event?.transaction_id);
-}
-
 interface ProcessingResult {
   success: boolean;
   error?: Error;
   intentHash?: string;
-}
-
-interface PollResult {
-  eventsProcessed: number;
-  errors: Error[];
-  lastTimestamp: number;
 }
 
 export class TronListener extends BaseChainListener {
@@ -68,48 +46,18 @@ export class TronListener extends BaseChainListener {
   private proverPollingSubscription: Subscription | null = null;
   private lastBlockTimestamp: number = 0;
   private lastProverBlockTimestamp: number = 0;
-  private isRunning: boolean = false;
-  private readonly proverAddresses: Map<string, string> = new Map();
-  private tronWebClient: TronWeb | null = null;
 
-  // Metrics instruments
-  private readonly metrics: {
-    pollCounter: api.Counter;
-    eventsFoundCounter: api.Counter;
-    pollDurationHistogram: api.Histogram;
-    pollErrorCounter: api.Counter;
-    eventProcessingErrorCounter: api.Counter;
-  };
-
-  // Retry configuration
-  private readonly retryConfig: RetryConfig = {
-    maxAttempts: 3,
-    initialDelay: 1000,
-    maxDelay: 30000,
-    backoffFactor: 2,
-    shouldRetry: (error: Error) => {
-      // Don't retry on certain errors
-      const message = error.message.toLowerCase();
-      return !message.includes('portal address') && !message.includes('not initialized');
-    },
-    onRetry: (error: Error, attempt: number) => {
-      this.logger.warn(`Retry attempt ${attempt}`, {
-        error: error.message,
-      });
-    },
-  };
+  private tronWebClient: TronWeb;
 
   constructor(
     private readonly config: TvmNetworkConfig,
     private readonly transactionSettings: TvmTransactionSettings,
-    private readonly eventsService: EventsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly tvmConfigService: TvmConfigService,
     private readonly queueService: QueueService,
   ) {
     super();
-    this.metrics = this.initializeMetrics();
   }
 
   /**
@@ -119,10 +67,9 @@ export class TronListener extends BaseChainListener {
     try {
       await this.initialize();
       this.startRxJSPolling();
-      this.logger.log('TronListener started successfully with RxJS polling', {
+      this.logger.log('TronListener started successfully', {
         chainId: this.config.chainId,
         pollInterval: this.transactionSettings.listenerPollInterval,
-        proverCount: this.proverAddresses.size,
       });
     } catch (error) {
       this.logger.error('Failed to start TronListener', toError(error));
@@ -134,114 +81,26 @@ export class TronListener extends BaseChainListener {
    * Stops the blockchain listener gracefully
    */
   async stop(): Promise<void> {
-    this.isRunning = false;
-
-    if (this.pollingSubscription) {
-      this.pollingSubscription.unsubscribe();
-      this.pollingSubscription = null;
-    }
-
-    if (this.proverPollingSubscription) {
-      this.proverPollingSubscription.unsubscribe();
-      this.proverPollingSubscription = null;
-    }
-
-    if (this.tronWebClient) {
-      this.tronWebClient = null;
-    }
-
+    this.pollingSubscription?.unsubscribe();
+    this.proverPollingSubscription?.unsubscribe();
     this.logger.warn('TronListener stopped', { chainId: this.config.chainId });
-  }
-
-  /**
-   * Initialize OpenTelemetry metrics for monitoring
-   */
-  private initializeMetrics() {
-    const meter = this.otelService.getMeter();
-
-    return {
-      pollCounter: meter.createCounter(CONSTANTS.METRICS.POLL_COUNT, {
-        description: 'Total number of TVM blockchain polls',
-      }),
-      eventsFoundCounter: meter.createCounter(CONSTANTS.METRICS.EVENTS_FOUND, {
-        description: 'Total number of events found in TVM polls',
-      }),
-      pollDurationHistogram: meter.createHistogram(CONSTANTS.METRICS.POLL_DURATION, {
-        description: 'Duration of TVM poll operations',
-        unit: 'ms',
-      }),
-      pollErrorCounter: meter.createCounter(CONSTANTS.METRICS.POLL_ERRORS, {
-        description: 'Total number of TVM poll errors',
-      }),
-      eventProcessingErrorCounter: meter.createCounter(CONSTANTS.METRICS.EVENT_PROCESSING_ERRORS, {
-        description: 'Total number of event processing errors',
-      }),
-    };
   }
 
   /**
    * Initialize listener components
    */
   private async initialize(): Promise<void> {
-    // Validate portal address
-    const portalAddressUA = this.tvmConfigService.getPortalAddress(this.config.chainId);
-    if (!portalAddressUA) {
-      throw new Error(`No Portal address configured for chain ${this.config.chainId}`);
-    }
-
-    // Initialize prover addresses
-    this.initializeProverAddresses();
-
     // Create and validate TronWeb client
-    this.tronWebClient = this.createTronWebClient();
-    await this.validateClientConnection();
+    this.tronWebClient = TvmClientUtils.createClient(this.config);
 
     // Get initial timestamp
     await this.initializeLastTimestamp();
-
-    this.isRunning = true;
-  }
-
-  /**
-   * Initialize prover addresses from configuration
-   */
-  private initializeProverAddresses(): void {
-    const network = this.tvmConfigService.getChain(this.config.chainId);
-    const provers = network.provers || {};
-
-    for (const [proverType, proverAddress] of Object.entries(provers)) {
-      if (!proverAddress) continue;
-      this.proverAddresses.set(proverType, proverAddress);
-      this.logger.log(`Registered ${proverType} prover`, { address: proverAddress });
-    }
-  }
-
-  /**
-   * Validate TronWeb client connection
-   */
-  private async validateClientConnection(): Promise<void> {
-    if (!this.tronWebClient) {
-      throw new Error('TronWeb client not initialized');
-    }
-
-    try {
-      const block = await this.tronWebClient.trx.getCurrentBlock();
-      if (!block) {
-        throw new Error('Failed to fetch current block');
-      }
-    } catch (error) {
-      throw new Error(`Failed to validate TronWeb connection: ${getErrorMessage(error)}`);
-    }
   }
 
   /**
    * Initialize the last processed timestamp
    */
   private async initializeLastTimestamp(): Promise<void> {
-    if (!this.tronWebClient) {
-      throw new Error('TronWeb client not initialized');
-    }
-
     const currentBlock = await this.tronWebClient.trx.getConfirmedCurrentBlock();
     if (!currentBlock?.block_header?.raw_data?.timestamp) {
       throw new Error('Failed to get initial block timestamp');
@@ -249,11 +108,6 @@ export class TronListener extends BaseChainListener {
 
     this.lastBlockTimestamp = currentBlock.block_header.raw_data.timestamp;
     this.lastProverBlockTimestamp = currentBlock.block_header.raw_data.timestamp;
-    this.logger.log('Initialized last block timestamp', {
-      timestamp: this.lastBlockTimestamp,
-      proverTimestamp: this.lastProverBlockTimestamp,
-      blockNumber: currentBlock.block_header.raw_data.number,
-    });
   }
 
   /**
@@ -263,7 +117,7 @@ export class TronListener extends BaseChainListener {
     // Start Portal events polling (IntentPublished, IntentFulfilled, etc.)
     this.startPortalEventPolling();
 
-    // Start Prover events polling (IntentProven) with longer interval
+    // Start Prover events polling (IntentProven) with a longer interval
     this.startProverEventPolling();
   }
 
@@ -271,33 +125,12 @@ export class TronListener extends BaseChainListener {
    * Start polling for Portal events
    */
   private startPortalEventPolling(): void {
-    // Create polling observable with retry logic
-    const polling$ = pollWithRetry(() => this.pollForPortalEvents(), {
-      pollInterval: this.transactionSettings.listenerPollInterval,
-      immediate: true,
-      ...this.retryConfig,
-    });
-
-    // Subscribe to polling observable
-    this.pollingSubscription = polling$.subscribe({
-      next: (result) => {
-        if (result && result.eventsProcessed > 0) {
-          this.logger.debug('Portal poll cycle completed', {
-            eventsProcessed: result.eventsProcessed,
-            errors: result.errors.length,
-          });
-        }
-      },
-      error: (error) => {
-        // This should rarely happen due to retry logic
-        this.logger.error('Fatal portal polling error', toError(error));
-        // Attempt to restart polling after a delay
-        setTimeout(() => {
-          if (this.isRunning) {
-            this.logger.log('Attempting to restart portal polling after fatal error');
-            this.startPortalEventPolling();
-          }
-        }, 10000);
+    // Create interval-based polling
+    this.pollingSubscription = interval(this.transactionSettings.listenerPollInterval).subscribe({
+      next: () => {
+        this.pollForPortalEvents().catch((error) => {
+          this.logger.error(`Portal polling error`, toError(error));
+        });
       },
     });
   }
@@ -306,252 +139,129 @@ export class TronListener extends BaseChainListener {
    * Start polling for Prover events with longer interval
    */
   private startProverEventPolling(): void {
-    // Skip if no prover addresses configured
-    if (this.proverAddresses.size === 0) {
-      this.logger.log('No prover addresses configured, skipping prover event polling');
-      return;
-    }
-
-    // Create polling observable with retry logic and longer interval
-    const polling$ = pollWithRetry(() => this.pollForProverEvents(), {
-      pollInterval: this.transactionSettings.proverListenerInterval || 60000, // Default 1 minute
-      immediate: true,
-      ...this.retryConfig,
-    });
-
-    // Subscribe to polling observable
-    this.proverPollingSubscription = polling$.subscribe({
-      next: (result) => {
-        if (result && result.eventsProcessed > 0) {
-          this.logger.debug('Prover poll cycle completed', {
-            eventsProcessed: result.eventsProcessed,
-            errors: result.errors.length,
-          });
-        }
-      },
-      error: (error) => {
-        // This should rarely happen due to retry logic
-        this.logger.error('Fatal prover polling error', toError(error));
-        // Attempt to restart polling after a delay
-        setTimeout(() => {
-          if (this.isRunning) {
-            this.logger.log('Attempting to restart prover polling after fatal error');
-            this.startProverEventPolling();
-          }
-        }, 10000);
+    this.pollingSubscription = interval(this.transactionSettings.proverListenerInterval).subscribe({
+      next: () => {
+        this.pollForProverEvents().catch((error) => {
+          this.logger.error(`Provers polling error`, toError(error));
+        });
       },
     });
-  }
-
-  /**
-   * Creates a TronWeb instance with error handling
-   */
-  private createTronWebClient(): TronWeb {
-    try {
-      return TvmClientUtils.createClient(this.config);
-    } catch (error) {
-      throw new Error(`Failed to create TronWeb client: ${getErrorMessage(error)}`);
-    }
   }
 
   /**
    * Poll for Prover events (IntentProven)
    */
-  private async pollForProverEvents(): Promise<PollResult> {
-    if (!this.isRunning || !this.tronWebClient) {
-      return { eventsProcessed: 0, errors: [], lastTimestamp: this.lastProverBlockTimestamp };
-    }
+  private async pollForProverEvents() {
+    // Fetch events directly
+    const minBlockTimestamp = this.lastProverBlockTimestamp + CONSTANTS.TIMESTAMP_OFFSET_MS;
 
-    const startTime = Date.now();
-    const attributes = {
-      'tvm.chain_id': this.config.chainId.toString(),
-      'tvm.event_type': 'prover',
-    };
+    const network = this.tvmConfigService.getChain(this.config.chainId);
+    const provers = network.provers;
 
-    const tracer = this.otelService.tracer;
-    return tracer.startActiveSpan('tvm.listener.poll.prover', { attributes }, async (span) => {
-      try {
-        this.metrics.pollCounter.add(1, attributes);
-
-        const result = await this.executeProverPollCycle();
-
-        span.setAttributes({
-          'tvm.events.processed': result.eventsProcessed,
-          'tvm.events.errors': result.errors.length,
-          'tvm.last_timestamp': result.lastTimestamp,
-        });
-
-        if (result.errors.length > 0) {
-          this.metrics.pollErrorCounter.add(result.errors.length, attributes);
-          result.errors.forEach((error) => span.recordException(error));
-        }
-
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        return result;
-      } catch (error) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-        throw error;
-      } finally {
-        const duration = Date.now() - startTime;
-        this.metrics.pollDurationHistogram.record(duration, attributes);
-        span.end();
-      }
+    // Fetch events from all configured prover addresses
+    const requests = Object.entries(provers).map(([proverType, proverAddr]) => {
+      return this.pollForEvents(`prover.${proverType}`, proverAddr, {
+        minBlockTimestamp,
+        eventName: CONSTANTS.EVENT_NAMES.INTENT_PROVEN,
+      });
     });
+    const responses = await Promise.allSettled(requests);
+
+    const timestamps = responses
+      .map((res) => (res.status === 'fulfilled' ? res.value.timestamp : undefined))
+      .filter((item): item is number => !!item);
+
+    const timestamp = timestamps.length ? Math.max(...timestamps) : undefined;
+    return { timestamp };
   }
 
   /**
    * Poll for Portal events (IntentPublished, IntentFulfilled, IntentWithdrawn)
    */
-  private async pollForPortalEvents(): Promise<PollResult> {
-    if (!this.isRunning || !this.tronWebClient) {
-      return { eventsProcessed: 0, errors: [], lastTimestamp: this.lastBlockTimestamp };
-    }
-
-    const startTime = Date.now();
-    const attributes = { 'tvm.chain_id': this.config.chainId.toString() };
-
-    const tracer = this.otelService.tracer;
-    return tracer.startActiveSpan('tvm.listener.poll', { attributes }, async (span) => {
-      try {
-        this.metrics.pollCounter.add(1, attributes);
-
-        const result = await this.executePortalPollCycle();
-
-        span.setAttributes({
-          'tvm.events.processed': result.eventsProcessed,
-          'tvm.events.errors': result.errors.length,
-          'tvm.last_timestamp': result.lastTimestamp,
-        });
-
-        if (result.errors.length > 0) {
-          this.metrics.pollErrorCounter.add(result.errors.length, attributes);
-          result.errors.forEach((error) => span.recordException(error));
-        }
-
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        return result;
-      } catch (error) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-        throw error;
-      } finally {
-        const duration = Date.now() - startTime;
-        this.metrics.pollDurationHistogram.record(duration, attributes);
-        span.end();
-      }
-    });
-  }
-
-  /**
-   * Execute a single poll cycle
-   */
-  private async executePortalPollCycle(): Promise<PollResult> {
-    // Fetch events using RxJS retry utility
-    const events = await executeWithRetry(() => this.fetchPortalEvents(), this.retryConfig);
-
-    const result: PollResult = {
-      eventsProcessed: 0,
-      errors: [],
-      lastTimestamp: this.lastBlockTimestamp,
-    };
-
-    if (!events || events.length === 0) {
-      return result;
-    }
-
-    this.logEventsFound(events.length, 'portal events');
-
-    // Process events in batches
-    const processingResults = await this.processEventsBatch(events);
-
-    result.eventsProcessed = processingResults.filter((r) => r.success).length;
-    result.errors = processingResults.filter((r) => !r.success).map((r) => r.error!);
-
-    // Update timestamp only if we successfully processed some events
-    if (result.eventsProcessed > 0) {
-      result.lastTimestamp = this.calculateNewestTimestamp(events);
-      this.lastBlockTimestamp = result.lastTimestamp;
-    }
-
-    return result;
-  }
-
-  /**
-   * Execute a single prover poll cycle
-   */
-  private async executeProverPollCycle(): Promise<PollResult> {
-    // Fetch events using RxJS retry utility
-    const events = await executeWithRetry(() => this.fetchProverEvents(), this.retryConfig);
-
-    const result: PollResult = {
-      eventsProcessed: 0,
-      errors: [],
-      lastTimestamp: this.lastProverBlockTimestamp,
-    };
-
-    if (!events || events.length === 0) {
-      return result;
-    }
-
-    this.logEventsFound(events.length, 'prover events');
-
-    // Process events in batches
-    const processingResults = await this.processEventsBatch(events);
-
-    result.eventsProcessed = processingResults.filter((r) => r.success).length;
-    result.errors = processingResults.filter((r) => !r.success).map((r) => r.error!);
-
-    // Update timestamp only if we successfully processed some events
-    if (result.eventsProcessed > 0) {
-      result.lastTimestamp = this.calculateNewestTimestamp(events);
-      this.lastProverBlockTimestamp = result.lastTimestamp;
-    }
-
-    return result;
-  }
-
-  /**
-   * Fetch portal events from the blockchain
-   */
-  private async fetchPortalEvents(): Promise<TvmEvent[]> {
-    if (!this.tronWebClient) {
-      throw new Error('TronWeb client not available');
-    }
-
+  private async pollForPortalEvents() {
+    // Fetch events directly
     const portalAddress = this.tvmConfigService.getTvmPortalAddress(this.config.chainId);
     const minBlockTimestamp = this.lastBlockTimestamp + CONSTANTS.TIMESTAMP_OFFSET_MS;
 
-    const portalEventsResponse = await this.tronWebClient.event.getEventsByContractAddress(
-      portalAddress,
-      {
-        onlyConfirmed: true,
-        minBlockTimestamp,
-        orderBy: 'block_timestamp,asc',
-        limit: CONSTANTS.DEFAULT_EVENT_LIMIT,
+    return this.pollForEvents('portal', portalAddress, { minBlockTimestamp });
+  }
+
+  /**
+   * Poll for Portal events (IntentPublished, IntentFulfilled, IntentWithdrawn)
+   */
+  private async pollForEvents(
+    contractName: string,
+    contractAddress: TronAddress,
+    opts: { minBlockTimestamp: number; eventName?: string },
+  ) {
+    return this.otelService.tracer.startActiveSpan(
+      `tvm.listener.poll.${contractName}`,
+      { attributes: { 'tvm.chain_id': this.config.chainId.toString() } },
+      async (span) => {
+        try {
+          const eventsResponse = await this.tronWebClient.event.getEventsByContractAddress(
+            contractAddress,
+            {
+              ...opts,
+              onlyConfirmed: true,
+              orderBy: 'block_timestamp,asc',
+              limit: CONSTANTS.DEFAULT_EVENT_LIMIT,
+            },
+          );
+
+          span.addEvent('tvm.events.fetched');
+
+          if (!eventsResponse.success) {
+            this.logger.error(`Failed to get ${contractName} events: ${eventsResponse.error}`);
+            throw new Error(`Failed to get ${contractName} events`);
+          }
+
+          const events = eventsResponse.data || [];
+
+          // Process events in batches
+          const processingResults = await this.processEventsBatch(events);
+
+          const eventsProcessed = processingResults.filter((r) => r.success).length;
+          const errors = processingResults.filter((r) => !r.success).map((r) => r.error!);
+
+          const timestamp = eventsProcessed > 0 ? this.calculateNewestTimestamp(events) : undefined;
+
+          span.setAttributes({
+            'tvm.events.processed': eventsProcessed,
+            'tvm.events.errors': errors.length,
+            'tvm.last_timestamp': timestamp ?? opts.minBlockTimestamp,
+          });
+
+          if (errors.length > 0) {
+            errors.forEach((error) => span.recordException(error));
+          }
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+
+          return { timestamp };
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
       },
     );
-
-    if (!isValidEventResponse(portalEventsResponse)) {
-      throw new Error('Invalid event response from TronWeb');
-    }
-
-    return portalEventsResponse.data || [];
   }
 
   /**
    * Fetch prover events (IntentProven) from the blockchain
    */
   private async fetchProverEvents(): Promise<TvmEvent[]> {
-    if (!this.tronWebClient) {
-      throw new Error('TronWeb client not available');
-    }
-
     const minBlockTimestamp = this.lastProverBlockTimestamp + CONSTANTS.TIMESTAMP_OFFSET_MS;
     const allProverEvents: TvmEvent[] = [];
 
+    const network = this.tvmConfigService.getChain(this.config.chainId);
+    const provers = network.provers;
+
     // Fetch events from all configured prover addresses
-    for (const [proverType, proverAddress] of this.proverAddresses) {
+    for (const [proverType, proverAddress] of Object.entries(provers)) {
       try {
         const proverEventsResponse = await this.tronWebClient.event.getEventsByContractAddress(
           proverAddress,
@@ -564,7 +274,7 @@ export class TronListener extends BaseChainListener {
           },
         );
 
-        if (isValidEventResponse(proverEventsResponse) && proverEventsResponse.data) {
+        if (proverEventsResponse.data && proverEventsResponse.data.length) {
           this.logger.debug(
             `Found ${proverEventsResponse.data.length} IntentProven events from ${proverType} prover`,
           );
@@ -587,17 +297,11 @@ export class TronListener extends BaseChainListener {
 
     // First pass: collect IntentFunded transaction IDs and process other events
     for (const event of events) {
-      if (!hasValidEventData(event)) {
-        results.push({ success: false, error: new Error('Invalid event data') });
-        continue;
-      }
-
       try {
         const result = await this.routeEventProcessing(event, intentFundedTxIds);
         results.push(result);
       } catch (error) {
         results.push({ success: false, error: toError(error) });
-        this.metrics.eventProcessingErrorCounter.add(1);
       }
     }
 
@@ -646,9 +350,7 @@ export class TronListener extends BaseChainListener {
 
     for (const batch of txBatches) {
       const batchResults = await Promise.allSettled(
-        batch.map((txId) =>
-          executeWithRetry(() => this.processTransaction(txId), this.retryConfig),
-        ),
+        batch.map((txId) => this.processTransaction(txId)),
       );
 
       for (const result of batchResults) {
@@ -704,8 +406,16 @@ export class TronListener extends BaseChainListener {
   /**
    * Process IntentProven event
    */
-  private async processIntentProvenEvent(event: TvmEvent): Promise<ProcessingResult> {
+  private async processIntentProvenEvent(event: TvmEvent) {
     try {
+      const portalAddress = AddressNormalizer.denormalizeToTvm(
+        this.tvmConfigService.getPortalAddress(this.config.chainId),
+      );
+      if (event.contract_address === portalAddress) {
+        // Ignore IntentProven events from the Portal contract
+        return { success: true };
+      }
+
       const parsedEvent = TvmEventParser.parseIntentProvenEvent(event, this.config.chainId);
 
       // Queue the event for processing
@@ -773,12 +483,7 @@ export class TronListener extends BaseChainListener {
    * Process a transaction to extract IntentPublished events
    */
   private async processTransaction(txId: string): Promise<ProcessingResult> {
-    if (!this.tronWebClient) {
-      return { success: false, error: new Error('TronWeb client not available') };
-    }
-
-    const tracer = this.otelService.tracer;
-    return tracer.startActiveSpan(
+    return this.otelService.tracer.startActiveSpan(
       'tvm.listener.processTransaction',
       {
         attributes: {
@@ -788,15 +493,7 @@ export class TronListener extends BaseChainListener {
       },
       async (span: api.Span) => {
         try {
-          if (!this.tronWebClient) {
-            throw new Error('TronWeb client not initialized');
-          }
           const txInfo = await this.tronWebClient.trx.getTransactionInfo(txId);
-
-          if (!this.hasValidTransactionLogs(txInfo)) {
-            span.setStatus({ code: api.SpanStatusCode.OK });
-            return { success: true };
-          }
 
           const intent = this.extractIntentFromTransaction(txInfo);
           if (intent) {
@@ -820,16 +517,9 @@ export class TronListener extends BaseChainListener {
   }
 
   /**
-   * Check if transaction has valid logs
-   */
-  private hasValidTransactionLogs(txInfo: any): boolean {
-    return txInfo && txInfo.log && Array.isArray(txInfo.log) && txInfo.log.length > 0;
-  }
-
-  /**
    * Extract IntentPublished event from transaction logs
    */
-  private extractIntentFromTransaction(txInfo: any): Intent | null {
+  private extractIntentFromTransaction(txInfo: TronTypes.TransactionInfo): Intent | null {
     const intentPublishedEventHash = toEventHash(
       getAbiItem({ abi: portalAbi, name: 'IntentPublished' }),
     );
@@ -890,42 +580,6 @@ export class TronListener extends BaseChainListener {
   // Utility methods
 
   /**
-   * Create a span for event processing
-   */
-  private createEventSpan(eventName: string, event: TvmEvent): api.Span {
-    const tracer = this.otelService.tracer;
-    return tracer.startSpan(`tvm.listener.process${eventName}`, {
-      attributes: {
-        'tvm.chain_id': this.config.chainId.toString(),
-        'tvm.event_name': eventName,
-        'tvm.transaction_id': event.transaction_id,
-        'tvm.block_number': event.block_number?.toString(),
-      },
-    });
-  }
-
-  /**
-   * Emit event with OpenTelemetry context
-   */
-  private emitEventWithContext(span: api.Span, eventName: string, data: any): void {
-    api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-      // Type assertion is safe here as we only call this with valid event names
-      this.eventsService.emit(eventName as any, data);
-    });
-    span.addEvent(`${eventName}.emitted`);
-  }
-
-  /**
-   * Handle event processing errors
-   */
-  private handleEventError(span: api.Span, error: unknown, eventType: string): void {
-    const err = toError(error);
-    span.recordException(err);
-    span.setStatus({ code: api.SpanStatusCode.ERROR });
-    this.logger.error(`Error processing ${eventType} event`, err);
-  }
-
-  /**
    * Calculate the newest timestamp from events
    */
   private calculateNewestTimestamp(events: TvmEvent[]): number {
@@ -949,21 +603,5 @@ export class TronListener extends BaseChainListener {
   private normalizeHexData(data: string | undefined): string {
     if (!data) return '0x';
     return data.startsWith('0x') ? data : `0x${data}`;
-  }
-
-  /**
-   * Log events found for debugging
-   */
-  private logEventsFound(count: number, type: string = 'events'): void {
-    const attributes = { 'tvm.chain_id': this.config.chainId.toString(), 'tvm.event_type': type };
-    this.metrics.eventsFoundCounter.add(count, attributes);
-
-    if (count > 0) {
-      this.logger.log(`${type} found in poll`, {
-        chainId: this.config.chainId,
-        eventCount: count,
-        eventType: type,
-      });
-    }
   }
 }
