@@ -100,17 +100,17 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         },
       }),
     )
-    const batchWithdrawalsPerSource = _.groupBy(
-      batchWithdrawals,
-      (withdrawal) => withdrawal.intent.source,
-    )
+    const batchWithdrawalsPerSource = _.groupBy(batchWithdrawals, (withdrawal) => {
+      const maybeSource = (withdrawal.intent as any)?.source
+      return String(maybeSource ?? this.getChainIdForIntentSource(withdrawal.intentSourceAddr))
+    })
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Withdrawals`,
         properties: {
           intentSourceAddrs,
-          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.intent.hash),
+          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.intent.intentHash),
         },
       }),
     )
@@ -338,6 +338,17 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     }
 
     return intentSource.inbox
+  }
+
+  private getChainIdForIntentSource(intentSourceAddr: Hex): number {
+    const intentSources = this.ecoConfigService.getIntentSources()
+    const intentSource = intentSources.find((source) => source.sourceAddress === intentSourceAddr)
+
+    if (!intentSource) {
+      throw new Error(`Intent source not found for address: ${intentSourceAddr}`)
+    }
+
+    return intentSource.chainID
   }
 
   private getInbox() {

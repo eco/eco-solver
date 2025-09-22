@@ -212,7 +212,7 @@ describe('IntentProcessorService', () => {
 
   describe('getNextBatchWithdrawals', () => {
     it('should process withdrawals and add jobs to queue', async () => {
-      // Mock data
+      // Mock data (v2 shape with encoded route & reward fields)
       const mockWithdrawals = [
         {
           intent: {
@@ -220,24 +220,36 @@ describe('IntentProcessorService', () => {
             source: '1',
             creator: '0x0000000000000000000000000000000000000001' as Hex,
             prover: '0x0000000000000000000000000000000000000002' as Hex,
-            deadline: '1000',
-            nativeValue: '100',
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
             destination: '2',
-            inbox: mockInbox,
+            rewardDeadline: '1000',
+            rewardNativeAmount: '100',
             rewardTokens: [
               { token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' },
             ],
-            routeTokens: [
-              { token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' },
-            ],
-            calls: [
-              {
-                target: '0x0000000000000000000000000000000000000005' as Hex,
-                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-                value: '50',
-              },
-            ],
+            route: (require('viem') as typeof import('viem')).encodeAbiParameters(
+              [require('@/contracts').routeStructAbiItem],
+              [
+                {
+                  salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+                  deadline: 1000n,
+                  portal: mockInbox,
+                  nativeAmount: 100n,
+                  tokens: [
+                    {
+                      token: '0x0000000000000000000000000000000000000004' as Hex,
+                      amount: 300n,
+                    },
+                  ],
+                  calls: [
+                    {
+                      target: '0x0000000000000000000000000000000000000005' as Hex,
+                      data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                      value: 50n,
+                    },
+                  ],
+                },
+              ],
+            ),
           },
         },
         {
@@ -246,24 +258,36 @@ describe('IntentProcessorService', () => {
             source: '1',
             creator: '0x0000000000000000000000000000000000000006' as Hex,
             prover: '0x0000000000000000000000000000000000000007' as Hex,
-            deadline: '2000',
-            nativeValue: '200',
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000002' as Hex,
             destination: '2',
-            inbox: mockInbox,
+            rewardDeadline: '2000',
+            rewardNativeAmount: '200',
             rewardTokens: [
               { token: '0x0000000000000000000000000000000000000008' as Hex, amount: '400' },
             ],
-            routeTokens: [
-              { token: '0x0000000000000000000000000000000000000009' as Hex, amount: '500' },
-            ],
-            calls: [
-              {
-                target: '0x000000000000000000000000000000000000000a' as Hex,
-                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-                value: '60',
-              },
-            ],
+            route: (require('viem') as typeof import('viem')).encodeAbiParameters(
+              [require('@/contracts').routeStructAbiItem],
+              [
+                {
+                  salt: '0x0000000000000000000000000000000000000000000000000000000000000002',
+                  deadline: 2000n,
+                  portal: mockInbox,
+                  nativeAmount: 200n,
+                  tokens: [
+                    {
+                      token: '0x0000000000000000000000000000000000000009' as Hex,
+                      amount: 500n,
+                    },
+                  ],
+                  calls: [
+                    {
+                      target: '0x000000000000000000000000000000000000000a' as Hex,
+                      data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                      value: 60n,
+                    },
+                  ],
+                },
+              ],
+            ),
           },
         },
       ]
@@ -294,7 +318,7 @@ describe('IntentProcessorService', () => {
     })
 
     it('should handle multiple source chains', async () => {
-      // Mock data with different source chains
+      // Mock data with different source chains (v2 shape)
       const mockWithdrawals = [
         {
           intent: {
@@ -302,24 +326,36 @@ describe('IntentProcessorService', () => {
             source: '1',
             creator: '0x0000000000000000000000000000000000000001' as Hex,
             prover: '0x0000000000000000000000000000000000000002' as Hex,
-            deadline: '1000',
-            nativeValue: '100',
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
             destination: '2',
-            inbox: mockInbox,
+            rewardDeadline: '1000',
+            rewardNativeAmount: '100',
             rewardTokens: [
               { token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' },
             ],
-            routeTokens: [
-              { token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' },
-            ],
-            calls: [
-              {
-                target: '0x0000000000000000000000000000000000000005' as Hex,
-                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-                value: '50',
-              },
-            ],
+            route: (require('viem') as typeof import('viem')).encodeAbiParameters(
+              [require('@/contracts').routeStructAbiItem],
+              [
+                {
+                  salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+                  deadline: 1000n,
+                  portal: mockInbox,
+                  nativeAmount: 100n,
+                  tokens: [
+                    {
+                      token: '0x0000000000000000000000000000000000000004' as Hex,
+                      amount: 300n,
+                    },
+                  ],
+                  calls: [
+                    {
+                      target: '0x0000000000000000000000000000000000000005' as Hex,
+                      data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                      value: 50n,
+                    },
+                  ],
+                },
+              ],
+            ),
           },
         },
         {
@@ -328,24 +364,36 @@ describe('IntentProcessorService', () => {
             source: '2', // Different source chain
             creator: '0x0000000000000000000000000000000000000006' as Hex,
             prover: '0x0000000000000000000000000000000000000007' as Hex,
-            deadline: '2000',
-            nativeValue: '200',
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000002' as Hex,
             destination: '3',
-            inbox: mockInbox,
+            rewardDeadline: '2000',
+            rewardNativeAmount: '200',
             rewardTokens: [
               { token: '0x0000000000000000000000000000000000000008' as Hex, amount: '400' },
             ],
-            routeTokens: [
-              { token: '0x0000000000000000000000000000000000000009' as Hex, amount: '500' },
-            ],
-            calls: [
-              {
-                target: '0x000000000000000000000000000000000000000a' as Hex,
-                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-                value: '60',
-              },
-            ],
+            route: (require('viem') as typeof import('viem')).encodeAbiParameters(
+              [require('@/contracts').routeStructAbiItem],
+              [
+                {
+                  salt: '0x0000000000000000000000000000000000000000000000000000000000000002',
+                  deadline: 2000n,
+                  portal: mockInbox,
+                  nativeAmount: 200n,
+                  tokens: [
+                    {
+                      token: '0x0000000000000000000000000000000000000009' as Hex,
+                      amount: 500n,
+                    },
+                  ],
+                  calls: [
+                    {
+                      target: '0x000000000000000000000000000000000000000a' as Hex,
+                      data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                      value: 60n,
+                    },
+                  ],
+                },
+              ],
+            ),
           },
         },
       ]
@@ -374,7 +422,7 @@ describe('IntentProcessorService', () => {
     })
 
     it('should chunk withdrawals if over limit', async () => {
-      // Create many withdrawals (more than chunk size of 5)
+      // Create many withdrawals (more than chunk size of 5) - v2 shape
       const mockWithdrawals = Array(12)
         .fill(null)
         .map((_, i) => ({
@@ -384,24 +432,36 @@ describe('IntentProcessorService', () => {
             source: '1',
             creator: '0x0000000000000000000000000000000000000001' as Hex,
             prover: '0x0000000000000000000000000000000000000002' as Hex,
-            deadline: '1000',
-            nativeValue: '100',
-            salt: `0x${i.toString().padStart(64, '0')}` as Hex,
             destination: '2',
-            inbox: mockInbox,
+            rewardDeadline: '1000',
+            rewardNativeAmount: '100',
             rewardTokens: [
               { token: '0x0000000000000000000000000000000000000003' as Hex, amount: '200' },
             ],
-            routeTokens: [
-              { token: '0x0000000000000000000000000000000000000004' as Hex, amount: '300' },
-            ],
-            calls: [
-              {
-                target: '0x0000000000000000000000000000000000000005' as Hex,
-                data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
-                value: '50',
-              },
-            ],
+            route: (require('viem') as typeof import('viem')).encodeAbiParameters(
+              [require('@/contracts').routeStructAbiItem],
+              [
+                {
+                  salt: `0x${i.toString().padStart(64, '0')}` as Hex,
+                  deadline: 1000n,
+                  portal: mockInbox,
+                  nativeAmount: 100n,
+                  tokens: [
+                    {
+                      token: '0x0000000000000000000000000000000000000004' as Hex,
+                      amount: 300n,
+                    },
+                  ],
+                  calls: [
+                    {
+                      target: '0x0000000000000000000000000000000000000005' as Hex,
+                      data: '0x1234123412341234123412341234123412341234123412341234123412341234' as Hex,
+                      value: 50n,
+                    },
+                  ],
+                },
+              ],
+            ),
           },
         }))
 
