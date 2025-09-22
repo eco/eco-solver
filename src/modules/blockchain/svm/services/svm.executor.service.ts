@@ -588,12 +588,12 @@ export class SvmExecutorService extends BaseChainExecutor {
       }
 
       const destinationDomain = Number(intent.sourceChainId);
-      const gasAmount = BigInt(160000); // fixed gas amount for now
+      const gasAmount = BigInt(130000); // fixed gas amount for now
 
       const messageId = new Uint8Array(32);
       messageId.set(
         Buffer.from(
-          '0x3a8fd28df622d2c6aa4df04fe883b3f0ed8cca649338d1bccb34e43b4ccbac5f'.slice(2),
+          '0xfcd21de638b22d060a929f76a803c3973984fd290c56fe36430e60c34423ad68'.slice(2),
           'hex',
         ),
       ); // TODO: don't hardcode this
