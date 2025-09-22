@@ -20,6 +20,12 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
 import { ExecuteWithdrawsJobData } from '@/intent-processor/jobs/execute-withdraws.job'
+import { isGaslessIntent } from '@/intent-processor/utils/gasless'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import {
+  BatchWithdrawGasless,
+  BatchWithdraws,
+} from '@/indexer/interfaces/batch-withdraws.interface'
 import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
@@ -27,6 +33,8 @@ import {
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { getChainConfig } from '@/eco-configs/utils'
+import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -45,6 +53,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     private readonly ecoConfigService: EcoConfigService,
     private readonly indexerService: IndexerService,
     private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
+    private readonly intentSourceRepository: IntentSourceRepository,
   ) {
     this.intentProcessorQueue = new IntentProcessorQueue(queue)
   }
@@ -99,9 +108,52 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         },
       }),
     )
+    // Separate gasless and regular intents for processing
+    const gaslessWithdrawals = batchWithdrawals.filter(isGaslessIntent) as (BatchWithdrawGasless & {
+      intentSourceAddr: Hex
+    })[]
+    const regularWithdrawals = batchWithdrawals
+      .filter((w) => !isGaslessIntent(w))
+      .map((w) => ({
+        ...w,
+        intent: getWithdrawData(w.intent as IndexerIntent),
+        source: Number((w as BatchWithdraws).intent.source),
+      }))
+
+    // Get all gasless intent hashes
+    const gaslessIntentHashes = gaslessWithdrawals.map((g) => g.intent.intentHash)
+
+    // Fetch full data for all gasless intents from MongoDB in a single query
+    const gaslessIntentsFromDb =
+      await this.intentSourceRepository.getIntentsByHashes(gaslessIntentHashes)
+
+    // Create a map for quick lookup
+    const gaslessIntentsMap = new Map(
+      gaslessIntentsFromDb.map((intent) => [intent.intent.hash as string, intent]),
+    )
+
+    // Map gasless withdrawals with their full data
+    const gaslessWithdrawalsWithData = gaslessWithdrawals
+      .map((gaslessWithdrawal) => {
+        const fullIntent = gaslessIntentsMap.get(gaslessWithdrawal.intent.intentHash)
+        if (!fullIntent) {
+          return null
+        }
+        return {
+          source: Number(fullIntent.intent.route.source),
+          intent: IntentDataModel.toChainIntent(fullIntent.intent),
+          claimant: gaslessWithdrawal.claimant,
+          intentSourceAddr: gaslessWithdrawal.intentSourceAddr,
+        }
+      })
+      .filter((w) => w !== null)
+
+    // Combine regular and gasless withdrawals
+    const allWithdrawalsWithData = [...regularWithdrawals, ...gaslessWithdrawalsWithData]
+
     const batchWithdrawalsPerSource = _.groupBy(
-      batchWithdrawals,
-      (withdrawal) => withdrawal.intent.source,
+      allWithdrawalsWithData,
+      (withdrawal) => withdrawal.source,
     )
 
     this.logger.debug(
@@ -109,7 +161,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Withdrawals`,
         properties: {
           intentSourceAddrs,
-          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.intent.hash),
+          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.claimant._hash),
         },
       }),
     )
@@ -118,7 +170,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     for (const sourceChainId in batchWithdrawalsPerSource) {
       const withdrawalsForChain = batchWithdrawalsPerSource[sourceChainId]
-      const batchWithdrawalsData = withdrawalsForChain.map(({ intent }) => getWithdrawData(intent))
+      const batchWithdrawalsData = withdrawalsForChain.map((w) => w.intent)
 
       const chunkWithdrawals = _.chunk(batchWithdrawalsData, this.config.withdrawals.chunkSize)
       const chunkWithdrawalsWithAddr = _.chunk(
