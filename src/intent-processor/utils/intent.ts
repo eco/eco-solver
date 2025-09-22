@@ -1,25 +1,39 @@
 import { Hex } from 'viem'
-import { IntentType } from '@eco-foundation/routes-ts'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { PortalHashUtils } from '@/common/utils/portal'
 
-export function getWithdrawData(intent: IndexerIntent): IntentType {
+export type WithdrawData = {
+  destination: bigint
+  routeHash: Hex
+  reward: {
+    creator: Hex
+    prover: Hex
+    deadline: bigint
+    nativeAmount: bigint
+    tokens: { token: Hex; amount: bigint }[]
+  }
+}
+
+export function getWithdrawData(intent: IndexerIntent): WithdrawData {
+  // Build Reward in Portal (v2) shape
   const reward = {
     creator: intent.creator as Hex,
     prover: intent.prover as Hex,
     deadline: BigInt(intent.deadline),
-    nativeValue: BigInt(intent.nativeValue),
+    nativeAmount: BigInt(intent.nativeValue),
     tokens: intent.rewardTokens.map(({ token, amount }) => ({
       token: token as Hex,
       amount: BigInt(amount),
     })),
   }
 
+  // Build Route in Portal (v2) shape to compute routeHash
   const route = {
     salt: intent.salt as Hex,
-    source: BigInt(intent.source),
-    destination: BigInt(intent.destination),
-    inbox: intent.inbox as Hex,
+    deadline: BigInt(intent.deadline),
+    portal: intent.inbox as Hex,
+    nativeAmount: BigInt(intent.nativeValue),
     tokens: intent.routeTokens.map(({ token, amount }) => ({
       token: token as Hex,
       amount: BigInt(amount),
@@ -31,5 +45,11 @@ export function getWithdrawData(intent: IndexerIntent): IntentType {
     })),
   }
 
-  return { reward, route }
+  const { routeHash } = PortalHashUtils.getIntentHash({
+    destination: BigInt(intent.destination),
+    route,
+    reward,
+  })
+
+  return { destination: BigInt(intent.destination), routeHash, reward }
 }

@@ -17,11 +17,15 @@ import * as MulticallUtils from '@/common/multicall/multicall3'
 
 jest.mock('@/intent-processor/utils/hyperlane')
 // jest.mock('@/intent-processor/utils/multicall')
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  encodeFunctionData: jest.fn(),
-  encodeAbiParameters: jest.fn(),
-}))
+jest.mock('viem', () => {
+  const actual = jest.requireActual('viem')
+  return {
+    ...actual,
+    encodeFunctionData: jest.fn(),
+    // Keep real implementation for hashing in PortalHashUtils
+    encodeAbiParameters: actual.encodeAbiParameters,
+  }
+})
 jest.mock('@/common/multicall/multicall3', () => ({
   getMulticall: jest.fn().mockReturnValue('0x4567890123456789012345678901234567890123'),
   batchTransactionsWithMulticall: jest.fn().mockImplementation((chainId, transactions) => {
@@ -104,9 +108,9 @@ describe('IntentProcessorService', () => {
             getHyperlane: jest.fn().mockReturnValue({
               chains: {
                 '1': {
-                  mailbox: '0xMailbox1' as Hex,
-                  aggregationHook: '0xHook1' as Hex,
-                  hyperlaneAggregationHook: '0xHyperHook1' as Hex,
+                  mailbox: '0x1111111111111111111111111111111111111111' as Hex,
+                  aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
+                  hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
                 },
               },
               useHyperlaneDefaultHook: false,
@@ -161,9 +165,9 @@ describe('IntentProcessorService', () => {
     // Setup Hyperlane utility mocks
     const hyperlaneModule = jest.requireMock('@/intent-processor/utils/hyperlane')
     hyperlaneModule.getChainMetadata.mockReturnValue({
-      mailbox: '0xMailbox1' as Hex,
-      aggregationHook: '0xHook1' as Hex,
-      hyperlaneAggregationHook: '0xHyperHook1' as Hex,
+      mailbox: '0x1111111111111111111111111111111111111111' as Hex,
+      aggregationHook: '0x2222222222222222222222222222222222222222' as Hex,
+      hyperlaneAggregationHook: '0x3333333333333333333333333333333333333333' as Hex,
     })
     hyperlaneModule.getMessageData.mockReturnValue('0xMessageData' as Hex)
     hyperlaneModule.getMetadata.mockReturnValue('0xMetadata' as Hex)
@@ -283,7 +287,7 @@ describe('IntentProcessorService', () => {
           expect.objectContaining({
             chainId: 1,
             intentSourceAddr: mockIntentSource,
-            intents: expect.any(Array),
+            withdrawals: expect.any(Array),
           }),
         ]),
       )
@@ -414,19 +418,19 @@ describe('IntentProcessorService', () => {
       // Verify indexerService was called
       expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledWith(mockIntentSource)
 
-      // Verify jobs were added to queue - should have 3 jobs with 5, 5, and 2 intents
+      // Verify jobs were added to queue - should have 3 jobs
       expect(queueAddExecuteWithdrawalsJobs).toHaveBeenCalledTimes(1)
 
       // Extract the jobs argument
       const jobsArg = queueAddExecuteWithdrawalsJobs.mock.calls[0][0]
 
-      // Verify we have 3 jobs (12 intents / chunk size 5 = ceil(2.4) = 3 chunks)
+      // Verify we have 3 jobs (12 withdrawals / chunk size 5 = ceil(2.4) = 3 chunks)
       expect(jobsArg.length).toBe(3)
 
       // Verify chunking
-      expect(jobsArg[0].intents.length).toBe(5)
-      expect(jobsArg[1].intents.length).toBe(5)
-      expect(jobsArg[2].intents.length).toBe(2)
+      expect(jobsArg[0].withdrawals.length).toBe(5)
+      expect(jobsArg[1].withdrawals.length).toBe(5)
+      expect(jobsArg[2].withdrawals.length).toBe(2)
     })
   })
 
@@ -600,40 +604,33 @@ describe('IntentProcessorService', () => {
 
   describe('executeWithdrawals', () => {
     it('should send batch withdraw transaction', async () => {
-      const route: RouteType = {
-        destination: 1n,
-        salt: '0xSalt',
-        source: 10n,
-        inbox: '0xInbox',
-        tokens: [],
-        calls: [
-          { target: '0x1' as Hex, data: '0x3' as Hex, value: 100n },
-          { target: '0x4' as Hex, data: '0x6' as Hex, value: 200n },
-        ],
-      }
+      const dummyRouteHash =
+        '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex
 
       // Mock data
       const data = {
         chainId: 1,
         intentSourceAddr: mockIntentSource,
-        intents: [
+        withdrawals: [
           {
-            route: route,
+            destination: 1n,
+            routeHash: dummyRouteHash,
             reward: {
               creator: '0xCreator1' as Hex,
               prover: '0xProver1' as Hex,
               deadline: 1000n,
-              nativeValue: 100n,
+              nativeAmount: 100n,
               tokens: [{ token: '0xToken1' as Hex, amount: 200n }],
             },
           },
           {
-            route: route,
+            destination: 1n,
+            routeHash: dummyRouteHash,
             reward: {
               creator: '0xCreator2' as Hex,
               prover: '0xProver2' as Hex,
               deadline: 2000n,
-              nativeValue: 200n,
+              nativeAmount: 200n,
               tokens: [{ token: '0xToken2' as Hex, amount: 300n }],
             },
           },
@@ -652,26 +649,22 @@ describe('IntentProcessorService', () => {
         abi: expect.any(Array),
         address: mockIntentSource,
         args: [
+          [1n, 1n],
+          [dummyRouteHash, dummyRouteHash],
           [
             {
-              route: route,
-              reward: {
-                creator: '0xCreator1',
-                prover: '0xProver1',
-                deadline: 1000n,
-                nativeValue: 100n,
-                tokens: [{ token: '0xToken1', amount: 200n }],
-              },
+              creator: '0xCreator1',
+              prover: '0xProver1',
+              deadline: 1000n,
+              nativeAmount: 100n,
+              tokens: [{ token: '0xToken1', amount: 200n }],
             },
             {
-              route: route,
-              reward: {
-                creator: '0xCreator2',
-                prover: '0xProver2',
-                deadline: 2000n,
-                nativeValue: 200n,
-                tokens: [{ token: '0xToken2', amount: 300n }],
-              },
+              creator: '0xCreator2',
+              prover: '0xProver2',
+              deadline: 2000n,
+              nativeAmount: 200n,
+              tokens: [{ token: '0xToken2', amount: 300n }],
             },
           ],
         ],
@@ -848,12 +841,12 @@ describe('IntentProcessorService', () => {
       // Verify estimateFee was called
       expect(Hyperlane.estimateFee).toHaveBeenCalledWith(
         publicClient,
-        '0xMailbox1',
+        '0x1111111111111111111111111111111111111111',
         source,
         prover,
         '0xMessageData',
         '0xMetadata',
-        '0xHook1', // Non-default hook
+        '0x2222222222222222222222222222222222222222', // Non-default hook
       )
 
       // Verify result structure
@@ -891,7 +884,7 @@ describe('IntentProcessorService', () => {
         expect.any(String),
         expect.any(String),
         expect.any(String),
-        '0xHyperHook1', // Default hyperlane hook
+        '0x3333333333333333333333333333333333333333', // Default hyperlane hook
       )
     })
   })
@@ -929,7 +922,7 @@ describe('IntentProcessorService', () => {
       // Verify estimateMessageGas was called with correct params
       expect(Hyperlane.estimateMessageGas).toHaveBeenCalledWith(
         publicClient,
-        '0xMailbox1',
+        '0x1111111111111111111111111111111111111111',
         prover,
         origin,
         inbox,
