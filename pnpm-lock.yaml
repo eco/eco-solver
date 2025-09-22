@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@eco-foundation/routes-ts@2.8.14':
-    hash: 7749d718dfcaebe7f6fcc8424728f39bd30aca7c77d39b91e8c17f87dc1f2fee
-    path: patches/@eco-foundation__routes-ts@2.8.14.patch
-
 importers:
 
   .:
@@ -38,8 +33,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@eco-foundation/routes-ts':
-        specifier: ^2.8.14
-        version: 2.8.14(patch_hash=7749d718dfcaebe7f6fcc8424728f39bd30aca7c77d39b91e8c17f87dc1f2fee)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+        specifier: ^2.8.17
+        version: 2.8.17(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@launchdarkly/node-server-sdk':
         specifier: ^9.7.1
         version: 9.10.1
@@ -47,8 +42,8 @@ importers:
         specifier: ^9.0.4
         version: 9.0.4(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)(@nestjs/terminus@10.3.0(@grpc/grpc-js@1.13.4)(@grpc/proto-loader@0.7.15)(@nestjs/axios@3.1.3(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@0.21.4)(rxjs@7.8.2))(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)(@nestjs/mongoose@11.0.3(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)(mongoose@8.16.4(socks@2.8.6))(rxjs@7.8.2))(mongoose@8.16.4(socks@2.8.6))(reflect-metadata@0.2.2)(rxjs@7.8.2))(ioredis@5.6.1)
       '@lifi/sdk':
-        specifier: ^3.12.1
-        version: 3.12.4(@solana/wallet-adapter-base@0.9.27(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(viem@2.37.5(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
+        specifier: ^3.12.6
+        version: 3.12.9(@solana/wallet-adapter-base@0.9.27(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(viem@2.37.5(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@lit-protocol/auth-helpers':
         specifier: ^7.0.4
         version: 7.2.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
@@ -613,8 +608,8 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
-  '@bigmi/core@0.5.2':
-    resolution: {integrity: sha512-CeKFAApN1Roh5eJldwpYrsIkstWdS53qoKFqSODuSjXW10ciyIxUnTsLiNcB+r5VnNBlxqJshsnK5n1cZW79rQ==}
+  '@bigmi/core@0.5.3':
+    resolution: {integrity: sha512-PbNUya9Nc8SxijGG36oWbg5ArxAvzVA1CsXdUCUNsFaT0vzIj/vEPTNQt/Vf3uPB2zVv9A74DPzQKqNIr3rpng==}
     peerDependencies:
       bs58: ^6.0.0
 
@@ -683,8 +678,8 @@ packages:
   '@eco-foundation/eco-kms-wallets@2.0.0':
     resolution: {integrity: sha512-7zaH5uKk23layaqD35xyM1cT3bWr8VPpf/gXrYL344SkAdBt1FyDfeOt59TMuezmp5Bbxg5/NIcn3DGp/RzMHg==}
 
-  '@eco-foundation/routes-ts@2.8.14':
-    resolution: {integrity: sha512-I8yLLoWIlXcZnC0FZAaLVzGYi+pNeDNn0c0cZ3+kWXXOJsh7QXeNbsesMvOuvDqRLGcAt9l2AN7dYo1yK2Uzjg==}
+  '@eco-foundation/routes-ts@2.8.17':
+    resolution: {integrity: sha512-/8nOZ4vwvoUsXh9jiVHgNKWdopJnqFqEv3ozYN5yylQlzWah2RYlFrVysGGZkXlxCSpccHtH20C+wpU0/wyYYw==}
 
   '@eslint-community/eslint-utils@4.7.0':
     resolution: {integrity: sha512-dyybb3AcajC7uha6CvhdVRJqaKyn7w2YKqKyAN37NKYgZT36w+iRb0Dymmc5qEJ549c/S31cMMSFd75bteCpCw==}
@@ -1081,15 +1076,15 @@ packages:
       '@nestjs/terminus': ^9.0.0
       ioredis: ^5.0.0
 
-  '@lifi/sdk@3.12.4':
-    resolution: {integrity: sha512-o7NMNacj9BB6xfSa9S9OWacUIxL+iAK/5Q45tcXXk2Gt7w9kX5vTASbUL0u/S3uYOHfUEMlXMlCbvSU9+pW+EA==}
+  '@lifi/sdk@3.12.9':
+    resolution: {integrity: sha512-twNTVP1MtP9igpKLZf9ou52/fFNT7kT2kMtduNorPy9Dasq56Hrognyv4MeuxWj4T9qGU3W/63CE/Zr9Eh+Dqw==}
     peerDependencies:
       '@solana/wallet-adapter-base': ^0.9.0
       '@solana/web3.js': ^1.98.0
       viem: ^2.21.0
 
-  '@lifi/types@17.36.0':
-    resolution: {integrity: sha512-U9liL0rft2vniZpZ5btRSNeeHMrErA7bkHi81q+cH7KmNJw4DxmtdXW+fQDGM3t+a35FBnrwRQg9LuRtdYquBA==}
+  '@lifi/types@17.37.0':
+    resolution: {integrity: sha512-XfURzS2x8wz+xt64+tgrIFg9DkkAgUTRfxI+QrXO9KiOmQ9jIpFoUxScAfXd/JZuAu8swMX5Bq4sC7+0Y09+Uw==}
 
   '@lit-protocol/access-control-conditions@7.2.0':
     resolution: {integrity: sha512-pET0l1lmpg1lgvRHZAiOhVk1qci4yvsArK/OMemsqkm1GC6b47Pqn9HkKMi7Hm8OiDhLrva635hQy7Hz5KZqag==}
@@ -1200,9 +1195,6 @@ packages:
   '@mysten/bcs@1.5.0':
     resolution: {integrity: sha512-v39dm5oNfKYMAf2CVI+L0OaJiG9RVXsjqPM4BwTKcHNCZOvr35IIewGtXtWXsI67SQU2TRq8lhQzeibdiC/CNg==}
 
-  '@mysten/bcs@1.7.0':
-    resolution: {integrity: sha512-8zE2Jzj2ai55RlVXx2pEMbbq+X3vB+uPGBvZr0F79IdTwuwcu4QdFG3PT/zHsytsvATkn+z0f2YDWhM5916u2A==}
-
   '@mysten/bcs@1.8.0':
     resolution: {integrity: sha512-bDoLN1nN+XPONsvpNyNyqYHndM3PKWS419GLeRnbLoWyNm4bnyD1X4luEpJLLDq400hBuXiCan4RWjofvyTUIQ==}
 
@@ -1214,16 +1206,9 @@ packages:
     resolution: {integrity: sha512-oyncm8WKJ6RZPltJTcCOgdQbOIg6+7XYekMMhU5NDVYNnIhstRXX0axaSwZTR+kON17T92qcXntCN4AszEpH8w==}
     engines: {node: '>=18'}
 
-  '@mysten/sui@1.37.6':
-    resolution: {integrity: sha512-7ut5tWuXx9OIE+DQ2D5hd22UB8j8K4/F2Lx3R8Ej/JMwkm6cpgbF5FKNu0vYqehxiFEktMnq2YzzajxmlFHNPw==}
-    engines: {node: '>=18'}
-
   '@mysten/sui@1.38.0':
     resolution: {integrity: sha512-tH6V4BJsYi5d97MOiLoOhyldrYxkm/cu8dYV52asqh1i88HrSVMbPAJ9sVoeWN2Ju+QsJ/Go4ldSjdCkaBCyJQ==}
     engines: {node: '>=18'}
-
-  '@mysten/utils@0.1.1':
-    resolution: {integrity: sha512-jvhJC6/2la1QHltukQXzfyTZ+VVHxe187JjPx+mEXRUWyAo6jCSdioOQJIfaGu4K4i+37KeiydXRwV/bq/7UJQ==}
 
   '@mysten/utils@0.2.0':
     resolution: {integrity: sha512-CM6kJcJHX365cK6aXfFRLBiuyXc5WSBHQ43t94jqlCAIRw8umgNcTb5EnEA9n31wPAQgLDGgbG/rCUISCTJ66w==}
@@ -1231,8 +1216,8 @@ packages:
   '@mysten/wallet-standard@0.14.0':
     resolution: {integrity: sha512-Wzrtzsklg0qSPTGxIT42NVyfjzcay96xYxSg4OFDr8J26uXXcVFDTalHkIGlz9XiIOdWn6/1I9eql1yjzSCnlg==}
 
-  '@mysten/wallet-standard@0.16.14':
-    resolution: {integrity: sha512-LJoDQUD+217RdRbkQLiKYYjkNtN6GhGpIN/X3wboUf3w5pdvBc4k/vS1Yi6GFv5xbgl/ge7wzC4Ac+h3orY2oQ==}
+  '@mysten/wallet-standard@0.17.0':
+    resolution: {integrity: sha512-UQ6tvqQ/lDKZhQm2d3ajky/xl+NgpYpNXYIpWfYGOLvGe4GyK6GHysMNHsRpFa+xA2yVa6w3nWO2RQ8WIy7ivA==}
 
   '@nestjs/axios@3.1.3':
     resolution: {integrity: sha512-RZ/63c1tMxGLqyG3iOCVt7A72oy4x1eM6QEhd4KzCYpaVWW0igq0WSREeRoEZhIxRcZfDfIIkvsOMiM7yfVGZQ==}
@@ -6715,7 +6700,7 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@bigmi/core@0.5.2(bs58@6.0.0)(typescript@5.8.3)':
+  '@bigmi/core@0.5.3(bs58@6.0.0)(typescript@5.8.3)':
     dependencies:
       '@noble/hashes': 1.8.0
       bech32: 2.0.0
@@ -6881,7 +6866,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@eco-foundation/routes-ts@2.8.14(patch_hash=7749d718dfcaebe7f6fcc8424728f39bd30aca7c77d39b91e8c17f87dc1f2fee)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+  '@eco-foundation/routes-ts@2.8.17(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       viem: 2.37.5(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
@@ -7668,13 +7653,13 @@ snapshots:
       ioredis: 5.6.1
       tslib: 2.4.1
 
-  '@lifi/sdk@3.12.4(@solana/wallet-adapter-base@0.9.27(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(viem@2.37.5(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))':
+  '@lifi/sdk@3.12.9(@solana/wallet-adapter-base@0.9.27(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(viem@2.37.5(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))':
     dependencies:
-      '@bigmi/core': 0.5.2(bs58@6.0.0)(typescript@5.8.3)
+      '@bigmi/core': 0.5.3(bs58@6.0.0)(typescript@5.8.3)
       '@bitcoinerlab/secp256k1': 1.2.0
-      '@lifi/types': 17.36.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+      '@lifi/types': 17.37.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@mysten/sui': 1.38.0(typescript@5.8.3)
-      '@mysten/wallet-standard': 0.16.14(typescript@5.8.3)
+      '@mysten/wallet-standard': 0.17.0(typescript@5.8.3)
       '@noble/curves': 1.9.7
       '@solana/wallet-adapter-base': 0.9.27(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
@@ -7694,7 +7679,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@lifi/types@17.36.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+  '@lifi/types@17.37.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       viem: 2.37.5(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
@@ -8155,11 +8140,6 @@ snapshots:
     dependencies:
       '@scure/base': 1.2.6
 
-  '@mysten/bcs@1.7.0':
-    dependencies:
-      '@mysten/utils': 0.1.1
-      '@scure/base': 1.2.6
-
   '@mysten/bcs@1.8.0':
     dependencies:
       '@mysten/utils': 0.2.0
@@ -8203,25 +8183,6 @@ snapshots:
       - '@gql.tada/vue-support'
       - typescript
 
-  '@mysten/sui@1.37.6(typescript@5.8.3)':
-    dependencies:
-      '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
-      '@mysten/bcs': 1.7.0
-      '@mysten/utils': 0.1.1
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.6
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      gql.tada: 1.8.12(graphql@16.11.0)(typescript@5.8.3)
-      graphql: 16.11.0
-      poseidon-lite: 0.2.1
-      valibot: 0.36.0
-    transitivePeerDependencies:
-      - '@gql.tada/svelte-support'
-      - '@gql.tada/vue-support'
-      - typescript
-
   '@mysten/sui@1.38.0(typescript@5.8.3)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
@@ -8241,10 +8202,6 @@ snapshots:
       - '@gql.tada/vue-support'
       - typescript
 
-  '@mysten/utils@0.1.1':
-    dependencies:
-      '@scure/base': 1.2.6
-
   '@mysten/utils@0.2.0':
     dependencies:
       '@scure/base': 1.2.6
@@ -8258,9 +8215,9 @@ snapshots:
       - '@gql.tada/vue-support'
       - typescript
 
-  '@mysten/wallet-standard@0.16.14(typescript@5.8.3)':
+  '@mysten/wallet-standard@0.17.0(typescript@5.8.3)':
     dependencies:
-      '@mysten/sui': 1.37.6(typescript@5.8.3)
+      '@mysten/sui': 1.38.0(typescript@5.8.3)
       '@wallet-standard/core': 1.1.1
     transitivePeerDependencies:
       - '@gql.tada/svelte-support'
