@@ -32,6 +32,8 @@ import { TxSigningQueueService } from '@/liquidity-manager/wallet-wrappers/tx-si
 import { LmTxGatedWalletClientService } from '@/liquidity-manager/wallet-wrappers/wallet-gated-client.service'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 import { LmTxGatedKernelAccountClientV2Service } from './wallet-wrappers/kernel-gated-client-v2.service'
+import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
+import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 
 @Module({
   imports: [
@@ -57,6 +59,8 @@ import { LmTxGatedKernelAccountClientV2Service } from './wallet-wrappers/kernel-
     LmTxGatedWalletClientService,
     LmTxGatedKernelAccountClientService,
     LmTxGatedKernelAccountClientV2Service,
+    MultichainPublicClientService,
+    USDT0ProviderService,
     LiFiProviderService,
     CCTPProviderService,
     WarpRouteProviderService,

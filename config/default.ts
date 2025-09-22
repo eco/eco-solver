@@ -99,6 +99,7 @@ export default {
   },
 
   gaslessIntentdAppIDs: [
+    'portal',
     'token-pair-validation',
     'matrix-test',
     'test',
@@ -134,8 +135,8 @@ export default {
       hyperlane_duration_seconds: 3600,
       metalayer_duration_seconds: 7200,
     },
-    intentFundedRetries: 5,
-    intentFundedRetryDelayMs: 1500,
+    intentFundedRetries: 3,
+    intentFundedRetryDelayMs: 500,
     // Gas overhead is the intent creation gas cost for the source chain, i.e. the cost of calling publishAndFund on IntentSource.
     // This is the default gas overhead
     defaultGasOverhead: 145_000,
@@ -317,6 +318,61 @@ export default {
 
   everclear: {
     baseUrl: 'https://api.everclear.org',
+  },
+
+  usdt0: {
+    // Default mainnet LayerZero Scan base URL
+    scanApiBaseUrl: 'https://scan.layerzero-api.com/v1',
+    chains: [
+      {
+        chainId: 1,
+        eid: 30101,
+        type: 'adapter',
+        contract: '0x6C96dE32CEa08842dcc4058c14d3aaAD7Fa41dee',
+        decimals: 6,
+        underlyingToken: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+      },
+      {
+        chainId: 42161, // Arbitrum One
+        eid: 30110,
+        type: 'oft',
+        contract: '0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92',
+        token: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+        decimals: 6,
+      },
+      {
+        chainId: 137, // Polygon PoS
+        eid: 30109,
+        type: 'oft',
+        contract: '0x6BA10300f0DC58B7a1e4c0e41f5daBb7D7829e13',
+        token: '0xC2132D05D31c914a87C6611C10748AEb04B58e8F',
+        decimals: 6,
+      },
+      {
+        chainId: 57073, // Ink
+        eid: 30339,
+        type: 'oft',
+        contract: '0x1cB6De532588fCA4a21B7209DE7C456AF8434A65',
+        token: '0x0200C29006150606B650577BBE7B6248F58470c1',
+        decimals: 6,
+      },
+      {
+        chainId: 10, // Optimism
+        eid: 30111,
+        type: 'oft',
+        contract: '0xF03b4d9AC1D5d1E7c4cEf54C2A313b9fe051A0aD',
+        token: '0x01bFF41798a0BcF287b996046Ca68b395DbC1071',
+        decimals: 6,
+      },
+      {
+        chainId: 130, // Unichain
+        eid: 30320,
+        type: 'oft',
+        contract: '0xc07bE8994D035631c36fb4a89C918CeFB2f03EC3',
+        token: '0x9151434b16b9763660705744891fA906F660EcC5',
+        decimals: 6,
+      },
+    ],
   },
 
   gateway: {
