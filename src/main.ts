@@ -1,47 +1,50 @@
+/* eslint-disable no-console */
 import { AppModule } from '@/app.module'
 import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { EcoConfigService } from './eco-configs/eco-config.service'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
-import { ModuleRef, NestFactory } from '@nestjs/core'
-import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { NestApplicationOptions, ValidationPipe } from '@nestjs/common'
 import { NestExpressApplication } from '@nestjs/platform-express'
+import { NestFactory } from '@nestjs/core'
 import * as express from 'express'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, getNestParams())
-  ModuleRefProvider.setModuleRef(app.get(ModuleRef))
 
-  if (EcoConfigService.getStaticConfig().logger.usePino) {
+  const staticConfig = EcoConfigService.getStaticConfig()
+  if (staticConfig.logger.usePino) {
     app.useLogger(app.get(Logger))
     app.useGlobalInterceptors(new LoggerErrorInterceptor())
   }
 
-  //add dto validations, enable transformation
+  // Add dto validations, enable transformation
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true, // Enables DTO transformation for incoming requests
     }),
   )
 
-  //change all bigints to strings in the controller responses
+  // Change all bigints to strings in the controller responses
   app.useGlobalInterceptors(new BigIntToStringInterceptor())
 
   // Register process-level safety nets for uncaught errors
   setupProcessHandlers(app)
 
-  //add swagger
+  // Add swagger
   addSwagger(app)
-
-  // Starts listening for shutdown hooks
-  app.enableShutdownHooks()
 
   // Raise body size limits (example: 10 MB)
   app.use(express.json({ limit: '10mb' }))
   app.use(express.urlencoded({ limit: '10mb', extended: true }))
 
-  await app.listen(3000)
+  // Starts listening for shutdown hooks
+  app.enableShutdownHooks()
+
+  const port = staticConfig.port
+  await app.listen(port)
+
+  console.log(`Listening on port ${port}...`)
 }
 
 function getNestParams(): NestApplicationOptions {

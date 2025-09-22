@@ -55,7 +55,6 @@ export class IntentSourceRepository {
       } = route as RouteType & { deadline: bigint } // TODO: Must be update to use V2 contracts
       const { creator, prover, deadline, nativeValue } = reward
       const rewardTokens = reward.tokens as RewardTokensInterface[]
-      // const intentHash = hashIntent({ route, reward }).intentHash
 
       this.logger.debug(
         EcoLogMessage.fromDefault({

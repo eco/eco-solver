@@ -167,13 +167,6 @@ export class IntentDataModel implements IntentType {
     })
   }
 
-  static toChainIntent(intent: IntentDataModel): IntentType {
-    return {
-      route: intent.route,
-      reward: intent.reward,
-    }
-  }
-
   static toIntentV2(intent: IntentDataModel): IntentV2 {
     const { route, reward } = intent
 

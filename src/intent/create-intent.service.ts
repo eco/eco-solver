@@ -3,11 +3,12 @@ import { deserialize, Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { FlagService } from '@/flags/flags.service'
 import { getIntentJobId } from '@/common/utils/strings'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
 import { IntentCreatedLog, routeStructAbiItem } from '@/contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
@@ -25,7 +26,7 @@ import { ValidSmartWalletService } from '@/solver/filters/valid-smart-wallet.ser
  */
 @Injectable()
 export class CreateIntentService implements OnModuleInit {
-  private logger = new Logger(CreateIntentService.name)
+  private logger = new EcoLogger(CreateIntentService.name)
   private intentJobConfig: JobsOptions
 
   constructor(
