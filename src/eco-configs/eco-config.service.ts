@@ -16,7 +16,7 @@ import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
-import { EcoChains } from '@eco-foundation/chains'
+import { EcoChain, EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
 
@@ -315,6 +315,10 @@ export class EcoConfigService {
     return this.get('gateway')
   }
 
+  getUSDT0(): EcoConfigType['usdt0'] {
+    return this.get('usdt0')
+  }
+
   getWatch(): EcoConfigType['watch'] {
     return this.get('watch')
   }
@@ -325,6 +329,10 @@ export class EcoConfigService {
       (chain) => [chain.id, this.getRpcUrls(chain).rpcUrls] as const,
     )
     return Object.fromEntries(entries)
+  }
+
+  getChain(chainID: number): EcoChain {
+    return this.ecoChains.getChain(chainID)
   }
 
   getCustomRPCUrl(chainID: string) {

@@ -141,8 +141,7 @@ describe('ExecuteCCTPMintJobManager', () => {
       expect(opts).toEqual(
         expect.objectContaining({
           jobId: `${ExecuteCCTPMintJobManager.name}-${data.messageHash}`,
-          removeOnComplete: false,
-          removeOnFail: true,
+          removeOnFail: false,
           attempts: 3,
           backoff: { type: 'exponential', delay: 10_000 },
         }),

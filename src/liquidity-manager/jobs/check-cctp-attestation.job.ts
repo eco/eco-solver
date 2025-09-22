@@ -60,8 +60,8 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
-      removeOnComplete: true,
-      delay,
+      removeOnFail: false,
+      delay: delay ?? 10_000,
       attempts: 10,
       backoff: {
         type: 'exponential',
@@ -91,7 +91,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
     const { messageHash, id, destinationChainId, cctpLiFiContext } = job.data
-    const result = await processor.cctpProviderService.fetchAttestation(messageHash)
+    const result = await processor.cctpProviderService.fetchAttestation(messageHash, id)
 
     if (result.status === 'pending') {
       processor.logger.debug(
@@ -107,10 +107,10 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         }),
       )
 
-      this.delay(job, 30_000)
+      await this.delay(job, 10_000)
     }
 
-    return result
+    return result as CheckCCTPAttestationJob['returnvalue']
   }
 
   async onComplete(
@@ -138,6 +138,18 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
       }
 
       await ExecuteCCTPMintJobManager.start(processor.queue, executeCCTPMintJobData)
+    } else {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message:
+            'CCTP: CheckCCTPAttestationJob: it should not happen, attestation is not complete',
+          id: job.data.id,
+          properties: {
+            returnvalue: job.returnvalue,
+            data: job.data,
+          },
+        }),
+      )
     }
   }
 

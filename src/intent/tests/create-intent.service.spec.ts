@@ -1,18 +1,19 @@
 const mockDecodeCreateIntentLog = jest.fn()
-import { createMock, DeepMocked } from '@golevelup/ts-jest'
-import { EcoConfigService } from '../../eco-configs/eco-config.service'
-import { Test, TestingModule } from '@nestjs/testing'
-import { getModelToken } from '@nestjs/mongoose'
-import { IntentSourceModel } from '../schemas/intent-source.schema'
-import { Model } from 'mongoose'
 import { BullModule, getQueueToken } from '@nestjs/bullmq'
-import { QUEUES } from '../../common/redis/constants'
-import { Queue } from 'bullmq'
 import { CreateIntentService } from '../create-intent.service'
-import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
-import { IntentDataModel } from '../schemas/intent-data.schema'
-import { FlagService } from '../../flags/flags.service'
+import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoConfigService } from '../../eco-configs/eco-config.service'
+import { FlagService } from '../../flags/flags.service'
+import { getModelToken } from '@nestjs/mongoose'
+import { IntentDataModel } from '../schemas/intent-data.schema'
+import { IntentSourceModel } from '../schemas/intent-source.schema'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import { Model } from 'mongoose'
+import { Queue } from 'bullmq'
+import { QUEUES } from '../../common/redis/constants'
+import { Test, TestingModule } from '@nestjs/testing'
+import { ValidSmartWalletService } from '../../solver/filters/valid-smart-wallet.service'
 
 jest.mock('../../contracts', () => {
   return {
@@ -25,6 +26,7 @@ describe('CreateIntentService', () => {
   let createIntentService: CreateIntentService
   let validSmartWalletService: DeepMocked<ValidSmartWalletService>
   let flagService: DeepMocked<FlagService>
+  let intentSourceRepository: IntentSourceRepository
   let ecoConfigService: DeepMocked<EcoConfigService>
   let intentSourceModel: DeepMocked<Model<IntentSourceModel>>
   let queue: DeepMocked<Queue>
@@ -35,6 +37,11 @@ describe('CreateIntentService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         CreateIntentService,
+        IntentSourceRepository,
+        {
+          provide: getModelToken(IntentSourceModel.name),
+          useValue: createMock<Model<IntentSourceModel>>(),
+        },
         { provide: ValidSmartWalletService, useValue: createMock<ValidSmartWalletService>() },
         { provide: FlagService, useValue: createMock<FlagService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
@@ -57,6 +64,7 @@ describe('CreateIntentService', () => {
     chainMod.useLogger(false)
 
     createIntentService = chainMod.get(CreateIntentService)
+    intentSourceRepository = chainMod.get(IntentSourceRepository)
     validSmartWalletService = chainMod.get(ValidSmartWalletService)
     flagService = chainMod.get(FlagService)
     ecoConfigService = chainMod.get(EcoConfigService)
@@ -87,7 +95,7 @@ describe('CreateIntentService', () => {
     }
     const mockIntent = {
       reward: { creator: '0xaaa' },
-      hash: mockEvent.transactionHash,
+      hash: mockEvent.args.hash,
       logIndex: 1,
     }
     beforeEach(() => {
@@ -108,12 +116,12 @@ describe('CreateIntentService', () => {
     })
 
     it('should return if model has already been created in db', async () => {
-      const mockFindOne = jest.fn().mockReturnValue({ hash: mockEvent.transactionHash })
-      intentSourceModel.findOne = mockFindOne
+      const mockGetIntent = jest.fn().mockResolvedValue({ hash: mockEvent.transactionHash })
+      intentSourceRepository.getIntent = mockGetIntent
       await createIntentService.createIntent(mockEvent as any)
-      expect(mockFindOne).toHaveBeenCalledWith({ 'intent.hash': mockEvent.transactionHash })
+      expect(mockGetIntent).toHaveBeenCalledWith(mockEvent.args.hash)
       expect(mockLogDebug).toHaveBeenNthCalledWith(2, {
-        msg: `Record for intent already exists ${mockEvent.transactionHash}`,
+        msg: `Record for intent already exists ${mockIntent.hash}`,
         intentHash: mockIntent.hash,
         intent: mockIntent,
       })
@@ -121,8 +129,8 @@ describe('CreateIntentService', () => {
     })
 
     it('should check if the bendWalletOnly flag is up', async () => {
-      const mockFindOne = jest.fn().mockReturnValue(undefined)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
       const mockFlag = jest.spyOn(flagService, 'getFlagValue').mockReturnValue(false)
       const mockValidateSmartWallet = jest.fn().mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
@@ -132,8 +140,8 @@ describe('CreateIntentService', () => {
     })
 
     it('should validate the intent is from a bend wallet', async () => {
-      const mockFindOne = jest.fn().mockReturnValue(undefined)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
       const mockValidateSmartWallet = jest.fn().mockReturnValue(true)
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
@@ -146,8 +154,8 @@ describe('CreateIntentService', () => {
     })
 
     it('should create an intent model in the database', async () => {
-      const mockFindOne = jest.fn().mockReturnValue(undefined)
-      intentSourceModel.findOne = mockFindOne
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
+      intentSourceRepository.queryIntent = mockQueryIntent
       const mockValidateSmartWallet = jest.fn().mockReturnValue(true)
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = mockValidateSmartWallet
@@ -173,10 +181,10 @@ describe('CreateIntentService', () => {
     })
 
     it('should not enqueue a job if the intent is not from a bend wallet', async () => {
-      const mockFindOne = jest.fn().mockReturnValue(undefined)
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
       const mockQueueAdd = jest.fn()
-      intentSourceModel.findOne = mockFindOne
-      intentSourceModel.create = jest.fn().mockReturnValue({ intent: mockIntent })
+      intentSourceRepository.queryIntent = mockQueryIntent
+      jest.spyOn(intentSourceRepository, 'create').mockResolvedValue({ intent: mockIntent } as any)
       queue.add = mockQueueAdd
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = jest.fn().mockReturnValue(false)
@@ -184,7 +192,7 @@ describe('CreateIntentService', () => {
       await createIntentService.createIntent(mockEvent as any)
       expect(mockQueueAdd).not.toHaveBeenCalled()
       expect(mockLogLog).toHaveBeenNthCalledWith(1, {
-        msg: `Recorded intent ${mockEvent.transactionHash}`,
+        msg: `Recorded intent ${mockIntent.hash}`,
         intentHash: mockIntent.hash,
         intent: mockIntent,
         validWallet: false,
@@ -192,10 +200,10 @@ describe('CreateIntentService', () => {
     })
 
     it('should enqueue a job if the intent is from a bend wallet', async () => {
-      const mockFindOne = jest.fn().mockReturnValue(undefined)
+      const mockQueryIntent = jest.fn().mockResolvedValue(null)
       const mockQueueAdd = jest.fn()
-      intentSourceModel.findOne = mockFindOne
-      intentSourceModel.create = jest.fn().mockReturnValue({ intent: mockIntent })
+      intentSourceRepository.queryIntent = mockQueryIntent
+      jest.spyOn(intentSourceRepository, 'create').mockResolvedValue({ intent: mockIntent } as any)
       queue.add = mockQueueAdd
       jest.spyOn(flagService, 'getFlagValue').mockReturnValue(true)
       validSmartWalletService.validateSmartWallet = jest.fn().mockReturnValue(true)
@@ -210,7 +218,7 @@ describe('CreateIntentService', () => {
       )
 
       expect(mockLogLog).toHaveBeenNthCalledWith(1, {
-        msg: `Recorded intent ${mockEvent.transactionHash}`,
+        msg: `Recorded intent ${mockIntent.hash}`,
         intentHash: mockIntent.hash,
         intent: mockIntent,
         validWallet: true,

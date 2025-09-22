@@ -42,8 +42,8 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
   ): Promise<void> {
     try {
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
-        removeOnComplete: true,
-        delay,
+        removeOnFail: false,
+        delay: delay ?? 10_000,
         attempts: 10,
         backoff: {
           type: 'exponential',
@@ -85,8 +85,8 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
         }),
       )
 
-      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
-      this.delay(job, delay)
+      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 10_000
+      await this.delay(job, delay)
     }
 
     return result
@@ -117,6 +117,18 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
       }
 
       await ExecuteCCTPV2MintJobManager.start(processor.queue, executeCCTPV2MintJobData)
+    } else {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message:
+            'CCTPV2: CheckCCTPV2AttestationJob: it should not happen, attestation is not complete',
+          id: job.data.id,
+          properties: {
+            returnvalue: job.returnvalue,
+            data: job.data,
+          },
+        }),
+      )
     }
   }
 

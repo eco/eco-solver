@@ -17,6 +17,7 @@ import { EverclearProviderService } from '@/liquidity-manager/services/liquidity
 import { GatewayProviderService } from './liquidity-providers/Gateway/gateway-provider.service'
 import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
 import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
+import { USDT0ProviderService } from './liquidity-providers/USDT0/usdt0-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -66,6 +67,10 @@ describe('LiquidityProviderService', () => {
         {
           provide: RebalanceQuoteRejectionRepository,
           useValue: createMock<RebalanceQuoteRejectionRepository>(),
+        },
+        {
+          provide: USDT0ProviderService,
+          useValue: createMock<USDT0ProviderService>(),
         },
       ],
     }).compile()

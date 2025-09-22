@@ -253,19 +253,60 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return config
   }
 
-  async fetchAttestation(messageHash: Hex) {
+  async fetchAttestation(messageHash: Hex, id?: string) {
     const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
-    const response = await fetch(url)
-    const data:
-      | { status: 'pending' }
-      | { error: string }
-      | { status: 'complete'; attestation: Hex } = await response.json()
 
-    if ('error' in data) {
-      throw new Error(data.error)
+    // Apply timeout to fetch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10_000)
+    let response: Response
+    try {
+      response = await fetch(url, { signal: controller.signal } as any)
+    } catch (error) {
+      // Treat timeouts as pending to allow polling
+      if ((error as any)?.name === 'AbortError') {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'CCTP: Attestation request timed out, treating as pending',
+            id,
+            properties: { messageHash },
+          }),
+        )
+        return { status: 'pending' }
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
     }
 
-    return data
+    // If API has not indexed the message yet, it may return 404 or an error string.
+    if (!response.ok) {
+      if (response.status === 404) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTP: Treating "${response.statusText}" as pending`,
+            id,
+            properties: {
+              messageHash,
+            },
+          }),
+        )
+        return { status: 'pending' }
+      }
+      throw new Error(`CCTP attestation API request failed with status ${response.statusText}`)
+    }
+
+    // Parse successful response
+    const data = await response.json()
+    if (data.attestation && data.attestation !== 'PENDING' && data.status === 'complete') {
+      return {
+        status: 'complete',
+        attestation: data.attestation as Hex,
+      }
+    }
+
+    // attestation not complete or attestation is PENDING
+    return { status: 'pending' }
   }
 
   private getMessageHash(messageBytes: Hex) {
