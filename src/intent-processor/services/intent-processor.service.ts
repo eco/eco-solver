@@ -137,6 +137,11 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       .map((gaslessWithdrawal) => {
         const fullIntent = gaslessIntentsMap.get(gaslessWithdrawal.intent.intentHash)
         if (!fullIntent) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `Gasless intent not found in the database: ${gaslessWithdrawal.intent.intentHash}`,
+            }),
+          )
           return null
         }
         return {
