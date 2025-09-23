@@ -5,6 +5,7 @@ import {
   QUOTE_ROUTE,
 } from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
+import { BaseSolverRegistrationDTO } from '@/solver-registration/dtos/base-solver-registration.dto'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
@@ -132,6 +133,29 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   }
 
   private getSolverRegistrationDTO(): SolverRegistrationDTO {
+    return {
+      ...this.getBaseSolverRegistrationDTO(),
+      crossChainRoutes: {
+        crossChainRoutesConfig: this.getCrossChainRoutesConfig(),
+      },
+    }
+  }
+
+  private getBaseSolverRegistrationDTO(): BaseSolverRegistrationDTO {
+    const solverRegistrationDTO: BaseSolverRegistrationDTO = {
+      solverID: this.serverConfig.url,
+      intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
+      quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
+      quotesV2Url: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
+      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/initiateGaslessIntent`,
+      gaslessIntentTransactionDataUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/getGaslessIntentTransactionData`,
+      supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
+    }
+
+    return solverRegistrationDTO
+  }
+
+  private getCrossChainRoutesConfig(): CrossChainRoutesConfigDTO {
     /*
       Looks like this:
 
@@ -152,19 +176,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       '*': {},
     }
 
-    const solverRegistrationDTO: SolverRegistrationDTO = {
-      intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
-      quotesUrl: `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`,
-      quotesV2Url: `${this.serverConfig.url}${API_V2_ROOT}${QUOTE_ROUTE}`,
-      receiveSignedIntentUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/initiateGaslessIntent`,
-      gaslessIntentTransactionDataUrl: `${this.serverConfig.url}${API_ROOT}${INTENT_INITIATION_ROUTE}/getGaslessIntentTransactionData`,
-      supportsNativeTransfers: true, // this.solverRegistrationConfig.supportsNative,
-
-      crossChainRoutes: {
-        crossChainRoutesConfig,
-      },
-    }
-
     for (const solver of Object.values(this.solversConfig)) {
       const chainID = solver.chainID.toString()
 
@@ -176,6 +187,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       crossChainRoutesConfig['*'][chainID] = [routeTokensDTO]
     }
 
-    return solverRegistrationDTO
+    return crossChainRoutesConfig
   }
 }
