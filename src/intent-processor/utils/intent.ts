@@ -2,23 +2,17 @@ import { Hex, decodeAbiParameters } from 'viem'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 import { PortalHashUtils } from '@/common/utils/portal'
-import { routeStructAbiItem, V2RouteType } from '@/contracts'
+import { routeStructAbiItem, V2RewardType, V2RouteType } from '@/contracts'
 
 export type WithdrawData = {
   destination: bigint
   routeHash: Hex
-  reward: {
-    creator: Hex
-    prover: Hex
-    deadline: bigint
-    nativeAmount: bigint
-    tokens: { token: Hex; amount: bigint }[]
-  }
+  reward: V2RewardType
 }
 
 export function getWithdrawData(intent: IndexerIntent): WithdrawData {
   // Build Reward in Portal (v2) shape; support new field names
-  const reward = {
+  const reward: V2RewardType = {
     creator: intent.creator as Hex,
     prover: intent.prover as Hex,
     deadline: BigInt(intent.rewardDeadline),

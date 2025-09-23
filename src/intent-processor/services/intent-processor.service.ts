@@ -101,8 +101,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }),
     )
     const batchWithdrawalsPerSource = _.groupBy(batchWithdrawals, (withdrawal) => {
-      const maybeSource = (withdrawal.intent as any)?.source
-      return String(maybeSource ?? this.getChainIdForIntentSource(withdrawal.intentSourceAddr))
+      return String(this.getChainIdForIntentSource(withdrawal.intentSourceAddr))
     })
 
     this.logger.debug(

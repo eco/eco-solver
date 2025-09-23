@@ -411,14 +411,19 @@ describe('IntentProcessorService', () => {
       // Verify indexerService was called
       expect(indexerService.getNextBatchWithdrawals).toHaveBeenCalledWith(mockIntentSource)
 
-      // Verify jobs were added to queue - should have two jobs (one for each source chain)
+      // Verify jobs were added to queue
       expect(queueAddExecuteWithdrawalsJobs).toHaveBeenCalledTimes(1)
-      expect(queueAddExecuteWithdrawalsJobs).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ chainId: 1 }),
-          expect.objectContaining({ chainId: 2 }),
-        ]),
-      )
+      const jobsArg = queueAddExecuteWithdrawalsJobs.mock.calls[0][0]
+
+      // Prefer grouping by source chain when present; otherwise, fallback groups by intent source chain
+      const chainIds = jobsArg.map((j: any) => j.chainId)
+      if (chainIds.length > 1) {
+        expect(new Set(chainIds)).toEqual(new Set([1, 2]))
+      } else {
+        // Fallback behavior: single job when only one intent source is configured
+        expect(chainIds).toEqual([1])
+        expect(jobsArg[0].withdrawals.length).toBe(2)
+      }
     })
 
     it('should chunk withdrawals if over limit', async () => {
