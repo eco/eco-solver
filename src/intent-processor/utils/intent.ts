@@ -1,35 +1,39 @@
-import { Hex } from 'viem'
-import { IntentType } from '@eco-foundation/routes-ts'
+import { Hex, decodeAbiParameters } from 'viem'
 
 import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { PortalHashUtils } from '@/common/utils/portal'
+import { routeStructAbiItem, V2RewardType, V2RouteType } from '@/contracts'
 
-export function getWithdrawData(intent: IndexerIntent): IntentType {
-  const reward = {
+export type WithdrawData = {
+  destination: bigint
+  routeHash: Hex
+  reward: V2RewardType
+}
+
+export function getWithdrawData(intent: IndexerIntent): WithdrawData {
+  // Build Reward in Portal (v2) shape; support new field names
+  const reward: V2RewardType = {
     creator: intent.creator as Hex,
     prover: intent.prover as Hex,
-    deadline: BigInt(intent.deadline),
-    nativeValue: BigInt(intent.nativeValue),
+    deadline: BigInt(intent.rewardDeadline),
+    nativeAmount: BigInt(intent.rewardNativeAmount),
     tokens: intent.rewardTokens.map(({ token, amount }) => ({
       token: token as Hex,
       amount: BigInt(amount),
     })),
   }
 
-  const route = {
-    salt: intent.salt as Hex,
-    source: BigInt(intent.source),
-    destination: BigInt(intent.destination),
-    inbox: intent.inbox as Hex,
-    tokens: intent.routeTokens.map(({ token, amount }) => ({
-      token: token as Hex,
-      amount: BigInt(amount),
-    })),
-    calls: intent.calls.map((call) => ({
-      data: call.data as Hex,
-      target: call.target as Hex,
-      value: BigInt(call.value),
-    })),
-  }
+  // Build Route struct from either encoded bytes or legacy fields
+  const route: V2RouteType = decodeAbiParameters(
+    [routeStructAbiItem],
+    intent.route as Hex,
+  )[0] as V2RouteType
 
-  return { reward, route }
+  const { routeHash } = PortalHashUtils.getIntentHash({
+    destination: BigInt(intent.destination),
+    route,
+    reward,
+  })
+
+  return { destination: BigInt(intent.destination), routeHash, reward }
 }
