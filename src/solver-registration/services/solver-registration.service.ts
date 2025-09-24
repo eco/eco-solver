@@ -3,7 +3,7 @@ import {
   API_ROOT,
   API_V2_ROOT,
   INTENT_INITIATION_ROUTE,
-  QUOTE_ROUTE,
+  QUOTE_ROUTE, QUOTE_ROUTE_REVERSE,
 } from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'
@@ -149,7 +149,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     const solverRegistrationDTO: SolverRegistrationDTO = {
       intentExecutionTypes: this.quotesConfig.intentExecutionTypes,
       quotesUrl: this.getServerEndpoint(API_ROOT, QUOTE_ROUTE),
-      quotesV2Url: this.getServerEndpoint(API_V2_ROOT, QUOTE_ROUTE),
+      quotesV2Url: this.getServerEndpoint(API_V2_ROOT, QUOTE_ROUTE_REVERSE),
 
       receiveSignedIntentUrl: this.getServerEndpoint(
         API_ROOT,
