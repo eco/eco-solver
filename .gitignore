@@ -72,6 +72,7 @@ config/*
 !config/default.ts
 !config/development.ts
 !config/staging.ts
+!config/staging-bg.ts
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
