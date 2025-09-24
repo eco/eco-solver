@@ -44,8 +44,8 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     try {
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
         removeOnFail: false,
-        delay,
-        attempts: 3,
+        delay: delay ?? 10_000,
+        attempts: 10,
         backoff: {
           type: 'exponential',
           delay: 10_000,
@@ -74,7 +74,7 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
 
     if (result.status === 'pending') {
       const deserializedContext = deserialize(job.data.context)
-      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
+      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 10_000
       await this.delay(job, delay)
     }
 
@@ -121,9 +121,6 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
           transferType: deserializedContext.transferType,
         },
       )
-      // Fast polling for "fast" transfers, slower for "standard"
-      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
-      await CheckCCTPV2AttestationJobManager.start(processor.queue, job.data, delay)
     }
   }
 

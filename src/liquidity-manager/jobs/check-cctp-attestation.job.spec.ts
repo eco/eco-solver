@@ -149,7 +149,7 @@ describe('CheckCCTPAttestationJobManager', () => {
       expect(opts!.removeOnFail).toBe(false)
       expect(opts!.attempts).toBe(3)
       expect(opts!.backoff).toEqual({ type: 'exponential', delay: 10_000 })
-      expect(opts!.delay).toBeUndefined()
+      expect(opts!.delay).toBe(10_000)
     })
 
     it('forwards the delay option', async () => {

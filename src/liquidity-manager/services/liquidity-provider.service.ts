@@ -24,6 +24,7 @@ import { GatewayProviderService } from '@/liquidity-manager/services/liquidity-p
 import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
+import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -44,6 +45,7 @@ export class LiquidityProviderService {
     protected readonly cctpv2ProviderService: CCTPV2ProviderService,
     protected readonly everclearProviderService: EverclearProviderService,
     protected readonly gatewayProviderService: GatewayProviderService,
+    protected readonly usdt0ProviderService: USDT0ProviderService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rejectionRepository: RebalanceQuoteRejectionRepository,
   ) {
@@ -310,6 +312,8 @@ export class LiquidityProviderService {
         return this.everclearProviderService
       case 'Gateway':
         return this.gatewayProviderService
+      case 'USDT0':
+        return this.usdt0ProviderService
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }

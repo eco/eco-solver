@@ -63,8 +63,8 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
       removeOnFail: false,
-      delay,
-      attempts: 3,
+      delay: delay ?? 10_000,
+      attempts: 10,
       backoff: {
         type: 'exponential',
         delay: 10_000,
@@ -97,10 +97,10 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     const result = await processor.cctpProviderService.fetchAttestation(messageHash, id)
 
     if (result.status === 'pending') {
-      await this.delay(job, 30_000)
+      await this.delay(job, 10_000)
     }
 
-    return result
+    return result as CheckCCTPAttestationJob['returnvalue']
   }
 
   @LogOperation('job_execution', GenericOperationLogger)
@@ -141,8 +141,6 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
           isCCTPLiFi: !!job.data.cctpLiFiContext,
         },
       )
-
-      // Note: Re-enqueueing is now handled in process() method via DelayedError
     }
   }
 

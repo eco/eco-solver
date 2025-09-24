@@ -21,6 +21,10 @@ import {
   CheckEverclearIntentJobData,
   CheckEverclearIntentJobManager,
 } from '../jobs/check-everclear-intent.job'
+import {
+  CheckOFTDeliveryJobData,
+  CheckOFTDeliveryJobManager,
+} from '@/liquidity-manager/jobs/check-oft-delivery.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -32,6 +36,7 @@ export enum LiquidityManagerJobName {
   EXECUTE_CCTPV2_MINT = 'EXECUTE_CCTPV2_MINT',
   CHECK_EVERCLEAR_INTENT = 'CHECK_EVERCLEAR_INTENT',
   GATEWAY_TOP_UP = 'GATEWAY_TOP_UP',
+  CHECK_OFT_DELIVERY = 'CHECK_OFT_DELIVERY',
 }
 
 export interface LiquidityManagerQueueDataType {
@@ -117,5 +122,9 @@ export class LiquidityManagerQueue {
   @LogOperation('start_gateway_top_up', LiquidityManagerLogger)
   startGatewayTopUp(@LogContext data: GatewayTopUpJobData): Promise<void> {
     return GatewayTopUpJobManager.start(this.queue, data)
+  }
+
+  startOFTDeliveryCheck(data: CheckOFTDeliveryJobData): Promise<void> {
+    return CheckOFTDeliveryJobManager.start(this.queue, data)
   }
 }
