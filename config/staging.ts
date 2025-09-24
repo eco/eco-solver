@@ -1,12 +1,13 @@
 export default {
-  gitConfig: {
-    repo: 'eco-incorp/config-eco-solver',
-    branch: 'preprod-stoyan',
-    env: 'staging',
-  },
   server: {
     // url: process.env.SERVICE_URL || 'https://solver.staging.bend.eco',
     url: 'https://solver-blue.staging.eco.com',
+  },
+
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'main',
+    env: 'staging',
   },
 
   aws: [

@@ -1,9 +1,4 @@
 export default {
-  gitConfig: {
-    repo: 'eco-incorp/config-eco-solver',
-    branch: 'preprod-stoyan',
-    env: 'prod',
-  },
   server: {
     url: process.env.SERVICE_URL || 'https://solver.bend.eco',
   },
@@ -11,7 +6,11 @@ export default {
   indexer: {
     url: process.env.INDEXER_URL || 'https://protocol-indexer-production.up.railway.app',
   },
-
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'main',
+    env: 'production',
+  },
   aws: [
     {
       region: 'us-east-2',

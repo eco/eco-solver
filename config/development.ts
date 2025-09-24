@@ -1,9 +1,4 @@
 export default {
-  gitConfig: {
-    repo: 'eco-incorp/config-eco-solver',
-    branch: 'preprod-stoyan',
-    env: 'dev',
-  },
   server: {
     url: 'http://localhost:3000',
   },

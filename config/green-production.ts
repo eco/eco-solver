@@ -6,23 +6,15 @@ export default {
   indexer: {
     url: process.env.INDEXER_URL || 'https://protocol-indexer-production.up.railway.app',
   },
-
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'main',
+    env: 'production-green',
+  },
   aws: [
     {
       region: 'us-east-2',
       secretID: process.env.AWS_SECRET_ID_MISC || 'solver-green-production',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CONFIGS || 'solver-configs-green-production',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CHAINS || 'solver-configs-chains-green-production',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_WHITELIST || 'solver-whitelist-green-production',
     },
   ],
   //don't add anything else here

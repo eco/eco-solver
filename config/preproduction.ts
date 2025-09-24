@@ -7,18 +7,18 @@ export default {
     url: process.env.INDEXER_URL || 'https://protocol-indexer-production.up.railway.app',
   },
 
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'main',
+    env: 'preproduction',
+  },
+
   aws: [
     {
       region: 'us-east-2',
       secretID: process.env.AWS_SECRET_ID_MISC || 'eco-solver-secrets-pre-prod',
     },
   ],
-
-  gitConfig: {
-    repo: 'eco-incorp/config-eco-solver',
-    branch: 'preprod-stoyan',
-    env: 'preprod',
-  },
   //don't add anything else here
 
   solverRegistrationConfig: {
