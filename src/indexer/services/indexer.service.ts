@@ -18,21 +18,14 @@ export class IndexerService {
     this.config = this.ecoConfigService.getIndexer()
   }
 
-  async getNextBatchWithdrawals(intentSourceAddr?: Hex): Promise<BatchWithdraws[]> {
+  async getNextBatchWithdrawals(
+    intentSourceAddr?: Hex,
+  ): Promise<(BatchWithdraws | BatchWithdrawGasless)[]> {
     const searchParams = { evt_log_address: intentSourceAddr }
-    const data = await this.fetch<(BatchWithdraws | BatchWithdrawGasless)[]>(
+    return await this.fetch<(BatchWithdraws | BatchWithdrawGasless)[]>(
       '/intents/nextBatchWithdrawals',
       { searchParams },
     )
-
-    const withdrawals: BatchWithdraws[] = []
-    data.forEach((record) => {
-      if (!this.isGaslessIntent(record)) {
-        withdrawals.push(record)
-      }
-    })
-
-    return withdrawals
   }
 
   getNextSendBatch(intentSourceAddr?: Hex) {
@@ -62,11 +55,5 @@ export class IndexerService {
       this.logger.error('Indexer: Fetch error', error)
       throw error
     }
-  }
-
-  private isGaslessIntent(
-    record: BatchWithdraws | BatchWithdrawGasless,
-  ): record is BatchWithdrawGasless {
-    return 'intentHash' in record.intent
   }
 }
