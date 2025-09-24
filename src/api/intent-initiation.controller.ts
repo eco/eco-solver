@@ -8,6 +8,8 @@ import { GaslessIntentTransactionDataDTO } from '@/intent-initiation/dtos/gasles
 import { GaslessIntentTransactionDataRequestDTO } from '@/intent-initiation/dtos/gasless-intent-transaction-data-request.dto'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { LogOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { IntentOperationLogger } from '@/common/logging/loggers/intent-operation-logger'
 import { QuoteErrorsInterface } from '@/quote/errors'
 
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
@@ -24,6 +26,7 @@ export class IntentInitiationController {
   })
   @Post('/initiateGaslessIntent')
   @ApiResponse({ type: GaslessIntentExecutionResponseDTO })
+  @LogOperation('initiate_gasless_intent', IntentOperationLogger)
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<GaslessIntentExecutionResponseDTO> {

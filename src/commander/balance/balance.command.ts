@@ -2,6 +2,7 @@ import { getAddress } from 'viem'
 import { Command, Option } from 'nest-commander'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { jsonBigInt } from '@/commander/utils'
 import { ClientCommand } from '@/commander/transfer/client.command'
@@ -11,6 +12,8 @@ import { ClientCommand } from '@/commander/transfer/client.command'
   description: 'Displays the balance of the Kernel wallet',
 })
 export class BalanceCommand extends ClientCommand {
+  private logger = new GenericOperationLogger('BalanceCommand')
+
   constructor(
     protected readonly balanceService: BalanceService,
     protected readonly kernelAccountClientService: KernelAccountClientService,
@@ -20,32 +23,45 @@ export class BalanceCommand extends ClientCommand {
   }
 
   async run(passedParams: string[], options?: Record<string, any>): Promise<void> {
-    console.log(`Wallet address: ${await this.getWalletAddress()}`)
+    const walletAddress = await this.getWalletAddress()
+    this.logger.info({ message: 'Balance command executed', wallet_address: walletAddress })
+
     if (Object.values(options || {}).length === 0) {
-      console.log('No options provided, fetching all token data')
       const data = await this.balanceService.getAllTokenData()
-      console.log(`Token data:`)
-      console.log(jsonBigInt(data))
+      this.logger.info({
+        message: 'Fetched all token data',
+        token_count: Object.keys(data).length,
+        data: jsonBigInt(data),
+      })
       return
     }
 
     if (options?.chainID && options?.token) {
-      console.log(`Fetching balance on ${options.chainID} for ${options.token}`)
       const data = await this.balanceService.fetchTokenBalances(options.chainID, [options.token])
-
-      console.log(`Token data on chain : ${options.chainID}:`)
-      console.log(jsonBigInt(data))
+      this.logger.info({
+        message: 'Fetched token balance',
+        chain_id: options.chainID,
+        token: options.token,
+        data: jsonBigInt(data),
+      })
       return
     }
 
     if (options?.chainID) {
-      console.log(`Fetching all balances on ${options.chainID}`)
       const data = await this.balanceService.fetchTokenBalancesForChain(options.chainID)
-      console.log(`Tokens data on chain : ${options.chainID}:`)
-      console.log(jsonBigInt(data))
+      this.logger.info({
+        message: 'Fetched chain balances',
+        chain_id: options.chainID,
+        token_count: Object.keys(data || {}).length,
+        data: jsonBigInt(data),
+      })
+      return
     }
 
-    console.log(`You must set the chainID and token to get the balance of a token`)
+    this.logger.warn(
+      { operationType: 'balance_check', status: 'error' },
+      'Invalid parameters: chainID and token required',
+    )
   }
 
   async getWalletAddress() {

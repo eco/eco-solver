@@ -13,10 +13,8 @@ import { CheckOFTDeliveryJobManager } from '../jobs/check-oft-delivery.job'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
 import { LiquidityManagerJob } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import {
-  LiquidityManagerQueue,
-  LiquidityManagerQueueType,
-} from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LiquidityManagerQueueType } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
 
@@ -24,7 +22,7 @@ import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
  * Processor for handling liquidity manager jobs.
  */
 @Injectable()
-@Processor(LiquidityManagerQueue.queueName, { concurrency: 10 })
+@Processor(LIQUIDITY_MANAGER_QUEUE_NAME)
 export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob> {
   /**
    * Constructs a new LiquidityManagerProcessor.
@@ -33,7 +31,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
    * @param cctpProviderService - The service for CCTP.
    */
   constructor(
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     public readonly queue: LiquidityManagerQueueType,
     public readonly liquidityManagerService: LiquidityManagerService,
     public readonly cctpProviderService: CCTPProviderService,

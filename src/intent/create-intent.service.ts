@@ -1,10 +1,14 @@
-import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
+import {
+  CallDataInterface,
+  decodeCreateIntentLog,
+  IntentCreatedLog,
+  RewardTokensInterface,
+} from '../contracts'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '../eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoResponse } from '@/common/eco-response'
 import { FlagService } from '../flags/flags.service'
 import { getIntentJobId } from '../common/utils/strings'
@@ -17,6 +21,9 @@ import { IntentSourceRepository } from '@/intent/repositories/intent-source.repo
 import { JobsOptions, Queue } from 'bullmq'
 import { QUEUES } from '../common/redis/constants'
 import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
+import { IntentOperationLogger } from '@/common/logging'
+import { hashIntent, RouteType } from '@eco-foundation/routes-ts'
+import { QuoteRewardDataModel } from '@/quote/schemas/quote-reward.schema'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -25,7 +32,7 @@ import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.se
  */
 @Injectable()
 export class CreateIntentService implements OnModuleInit {
-  private logger = new EcoLogger(CreateIntentService.name)
+  private logger = new IntentOperationLogger('CreateIntentService')
   private intentJobConfig: JobsOptions
 
   constructor(
@@ -48,38 +55,20 @@ export class CreateIntentService implements OnModuleInit {
    * @param serializedIntentWs the serialized intent created log
    * @returns
    */
-  async createIntent(serializedIntentWs: Serialize<IntentCreatedLog>) {
+  @LogOperation('intent_creation', IntentOperationLogger)
+  async createIntent(@LogContext serializedIntentWs: Serialize<IntentCreatedLog>) {
     const intentWs = deserialize(serializedIntentWs)
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `createIntent ${intentWs.transactionHash}`,
-        properties: {
-          transactionHash: intentWs.transactionHash,
-          intentHash: intentWs.args?.hash,
-        },
-      }),
-    )
-
-    const intent = this.getIntentFromIntentCreatedLog(intentWs)
+    const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
+    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
 
     try {
       // Check db if the intent is already filled
       const model = await this.intentSourceRepository.getIntent(intent.hash)
 
       if (model) {
-        // Record already exists, do nothing and return
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: `Record for intent already exists ${intent.hash}`,
-            properties: {
-              intentHash: intent.hash,
-              intent: intent,
-            },
-          }),
-        )
-
-        // Track duplicate intent detection
+        // Log business event for duplicate detection
+        this.logger.logDuplicateIntentDetected(model, intent, intentWs)
         this.ecoAnalytics.trackIntentDuplicateDetected(intent, model, intentWs)
         return
       }
@@ -92,7 +81,7 @@ export class CreateIntentService implements OnModuleInit {
         : true
 
       // Create db record
-      const record = await this.intentSourceRepository.create({
+      await this.intentSourceRepository.create({
         event: intentWs,
         intent: intent,
         receipt: null,
@@ -113,38 +102,73 @@ export class CreateIntentService implements OnModuleInit {
         // Track intent created but not queued due to invalid wallet
         this.ecoAnalytics.trackIntentCreatedWalletRejected(intent, intentWs)
       }
-
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Recorded intent ${record.intent.hash}`,
-          properties: {
-            intentHash: intent.hash,
-            intent: record.intent,
-            validWallet,
-            ...(validWallet ? { jobId } : {}),
-          },
-        }),
-      )
     } catch (e) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error in createIntent ${intentWs.transactionHash}`,
-          properties: {
-            intentHash: intentWs.transactionHash,
-            error: e,
-          },
-        }),
-      )
-
-      // Track intent creation failure
+      // Log business event for creation failure
+      this.logger.logIntentCreationFailure(intent, e as Error, intentWs)
       this.ecoAnalytics.trackIntentCreationFailed(intent, intentWs, e)
     }
   }
 
-  private getIntentFromIntentCreatedLog(intentWs: IntentCreatedLog): IntentDataModel {
-    const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
-    return intent
+  @LogOperation('gasless_intent_creation', IntentOperationLogger)
+  async createIntentFromIntentInitiation(
+    @LogContext quoteID: string,
+    @LogContext funder: Hex,
+    @LogContext route: RouteType,
+    @LogContext reward: QuoteRewardDataModel,
+  ) {
+    try {
+      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
+      const { creator, prover, deadline, nativeValue, tokens: rewardTokens } = reward
+      const intentHash = hashIntent({ route, reward }).intentHash
+
+      // Track gasless intent creation attempt with complete objects
+      this.ecoAnalytics.trackGaslessIntentCreationStarted(
+        intentHash,
+        quoteID,
+        funder,
+        route,
+        reward,
+      )
+
+      const intent = new IntentDataModel({
+        quoteID,
+        hash: intentHash,
+        salt,
+        source,
+        destination,
+        inbox,
+        routeTokens: routeTokens as RewardTokensInterface[],
+        calls: calls as CallDataInterface[],
+        creator,
+        prover,
+        deadline,
+        nativeValue,
+        rewardTokens,
+        logIndex: 0,
+        funder,
+      })
+
+      await this.intentSourceRepository.create({
+        // event: null,
+        intent,
+        receipt: null,
+        status: 'PENDING',
+      })
+
+      // Track successful gasless intent creation with complete context
+      this.ecoAnalytics.trackGaslessIntentCreated(
+        intentHash,
+        quoteID,
+        funder,
+        intent,
+        route,
+        reward,
+      )
+    } catch (ex) {
+      // Log business event for gasless creation failure
+      this.logger.logGaslessIntentCreationFailure(quoteID, funder, route, reward, ex as Error)
+      this.ecoAnalytics.trackIntentCreationFailed({ quoteID, route, reward }, null, ex)
+    }
   }
 
   /**
@@ -152,7 +176,8 @@ export class CreateIntentService implements OnModuleInit {
    * @param hash for fetching the intent
    * @returns the intent or an error
    */
-  async getIntentForHash(hash: string): Promise<EcoResponse<IntentSourceModel>> {
+  @LogOperation('intent_hash_lookup', IntentOperationLogger)
+  async getIntentForHash(@LogContext hash: string): Promise<EcoResponse<IntentSourceModel>> {
     try {
       const result = await this.fetchIntent({ 'intent.hash': hash })
 
@@ -177,7 +202,8 @@ export class CreateIntentService implements OnModuleInit {
    * @param query for fetching the intent
    * @returns the intent or an error
    */
-  async fetchIntent(query: object): Promise<EcoResponse<IntentSourceModel>> {
+  @LogOperation('intent_fetch', IntentOperationLogger)
+  async fetchIntent(@LogContext query: object): Promise<EcoResponse<IntentSourceModel>> {
     try {
       const intent = await this.intentSourceRepository.queryIntent(query)
 

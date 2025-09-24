@@ -1,7 +1,6 @@
 import * as _ from 'lodash'
 import { BulkJobOptions, Job } from 'bullmq'
 import { encodePacked, Hex, keccak256 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { IntentProcessorJobName } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
@@ -9,6 +8,8 @@ import {
   IntentProcessorJob,
   IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export interface ProveIntentData {
   hash: Hex
@@ -63,7 +64,8 @@ export class ExecuteSendBatchJobManager extends IntentProcessorJobManager<Execut
     return job.name === IntentProcessorJobName.EXECUTE_SEND_BATCH
   }
 
-  async process(job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(@LogContext job: IntentProcessorJob, processor: IntentProcessor): Promise<void> {
     if (this.is(job)) {
       return processor.intentProcessorService.executeSendBatch(deserialize(job.data))
     }
@@ -75,12 +77,16 @@ export class ExecuteSendBatchJobManager extends IntentProcessorJobManager<Execut
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: IntentProcessorJob, processor: IntentProcessor, error: Error) {
-    processor.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `${ExecuteSendBatchJobManager.name}: Failed`,
-        properties: { error: error.message },
-      }),
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  onFailed(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext job: IntentProcessorJob,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    processor: IntentProcessor,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @LogContext error: Error,
+  ) {
+    // Error details are automatically captured by the decorator
+    // No need to re-throw the error as it's already been processed
   }
 }

@@ -1,10 +1,11 @@
-import { Injectable, Inject, Logger } from '@nestjs/common'
+import { Injectable, Inject } from '@nestjs/common'
 import { AnalyticsService, ANALYTICS_SERVICE } from '@/analytics'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * Centralized analytics service for the eco-solver application.
@@ -13,7 +14,7 @@ import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
  */
 @Injectable()
 export class EcoAnalyticsService {
-  private readonly logger = new Logger(EcoAnalyticsService.name)
+  private readonly logger = new GenericOperationLogger('EcoAnalyticsService')
 
   constructor(@Inject(ANALYTICS_SERVICE) private readonly analytics: AnalyticsService) {}
 
@@ -26,14 +27,30 @@ export class EcoAnalyticsService {
       const maybePromise = this.analytics.trackEvent(eventName, data)
       Promise.resolve(maybePromise).catch((error) => {
         this.logger.warn(
-          `Analytics tracking failed for event '${eventName}':`,
-          error?.message || error,
+          {
+            operationType: 'infrastructure_operation',
+            status: 'failed',
+          },
+          `Analytics tracking failed for event '${eventName}'`,
+          {
+            eventName,
+            errorMessage: error?.message || error,
+            error: error?.toString(),
+          },
         )
       })
     } catch (error: any) {
       this.logger.warn(
-        `Analytics tracking threw synchronously for event '${eventName}':`,
-        error?.message || error,
+        {
+          operationType: 'infrastructure_operation',
+          status: 'failed',
+        },
+        `Analytics tracking threw synchronously for event '${eventName}'`,
+        {
+          eventName,
+          errorMessage: error?.message || error,
+          error: error?.toString(),
+        },
       )
     }
   }

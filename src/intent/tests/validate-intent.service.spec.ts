@@ -149,17 +149,13 @@ describe('ValidateIntentService', () => {
   })
 
   describe('on validateIntent entrypoint', () => {
-    it('should log when entering function and return on failed destructure', async () => {
+    it('should return on failed destructure', async () => {
       const intentHash = '0x1'
       validateIntentService['destructureIntent'] = jest
         .fn()
         .mockReturnValueOnce({ model: undefined, solver: undefined })
       expect(await validateIntentService.validateIntent(intentHash)).toBe(false)
-      expect(mockLogDebug).toHaveBeenCalledTimes(1)
-      expect(mockLogDebug).toHaveBeenCalledWith({
-        msg: `validateIntent ${intentHash}`,
-        intentHash,
-      })
+      // Decorator-based logging handles entry/exit logging
     })
 
     it('should return on failed assertions', async () => {
@@ -169,10 +165,9 @@ describe('ValidateIntentService', () => {
         .mockReturnValueOnce({ model: {}, solver: {} })
       validateIntentService['assertValidations'] = jest.fn().mockReturnValueOnce(false)
       expect(await validateIntentService.validateIntent(intentHash)).toBe(false)
-      expect(mockLogDebug).toHaveBeenCalledTimes(1)
     })
 
-    it('should log, create a job and enque it', async () => {
+    it('should create a job and enqueue it when validations pass', async () => {
       const intentHash = '0x1'
       const model = { intent: { logIndex: 10 } }
       const config = { a: 1 } as any
@@ -188,7 +183,6 @@ describe('ValidateIntentService', () => {
       expect(await validateIntentService.validateIntent(intentHash)).toBe(true)
       expect(mockGetIntentJobId).toHaveBeenCalledTimes(1)
       expect(mockAddQueue).toHaveBeenCalledTimes(1)
-      expect(mockLogDebug).toHaveBeenCalledTimes(2)
       expect(mockGetIntentJobId).toHaveBeenCalledWith('validate', intentHash, model.intent.logIndex)
       expect(mockAddQueue).toHaveBeenCalledWith(
         QUEUES.SOURCE_INTENT.jobs.feasable_intent,
@@ -198,11 +192,7 @@ describe('ValidateIntentService', () => {
           ...validateIntentService['intentJobConfig'],
         },
       )
-      expect(mockLogDebug).toHaveBeenLastCalledWith({
-        msg: `validateIntent ${intentHash}`,
-        intentHash,
-        jobId,
-      })
+      // Business event logging handled by decorator-based system
     })
   })
 
@@ -233,12 +223,6 @@ describe('ValidateIntentService', () => {
       expect(mockValidations).toHaveBeenCalledTimes(1)
       expect(mockIntentFunded).toHaveBeenCalledTimes(1)
       expect(mockUpdateModel).toHaveBeenCalledTimes(1)
-      expect(mockLog).toHaveBeenCalledTimes(1)
-      expect(mockLog).toHaveBeenCalledWith({
-        msg: EcoError.IntentValidationFailed(model.intent.hash).message,
-        model,
-        validations,
-      })
       expect(mockUpdateModel).toHaveBeenCalledWith(model, validations)
     })
 
@@ -250,12 +234,6 @@ describe('ValidateIntentService', () => {
       expect(mockValidations).toHaveBeenCalledTimes(1)
       expect(mockIntentFunded).toHaveBeenCalledTimes(1)
       expect(mockUpdateModel).toHaveBeenCalledTimes(1)
-      expect(mockLog).toHaveBeenCalledTimes(1)
-      expect(mockLog).toHaveBeenCalledWith({
-        msg: EcoError.IntentValidationFailed(model.intent.hash).message,
-        model,
-        validations: validValidations,
-      })
       expect(mockUpdateModel).toHaveBeenCalledWith(model, validValidations)
     })
 
@@ -267,7 +245,6 @@ describe('ValidateIntentService', () => {
       expect(mockValidations).toHaveBeenCalledTimes(1)
       expect(mockIntentFunded).toHaveBeenCalledTimes(1)
       expect(mockUpdateModel).toHaveBeenCalledTimes(0)
-      expect(mockLog).toHaveBeenCalledTimes(0)
     })
   })
 
@@ -279,11 +256,7 @@ describe('ValidateIntentService', () => {
       jest.spyOn(ecoConfigService, 'getIntentSource').mockReturnValue(undefined)
 
       expect(await validateIntentService.intentFunded(model)).toBe(false)
-      expect(mockLogError).toHaveBeenCalledTimes(1)
-      expect(mockLogError).toHaveBeenCalledWith({
-        msg: EcoError.IntentSourceNotFound(chainID).message,
-        model,
-      })
+      // Error logging handled by business event methods
     })
 
     it('should return true if isIntentFunded contract call returns true', async () => {
@@ -293,7 +266,6 @@ describe('ValidateIntentService', () => {
       multichainPublicClientService.getClient = jest.fn().mockReturnValue(client)
 
       expect(await validateIntentService.intentFunded(model)).toBe(true)
-      expect(mockLogError).toHaveBeenCalledTimes(0)
       expect(mockRead).toHaveBeenCalledTimes(1)
     })
 

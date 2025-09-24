@@ -107,10 +107,17 @@ describe('RebalanceQuoteRejectionRepository', () => {
 
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          msg: 'Persisting quote rejection',
           rebalanceId: mockRejectionData.rebalanceId,
+          walletAddress: mockRejectionData.walletAddress,
           strategy: mockRejectionData.strategy,
+          sourceChainId: mockRejectionData.tokenIn.chainId,
+          destinationChainId: mockRejectionData.tokenOut.chainId,
+        }),
+        'Persisting quote rejection',
+        expect.objectContaining({
           reason: mockRejectionData.reason,
+          tokenInChain: mockRejectionData.tokenIn.chainId,
+          tokenOutChain: mockRejectionData.tokenOut.chainId,
         }),
       )
     })

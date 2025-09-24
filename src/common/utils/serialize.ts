@@ -26,7 +26,7 @@ function isSerializedBigInt(data: any): data is SerializedBigInt {
   return data && data.type === 'BigInt' && typeof data.hex === 'string'
 }
 
-function stringify(data: object | bigint) {
+export function stringify(data: object | bigint) {
   return JSON.stringify(data, (key, value) => {
     if (typeof value === 'bigint') {
       // Handle negative bigints by storing sign separately

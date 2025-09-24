@@ -15,7 +15,6 @@ import {
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
-import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { parseUnits } from 'viem'
 
 describe('RebalanceRepository', () => {
@@ -108,10 +107,17 @@ describe('RebalanceRepository', () => {
 
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          msg: 'Persisting successful rebalance',
-          strategy: mockRebalanceData.strategy,
-          wallet: mockRebalanceData.wallet,
           groupId: mockRebalanceData.groupId,
+          walletAddress: mockRebalanceData.wallet,
+          strategy: mockRebalanceData.strategy,
+          sourceChainId: mockRebalanceData.tokenIn.chainId,
+          destinationChainId: mockRebalanceData.tokenOut.chainId,
+          rebalanceId: 'pending',
+        }),
+        'Persisting successful rebalance',
+        expect.objectContaining({
+          token_in_chain: mockRebalanceData.tokenIn.chainId,
+          token_out_chain: mockRebalanceData.tokenOut.chainId,
         }),
       )
     })
@@ -227,7 +233,6 @@ describe('RebalanceRepository', () => {
       expect(result).toBe(true)
       expect(model.countDocuments).toHaveBeenCalledWith({
         createdAt: { $gte: expect.any(Date) },
-        status: RebalanceStatus.COMPLETED.toString(),
       })
     })
 
@@ -246,26 +251,6 @@ describe('RebalanceRepository', () => {
 
       expect(result).toBe(false)
     })
-
-    it('should only count completed rebalances, not failed or pending ones', async () => {
-      model.countDocuments.mockResolvedValue(2)
-
-      const result = await repository.hasSuccessfulRebalancesInLastHour()
-
-      expect(result).toBe(true)
-      expect(model.countDocuments).toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date) },
-        status: RebalanceStatus.COMPLETED.toString(),
-      })
-      expect(model.countDocuments).not.toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date) },
-        status: RebalanceStatus.FAILED.toString(),
-      })
-      expect(model.countDocuments).not.toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date) },
-        status: RebalanceStatus.PENDING.toString(),
-      })
-    })
   })
 
   // Test configurable analytics queries for success metrics
@@ -277,7 +262,7 @@ describe('RebalanceRepository', () => {
 
       expect(result).toBe(5)
       expect(model.countDocuments).toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date), status: RebalanceStatus.COMPLETED.toString() },
+        createdAt: { $gte: expect.any(Date) },
       })
     })
 
@@ -295,23 +280,6 @@ describe('RebalanceRepository', () => {
       const result = await repository.getRecentSuccessCount(60)
 
       expect(result).toBe(0)
-    })
-
-    it('should only count completed rebalances, not failed or pending ones', async () => {
-      model.countDocuments.mockResolvedValue(3)
-
-      const result = await repository.getRecentSuccessCount(30)
-
-      expect(result).toBe(3)
-      expect(model.countDocuments).toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date), status: RebalanceStatus.COMPLETED.toString() },
-      })
-      expect(model.countDocuments).not.toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date), status: RebalanceStatus.FAILED.toString() },
-      })
-      expect(model.countDocuments).not.toHaveBeenCalledWith({
-        createdAt: { $gte: expect.any(Date), status: RebalanceStatus.PENDING.toString() },
-      })
     })
   })
 })

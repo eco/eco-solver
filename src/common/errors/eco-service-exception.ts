@@ -1,7 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { BadRequestException, HttpException, Logger } from '@nestjs/common'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { HttpExceptionGenerator } from '@/common/errors/http-exception-generator'
 
 export interface EcoServiceExceptionParams {
@@ -69,14 +68,12 @@ function getErrorCause(error: any): string {
 }
 
 export function logEcoServiceException(logger: Logger, message: string, error: any) {
-  logger.error(
-    EcoLogMessage.fromDefault({
-      message,
-      properties: {
-        errorMessage: EcoError.getErrorMessage(error),
-      },
-    }),
-  )
+  logger.error(message, {
+    service: 'eco-service-exception',
+    operation: 'log_error',
+    error_message: EcoError.getErrorMessage(error),
+    error_type: typeof error,
+  })
 }
 
 export function getEcoServiceErrorReturn(params: EcoServiceExceptionParams): HttpException {

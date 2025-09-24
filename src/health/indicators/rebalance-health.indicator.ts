@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { HealthOperationLogger } from '@/common/logging/loggers'
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
 import { RebalancingHealthRepository } from '@/liquidity-manager/repositories/rebalancing-health.repository'
 
@@ -14,7 +15,7 @@ import { RebalancingHealthRepository } from '@/liquidity-manager/repositories/re
  */
 @Injectable()
 export class RebalanceHealthIndicator extends HealthIndicator {
-  private logger = new Logger(RebalanceHealthIndicator.name)
+  private logger = new HealthOperationLogger('RebalanceHealthIndicator')
 
   constructor(private readonly rebalancingHealthRepository: RebalancingHealthRepository) {
     super()
@@ -32,12 +33,29 @@ export class RebalanceHealthIndicator extends HealthIndicator {
    */
   async checkRebalancingHealth(): Promise<HealthIndicatorResult> {
     try {
-      this.logger.log('Checking rebalancing system health')
+      this.logger.log(
+        {
+          healthCheck: 'rebalancing',
+          status: 'started',
+        },
+        'Checking rebalancing system health',
+      )
 
       const healthStatus = await this.rebalancingHealthRepository.checkRebalancingHealth()
 
       this.logger.log(
+        {
+          healthCheck: 'rebalancing',
+          status: healthStatus.isHealthy ? 'healthy' : 'unhealthy',
+        },
         `Rebalancing health check result: ${healthStatus.isHealthy ? 'HEALTHY' : 'UNHEALTHY'}`,
+        {
+          successCount: healthStatus.successCount,
+          rejectionCount: healthStatus.rejectionCount,
+          lastHourHasRejections: healthStatus.lastHourHasRejections,
+          lastHourHasSuccesses: healthStatus.lastHourHasSuccesses,
+          healthReason: healthStatus.healthReason,
+        },
       )
 
       const result = this.getStatus('rebalancing', healthStatus.isHealthy, {
@@ -59,7 +77,14 @@ export class RebalanceHealthIndicator extends HealthIndicator {
         throw error
       }
 
-      this.logger.error(`Rebalancing health check failed: ${error.message}`)
+      this.logger.error(
+        {
+          healthCheck: 'rebalancing',
+          status: 'unhealthy',
+        },
+        'Rebalancing health check failed',
+        error,
+      )
 
       // Create a failed health result for execution errors only
       const failedResult = this.getStatus('rebalancing', false, {

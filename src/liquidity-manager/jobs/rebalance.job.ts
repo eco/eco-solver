@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { FlowChildJob, Job } from 'bullmq'
 import {
   LiquidityManagerJob,
@@ -52,7 +53,11 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     return job.name === LiquidityManagerJobName.REBALANCE
   }
 
-  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<unknown> {
+  @LogOperation('job_execution', GenericOperationLogger)
+  async process(
+    @LogContext job: LiquidityManagerJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<void> {
     if (this.is(job)) {
       return processor.liquidityManagerService.executeRebalancing(job.data)
     }
@@ -64,17 +69,12 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    * @param job - The job to process.
    * @param processor - The processor handling the job.
    */
-  async onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
-    processor.logger.log(
-      EcoLogMessage.withId({
-        message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
-        id: job.data.id,
-        properties: {
-          jobName: job.name,
-          data: job.data,
-        },
-      }),
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  async onComplete(
+    @LogContext job: LiquidityManagerJob,
+    processor: LiquidityManagerProcessor,
+  ): Promise<void> {
+    const rebalanceData: RebalanceJobData = job.data as RebalanceJobData
   }
 
   /**
@@ -83,14 +83,13 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
-    processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        id: job.data.id,
-        message: `RebalanceJob: Failed`,
-        error,
-        properties: { data: job.data, jobName: job.name },
-      }),
-    )
+  @LogOperation('job_execution', GenericOperationLogger)
+  onFailed(
+    @LogContext job: LiquidityManagerJob,
+    processor: LiquidityManagerProcessor,
+    @LogContext error: Error,
+  ) {
+    // Error details are automatically captured by the decorator
+    throw error
   }
 }

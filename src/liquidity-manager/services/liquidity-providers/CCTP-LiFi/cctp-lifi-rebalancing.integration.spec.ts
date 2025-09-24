@@ -16,6 +16,7 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
 import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
@@ -208,8 +209,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<EcoConfigService>(),
         },
         {
-          provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+          provide: KernelAccountClientService,
+          useValue: createMock<KernelAccountClientService>(),
         },
         {
           provide: CrowdLiquidityService,

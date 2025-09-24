@@ -9,10 +9,12 @@ import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { JobsOptions, Queue } from 'bullmq'
 import { MultichainPublicClientService } from '../../transaction/multichain-public-client.service'
 import { Log, PublicClient, WatchContractEventReturnType } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { LogSubOperation, LogOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { logWatchError, createContractErrorContext } from '../utils/error-logger'
 
 /**
  * This service has hooks for subscribing and unsubscribing to a contract event.
@@ -49,6 +51,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   /**
    * Load runtime configuration used by watch jobs from the central config service.
    */
+  @LogOperation('module_init', GenericOperationLogger)
   async onModuleInit() {
     this.watchJobConfig = this.ecoConfigService.getRedis().jobs.watchJobConfig
     const watchCfg = this.ecoConfigService.getWatch()
@@ -61,6 +64,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Subscribe on bootstrap and await completion to ensure watchers are registered
    * before the application begins handling traffic.
    */
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
     await this.subscribe()
   }
@@ -88,12 +92,8 @@ export abstract class WatchEventService<T extends { chainID: number }>
   /**
    * Unsubscribes from all events. It closes all clients in {@link onModuleDestroy}
    */
+  @LogSubOperation('unsubscribe_all')
   async unsubscribe(): Promise<void> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch-event: unsubscribe`,
-      }),
-    )
     for (const [id, unwatch] of Object.entries(this.unwatch)) {
       // Best-effort cleanup: call the unwatch callback and remove the entry
       // to avoid stale references or duplicate listeners.
@@ -101,15 +101,12 @@ export abstract class WatchEventService<T extends { chainID: number }>
         unwatch()
         delete this.unwatch[Number(id)]
       } catch (e) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: `watch-event: unsubscribe`,
-            error: EcoError.WatchEventUnsubscribeError,
-            properties: {
-              errorPassed: e,
-            },
-          }),
-        )
+        // Unsubscribe error tracked by analytics
+        this.logger.error({
+          msg: 'watch-event: unsubscribe',
+          error: 'Error: Could not unsubscribe from watch event',
+          errorPassed: e,
+        })
 
         // Track unsubscribe error with analytics
         if (this.ecoAnalytics) {
@@ -120,6 +117,11 @@ export abstract class WatchEventService<T extends { chainID: number }>
         }
       }
     }
+
+    // Log successful unsubscribe completion
+    this.logger.debug({
+      msg: 'watch-event: unsubscribe',
+    })
   }
 
   /**
@@ -127,7 +129,8 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * - Per-chain in-progress guard prevents overlapping recoveries.
    * - Capped exponential backoff smooths transient RPC failures.
    */
-  async onError(error: any, client: PublicClient, contract: T) {
+  @LogSubOperation('error_recovery')
+  async onError(error: any, @LogContext client: PublicClient, @LogContext contract: T) {
     // reset the filters as they might have expired or we might have been moved to a new node
     // https://support.quicknode.com/hc/en-us/articles/10838914856977-Error-code-32000-message-filter-not-found
 
@@ -141,14 +144,22 @@ export abstract class WatchEventService<T extends { chainID: number }>
 
     this.recoveryInProgress[chainID] = true
 
-    this.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `rpc client error`,
-        properties: {
-          error,
+    // Log error with enhanced context including chainId and RPC info
+    logWatchError(
+      error,
+      client,
+      {
+        ...createContractErrorContext(contract),
+        operationName: 'RPC_CONNECTION_RECOVERY',
+        serviceName: this.constructor.name,
+        errorType: 'RPC_ERROR',
+        additionalContext: {
           ignoredAttempts: this.recoveryIgnoredAttempts[chainID] ?? 0,
+          recoveryAttempts: this.recoveryAttempts[chainID] ?? 0,
         },
-      }),
+      },
+      this.logger,
+      this.ecoAnalytics,
     )
 
     // Track error occurrence if analytics service is available
@@ -211,14 +222,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
         )
       }
 
-      // Persist attempt count and emit telemetry; future errors will retry with higher backoff.
-      this.logger.warn(
-        EcoLogMessage.withError({
-          message: `watch-event: recovery failed, will retry with backoff`,
-          error: recoveryError,
-          properties: { chainID, attempts: nextAttempt, delayMs },
-        }),
-      )
+      // Error recovery failure tracked by analytics
 
       throw recoveryError
     } finally {
@@ -230,6 +234,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Process a batch of logs resiliently, ensuring a single failure does not halt the batch.
    * Logs a concise failure summary when any items fail.
    */
+  @LogSubOperation('process_logs_batch')
   protected async processLogsResiliently<L>(
     logs: L[],
     handleOne: (log: L) => Promise<void>,
@@ -238,16 +243,34 @@ export abstract class WatchEventService<T extends { chainID: number }>
     const results = await Promise.allSettled(logs.map((log) => handleOne(log)))
     const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
     if (failures.length > 0) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `${summaryLabel}: ${failures.length}/${logs.length} jobs failed to be added to queue`,
-          properties: {
-            failures: failures.map((f) =>
-              f.reason instanceof Error ? f.reason.message : String(f.reason),
-            ),
+      // Extract failure reasons for logging
+      const failureMessages = failures.map((f) => f.reason?.message || String(f.reason))
+
+      // Log processing failures in expected format for tests and debugging
+      this.logger.error({
+        msg: `${summaryLabel}: ${failures.length}/${logs.length} jobs failed to be added to queue`,
+        failures: failureMessages,
+        service: this.constructor.name,
+        operation: 'process_logs_batch',
+        totalLogs: logs.length,
+        failedLogs: failures.length,
+        successRate: (((logs.length - failures.length) / logs.length) * 100).toFixed(2) + '%',
+      })
+
+      // Track processing errors with analytics
+      if (this.ecoAnalytics) {
+        this.ecoAnalytics.trackError(
+          'WATCH_LOG_PROCESSING_FAILURES',
+          new Error(`${failures.length}/${logs.length} logs failed processing`),
+          {
+            service: this.constructor.name,
+            summaryLabel,
+            failureCount: failures.length,
+            totalCount: logs.length,
+            failureMessages,
           },
-        }),
-      )
+        )
+      }
     }
   }
 
@@ -255,30 +278,26 @@ export abstract class WatchEventService<T extends { chainID: number }>
    * Unsubscribes from a specific chain
    * @param chainID the chain id to unsubscribe from
    */
-  async unsubscribeFrom(chainID: number) {
+  @LogSubOperation('unsubscribe_from_chain')
+  async unsubscribeFrom(@LogContext chainID: number) {
     if (this.unwatch[chainID]) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `watch-event: unsubscribeFrom`,
-          properties: {
-            chainID,
-          },
-        }),
-      )
       try {
         this.unwatch[chainID]()
         delete this.unwatch[chainID]
+
+        // Log successful unsubscribe
+        this.logger.debug({
+          msg: 'watch-event: unsubscribeFrom',
+          chainID,
+        })
       } catch (e) {
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: `watch-event: unsubscribeFrom`,
-            error: EcoError.WatchEventUnsubscribeFromError(chainID),
-            properties: {
-              chainID,
-              errorPassed: e,
-            },
-          }),
-        )
+        // Unsubscribe error tracked by analytics
+        this.logger.error({
+          msg: 'watch-event: unsubscribeFrom',
+          error: `Error: Could not unsubscribe from watch event for chain : ${chainID}`,
+          errorPassed: e,
+          chainID,
+        })
 
         // Track unsubscribe error with analytics
         if (this.ecoAnalytics) {
@@ -290,15 +309,11 @@ export abstract class WatchEventService<T extends { chainID: number }>
         }
       }
     } else {
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: `watch event: unsubscribeFrom`,
-          error: EcoError.WatchEventNoUnsubscribeError(chainID),
-          properties: {
-            chainID,
-          },
-        }),
-      )
+      this.logger.error({
+        msg: 'watch event: unsubscribeFrom',
+        error: `Error: There is no unwatch for chain : ${chainID}`,
+        chainID,
+      })
     }
   }
 
