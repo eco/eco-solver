@@ -40,6 +40,7 @@ export class IntentFulfillmentQueue {
   static init() {
     return BullModule.registerQueue({
       name: this.queueName,
+      prefix: this.prefix,
       defaultJobOptions: {
         removeOnFail: true,
         removeOnComplete: true,
