@@ -74,11 +74,6 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
       address: source.sourceAddress,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
-      args: {
-        // // restrict by acceptable chains, chain ids must be bigints
-        // _destinationChain: solverSupportedChains,
-        prover: source.provers,
-      },
       onLogs: async (logs: Log[]): Promise<void> => {
         try {
           // Track intent funded events detected
