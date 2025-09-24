@@ -21,3 +21,24 @@ if (!global.__OCTOKIT_MOCKED__) {
 
   global.__OCTOKIT_MOCKED__ = true
 }
+
+// Mock AWS SDK to prevent real AWS calls during tests
+if (!global.__AWS_SDK_MOCKED__) {
+  jest.mock('@aws-sdk/client-secrets-manager', () => ({
+    SecretsManager: jest.fn().mockImplementation(() => ({
+      getSecretValue: jest.fn().mockResolvedValue({
+        SecretString: JSON.stringify({ mocked: 'secret-data' }),
+      }),
+    })),
+  }))
+
+  jest.mock('@aws-sdk/client-kms', () => ({
+    KMSClient: jest.fn().mockImplementation(() => ({
+      send: jest.fn().mockResolvedValue({ mocked: 'kms-response' }),
+    })),
+    EncryptCommand: jest.fn(),
+    DecryptCommand: jest.fn(),
+  }))
+
+  global.__AWS_SDK_MOCKED__ = true
+}
