@@ -147,7 +147,7 @@ describe('CheckCCTPAttestationJobManager', () => {
       expect(payload).toEqual(data)
       expect(opts).toBeDefined()
       expect(opts!.removeOnFail).toBe(false)
-      expect(opts!.attempts).toBe(3)
+      expect(opts!.attempts).toBe(10)
       expect(opts!.backoff).toEqual({ type: 'exponential', delay: 10_000 })
       expect(opts!.delay).toBe(10_000)
     })
