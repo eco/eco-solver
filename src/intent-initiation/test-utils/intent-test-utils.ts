@@ -2,15 +2,23 @@
 import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { Hex } from 'viem'
+import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { PermitTestUtils } from '@/intent-initiation/test-utils/permit-test-utils'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
+import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { QuoteTestUtils } from '@/intent-initiation/test-utils/quote-test-utils'
-import { zeroAddress } from 'viem'
 
 export interface GaslessIntentFactoryOptions extends Partial<GaslessIntentRequestDTO> {
   usePermit?: boolean
   isBatchPermit2?: boolean
   token?: `0x${string}`
+  gaslessIntentData?: Partial<GaslessIntentDataDTO>
+}
+
+export interface GaslessIntentRequestData {
+  gaslessIntentRequest: GaslessIntentRequestDTO
+  route: QuoteRouteDataDTO
+  reward: QuoteRewardDataDTO
 }
 
 export class IntentTestUtils {
@@ -34,53 +42,66 @@ export class IntentTestUtils {
     }
   }
 
-  createGaslessIntentRequestDTO(
-    overrides: GaslessIntentFactoryOptions = {},
-  ): GaslessIntentRequestDTO {
-    const { usePermit = true, isBatchPermit2 = false, token, ...dtoOverrides } = overrides
+  createGaslessIntentDataDTO(
+    gaslessIntentFactoryOptions: GaslessIntentFactoryOptions = {},
+    permit2Overrides: Partial<Permit2DTO> = {},
+  ): GaslessIntentDataDTO {
+    const { usePermit = true, isBatchPermit2 = false, token } = gaslessIntentFactoryOptions
 
     const gaslessIntentData: GaslessIntentDataDTO = {
-      funder: '0x8c182a808f75a29c0f02d4ba80ab236ab01c0ace',
       permitData: {
         permit: usePermit ? [this.permitTestUtils.createPermitDTO({ token })] : [],
         permit2: usePermit
           ? undefined
-          : this.permitTestUtils.createPermit2DTO({}, { isBatch: isBatchPermit2, token }),
-
-        getPermitContractAddress(): Hex {
-          return (this.permit ? zeroAddress : this.permit2!.permitContract) as Hex
-        },
+          : [
+              this.permitTestUtils.createPermit2DTO(permit2Overrides, {
+                isBatch: isBatchPermit2,
+                token,
+              }),
+            ],
+        permit3: undefined,
       },
 
-      getPermitContractAddress(): Hex {
-        return this.permitData.getPermitContractAddress() as Hex
+      allowPartial: false,
+    }
+
+    return gaslessIntentData
+  }
+
+  createGaslessIntentRequestDTO(
+    overrides: GaslessIntentFactoryOptions = {},
+  ): GaslessIntentRequestData {
+    const { usePermit = true, isBatchPermit2 = false, token, ...dtoOverrides } = overrides
+
+    const gaslessIntentData: GaslessIntentDataDTO = overrides.gaslessIntentData ?? {
+      permitData: {
+        permit: usePermit ? [this.permitTestUtils.createPermitDTO({ token })] : [],
+        permit2: usePermit
+          ? undefined
+          : [this.permitTestUtils.createPermit2DTO({}, { isBatch: isBatchPermit2, token })],
+        permit3: undefined,
       },
 
       allowPartial: false,
     }
 
     const gaslessIntentRequestDTO: GaslessIntentRequestDTO = {
-      quoteID: 'QuoteID',
-      dAppID: 'Portal',
-      route: this.quoteTestUtils.createQuoteRouteDataDTO(),
-      salt: ('0x' + 'abcd'.padEnd(64, '0')) as Hex,
-      reward: this.createRewardDTO({ token }),
+      intentGroupID: 'IntentGroupID',
+      dAppID: 'test',
+      intents: [
+        {
+          quoteID: 'QuoteID',
+          salt: ('0x' + 'abcd'.padEnd(64, '0')) as Hex,
+        },
+      ],
       gaslessIntentData,
       ...dtoOverrides,
-
-      getSourceChainID(): number {
-        return Number(this.route.source)
-      },
-
-      getFunder(): Hex {
-        return this.gaslessIntentData.funder
-      },
-
-      getPermitContractAddress(): Hex {
-        return this.gaslessIntentData.getPermitContractAddress() as Hex
-      },
     }
 
-    return gaslessIntentRequestDTO
+    return {
+      gaslessIntentRequest: gaslessIntentRequestDTO,
+      route: this.quoteTestUtils.createQuoteRouteDataDTO(),
+      reward: this.createRewardDTO({ token }),
+    }
   }
 }

@@ -61,7 +61,7 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
       removeOnFail: false,
-      delay,
+      delay: delay ?? 10_000,
       attempts: 10,
       backoff: {
         type: 'exponential',
@@ -107,10 +107,10 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
         }),
       )
 
-      await this.delay(job, 30_000)
+      await this.delay(job, 10_000)
     }
 
-    return result
+    return result as CheckCCTPAttestationJob['returnvalue']
   }
 
   async onComplete(
@@ -138,6 +138,18 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
       }
 
       await ExecuteCCTPMintJobManager.start(processor.queue, executeCCTPMintJobData)
+    } else {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message:
+            'CCTP: CheckCCTPAttestationJob: it should not happen, attestation is not complete',
+          id: job.data.id,
+          properties: {
+            returnvalue: job.returnvalue,
+            data: job.data,
+          },
+        }),
+      )
     }
   }
 

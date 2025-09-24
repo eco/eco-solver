@@ -1,58 +1,43 @@
 import { ApiProperty } from '@nestjs/swagger'
+import { ArrayNotEmpty, IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
 import { GaslessIntentDataDTO } from '@/quote/dto/gasless-intent-data.dto'
 import { Hex } from 'viem'
-import { IsNotEmpty, ValidateNested, IsString } from 'class-validator'
-import { plainToInstance, Type } from 'class-transformer'
-import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
+import { Type } from 'class-transformer'
 
 export class GaslessIntentRequestDTO {
-  @IsString()
   @IsNotEmpty()
   @ApiProperty()
-  quoteID: string
+  @IsString()
+  intentGroupID: string
 
   @IsNotEmpty()
   @ApiProperty()
   @IsString()
   dAppID: string
 
-  @IsNotEmpty()
-  @IsString()
-  @ApiProperty()
-  salt: Hex
-
-  @IsNotEmpty()
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => QuoteRouteDataDTO)
-  route: QuoteRouteDataDTO
-
-  @IsNotEmpty()
+  @IsArray()
+  @ArrayNotEmpty()
   @ValidateNested()
   @ApiProperty()
-  @Type(() => QuoteRewardDataDTO)
-  reward: QuoteRewardDataDTO
+  @ValidateNested()
+  @Type(() => IntentDTO)
+  intents: IntentDTO[]
 
   @IsNotEmpty()
   @ValidateNested()
   @ApiProperty()
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData: GaslessIntentDataDTO
+}
 
-  getSourceChainID?(): number {
-    return Number(this.route.source)
-  }
+export class IntentDTO {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  quoteID: string
 
-  getFunder?(): Hex {
-    return this.gaslessIntentData.funder
-  }
-
-  getPermitContractAddress?(): Hex {
-    return this.gaslessIntentData.getPermitContractAddress?.() as Hex
-  }
-
-  static fromJSON(json: any): GaslessIntentRequestDTO {
-    return json.getFunder ? json : plainToInstance(GaslessIntentRequestDTO, json)
-  }
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
+  salt: Hex
 }

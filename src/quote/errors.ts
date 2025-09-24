@@ -245,4 +245,8 @@ export class QuoteError extends Error {
   static InvalidFunctionData(target: Hex) {
     return new EcoError(`Invalid function data for target ${target}: missing or invalid args`)
   }
+
+  static UnsupportedContract(contract: string, target: Hex) {
+    return new EcoError(`Unsupported ${contract} contract ${target}`)
+  }
 }

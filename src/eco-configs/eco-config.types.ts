@@ -1,20 +1,21 @@
-import { Network } from '@/common/alchemy/network'
-import { ClusterNode } from 'ioredis'
-import { Params as PinoParams } from 'nestjs-pino'
-import * as Redis from 'ioredis'
-import { Settings } from 'redlock'
-import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
-import { LDOptions } from '@launchdarkly/node-server-sdk'
-import { CacheModuleOptions } from '@nestjs/cache-manager'
-import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
-import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
-import { ConfigRegex } from '@eco-foundation/chains'
-import { Strategy } from '@/liquidity-manager/types/types'
 import { AnalyticsConfig } from '@/analytics'
+import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { ClusterNode } from 'ioredis'
+import { ConfigRegex } from '@eco-foundation/chains'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { JobsOptions, RepeatOptions } from 'bullmq'
+import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { Network } from '@/common/alchemy/network'
+import { Params as PinoParams } from 'nestjs-pino'
+import { Settings } from 'redlock'
+import { Strategy } from '@/liquidity-manager/types/types'
+import * as Redis from 'ioredis'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  port: number
   analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
@@ -88,6 +89,7 @@ export type EcoConfigType = {
   everclear: EverclearConfig
   gateway: GatewayConfig
   watch: WatchConfig
+  usdt0: USDT0Config
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -489,6 +491,29 @@ export interface CCTPConfig {
     tokenMessenger: Hex
     messageTransmitter: Hex
   }[]
+}
+
+// --------------------------- USDT0 (OFT v2) ----------------------------
+
+export type USDT0ChainType = 'adapter' | 'oft'
+
+export interface USDT0ChainConfig {
+  chainId: number
+  eid: number
+  type: USDT0ChainType
+  contract: Hex
+  decimals: 6
+  // ERC20 token address on the chain that represents USDT/USDT0 balances.
+  // For Ethereum (adapter), this is the native USDT token and is provided via `underlyingToken`.
+  // For other EVMs, this may be the chain's USDT token (extension) address. Optional to keep
+  // backwards compatibility; when present, we validate quotes and use it for delivery checks.
+  token?: Hex
+  underlyingToken?: Hex // Ethereum adapter only
+}
+
+export interface USDT0Config {
+  scanApiBaseUrl: string
+  chains: USDT0ChainConfig[]
 }
 
 export interface CCTPV2Config {
