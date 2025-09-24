@@ -49,7 +49,6 @@ export class RewardDataModel implements RewardType {
 export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataModel)
 RewardDataModelSchema.index({ creator: 1 }, { unique: false })
 RewardDataModelSchema.index({ prover: 1 }, { unique: false })
-RewardDataModelSchema.index({ tokens: 1 }, { unique: false })
 
 RewardDataModelSchema.methods.getHash = function (): Hex {
   return hashReward(this)

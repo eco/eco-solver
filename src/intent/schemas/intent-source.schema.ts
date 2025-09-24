@@ -51,5 +51,3 @@ IntentSourceSchema.index(
     },
   },
 )
-
-// IntentSourceSchema.index({ 'event.transactionHash': 1 }, { unique: true, sparse: true })

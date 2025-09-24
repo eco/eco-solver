@@ -196,10 +196,6 @@ export const IntentSourceDataSchema = SchemaFactory.createForClass(IntentDataMod
 IntentSourceDataSchema.index({ intentGroupID: 1 }, { unique: false })
 IntentSourceDataSchema.index({ quoteID: 1 }, { unique: false })
 IntentSourceDataSchema.index({ hash: 1 }, { unique: true })
-IntentSourceDataSchema.index(
-  { source: 1, destination: 'ascending', deadline: 'ascending' },
-  { unique: false },
-)
 
 IntentSourceDataSchema.methods.getHash = function (): {
   routeHash: Hex
