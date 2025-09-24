@@ -11,7 +11,6 @@ import { Queue, UnrecoverableError } from 'bullmq'
 import { Hex } from 'viem'
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 

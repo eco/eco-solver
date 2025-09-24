@@ -21,21 +21,14 @@ export class IndexerService {
   }
 
   @LogOperation('get_next_batch_withdrawals', GenericOperationLogger)
-  async getNextBatchWithdrawals(@LogContext intentSourceAddr?: Hex): Promise<BatchWithdraws[]> {
+  async getNextBatchWithdrawals(
+    @LogContext intentSourceAddr?: Hex,
+  ): Promise<(BatchWithdraws | BatchWithdrawGasless)[]> {
     const searchParams = { evt_log_address: intentSourceAddr }
-    const data = await this.fetch<(BatchWithdraws | BatchWithdrawGasless)[]>(
+    return await this.fetch<(BatchWithdraws | BatchWithdrawGasless)[]>(
       '/intents/nextBatchWithdrawals',
       { searchParams },
     )
-
-    const withdrawals: BatchWithdraws[] = []
-    data.forEach((record) => {
-      if (!this.isGaslessIntent(record)) {
-        withdrawals.push(record)
-      }
-    })
-
-    return withdrawals
   }
 
   @LogOperation('get_next_send_batch', GenericOperationLogger)
@@ -71,11 +64,5 @@ export class IndexerService {
       )
       throw error
     }
-  }
-
-  private isGaslessIntent(
-    record: BatchWithdraws | BatchWithdrawGasless,
-  ): record is BatchWithdrawGasless {
-    return 'intentHash' in record.intent
   }
 }

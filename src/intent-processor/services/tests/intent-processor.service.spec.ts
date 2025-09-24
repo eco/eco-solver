@@ -9,6 +9,7 @@ import {
   IntentProcessorQueue,
 } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { Network } from '@/common/alchemy/network'
 import { Queue } from 'bullmq'
 import { RouteType } from '@eco-foundation/routes-ts'
@@ -148,7 +149,19 @@ describe('IntentProcessorService', () => {
           },
         },
         {
-          provide: getQueueToken(INTENT_PROCESSOR_QUEUE_NAME),
+          provide: IntentSourceRepository,
+          useValue: {
+            getIntent: jest.fn(),
+            getIntentsByHashes: jest.fn().mockResolvedValue([]),
+            queryIntents: jest.fn().mockResolvedValue([]),
+            create: jest.fn(),
+            exists: jest.fn(),
+            queryIntent: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getQueueToken(IntentProcessorQueue.queueName),
           useValue: queue,
         },
       ],
@@ -238,6 +251,10 @@ describe('IntentProcessorService', () => {
               },
             ],
           },
+          claimant: {
+            _hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as string,
+            _claimant: '0x0000000000000000000000000000000000000002' as string,
+          },
         },
         {
           intent: {
@@ -263,6 +280,10 @@ describe('IntentProcessorService', () => {
                 value: '60',
               },
             ],
+          },
+          claimant: {
+            _hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as string,
+            _claimant: '0x0000000000000000000000000000000000000007' as string,
           },
         },
       ]
@@ -320,6 +341,10 @@ describe('IntentProcessorService', () => {
               },
             ],
           },
+          claimant: {
+            _hash: '0x1111111111111111111111111111111111111111111111111111111111111111' as string,
+            _claimant: '0x0000000000000000000000000000000000000002' as string,
+          },
         },
         {
           intent: {
@@ -345,6 +370,10 @@ describe('IntentProcessorService', () => {
                 value: '60',
               },
             ],
+          },
+          claimant: {
+            _hash: '0x2222222222222222222222222222222222222222222222222222222222222222' as string,
+            _claimant: '0x0000000000000000000000000000000000000007' as string,
           },
         },
       ]
@@ -401,6 +430,10 @@ describe('IntentProcessorService', () => {
                 value: '50',
               },
             ],
+          },
+          claimant: {
+            _hash: `0x${i.toString().padStart(64, '0')}` as string,
+            _claimant: '0x0000000000000000000000000000000000000002' as string,
           },
         }))
 

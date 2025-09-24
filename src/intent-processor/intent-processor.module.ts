@@ -3,8 +3,8 @@ import { SignModule } from '@/sign/sign.module'
 import { BalanceModule } from '@/balance/balance.module'
 import { TransactionModule } from '@/transaction/transaction.module'
 import { IndexerModule } from '@/indexer/indexer.module'
-import { QUEUES } from '@/common/redis/constants'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { IntentModule } from '@/intent/intent.module'
+import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 
 @Module({
@@ -13,7 +13,8 @@ import { IntentProcessorService } from '@/intent-processor/services/intent-proce
     TransactionModule,
     IndexerModule,
     SignModule,
-    initBullMQ(QUEUES.INTENT_PROCESSOR),
+    IntentModule,
+    IntentProcessorQueue.init(),
   ],
   providers: [IntentProcessorService],
   exports: [],
