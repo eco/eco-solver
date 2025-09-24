@@ -35,6 +35,16 @@ export class IntentSourceRepository {
     return this.queryIntents({ 'intent.intentGroupID': intentGroupID }, projection)
   }
 
+  async getIntentsByHashes(
+    hashes: string[],
+    projection: object = {},
+  ): Promise<IntentSourceModel[]> {
+    if (hashes.length === 0) {
+      return []
+    }
+    return this.queryIntents({ 'intent.hash': { $in: hashes } }, projection)
+  }
+
   async createIntentFromIntentInitiation(
     intentGroupID: string,
     quoteID: string,

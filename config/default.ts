@@ -372,6 +372,14 @@ export default {
         token: '0x9151434b16b9763660705744891fA906F660EcC5',
         decimals: 6,
       },
+      {
+        chainId: 9745, // Plasma
+        eid: 30383,
+        type: 'oft',
+        contract: '0x02ca37966753bDdDf11216B73B16C1dE756A7CF9',
+        token: '0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb',
+        decimals: 6,
+      },
     ],
   },
 
