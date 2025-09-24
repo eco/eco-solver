@@ -2,7 +2,6 @@ export default {
   server: {
     url: 'http://localhost:3000',
   },
-
   logger: {
     usePino: false,
   },
