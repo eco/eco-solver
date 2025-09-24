@@ -4,6 +4,7 @@ export interface IndexerIntent {
   creator: string
   prover: string
   destination: string
+  source: string
   route: string // bytes-encoded Route struct
   rewardDeadline: string
   rewardNativeAmount: string

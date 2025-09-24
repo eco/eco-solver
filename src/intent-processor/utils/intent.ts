@@ -5,6 +5,7 @@ import { PortalHashUtils } from '@/common/utils/portal'
 import { routeStructAbiItem, V2RewardType, V2RouteType } from '@/contracts'
 
 export type WithdrawData = {
+  source: bigint
   destination: bigint
   routeHash: Hex
   reward: V2RewardType
@@ -35,5 +36,10 @@ export function getWithdrawData(intent: IndexerIntent): WithdrawData {
     reward,
   })
 
-  return { destination: BigInt(intent.destination), routeHash, reward }
+  return {
+    source: BigInt(intent.source),
+    destination: BigInt(intent.destination),
+    routeHash,
+    reward,
+  }
 }

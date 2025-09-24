@@ -34,8 +34,8 @@ import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-ba
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { getChainConfig } from '@/eco-configs/utils'
 import { portalAbi } from '@/contracts/v2-abi/Portal'
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { PortalHashUtils } from '@/common/utils/portal'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -115,11 +115,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     })[]
     const regularWithdrawals = batchWithdrawals
       .filter((w) => !isGaslessIntent(w))
-      .map((w) => ({
-        ...w,
-        intent: getWithdrawData(w.intent as IndexerIntent),
-        source: Number((w as BatchWithdraws).intent.source),
-      }))
+      .map((item) => {
+        const w = item as BatchWithdraws
+        return { ...getWithdrawData(w.intent), intentSourceAddr: item.intentSourceAddr }
+      })
 
     // Get all gasless intent hashes
     const gaslessIntentHashes = gaslessWithdrawals.map((g) => g.intent.intentHash)
@@ -145,10 +144,15 @@ export class IntentProcessorService implements OnApplicationBootstrap {
           )
           return null
         }
+
+        const intent = IntentDataModel.toIntentV2(fullIntent.intent)
+        const { routeHash } = PortalHashUtils.getIntentHash(intent)
+
         return {
-          source: Number(fullIntent.intent.route.source),
-          intent: IntentDataModel.toChainIntent(fullIntent.intent),
-          claimant: gaslessWithdrawal.claimant,
+          source: BigInt(fullIntent.intent.route.source),
+          destination: BigInt(fullIntent.intent.route.destination),
+          routeHash,
+          reward: intent.reward,
           intentSourceAddr: gaslessWithdrawal.intentSourceAddr,
         }
       })
@@ -176,9 +180,8 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     for (const sourceChainId in batchWithdrawalsPerSource) {
       const withdrawalsForChain = batchWithdrawalsPerSource[sourceChainId]
-      const batchWithdrawalsData = withdrawalsForChain.map((w) => w.intent)
 
-      const chunkWithdrawals = _.chunk(batchWithdrawalsData, this.config.withdrawals.chunkSize)
+      const chunkWithdrawals = _.chunk(withdrawalsForChain, this.config.withdrawals.chunkSize)
       const chunkWithdrawalsWithAddr = _.chunk(
         withdrawalsForChain,
         this.config.withdrawals.chunkSize,
