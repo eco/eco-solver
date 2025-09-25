@@ -1,4 +1,3 @@
-import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { obscureCenter } from '@/common/utils/strings'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -16,15 +15,21 @@ import { getAddress as viemGetAddress, Hex } from 'viem'
 export class KmsService implements OnModuleInit {
   private logger = new Logger(KmsService.name)
   private keyID: string
+
+  enabled = false
   wallets: KMSWallets
   signer: Signer
+
   constructor(private readonly ecoConfigService: EcoConfigService) {}
 
   async onModuleInit() {
     const kmsConfig = this.ecoConfigService.getKmsConfig()
-    if (!kmsConfig) {
-      throw EcoError.KmsCredentialsError(kmsConfig)
+    if (!kmsConfig.keyID || !kmsConfig.region) {
+      // Keep enabled as false
+      return
     }
+    this.enabled = true
+
     this.keyID = kmsConfig.keyID
 
     const provider = new KMSProviderAWS({

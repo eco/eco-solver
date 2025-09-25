@@ -14,7 +14,7 @@ export class AtomicSignerService extends SignerService {
     super(ecoConfigService)
   }
 
-  protected buildAccount(): PrivateKeyAccount {
+  buildAccount(): PrivateKeyAccount {
     return privateKeyAndNonceToAccountSigner(this.nonceService, this.getPrivateKey())
   }
 

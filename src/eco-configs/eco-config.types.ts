@@ -216,8 +216,8 @@ export type AwsCredential = {
  * The config type for the aws kms
  */
 export type KmsConfig = {
-  region: string
-  keyID: string
+  region?: string
+  keyID?: string
 }
 
 /**
