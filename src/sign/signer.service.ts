@@ -16,7 +16,7 @@ export class SignerService implements OnModuleInit {
     return this.account
   }
 
-  protected buildAccount(): PrivateKeyAccount {
+  buildAccount(): PrivateKeyAccount {
     return privateKeyToAccount(this.getPrivateKey())
   }
 
