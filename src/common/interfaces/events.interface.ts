@@ -16,6 +16,15 @@ export interface BaseBlockchainEvent {
   blockNumber?: bigint;
 }
 
+export interface IntentFundedEvent extends BaseBlockchainEvent {
+  /** Hash of the intent */
+  intentHash: Hex;
+  /** Address/identifier of the funder who funded the intent */
+  funder: UniversalAddress;
+  /** Whether the intent is complete */
+  complete: boolean;
+}
+
 /**
  * IntentFulfilled event data structure
  * Emitted when an intent is successfully fulfilled on the destination chain

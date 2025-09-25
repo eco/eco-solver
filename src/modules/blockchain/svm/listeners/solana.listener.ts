@@ -9,6 +9,7 @@ import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abs
 import { toError } from '@/common/utils/error-handler';
 import {
   IntentFulfilledInstruction,
+  IntentFundedInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
@@ -111,6 +112,28 @@ export class SolanaListener extends BaseChainListener {
               });
 
               span.addEvent('intent.emitted');
+              break;
+
+            case 'IntentFunded':
+              const fundedEvent = SvmEventParser.parseIntentFundedEvent(
+                ev.data as IntentFundedInstruction,
+                logs,
+                this.solanaConfigService.chainId,
+              );
+
+              span.setAttributes({
+                'svm.intent_hash': fundedEvent.intentHash,
+                'svm.funder': fundedEvent.funder,
+                'svm.complete': fundedEvent.complete,
+              });
+
+              // Emit the event within the span context to propagate trace context
+              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
+                this.eventsService.emit('intent.funded', fundedEvent);
+              });
+
+              span.addEvent('intent.funded.emitted');
+
               break;
 
             case 'IntentFulfilled':

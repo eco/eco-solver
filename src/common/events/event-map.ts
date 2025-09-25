@@ -1,5 +1,6 @@
 import {
   IntentFulfilledEvent,
+  IntentFundedEvent,
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
@@ -23,6 +24,11 @@ export interface EventMap {
    * Emitted when an intent is successfully fulfilled on the destination chain
    */
   'intent.fulfilled': IntentFulfilledEvent;
+
+  /**
+   * Emitted when an intent is funded on the source chain
+   */
+  'intent.funded': IntentFundedEvent;
 
   /**
    * Emitted when an intent is proven on the source chain
