@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
@@ -86,14 +86,18 @@ export class WithdrawalScheduler implements OnModuleInit, OnModuleDestroy {
       // Clean up any orphaned repeat job keys
       // This is a fallback cleanup in case there are stale repeat jobs
       const client = await this.withdrawalQueue.client;
-      const repeatKeys = await client.keys(`bull:${QueueNames.INTENT_WITHDRAWAL}:repeat:${this.schedulerKey}:*`);
-      
+      const repeatKeys = await client.keys(
+        `bull:${QueueNames.INTENT_WITHDRAWAL}:repeat:${this.schedulerKey}:*`,
+      );
+
       if (repeatKeys.length > 0) {
         await client.del(...repeatKeys);
         this.logger.log(`Cleaned up ${repeatKeys.length} orphaned repeat job keys`);
       }
     } catch (error) {
-      this.logger.warn(`Failed to cleanup existing schedulers (non-critical): ${toError(error).message}`);
+      this.logger.warn(
+        `Failed to cleanup existing schedulers (non-critical): ${toError(error).message}`,
+      );
       // Don't throw here as this is cleanup - we want to continue with creating new scheduler
     }
   }

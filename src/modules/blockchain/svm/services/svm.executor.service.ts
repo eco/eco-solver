@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { AnchorProvider, BN, Program, setProvider } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
+import { createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import {
   ComputeBudgetProgram,
   Connection,
@@ -212,32 +213,26 @@ export class SvmExecutorService extends BaseChainExecutor {
       span.setAttribute('svm.destinations_count', withdrawalData.destinations?.length || 0);
 
       // Create withdrawal instructions for each intent
-      const withdrawalInstructions = await this.createWithdrawalInstructions(withdrawalData);
+      const { withdrawalInstructions, ataCreationInstructions } =
+        await this.createWithdrawalInstructions(withdrawalData);
 
       if (withdrawalInstructions.length === 0) {
         throw new Error('No valid withdrawal instructions generated');
       }
 
-      // Add compute budget instructions - must be first instructions
-      // Increase base compute units significantly for withdrawal operations
-      const computeUnits = Math.min(1_400_000, 500_000 * withdrawalInstructions.length); // Increased to 500k per withdrawal
+      const computeUnits = Math.min(1_400_000, 500_000 * withdrawalInstructions.length);
       const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
         units: computeUnits,
       });
 
       this.logger.log(
-        `Setting compute unit limit to ${computeUnits} for ${withdrawalInstructions.length} withdrawal instructions`,
+        `Creating transaction with ${ataCreationInstructions.length} ATA creation instructions and ${withdrawalInstructions.length} withdrawal instructions`,
       );
 
-      // Add compute unit price to ensure transaction priority
-      const computePriceIx = ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: 1000, // Small priority fee
-      });
-
-      // Create and send transaction - compute budget instructions must be first
+      // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
       const transaction = new Transaction()
         .add(computeBudgetIx)
-        .add(computePriceIx)
+        .add(...ataCreationInstructions)
         .add(...withdrawalInstructions);
 
       const wallet = this.walletManager.getWallet();
@@ -248,13 +243,14 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       span.setAttribute('svm.batch_withdraw_signature', signature);
       span.addEvent('svm.batch_withdraw.submitted', {
-        instruction_count: withdrawalInstructions.length + 2, // +2 for compute budget and price instructions
-        compute_units: computeUnits,
+        instruction_count: withdrawalInstructions.length + ataCreationInstructions.length + 2, // +2 for compute budget and price instructions
+        ata_creation_count: ataCreationInstructions.length,
+        withdrawal_count: withdrawalInstructions.length,
         signature,
       });
 
       this.logger.log(
-        `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents. Signature: ${signature}`,
+        `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature}`,
       );
 
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -269,11 +265,17 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  private async createWithdrawalInstructions(withdrawalData: any): Promise<any[]> {
-    const instructions: any[] = [];
+  private async createWithdrawalInstructions(withdrawalData: any): Promise<{
+    withdrawalInstructions: any[];
+    ataCreationInstructions: any[];
+  }> {
+    const withdrawalInstructions: any[] = [];
+    const ataCreationInstructions: any[] = [];
 
     if (!withdrawalData.destinations || !withdrawalData.routeHashes || !withdrawalData.rewards) {
-      throw new Error('Invalid withdrawal data structure: missing destinations, routeHashes, or rewards');
+      throw new Error(
+        'Invalid withdrawal data structure: missing destinations, routeHashes, or rewards',
+      );
     }
 
     const { destinations, routeHashes, rewards } = withdrawalData;
@@ -290,58 +292,53 @@ export class SvmExecutorService extends BaseChainExecutor {
         const routeHash = routeHashes[i];
         const reward = rewards[i];
 
-        // Calculate intent hash using PortalHashUtils
-        // Note: We need to construct a proper intent object for hash calculation
-        // For now, using a simplified hash - in production this should match the exact intent hash
-        console.log("TYLER: destination, ", destination);
-        console.log("TYLER: routeHash, ", routeHash);
-        console.log("TYLER: reward, ", reward);
-        let intentHashHex = this.calculateIntentHash(destination, routeHash, reward);
-        console.log("TYLER: intentHashHex, ", intentHashHex);
-        intentHashHex = "0x93d91e209155bbaeb87c1a7e48990ebe02cf7f1dbde1e685d0aaed491ee7d224";
-
+        this.logger.debug(
+          `Processing withdrawal for destination: ${destination}, routeHash: ${routeHash}`,
+        );
+        const intentHashHex = PortalHashUtils.intentHash(
+          destination,
+          routeHash as `0x${string}`,
+          PortalHashUtils.computeRewardHash(reward, destination),
+        ).intentHash;
 
         const intentHashBuffer = toBuffer(intentHashHex);
 
-        // Get claimant from configuration
         const configuredClaimant = this.blockchainConfigService.getClaimant(destination);
         const claimantPublicKey = new PublicKey(
-          '1111111111112E18wCtjXKPYksTC6KLA2khGhTQf',
+          AddressNormalizer.denormalizeToSvm(configuredClaimant),
         );
 
         // Derive required PDAs matching the Rust implementation
-        console.log("STAPLETON: intentHashBuffer, ", intentHashBuffer);
-        console.log("STAPLETON: this.portalProgram!.programId, ", this.portalProgram!.programId);
         const [vaultPDA] = PublicKey.findProgramAddressSync(
           [Buffer.from('vault'), intentHashBuffer],
           this.portalProgram!.programId,
         );
 
         const [withdrawnMarkerPDA] = PublicKey.findProgramAddressSync(
-          [Buffer.from('withdrawn_marker'), intentHashBuffer],
+          [Buffer.from('claimed_marker'), intentHashBuffer],
           this.portalProgram!.programId,
         );
 
         // Proof PDA includes both intent hash and prover address
         const [proofPDA] = PublicKey.findProgramAddressSync(
-          [
-            Buffer.from('proof'),
-            intentHashBuffer,
-          ],
+          [Buffer.from('proof'), intentHashBuffer],
           new PublicKey(AddressNormalizer.denormalizeToSvm(reward.prover)),
         );
 
-        const [proofCloserPDA] = PublicKey.findProgramAddressSync(
+        const [portalProofCloserPDA] = PublicKey.findProgramAddressSync(
           [Buffer.from('proof_closer')],
           this.portalProgram!.programId,
         );
 
         // Generate token account metas for withdrawal
-        const tokenAccountMetas = await this.generateTokenAccountMetas(
+        const { tokenAccountMetas, createATAInstructions } = await this.generateTokenAccountMetas(
           reward.tokens,
           vaultPDA,
           claimantPublicKey,
         );
+
+        // Add create ATA instructions to the collection
+        ataCreationInstructions.push(...createATAInstructions);
 
         // Convert reward data to proper format
         const rewardData = {
@@ -355,39 +352,36 @@ export class SvmExecutorService extends BaseChainExecutor {
           })),
         };
 
-        console.log("STAPLETON: rewardCreator, ", rewardData.creator);
+        this.logger.debug(`Reward creator: ${rewardData.creator.toString()}`);
 
         // Create withdraw instruction args
         const withdrawArgs = {
           destination: new BN(destination.toString()),
-          routeHash: { 0: Array.from(toBuffer(routeHash)) }, // Convert to Bytes32 format
+          routeHash: { 0: Array.from(toBuffer(routeHash)) },
           reward: rewardData,
         };
 
-        // Build the withdrawal instruction
-        const withdrawalIx = await this.portalProgram!.methods
-          .withdraw(withdrawArgs)
+        const withdrawalIx = await this.portalProgram!.methods.withdraw(withdrawArgs)
           .accounts({
             payer: this.keypair!.publicKey,
             claimant: claimantPublicKey,
             vault: vaultPDA,
             proof: proofPDA,
-            proofCloser: proofCloserPDA,
+            proofCloser: portalProofCloserPDA,
             prover: new PublicKey(AddressNormalizer.denormalizeToSvm(reward.prover)),
             withdrawnMarker: withdrawnMarkerPDA,
           })
           .remainingAccounts([
             ...tokenAccountMetas,
-            // Add prover-specific remaining accounts if needed
             {
-              pubkey: this.getHyperProverPdaPayerPDA(),
+              pubkey: this.getHyperProverPdaPayerPDA(reward.prover),
               isSigner: false,
               isWritable: true,
             },
           ])
           .instruction();
 
-        instructions.push(withdrawalIx);
+        withdrawalInstructions.push(withdrawalIx);
 
         this.logger.debug(
           `Created withdrawal instruction for intent hash: ${intentHashHex}, claimant: ${claimantPublicKey.toString()}`,
@@ -401,32 +395,16 @@ export class SvmExecutorService extends BaseChainExecutor {
       }
     }
 
-    return instructions;
-  }
-
-  private calculateIntentHash(destination: bigint, routeHash: string, reward: any): `0x${string}` {
-    // Calculate reward hash first
-    const rewardHashData = [
-      reward.deadline.toString(),
-      reward.creator,
-      reward.prover,
-      reward.nativeAmount.toString(),
-      ...reward.tokens.map((t: any) => `${t.token}:${t.amount.toString()}`),
-    ].join('|');
-
-    // For simplicity, we'll use the provided routeHash and create intent hash
-    // In a real implementation, this should match the exact hash calculation from PortalHashUtils
-    const intentData = `${destination.toString()}:${routeHash}:${rewardHashData}`;
-    const hash = require('crypto').createHash('sha256').update(intentData).digest('hex');
-    return `0x${hash}` as `0x${string}`;
+    return { withdrawalInstructions, ataCreationInstructions };
   }
 
   private async generateTokenAccountMetas(
     tokens: any[],
     vaultPDA: PublicKey,
     claimantPublicKey: PublicKey,
-  ): Promise<any[]> {
+  ): Promise<{ tokenAccountMetas: any[]; createATAInstructions: any[] }> {
     const tokenAccountMetas: any[] = [];
+    const createATAInstructions: any[] = [];
     const tokenProgram = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     for (const token of tokens) {
@@ -441,6 +419,25 @@ export class SvmExecutorService extends BaseChainExecutor {
         claimantPublicKey,
         tokenProgram,
       );
+
+      // Check if ATAs exist and create them if they don't
+      try {
+        const claimantATAInfo = await this.connection.getAccountInfo(claimantATA);
+        if (!claimantATAInfo) {
+          // Create ATA instruction for claimant
+          const createATAIx = createAssociatedTokenAccountInstruction(
+            this.keypair!.publicKey,
+            claimantATA,
+            claimantPublicKey,
+            mintPublicKey,
+          );
+          createATAInstructions.push(createATAIx);
+
+          this.logger.debug(`Will create ATA for claimant: ${claimantATA.toString()}`);
+        }
+      } catch (error) {
+        this.logger.warn(`Could not check claimant ATA ${claimantATA.toString()}: ${error}`);
+      }
 
       // Add the three required accounts per token (vault ATA, claimant ATA, mint)
       tokenAccountMetas.push(
@@ -462,7 +459,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
     }
 
-    return tokenAccountMetas;
+    return { tokenAccountMetas, createATAInstructions };
   }
 
   private async getAssociatedTokenAddress(
@@ -477,18 +474,16 @@ export class SvmExecutorService extends BaseChainExecutor {
     return ata;
   }
 
-  private getHyperProverPdaPayerPDA(): PublicKey {
-    // This should match the hyper_prover::state::pda_payer_pda() from the test
+  private getHyperProverPdaPayerPDA(proverAddress: UniversalAddress): PublicKey {
     const [pda] = PublicKey.findProgramAddressSync(
       [Buffer.from('pda_payer')],
-      new PublicKey('HyperLane1111111111111111111111111111111111'), // Placeholder hyper prover program ID
+      new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
     );
     return pda;
   }
 
   private async generateFulfillIx(intent: Intent) {
-    console.log("MACRAE: full intent ", intent);
-    // Ensure we have initialized the program
+    this.logger.debug(`Generating fulfill instruction for intent: ${intent.intentHash}`);
     if (!this.portalProgram || !this.keypair) {
       throw new Error('Portal program not initialized');
     }
