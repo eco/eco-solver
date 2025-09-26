@@ -4,6 +4,7 @@ import {
 } from '@/intent-initiation/schemas/grouped-intent.schema'
 import { GroupedIntentRepository } from '@/intent-initiation/repositories/grouped-intent.repository'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { IntentModule } from '@/intent/intent.module'
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
@@ -22,10 +23,11 @@ import { TransactionModule } from '@/transaction/transaction.module'
 
   controllers: [],
 
-  providers: [IntentInitiationService, GroupedIntentRepository],
+  providers: [IntentInitiationService, IntentInitiationV2Service, GroupedIntentRepository],
 
   exports: [
     IntentInitiationService,
+    IntentInitiationV2Service,
     GroupedIntentRepository,
     PermitValidationModule,
     TransactionModule,

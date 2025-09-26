@@ -1,6 +1,6 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { encodeFunctionData, erc20Abi, Hex, parseUnits, zeroAddress } from 'viem'
+import { encodeFunctionData, erc20Abi, Hex, zeroAddress } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { ProofService } from '@/prover/proof.service'
@@ -144,7 +144,7 @@ export class QuoteV2RequestTransformService {
       : [
           {
             token: quoteRequest.destinationToken,
-            amount: parseUnits(quoteRequest.sourceAmount, 6),
+            amount: BigInt(quoteRequest.sourceAmount),
           },
         ]
 
@@ -155,7 +155,7 @@ export class QuoteV2RequestTransformService {
           {
             target: quoteRequest.recipient,
             data: '0x' as Hex,
-            value: parseUnits(quoteRequest.sourceAmount, 18),
+            value: BigInt(quoteRequest.sourceAmount),
           },
         ]
       : [

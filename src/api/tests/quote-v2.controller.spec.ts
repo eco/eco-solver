@@ -1,5 +1,5 @@
-import { createMock } from '@golevelup/ts-jest'
 import { EcoAnalyticsService } from '@/analytics'
+import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
@@ -8,11 +8,12 @@ import { QuoteV2Controller } from '@/api/quote-v2.controller'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { QuoteV2RequestTransformService } from '@/quote/services/quote-v2-request-transform.service'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
+import { QuoteV2Service } from '@/quote/quote-v2.service'
 import { QuoteV2TransformService } from '@/quote/services/quote-v2-transform.service'
 import { SolverUnsupported } from '@/quote/errors'
-import { Test, TestingModule } from '@nestjs/testing'
 
 describe('QuoteV2Controller', () => {
+  let $: EcoTester
   let controller: QuoteV2Controller
   let quoteService: QuoteService
   let quoteV2TransformService: QuoteV2TransformService
@@ -109,6 +110,7 @@ describe('QuoteV2Controller', () => {
       ],
       deadline: 1234567890,
       estimatedFulfillTimeSec: 60,
+      encodedRoute: '0xabcdef',
     },
     contracts: {
       sourcePortal: '0x0000000000000000000000000000000000000000',
@@ -117,36 +119,21 @@ describe('QuoteV2Controller', () => {
     },
   }
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [QuoteV2Controller],
-      providers: [
-        {
-          provide: QuoteService,
-          useValue: createMock<QuoteService>(),
-        },
-        {
-          provide: QuoteV2TransformService,
-          useValue: createMock<QuoteV2TransformService>(),
-        },
-        {
-          provide: QuoteV2RequestTransformService,
-          useValue: createMock<QuoteV2RequestTransformService>(),
-        },
-        {
-          provide: EcoAnalyticsService,
-          useValue: createMock<EcoAnalyticsService>(),
-        },
-      ],
-    }).compile()
+  beforeAll(async () => {
+    $ = EcoTester.setupTestFor(QuoteV2Controller)
+      .withProviders([QuoteV2Service])
+      .withMocks([
+        QuoteService,
+        QuoteV2TransformService,
+        QuoteV2RequestTransformService,
+        EcoAnalyticsService,
+      ])
 
-    controller = module.get<QuoteV2Controller>(QuoteV2Controller)
-    quoteService = module.get<QuoteService>(QuoteService)
-    quoteV2TransformService = module.get<QuoteV2TransformService>(QuoteV2TransformService)
-    quoteV2RequestTransformService = module.get<QuoteV2RequestTransformService>(
-      QuoteV2RequestTransformService,
-    )
-    ecoAnalytics = module.get<EcoAnalyticsService>(EcoAnalyticsService)
+    controller = await $.init()
+    quoteService = $.get(QuoteService)
+    quoteV2TransformService = $.get(QuoteV2TransformService)
+    quoteV2RequestTransformService = $.get(QuoteV2RequestTransformService)
+    ecoAnalytics = $.get(EcoAnalyticsService)
   })
 
   afterEach(() => {
@@ -163,7 +150,7 @@ describe('QuoteV2Controller', () => {
       jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(mockQuoteV2Response)
 
       // Act
-      const result = await controller.getQuote(mockV2Request)
+      const result = await controller.getReverseQuote(mockV2Request)
 
       // Assert
       expect(result).toEqual(mockQuoteV2Response)
@@ -175,7 +162,7 @@ describe('QuoteV2Controller', () => {
         mockQuoteDataDTO,
         mockQuoteIntentDataDTO,
       )
-      expect(ecoAnalytics.trackSuccess).toHaveBeenCalledTimes(2) // Request received and response success
+      expect(ecoAnalytics.trackSuccess).toHaveBeenCalledTimes(1) // Request received and response success
     })
 
     it('should handle request transformation errors', async () => {
@@ -187,7 +174,7 @@ describe('QuoteV2Controller', () => {
         })
 
       // Act & Assert
-      await expect(controller.getQuote(mockV2Request)).rejects.toThrow()
+      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
     })
 
     it('should handle quote service errors', async () => {
@@ -198,7 +185,7 @@ describe('QuoteV2Controller', () => {
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
 
       // Act & Assert
-      await expect(controller.getQuote(mockV2Request)).rejects.toThrow()
+      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
       expect(ecoAnalytics.trackError).toHaveBeenCalled()
     })
 
@@ -211,7 +198,7 @@ describe('QuoteV2Controller', () => {
       jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(null)
 
       // Act & Assert
-      await expect(controller.getQuote(mockV2Request)).rejects.toThrow()
+      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
       expect(ecoAnalytics.trackError).toHaveBeenCalled()
     })
   })

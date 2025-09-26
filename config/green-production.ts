@@ -29,7 +29,7 @@ export default {
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: process.env.REGISTRATION_URL || 'https://quotes-green.eco.com',
+      baseUrl: process.env.REGISTRATION_URL || 'https://quotes.eco.com',
     },
   },
 }
