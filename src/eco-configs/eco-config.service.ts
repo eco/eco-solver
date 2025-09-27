@@ -12,7 +12,7 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress, Hex, zeroAddress } from 'viem'
+import { Chain, extractChain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
@@ -325,9 +325,10 @@ export class EcoConfigService {
 
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string[]> {
-    const entries = ChainsSupported.map(
-      (chain) => [chain.id, this.getRpcUrls(chain).rpcUrls] as const,
-    )
+    const entries = this.getSupportedChains().map((chainId) => {
+      const chain = extractChain({ chains: ChainsSupported, id: Number(chainId) })
+      return [chain.id, this.getRpcUrls(chain).rpcUrls] as const
+    })
     return Object.fromEntries(entries)
   }
 
