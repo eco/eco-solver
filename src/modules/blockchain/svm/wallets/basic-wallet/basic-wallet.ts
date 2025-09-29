@@ -37,39 +37,39 @@ export class BasicWallet implements ISvmWallet {
   async signTransaction(
     transaction: Transaction | VersionedTransaction,
   ): Promise<Transaction | VersionedTransaction> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.wallet.signTransaction', {
+    return this.otelService.tracer.startActiveSpan(
+      'svm.wallet.signTransaction',
+      {
         attributes: {
           'svm.wallet_address': this.keypair.publicKey.toString(),
           'svm.transaction_type': transaction instanceof Transaction ? 'legacy' : 'versioned',
           'svm.operation': 'signTransaction',
         },
-      });
+      },
+      async (span) => {
+        try {
+          if (transaction instanceof Transaction) {
+            transaction.sign(this.keypair);
+            span.addEvent('svm.transaction.signed_legacy');
+          } else {
+            // For versioned transactions
+            transaction.sign([this.keypair]);
+            span.addEvent('svm.transaction.signed_versioned');
+          }
 
-    try {
-      if (transaction instanceof Transaction) {
-        transaction.sign(this.keypair);
-        span.addEvent('svm.transaction.signed_legacy');
-      } else {
-        // For versioned transactions
-        transaction.sign([this.keypair]);
-        span.addEvent('svm.transaction.signed_versioned');
-      }
-
-      if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
-      return transaction;
-    } catch (error) {
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw error;
-    } finally {
-      if (!activeSpan) span.end();
-    }
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return transaction;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
+
 
   async sendTransaction(
     transaction: Transaction | VersionedTransaction,
