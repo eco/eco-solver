@@ -10,6 +10,7 @@ describe('Intent Utils', () => {
         intentHash: '0xintentHash',
         creator: '0x000000000000000000000000000000000000c0fe',
         prover: '0x000000000000000000000000000000000000babe',
+        source: '1', // Chain ID 1
         destination: '2', // Chain ID 2
         rewardDeadline: '1234567890',
         rewardNativeAmount: '1000000000000000000', // 1 ETH

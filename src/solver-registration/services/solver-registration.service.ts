@@ -3,7 +3,8 @@ import {
   API_ROOT,
   API_V2_ROOT,
   INTENT_INITIATION_ROUTE,
-  QUOTE_ROUTE, QUOTE_ROUTE_REVERSE,
+  QUOTE_ROUTE,
+  QUOTE_ROUTE_REVERSE,
 } from '@/common/routes/constants'
 import { APIRequestExecutor } from '@/common/rest-api/api-request-executor'
 import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chain-routes-config.dto'

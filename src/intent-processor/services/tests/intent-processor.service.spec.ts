@@ -711,6 +711,7 @@ describe('IntentProcessorService', () => {
         intentSourceAddr: mockIntentSource,
         withdrawals: [
           {
+            source: 1n,
             destination: 1n,
             routeHash: dummyRouteHash,
             reward: {
@@ -722,6 +723,7 @@ describe('IntentProcessorService', () => {
             },
           },
           {
+            source: 1n,
             destination: 1n,
             routeHash: dummyRouteHash,
             reward: {
