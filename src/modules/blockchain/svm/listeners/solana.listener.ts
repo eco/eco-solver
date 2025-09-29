@@ -114,18 +114,23 @@ export class SolanaListener extends BaseChainListener {
                 this.solanaConfigService.chainId,
               );
 
-              span.setAttributes({
-                'svm.intent_hash': fundedEvent.intentHash,
-                'svm.funder': fundedEvent.funder,
-                'svm.complete': fundedEvent.complete,
-              });
+              const fundedJob: BlockchainEventJob = {
+                eventType: 'IntentFunded',
+                chainId: this.solanaConfigService.chainId,
+                chainType: 'svm',
+                contractName: 'portal',
+                intentHash: fundedEvent.intentHash,
+                eventData: fundedEvent,
+                metadata: {
+                  txHash: logs.signature || undefined,
+                  contractAddress: this.programId.toString(),
+                },
+              };
 
-              // Emit the event within the span context to propagate trace context
-              api.context.with(api.trace.setSpan(api.context.active(), span), () => {
-                this.eventsService.emit('intent.funded', fundedEvent);
-              });
-
-              span.addEvent('intent.funded.emitted');
+              await this.queueService.addBlockchainEvent(fundedJob);
+              this.logger.debug(
+                `Queued IntentFunded event for intent ${fundedEvent.intentHash} from Solana`,
+              );
 
               break;
 
