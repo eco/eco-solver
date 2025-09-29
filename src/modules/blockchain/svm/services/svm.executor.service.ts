@@ -899,7 +899,11 @@ export class SvmExecutorService extends BaseChainExecutor {
     }
   }
 
-  private async payForGasForProve(intent: Intent, messageId: Uint8Array, span: any): Promise<bigint> {
+  private async payForGasForProve(
+    intent: Intent,
+    messageId: Uint8Array,
+    span: any,
+  ): Promise<bigint> {
     try {
       // Get IGP configuration
       const igpProgramId = new PublicKey('BhNcatUDC2D5JTyeaqrdSukiVFsEHK7e3hVmKMztwefv');

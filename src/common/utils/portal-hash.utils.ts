@@ -32,7 +32,6 @@ export class PortalHashUtils {
   }
 
   static intentHash(destination: bigint, routeHash: Hex, rewardHash: Hex): { intentHash: Hex } {
-
     // Compute the intent hash using encodePacked
     // intentHash = keccak256(abi.encodePacked(destination, routeHash, rewardHash))
     const intentHash = keccak256(

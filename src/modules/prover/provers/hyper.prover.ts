@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
-import { encodeAbiParameters, Hex, pad, zeroAddress } from 'viem';
+import { encodeAbiParameters, Hex, zeroAddress } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { BlockchainConfigService } from '@/modules/config/services';
 
 @Injectable()
