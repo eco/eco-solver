@@ -662,10 +662,18 @@ export class SvmExecutorService extends BaseChainExecutor {
       span.setAttribute('svm.prove_transaction_signature', signature);
       span.addEvent('svm.prove_transaction.submitted');
 
-      const gasPaymentResult = await this.payForGasForProve(intent, span);
-      this.logger.log(
-        `Gas payment result for intent ${intent.intentHash} with message id: ${gasPaymentResult}`,
-      );
+      // Parse the message ID from the transaction logs
+      const messageId = await this.parseMessageIdFromTransaction(signature);
+      if (messageId) {
+        const gasPaymentResult = await this.payForGasForProve(intent, messageId, span);
+        this.logger.log(
+          `Gas payment result for intent ${intent.intentHash} with message id: 0x${Buffer.from(messageId).toString('hex')}, payment amount: ${gasPaymentResult}`,
+        );
+      } else {
+        this.logger.warn(
+          `Could not parse message ID from prove transaction ${signature} for intent ${intent.intentHash}, skipping gas payment`,
+        );
+      }
 
       return {
         success: true,
@@ -847,7 +855,51 @@ export class SvmExecutorService extends BaseChainExecutor {
     return new PublicKey('noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV');
   }
 
-  private async payForGasForProve(intent: Intent, span: any): Promise<bigint> {
+  private async parseMessageIdFromTransaction(signature: string): Promise<Uint8Array | null> {
+    try {
+      const transaction = await this.connection.getTransaction(signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!transaction?.meta?.logMessages) {
+        this.logger.warn(`No log messages found for transaction ${signature}`);
+        return null;
+      }
+
+      // Look for the "Dispatched message" log
+      const dispatchedMessageLog = transaction.meta.logMessages.find((log) =>
+        log.includes('Program log: Dispatched message to'),
+      );
+
+      if (!dispatchedMessageLog) {
+        this.logger.warn(`No dispatched message log found in transaction ${signature}`);
+        return null;
+      }
+
+      // Parse the message ID from the log
+      // Expected format: "Program log: Dispatched message to 10, ID 0x92ca37ae8ecce8788a55825c82a6da6c19bcb3183c7e5eb2fdd95a0c37203560"
+      const messageIdMatch = dispatchedMessageLog.match(/ID (0x[a-fA-F0-9]{64})/);
+      if (!messageIdMatch) {
+        this.logger.warn(`Could not parse message ID from log: ${dispatchedMessageLog}`);
+        return null;
+      }
+
+      const messageIdHex = messageIdMatch[1];
+      const messageId = new Uint8Array(32);
+      messageId.set(Buffer.from(messageIdHex.slice(2), 'hex'));
+
+      this.logger.debug(`Parsed message ID from transaction ${signature}: ${messageIdHex}`);
+      return messageId;
+    } catch (error) {
+      this.logger.error(
+        `Failed to parse message ID from transaction ${signature}: ${getErrorMessage(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async payForGasForProve(intent: Intent, messageId: Uint8Array, span: any): Promise<bigint> {
     try {
       // Get IGP configuration
       const igpProgramId = new PublicKey('BhNcatUDC2D5JTyeaqrdSukiVFsEHK7e3hVmKMztwefv');
@@ -863,14 +915,6 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       const destinationDomain = Number(intent.sourceChainId);
       const gasAmount = BigInt(130000); // fixed gas amount for now
-
-      const messageId = new Uint8Array(32);
-      messageId.set(
-        Buffer.from(
-          '0xfcd21de638b22d060a929f76a803c3973984fd290c56fe36430e60c34423ad68'.slice(2),
-          'hex',
-        ),
-      ); // TODO: don't hardcode this
 
       span.addEvent('svm.gas_payment.processing', {
         destination_domain: destinationDomain,
