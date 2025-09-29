@@ -4,14 +4,13 @@ import { z } from 'zod';
  * Base environment configuration schema
  */
 export const BaseSchema = z.object({
-  env: z.enum(['development', 'test', 'production', 'preproduction']).default('development'),
+  env: z.string().default('development'),
   port: z.coerce.number().int().positive().default(3000),
-  skipEcoPackageConfig: z.boolean().optional(),
+  useEcoPackageConfig: z.boolean().optional(),
   configFiles: z
     .union([z.string(), z.array(z.string())])
-    .default('config.yaml')
+    .optional()
     .describe('Path(s) to YAML configuration files'),
-  apiKeys: z.array(z.string()).optional().describe('API keys for authentication'),
 });
 
 export type BaseConfig = z.infer<typeof BaseSchema>;

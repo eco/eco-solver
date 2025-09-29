@@ -46,6 +46,7 @@ const TvmTokenSchema = z.object({
         }),
     ])
     .optional(),
+  fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
 });
 
 /**
@@ -69,7 +70,7 @@ const TvmNetworkSchema = z.object({
   chainId: z.coerce.number().int().positive(),
   rpc: TvmRpcSchema,
   tokens: z.array(TvmTokenSchema).default([]),
-  fee: AssetsFeeSchema,
+  fee: AssetsFeeSchema.optional(),
   provers: z.record(z.enum(ProverTypeValues), TronAddressSchema),
   defaultProver: z.enum(ProverTypeValues),
   contracts: z.object({
@@ -85,9 +86,9 @@ const TvmNetworkSchema = z.object({
 const TvmTransactionSettingsSchema = z.object({
   defaultFeeLimit: z.coerce.number().int().positive().default(150000000), // 150 TRX in SUN
   maxTransactionAttempts: z.coerce.number().int().positive().default(30),
-  transactionCheckInterval: z.coerce.number().int().positive().default(2000), // milliseconds
-  listenerPollInterval: z.coerce.number().int().positive().default(5000), // milliseconds
-  proverListenerInterval: z.coerce.number().int().positive().default(60000), // milliseconds (1 minute for prover events)
+  transactionCheckInterval: z.coerce.number().int().positive().default(30_000), // milliseconds
+  listenerPollInterval: z.coerce.number().int().positive().default(15_000), // milliseconds
+  proverListenerInterval: z.coerce.number().int().positive().default(120_000), // milliseconds (2 minutes for prover events)
 });
 
 /**
@@ -97,6 +98,7 @@ export const TvmSchema = z.object({
   networks: z.array(TvmNetworkSchema).default([]),
   wallets: WalletsSchema,
   transactionSettings: TvmTransactionSettingsSchema.default({}),
+  listenersEnabled: z.boolean().default(true),
 });
 
 export type TvmConfig = z.infer<typeof TvmSchema>;

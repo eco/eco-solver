@@ -9,7 +9,7 @@ import { SolanaConfig } from '@/config/schemas';
 import { SvmAddress } from '@/modules/blockchain/svm/types/address.types';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
-import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
+import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
 @Injectable()
 export class SolanaConfigService implements IBlockchainConfigService {
@@ -43,6 +43,10 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return this.configService.get<SvmAddress>('svm.portalProgramId')!;
   }
 
+  get listenersEnabled(): boolean {
+    return this.configService.get<boolean>('svm.listenersEnabled') ?? true;
+  }
+
   isConfigured(): boolean {
     // Check if essential Solana configuration is present
     const config = this.configService.get('svm');
@@ -73,29 +77,17 @@ export class SolanaConfigService implements IBlockchainConfigService {
     );
   }
 
-  getSupportedTokens(): Array<{
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  }> {
+  getSupportedTokens(): TokenConfig[] {
     return this.tokens.map((token) => ({
       address: AddressNormalizer.normalizeSvm(token.address),
       decimals: token.decimals,
       symbol: token.symbol,
       limit: token.limit,
+      fee: token.fee,
     }));
   }
 
-  getTokenConfig(
-    chainId: ChainIdentifier,
-    tokenAddress: UniversalAddress,
-  ): {
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  } {
+  getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     const tokenConfig = this.tokens.find(
       (token) => AddressNormalizer.normalizeSvm(token.address) === tokenAddress,
     );
@@ -108,6 +100,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
+      fee: tokenConfig.fee,
     };
   }
 

@@ -2,15 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { Address, isAddressEqual } from 'viem';
+import { z } from 'zod';
 
 import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { EvmNetworkConfig, EvmTokenConfig, EvmWalletsConfig } from '@/config/schemas';
+import {
+  EvmNetworkConfig,
+  EvmRpcSchema,
+  EvmTokenConfig,
+  EvmWalletsConfig,
+  EvmWsSchema,
+} from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
-import { IBlockchainConfigService } from '../interfaces/blockchain-config.interface';
+import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
 @Injectable()
 export class EvmConfigService implements IBlockchainConfigService {
@@ -38,6 +45,10 @@ export class EvmConfigService implements IBlockchainConfigService {
     return 'basic';
   }
 
+  get listenersEnabled(): boolean {
+    return this.configService.get<boolean>('evm.listenersEnabled') ?? true;
+  }
+
   getSupportedChainIds(): number[] {
     return this.supportedChainIds;
   }
@@ -58,17 +69,13 @@ export class EvmConfigService implements IBlockchainConfigService {
     return network;
   }
 
-  getSupportedTokens(chainId: ChainIdentifier): Array<{
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  }> {
+  getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
     return this.getEvmSupportedTokens(chainId).map((token) => ({
       address: AddressNormalizer.normalizeEvm(token.address),
       decimals: token.decimals,
       symbol: token.symbol,
       limit: token.limit,
+      fee: token.fee,
     }));
   }
 
@@ -84,21 +91,14 @@ export class EvmConfigService implements IBlockchainConfigService {
     return tokens.some((token) => isAddressEqual(token.address, normalizedAddress));
   }
 
-  getTokenConfig(
-    chainId: ChainIdentifier,
-    tokenAddress: UniversalAddress,
-  ): {
-    address: UniversalAddress;
-    decimals: number;
-    symbol: string;
-    limit?: number | { min?: number; max?: number };
-  } {
+  getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     const tokenConfig = this.getEvmTokenConfig(chainId, tokenAddress);
     return {
       address: AddressNormalizer.normalizeEvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
+      fee: tokenConfig.fee,
     };
   }
 
@@ -114,7 +114,7 @@ export class EvmConfigService implements IBlockchainConfigService {
     return tokenConfig;
   }
 
-  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType {
+  getFeeLogic(chainId: ChainIdentifier): AssetsFeeSchemaType | undefined {
     const network = this.getChain(Number(chainId));
     return network.fee;
   }
@@ -163,6 +163,39 @@ export class EvmConfigService implements IBlockchainConfigService {
   getDefaultProver(chainId: ChainIdentifier): TProverType {
     const network = this.getChain(Number(chainId));
     return network.defaultProver;
+  }
+
+  /**
+   * Gets the HTTP configuration for a network with WebSocket transport.
+   * If the http field is not defined in the WebSocket config, creates a default
+   * by converting WebSocket URLs to HTTPS with a 60-second polling interval.
+   * @param network The network configuration
+   * @returns The HTTP RPC configuration or undefined if not a WebSocket network
+   */
+  getHttpConfigForWebSocket(network: EvmNetworkConfig): z.infer<typeof EvmRpcSchema> | undefined {
+    const wsOptions = EvmWsSchema.safeParse(network.rpc);
+
+    if (!wsOptions.success) {
+      // Not a WebSocket configuration
+      return undefined;
+    }
+
+    const { urls, http: httpConfig } = wsOptions.data;
+
+    if (httpConfig) {
+      // HTTP config is explicitly defined - already validated by schema
+      return httpConfig;
+    }
+
+    // Create default HTTP config from WebSocket URLs
+    const httpUrls = urls.map((url) => url.replace(/^wss?:/, 'https:'));
+    const defaultHttpConfig = {
+      urls: httpUrls,
+      pollingInterval: 60_000, // 60 seconds default for HTTP fallback
+    };
+
+    // Parse and validate using EvmRpcSchema
+    return EvmRpcSchema.parse(defaultHttpConfig);
   }
 
   private initializeNetworks(): void {

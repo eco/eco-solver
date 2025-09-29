@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { formatUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
@@ -18,20 +20,18 @@ export class ExecutorBalanceValidation implements Validation {
   constructor(
     private readonly blockchainReaderService: BlockchainReaderService,
     private readonly otelService: OpenTelemetryService,
+    private readonly tokenConfigService: TokenConfigService,
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.ExecutorBalanceValidation', {
-        attributes: {
-          'validation.name': 'ExecutorBalanceValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.destination?.toString(),
-          'route.tokens.count': intent.route.tokens?.length || 0,
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'ExecutorBalanceValidation',
+      'intent.hash': intent.intentHash,
+      'intent.destination_chain': intent.destination?.toString(),
+      'route.tokens.count': intent.route.tokens?.length || 0,
+    });
 
     try {
       // This should verify that the executor has enough funds to execute the fulfillment
@@ -42,7 +42,7 @@ export class ExecutorBalanceValidation implements Validation {
       const checkRequests = intent.route.tokens.map(async ({ token, amount }, index) => {
         const balance = await context.getWalletBalance(chainID, token);
 
-        span.setAttributes({
+        span?.setAttributes({
           [`executor.balance.${index}.token`]: token,
           [`executor.balance.${index}.required`]: amount.toString(),
           [`executor.balance.${index}.actual`]: balance.toString(),
@@ -62,12 +62,18 @@ export class ExecutorBalanceValidation implements Validation {
         const walletAddressUA = await context.getWalletAddress(chainID);
         const walletAddress = AddressNormalizer.denormalize(walletAddressUA, destinationChainType);
 
-        // Create detailed balance information for each insufficient token
+        // Create detailed balance information for each insufficient token with user-friendly formatting
         const balanceDetails = notEnough
-          .map(({ token, balance, required }) => `${token} (has: ${balance}, needs: ${required})`)
+          .map(({ token, balance, required }) => {
+            const tokenConfig = this.tokenConfigService.getTokenConfig(Number(chainID), token);
+            const tokenAddress = AddressNormalizer.denormalize(token, destinationChainType);
+            const balanceFormatted = formatUnits(balance, tokenConfig.decimals);
+            const requiredFormatted = formatUnits(required, tokenConfig.decimals);
+            return `${tokenConfig.symbol || tokenAddress} (has: ${balanceFormatted}, needs: ${requiredFormatted})`;
+          })
           .join(', ');
 
-        span.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
+        span?.setAttribute('executor.balance.insufficient_tokens', tokens.join(', '));
         throw new ValidationError(
           `Not enough token balance on chain ${chainID} for wallet ${walletAddress}. Insufficient tokens: ${balanceDetails}`,
           ValidationErrorType.PERMANENT,
@@ -75,20 +81,12 @@ export class ExecutorBalanceValidation implements Validation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

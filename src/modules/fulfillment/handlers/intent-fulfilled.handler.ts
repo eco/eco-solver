@@ -22,10 +22,9 @@ export class IntentFulfilledHandler {
 
   @OnEvent('intent.fulfilled', { async: true })
   async handleIntentFulfilled(event: IntentFulfilledEvent): Promise<void> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('fulfillment.handler.intentFulfilled', {
+    return this.otelService.tracer.startActiveSpan(
+      'fulfillment.handler.intentFulfilled',
+      {
         attributes: {
           'intent.hash': event.intentHash,
           'intent.claimant': event.claimant,
@@ -33,63 +32,59 @@ export class IntentFulfilledHandler {
           'intent.transaction_hash': event.transactionHash,
           'intent.block_number': event.blockNumber?.toString(),
         },
-      });
+      },
+      async (span) => {
+        try {
+          this.logger.log(
+            `Processing IntentFulfilled event for intent ${event.intentHash} on chain ${event.chainId}`,
+          );
 
-    try {
-      this.logger.log(
-        `Processing IntentFulfilled event for intent ${event.intentHash} on chain ${event.chainId}`,
-      );
+          // Update intent status to FULFILLED
+          const updatedIntent = await this.intentsService.updateStatus(
+            event.intentHash,
+            IntentStatus.FULFILLED,
+            {
+              lastProcessedAt: new Date(),
+            },
+          );
 
-      // Update intent status to FULFILLED
-      const updatedIntent = await this.intentsService.updateStatus(
-        event.intentHash,
-        IntentStatus.FULFILLED,
-        {
-          lastProcessedAt: new Date(),
-        },
-      );
+          if (updatedIntent) {
+            this.logger.log(
+              `Successfully updated intent ${event.intentHash} status to FULFILLED. Tx: ${event.transactionHash}`,
+            );
 
-      if (updatedIntent) {
-        this.logger.log(
-          `Successfully updated intent ${event.intentHash} status to FULFILLED. Tx: ${event.transactionHash}`,
-        );
+            span.addEvent('intent.status.updated', {
+              status: IntentStatus.FULFILLED,
+              txHash: event.transactionHash,
+            });
+          } else {
+            this.logger.warn(
+              `Intent ${event.intentHash} not found in database for IntentFulfilled event`,
+            );
 
-        span.addEvent('intent.status.updated', {
-          status: IntentStatus.FULFILLED,
-          txHash: event.transactionHash,
-        });
-      } else {
-        this.logger.warn(
-          `Intent ${event.intentHash} not found in database for IntentFulfilled event`,
-        );
+            span.addEvent('intent.not_found', {
+              intentHash: event.intentHash,
+            });
+          }
 
-        span.addEvent('intent.not_found', {
-          intentHash: event.intentHash,
-        });
-      }
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          this.logger.error(
+            `Error processing IntentFulfilled event for ${event.intentHash}: ${getErrorMessage(error)}`,
+            toError(error),
+          );
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
-    } catch (error) {
-      this.logger.error(
-        `Error processing IntentFulfilled event for ${event.intentHash}: ${getErrorMessage(error)}`,
-        toError(error),
-      );
+          span.recordException(error as Error);
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: (error as Error).message,
+          });
 
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({
-          code: api.SpanStatusCode.ERROR,
-          message: (error as Error).message,
-        });
-      }
-
-      throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
-    }
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 }

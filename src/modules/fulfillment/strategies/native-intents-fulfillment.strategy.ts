@@ -9,7 +9,7 @@ import {
 } from '@/modules/fulfillment/types/strategy-name.type';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import {
   ChainSupportValidation,
@@ -21,6 +21,7 @@ import {
   ProverSupportValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
+  RouteEnabledValidation,
   RouteTokenValidation,
   Validation,
 } from '../validations';
@@ -36,7 +37,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     protected readonly blockchainExecutor: BlockchainExecutorService,
     protected readonly blockchainReader: BlockchainReaderService,
     protected readonly otelService: OpenTelemetryService,
-    @Inject(QUEUE_SERVICE) private readonly queueService: QueueService,
+    @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     // Inject all validations needed for native intents strategy
     private readonly intentFundedValidation: IntentFundedValidation,
     private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,
@@ -45,6 +46,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
     private readonly expirationValidation: ExpirationValidation,
     private readonly chainSupportValidation: ChainSupportValidation,
+    private readonly routeEnabledValidation: RouteEnabledValidation,
     private readonly proverSupportValidation: ProverSupportValidation,
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly nativeFeeValidation: NativeFeeValidation,
@@ -59,6 +61,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
       this.routeAmountLimitValidation,
       this.expirationValidation,
       this.chainSupportValidation,
+      this.routeEnabledValidation,
       this.proverSupportValidation,
       this.executorBalanceValidation,
       this.nativeFeeValidation, // Use native-specific fee validation

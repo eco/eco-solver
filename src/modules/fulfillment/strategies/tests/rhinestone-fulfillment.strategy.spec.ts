@@ -17,26 +17,19 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
   OpenTelemetryService: jest.fn().mockImplementation(() => ({
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
-    getActiveSpan: jest.fn(),
-    withSpan: jest.fn().mockImplementation((name, fn) => {
-      const mockSpan = {
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      };
-      return fn(mockSpan);
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    },
   })),
 }));
 
@@ -58,7 +51,7 @@ import {
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { RhinestoneFulfillmentStrategy } from '../rhinestone-fulfillment.strategy';
 
@@ -66,7 +59,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let strategy: RhinestoneFulfillmentStrategy;
   let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
-  let queueService: jest.Mocked<QueueService>;
+  let queueService: jest.Mocked<IQueueService>;
   let _otelService: jest.Mocked<OpenTelemetryService>;
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
@@ -91,26 +84,19 @@ describe('RhinestoneFulfillmentStrategy', () => {
       addIntentToExecutionQueue: jest.fn(),
     };
     const mockOtelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
-      getActiveSpan: jest.fn(),
-      withSpan: jest.fn().mockImplementation((name, fn) => {
-        const mockSpan = {
-          setAttribute: jest.fn(),
-          setAttributes: jest.fn(),
-          addEvent: jest.fn(),
-          setStatus: jest.fn(),
-          recordException: jest.fn(),
-          end: jest.fn(),
-        };
-        return fn(mockSpan);
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            addEvent: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     };
 
     // Create mock validations
@@ -313,7 +299,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
               value: BigInt(0),
             },
           ],
-          inbox: '0x4337000000000000000000000000000000000001' as any, // ERC-4337 sender
+          portal: '0x4337000000000000000000000000000000000001' as any, // ERC-4337 sender
         } as any,
       });
 

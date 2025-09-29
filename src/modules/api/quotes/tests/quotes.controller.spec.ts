@@ -16,9 +16,7 @@ describe('QuotesController', () => {
     getQuote: jest.fn(),
   };
 
-  const mockAppConfigService = {
-    apiKeys: [],
-  };
+  const mockAppConfigService = {};
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -76,6 +74,7 @@ describe('QuotesController', () => {
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
+          encodedRoute: '0x',
           fees: [
             {
               name: 'Eco Protocol Fee',
@@ -131,6 +130,7 @@ describe('QuotesController', () => {
           funder: '0x1234567890123456789012345678901234567890',
           refundRecipient: '0x1234567890123456789012345678901234567890',
           recipient: '0x1234567890123456789012345678901234567890',
+          encodedRoute: '0x',
           fees: [],
           deadline: 1735689600,
           estimatedFulfillTimeSec: 30,

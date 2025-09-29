@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
 
-import { EventMap } from '@/common/events';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { FulfillmentConfigService } from '@/modules/config/services';
 import { DataDogService } from '@/modules/datadog';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
@@ -28,6 +27,7 @@ export class FulfillmentService {
     private readonly dataDogService: DataDogService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly fulfillmentConfigService: FulfillmentConfigService,
     // New specialized services
     private readonly submissionService: IntentSubmissionService,
     private readonly processingService: IntentProcessingService,
@@ -40,59 +40,68 @@ export class FulfillmentService {
    * Submit an intent for fulfillment
    * Maintains backward compatibility while delegating to IntentSubmissionService
    */
-  async submitIntent(intent: Intent, strategy: FulfillmentStrategyName): Promise<Intent> {
-    const span = this.otelService.startSpan('intent.submit', {
-      attributes: {
-        'intent.hash': intent.intentHash,
-        'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
-        'intent.destination_chain': intent.destination.toString(),
-        'intent.strategy': strategy,
-        'intent.reward.native_value': intent.reward.nativeAmount.toString(),
-        'intent.route.tokens_count': intent.route.tokens.length,
-        'intent.route.calls_count': intent.route.calls.length,
+  async submitIntent(
+    intent: Intent,
+    strategy: FulfillmentStrategyName = this.fulfillmentConfigService.defaultStrategy,
+  ): Promise<Intent> {
+    return this.otelService.tracer.startActiveSpan(
+      'intent.submit',
+      {
+        attributes: {
+          'intent.hash': intent.intentHash,
+          'intent.source_chain': intent.sourceChainId?.toString() || 'unknown',
+          'intent.destination_chain': intent.destination.toString(),
+          'intent.strategy': strategy,
+          'intent.reward.native_value': intent.reward.nativeAmount.toString(),
+          'intent.route.tokens_count': intent.route.tokens.length,
+          'intent.route.calls_count': intent.route.calls.length,
+        },
       },
-    });
+      async (span) => {
+        try {
+          // Check if a strategy exists and is enabled
+          if (!this.strategyManagement.isStrategyEnabled(strategy)) {
+            span.setAttribute('fulfillment.strategy.enabled', false);
+            throw new Error(`Strategy '${strategy}' is not available or disabled`);
+          }
 
-    try {
-      // Check if a strategy exists and is enabled
-      if (!this.strategyManagement.isStrategyEnabled(strategy)) {
-        throw new Error(`Strategy '${strategy}' is not available or disabled`);
-      }
+          // Atomically create intent if it doesn't exist or update lastSeen
+          // This handles deduplication at the database level
+          const { intent: savedIntent, isNew } =
+            await this.intentsService.createIfNotExists(intent);
+          const interfaceIntent = IntentConverter.toInterface(savedIntent);
 
-      // Atomically create intent if it doesn't exist or update lastSeen
-      // This handles deduplication at the database level
-      const { intent: savedIntent, isNew } = await this.intentsService.createIfNotExists(intent);
-      const interfaceIntent = IntentConverter.toInterface(savedIntent);
+          if (!isNew) {
+            this.logger.warn(`Intent ${intent.intentHash} already exists`);
+            span.setAttribute('intent.already_exists', true);
+            // For existing intents, we still proceed to queue them (they may have failed previously)
+          }
 
-      if (!isNew) {
-        this.logger.log(`Intent ${intent.intentHash} already exists`);
-        span.setAttribute('intent.already_exists', true);
-        // For existing intents, we still proceed to queue them (they may have failed previously)
-      }
+          // Use the submission service for queueing only (persistence already handled above)
+          await this.submissionService.submitIntent(interfaceIntent, strategy);
 
-      // Use the submission service for queueing only (persistence already handled above)
-      await this.submissionService.submitIntent(interfaceIntent, strategy);
+          // Record metrics
+          this.dataDogService.recordIntent(
+            'submitted',
+            intent.sourceChainId?.toString() || 'unknown',
+            intent.destination.toString(),
+            strategy,
+          );
 
-      // Record metrics
-      this.dataDogService.recordIntent(
-        'submitted',
-        intent.sourceChainId?.toString() || 'unknown',
-        intent.destination.toString(),
-        strategy,
-      );
+          span.setAttribute('intent.queued', true);
+          span.setStatus({ code: 0 });
 
-      span.setAttribute('intent.queued', true);
-      span.setStatus({ code: 0 });
-
-      return interfaceIntent;
-    } catch (error) {
-      this.logger.error(`Error submitting intent ${intent.intentHash}:`, toError(error));
-      span.recordException(toError(error));
-      span.setStatus({ code: 2, message: getErrorMessage(error) });
-      throw error;
-    } finally {
-      span.end();
-    }
+          return interfaceIntent;
+        } catch (error) {
+          this.logger.error(`Error submitting intent ${intent.intentHash}:`, toError(error));
+          span.recordException(toError(error));
+          span.setStatus({ code: 2, message: getErrorMessage(error) });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   /**
@@ -129,15 +138,7 @@ export class FulfillmentService {
     }
   }
 
-  /**
-   * Handle intent discovered event
-   */
-  @OnEvent('intent.discovered')
-  async handleIntentDiscovered(payload: EventMap['intent.discovered']) {
-    // TODO: Get default strategy from configuration
-    const { intent, strategy = 'standard' } = payload;
-    await this.submitIntent(intent, strategy);
-  }
+  // Removed @OnEvent handler - listeners now submit directly to fulfillment service
 
   /**
    * Get a strategy by name

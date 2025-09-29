@@ -63,6 +63,10 @@ export class EvmWalletManager implements OnModuleInit {
     }
   }
 
+  getWalletTypes() {
+    return this.walletFactories.map((factory) => factory.name);
+  }
+
   getWallet(type: WalletType, chainId: number): IEvmWallet {
     const chainWallets = this.wallets.get(chainId);
     if (!chainWallets) {

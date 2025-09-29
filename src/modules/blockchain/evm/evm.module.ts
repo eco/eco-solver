@@ -6,6 +6,7 @@ import { KernelWalletModule } from '@/modules/blockchain/evm/wallets/kernel-wall
 import { ConfigModule } from '@/modules/config/config.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
+import { RedisModule } from '@/modules/redis/redis.module';
 
 import { EvmListenersManagerService } from './listeners/evm-listeners-manager.service';
 import { EvmExecutorService } from './services/evm.executor.service';
@@ -19,11 +20,12 @@ import { EvmCoreModule } from './evm-core.module';
     ConfigModule,
     LoggingModule,
     OpenTelemetryModule,
+    RedisModule,
     EvmCoreModule,
     BasicWalletModule,
     KernelWalletModule,
   ],
   providers: [EvmExecutorService, EvmReaderService, EvmWalletManager, EvmListenersManagerService],
-  exports: [EvmExecutorService, EvmReaderService],
+  exports: [EvmExecutorService, EvmReaderService, EvmWalletManager],
 })
 export class EvmModule {}

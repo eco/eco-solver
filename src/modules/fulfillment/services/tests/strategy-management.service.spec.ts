@@ -23,13 +23,18 @@ describe('StrategyManagementService', () => {
   };
 
   const mockOtelService = {
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    },
   };
 
   const mockConfigService = {

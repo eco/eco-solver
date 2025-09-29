@@ -6,7 +6,8 @@ import { parseUnits } from 'viem';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { normalize } from '@/common/tokens/normalize';
 import { sum } from '@/common/utils/math';
-import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
@@ -17,28 +18,25 @@ import { FeeCalculationValidation, FeeDetails } from './fee-calculation.interfac
 @Injectable()
 export class StandardFeeValidation implements FeeCalculationValidation {
   constructor(
-    private blockchainConfigService: BlockchainConfigService,
-    private fulfillmentConfigService: FulfillmentConfigService,
+    private readonly feeResolverService: FeeResolverService,
+    private readonly tokenConfigService: TokenConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.StandardFeeValidation', {
-        attributes: {
-          'validation.name': 'StandardFeeValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'StandardFeeValidation',
+      'intent.hash': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination?.toString(),
+    });
 
     if (context.quoting) {
       // Skip validation when is quoting
-      span.setAttribute('validation.skipped', true);
-      span.setAttribute('validation.quoting', true);
+      span?.setAttribute('validation.skipped', true);
+      span?.setAttribute('validation.quoting', true);
       return true;
     }
 
@@ -58,7 +56,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
       const feeDetails = await this.calculateFee(intent, context);
 
-      span.setAttributes({
+      span?.setAttributes({
         'fee.base': feeDetails.fee.base.toString(),
         'fee.percentage': feeDetails.fee.percentage.toString(),
         'fee.total': feeDetails.fee.total.toString(),
@@ -76,38 +74,49 @@ export class StandardFeeValidation implements FeeCalculationValidation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 
   async calculateFee(intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
-    // Get fee logic for the destination chain
-    const feeConfig = this.blockchainConfigService.getFeeLogic(intent.destination);
+    // Ensure there's exactly one token in the route
+    if (intent.route.tokens.length > 1) {
+      throw new ValidationError(
+        `Standard fee validation only supports single token routes, but found ${intent.route.tokens.length} tokens`,
+        ValidationErrorType.PERMANENT,
+        StandardFeeValidation.name,
+      );
+    }
+    if (intent.route.tokens.length === 0) {
+      throw new ValidationError(
+        `Standard fee validation required a route token`,
+        ValidationErrorType.PERMANENT,
+        StandardFeeValidation.name,
+      );
+    }
+
+    // Get the single token address from the route
+    const tokenAddress = intent.route.tokens[0].token;
+
+    // Get fee logic using the hierarchical resolver (token > network > fulfillment)
+    const feeConfig = this.feeResolverService.resolveFee(intent.destination, tokenAddress);
     const baseFee = normalize(parseUnits(feeConfig.tokens.flatFee.toString(), 18), 18);
 
     // Calculate reward values
     const rewardTokens = sum(
-      this.fulfillmentConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
+      this.tokenConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
       'amount',
     );
     const rewardNative = intent.reward.nativeAmount;
 
     // Calculate route values
     const routeTokens = sum(
-      this.fulfillmentConfigService.normalize(intent.destination, intent.route.tokens),
+      this.tokenConfigService.normalize(intent.destination, intent.route.tokens),
       'amount',
     );
     const routeNative = intent.route.nativeAmount;

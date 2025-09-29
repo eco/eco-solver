@@ -1,4 +1,6 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+
+import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -17,7 +19,7 @@ export class WithdrawalService {
     private readonly intentsService: IntentsService,
     private readonly blockchainExecutor: BlockchainExecutorService,
     private readonly logger: SystemLoggerService,
-    @Optional() private readonly otelService?: OpenTelemetryService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(WithdrawalService.name);
   }
@@ -26,35 +28,39 @@ export class WithdrawalService {
    * Find all proven intents that haven't been withdrawn yet
    */
   async findIntentsForWithdrawal(sourceChainId?: bigint): Promise<Intent[]> {
-    const span = this.otelService?.startSpan('withdrawal.findIntentsForWithdrawal', {
-      attributes: {
-        'withdrawal.source_chain_id': sourceChainId?.toString(),
+    return this.otelService.tracer.startActiveSpan(
+      'withdrawal.findIntentsForWithdrawal',
+      {
+        attributes: {
+          'withdrawal.source_chain_id': sourceChainId?.toString(),
+        },
       },
-    });
+      async (span) => {
+        try {
+          const intentsFromDb = await this.intentsService.findProvenNotWithdrawn(sourceChainId);
+          const intents = intentsFromDb.map((intent) => IntentConverter.toInterface(intent));
 
-    try {
-      const intentsFromDb = await this.intentsService.findProvenNotWithdrawn(sourceChainId);
-      const intents = intentsFromDb.map((intent) => IntentConverter.toInterface(intent));
+          span.setAttributes({
+            'withdrawal.intent_count': intents.length,
+          });
 
-      span?.setAttributes({
-        'withdrawal.intent_count': intents.length,
-      });
+          this.logger.log(
+            `Found ${intents.length} proven intents for withdrawal${
+              sourceChainId ? ` on chain ${sourceChainId}` : ''
+            }`,
+          );
 
-      this.logger.log(
-        `Found ${intents.length} proven intents for withdrawal${
-          sourceChainId ? ` on chain ${sourceChainId}` : ''
-        }`,
-      );
-
-      span?.setStatus({ code: 1 });
-      return intents;
-    } catch (error) {
-      span?.recordException(toError(error));
-      span?.setStatus({ code: 2 });
-      throw error;
-    } finally {
-      span?.end();
-    }
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return intents;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   /**
@@ -77,9 +83,103 @@ export class WithdrawalService {
   }
 
   /**
+   * Execute batch withdrawal for a set of intents on a specific chain
+   */
+  async executeWithdrawal(chainId: bigint, intents: Intent[], walletId?: string): Promise<string> {
+    return this.otelService.tracer.startActiveSpan(
+      'withdrawal.executeWithdrawal',
+      {
+        attributes: {
+          'withdrawal.chain_id': chainId.toString(),
+          'withdrawal.intent_count': intents.length,
+          'withdrawal.wallet_id': walletId,
+        },
+      },
+      async (span) => {
+        try {
+          this.logger.log(`Executing withdrawal for ${intents.length} intents on chain ${chainId}`);
+
+          const withdrawalData = this.prepareWithdrawalData(intents);
+
+          // Get the appropriate executor for the chain
+          const executor = this.blockchainExecutor.getExecutorForChain(chainId);
+
+          // Execute the batch withdrawal
+          const txHash = await executor.executeBatchWithdraw(chainId, withdrawalData, walletId);
+
+          span.setAttributes({
+            'withdrawal.tx_hash': txHash,
+          });
+
+          this.logger.log(
+            `Successfully executed withdrawal for ${intents.length} intents on chain ${chainId}. TxHash: ${txHash}`,
+          );
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return txHash;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          this.logger.error(
+            `Failed to execute withdrawal for chain ${chainId}: ${getErrorMessage(error)}`,
+            toError(error),
+          );
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Process withdrawals for all chains
+   */
+  async processAllWithdrawals(): Promise<Map<bigint, string>> {
+    return this.otelService.tracer.startActiveSpan(
+      'withdrawal.processAllWithdrawals',
+      {},
+      async (span) => {
+        try {
+          const intents = await this.findIntentsForWithdrawal();
+          const groupedIntents = this.groupIntentsByChain(intents);
+
+          const results = new Map<bigint, string>();
+
+          for (const [chainId, chainIntents] of groupedIntents) {
+            try {
+              const txHash = await this.executeWithdrawal(chainId, chainIntents);
+              results.set(chainId, txHash);
+            } catch (error) {
+              this.logger.error(
+                `Failed to process withdrawals for chain ${chainId}`,
+                toError(error),
+              );
+            }
+          }
+
+          span.setAttributes({
+            'withdrawal.chains_processed': results.size,
+            'withdrawal.total_intents': intents.length,
+          });
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return results;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
    * Prepare withdrawal data for batch withdrawal
    */
-  prepareWithdrawalData(intents: Intent[]): BatchWithdrawData {
+  private prepareWithdrawalData(intents: Intent[]): BatchWithdrawData {
     return {
       destinations: intents.map((i) => i.destination),
       routeHashes: intents.map((i) => {
@@ -97,88 +197,5 @@ export class WithdrawalService {
         })),
       })),
     };
-  }
-
-  /**
-   * Execute batch withdrawal for a set of intents on a specific chain
-   */
-  async executeWithdrawal(chainId: bigint, intents: Intent[], walletId?: string): Promise<string> {
-    const span = this.otelService?.startSpan('withdrawal.executeWithdrawal', {
-      attributes: {
-        'withdrawal.chain_id': chainId.toString(),
-        'withdrawal.intent_count': intents.length,
-        'withdrawal.wallet_id': walletId,
-      },
-    });
-
-    try {
-      this.logger.log(`Executing withdrawal for ${intents.length} intents on chain ${chainId}`);
-
-      const withdrawalData = this.prepareWithdrawalData(intents);
-
-      // Get the appropriate executor for the chain
-      const executor = this.blockchainExecutor.getExecutorForChain(chainId);
-
-      // Execute the batch withdrawal
-      const txHash = await executor.executeBatchWithdraw(chainId, withdrawalData, walletId);
-
-      span?.setAttributes({
-        'withdrawal.tx_hash': txHash,
-      });
-
-      this.logger.log(
-        `Successfully executed withdrawal for ${intents.length} intents on chain ${chainId}. TxHash: ${txHash}`,
-      );
-
-      span?.setStatus({ code: 1 });
-      return txHash;
-    } catch (error) {
-      span?.recordException(toError(error));
-      span?.setStatus({ code: 2 });
-      this.logger.error(
-        `Failed to execute withdrawal for chain ${chainId}: ${getErrorMessage(error)}`,
-        toError(error),
-      );
-      throw error;
-    } finally {
-      span?.end();
-    }
-  }
-
-  /**
-   * Process withdrawals for all chains
-   */
-  async processAllWithdrawals(): Promise<Map<bigint, string>> {
-    const span = this.otelService?.startSpan('withdrawal.processAllWithdrawals');
-
-    try {
-      const intents = await this.findIntentsForWithdrawal();
-      const groupedIntents = this.groupIntentsByChain(intents);
-
-      const results = new Map<bigint, string>();
-
-      for (const [chainId, chainIntents] of groupedIntents) {
-        try {
-          const txHash = await this.executeWithdrawal(chainId, chainIntents);
-          results.set(chainId, txHash);
-        } catch (error) {
-          this.logger.error(`Failed to process withdrawals for chain ${chainId}`, toError(error));
-        }
-      }
-
-      span?.setAttributes({
-        'withdrawal.chains_processed': results.size,
-        'withdrawal.total_intents': intents.length,
-      });
-
-      span?.setStatus({ code: 1 });
-      return results;
-    } catch (error) {
-      span?.recordException(toError(error));
-      span?.setStatus({ code: 2 });
-      throw error;
-    } finally {
-      span?.end();
-    }
   }
 }

@@ -14,8 +14,4 @@ export class AppConfigService {
   get env(): BaseConfig['env'] {
     return this.configService.get<BaseConfig['env']>('env', 'development');
   }
-
-  get apiKeys(): string[] {
-    return this.configService.get<string[]>('apiKeys', []);
-  }
 }

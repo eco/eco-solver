@@ -30,4 +30,10 @@ export interface ValidationContext {
    * @returns The wallet identifier (e.g., 'basic', 'kernel')
    */
   getWalletId(): Promise<string>;
+
+  /**
+   * Get the name of the strategy that is running this validation
+   * @returns The strategy name
+   */
+  getStrategyName(): string;
 }

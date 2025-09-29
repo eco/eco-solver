@@ -17,26 +17,19 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
   OpenTelemetryService: jest.fn().mockImplementation(() => ({
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
-    getActiveSpan: jest.fn(),
-    withSpan: jest.fn().mockImplementation((name, callback) => {
-      const mockSpan = {
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      };
-      return callback(mockSpan);
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    },
   })),
 }));
 
@@ -58,7 +51,7 @@ import {
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 import { StandardFulfillmentStrategy } from '../standard-fulfillment.strategy';
 
@@ -66,7 +59,7 @@ describe('StandardFulfillmentStrategy', () => {
   let strategy: StandardFulfillmentStrategy;
   let _blockchainExecutorService: jest.Mocked<BlockchainExecutorService>;
   let _blockchainReaderService: jest.Mocked<BlockchainReaderService>;
-  let queueService: jest.Mocked<QueueService>;
+  let queueService: jest.Mocked<IQueueService>;
   let _otelService: jest.Mocked<OpenTelemetryService>;
 
   // Mock validation services
@@ -92,26 +85,19 @@ describe('StandardFulfillmentStrategy', () => {
       addIntentToExecutionQueue: jest.fn(),
     };
     const mockOtelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
-      getActiveSpan: jest.fn(),
-      withSpan: jest.fn().mockImplementation((name, callback) => {
-        const mockSpan = {
-          setAttribute: jest.fn(),
-          setAttributes: jest.fn(),
-          addEvent: jest.fn(),
-          setStatus: jest.fn(),
-          recordException: jest.fn(),
-          end: jest.fn(),
-        };
-        return callback(mockSpan);
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            addEvent: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     };
 
     // Create mock validations

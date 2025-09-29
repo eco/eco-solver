@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
@@ -14,26 +14,23 @@ import { FeeCalculationValidation, FeeDetails } from './fee-calculation.interfac
 @Injectable()
 export class NativeFeeValidation implements FeeCalculationValidation {
   constructor(
-    private readonly fulfillmentConfigService: FulfillmentConfigService,
+    private readonly feeResolverService: FeeResolverService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.NativeFeeValidation', {
-        attributes: {
-          'validation.name': 'NativeFeeValidation',
-          'intent.hash': intent.intentHash,
-          'intent.destination_chain': intent.destination?.toString(),
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'NativeFeeValidation',
+      'intent.hash': intent.intentHash,
+      'intent.destination_chain': intent.destination?.toString(),
+    });
 
     try {
       // Native fee validation should only apply to intents with pure native rewards
       if (intent.reward.tokens && intent.reward.tokens.length > 0) {
-        span.setAttributes({
+        span?.setAttributes({
           'validation.failed': true,
           'validation.reason': 'reward_tokens_present',
           'reward.tokens.count': intent.reward.tokens.length,
@@ -47,7 +44,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
 
       const feeDetails = await this.calculateFee(intent, context);
 
-      span.setAttributes({
+      span?.setAttributes({
         'fee.base': feeDetails.fee.base.toString(),
         'fee.percentage': feeDetails.fee.percentage.toString(),
         'fee.total': feeDetails.fee.total.toString(),
@@ -65,20 +62,12 @@ export class NativeFeeValidation implements FeeCalculationValidation {
         );
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 
@@ -90,17 +79,17 @@ export class NativeFeeValidation implements FeeCalculationValidation {
     const rewardNative = intent.reward.nativeAmount;
     const rewardTokens = 0n; // Native fee validation is for pure native transfers
 
-    // Native intents have different fee requirements
-    const nativeFeeConfig = this.fulfillmentConfigService.getNetworkFee(intent.destination);
-    if (!nativeFeeConfig.native) {
+    // Get fee configuration using hierarchical resolver (for native transfers, only network and default fees apply)
+    const feeConfig = this.feeResolverService.resolveNativeFee(intent.destination);
+    if (!feeConfig.native) {
       throw new ValidationError(`Native fee config not found for chain ${intent.destination}`);
     }
 
-    const baseFee = BigInt(nativeFeeConfig.native.flatFee);
+    const baseFee = BigInt(feeConfig.native.flatFee);
 
     // Calculate percentage fee from native reward amount
     const base = 1_000;
-    const nativePercentageFeeScalar = BigInt(Math.floor(nativeFeeConfig.native.scalarBps * base));
+    const nativePercentageFeeScalar = BigInt(Math.floor(feeConfig.native.scalarBps * base));
     const percentageFee = (rewardNative * nativePercentageFeeScalar) / BigInt(base * 10000);
     const totalFee = baseFee + percentageFee;
 
@@ -125,7 +114,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
         base: baseFee,
         percentage: percentageFee,
         total: totalFee,
-        bps: nativeFeeConfig.native.scalarBps,
+        bps: feeConfig.native.scalarBps,
       },
     };
   }

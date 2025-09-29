@@ -28,7 +28,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 @Injectable()
 export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
   private sdk?: NodeSDK;
-  private tracer: api.Tracer;
+  public tracer: api.Tracer;
   private meter: api.Meter;
   private meterProvider?: MeterProvider;
 
@@ -38,9 +38,9 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
   ) {
     this.logger.setContext(OpenTelemetryService.name);
     // Always get tracer - it will be no-op if no provider is registered
-    this.tracer = api.trace.getTracer('blockchain-intent-solver');
+    this.tracer = api.trace.getTracer('solver');
     // Always get meter - it will be no-op if no provider is registered
-    this.meter = api.metrics.getMeter('blockchain-intent-solver');
+    this.meter = api.metrics.getMeter('solver');
   }
 
   async onModuleInit() {
@@ -74,13 +74,6 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
         this.logger.error('Error shutting down OpenTelemetry metrics', toError(error));
       }
     }
-  }
-
-  /**
-   * Get the OpenTelemetry tracer instance
-   */
-  getTracer(): api.Tracer {
-    return this.tracer;
   }
 
   /**
@@ -132,19 +125,118 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     fn: (span: api.Span) => Promise<T>,
     options?: api.SpanOptions,
   ): Promise<T> {
-    const span = this.startSpan(name, options);
+    return this.tracer.startActiveSpan(name, options || {}, async (span) => {
+      try {
+        const result = await fn(span);
+        span.setStatus({ code: api.SpanStatusCode.OK });
+        return result;
+      } catch (error) {
+        span.recordException(error as Error);
+        span.setStatus({ code: api.SpanStatusCode.ERROR });
+        throw error;
+      }
+    });
+  }
 
-    try {
-      return await api.context.with(api.trace.setSpan(api.context.active(), span), async () => {
-        return await fn(span);
-      });
-    } catch (error) {
-      span.recordException(error as Error);
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
+  /**
+   * Create correlation attributes for linking separate traces
+   * @param intentHash The intent hash to use as correlation ID
+   * @param stage The stage of processing (listener, fulfillment, execution)
+   * @param parentTraceId Optional parent trace ID for linking
+   */
+  createCorrelationAttributes(
+    intentHash: string,
+    stage: 'listener' | 'fulfillment' | 'execution',
+    parentTraceId?: string,
+  ): api.Attributes {
+    const attributes: api.Attributes = {
+      'trace.correlation.id': intentHash,
+      'trace.stage': stage,
+    };
+
+    if (parentTraceId) {
+      attributes['trace.parent.id'] = parentTraceId;
     }
+
+    return attributes;
+  }
+
+  /**
+   * Start a new root trace with correlation attributes
+   * Breaks context propagation to start a fresh trace
+   */
+  startRootTrace(
+    name: string,
+    intentHash: string,
+    stage: 'listener' | 'fulfillment' | 'execution',
+    additionalAttributes?: api.Attributes,
+  ): api.Span {
+    // Break context propagation by creating span without parent context
+    const correlationAttrs = this.createCorrelationAttributes(intentHash, stage);
+
+    return this.tracer.startSpan(name, {
+      root: true, // Ensure this is a root span
+      attributes: {
+        ...correlationAttrs,
+        ...additionalAttributes,
+      },
+    });
+  }
+
+  /**
+   * Start a new active span that breaks context propagation
+   * Creates a new trace while maintaining correlation through attributes
+   */
+  async startNewTraceWithCorrelation<T>(
+    name: string,
+    intentHash: string,
+    stage: 'listener' | 'fulfillment' | 'execution',
+    fn: (span: api.Span) => Promise<T>,
+    additionalAttributes?: api.Attributes,
+  ): Promise<T> {
+    // Get current trace ID before breaking context (if exists)
+    const parentTraceId = this.getCurrentTraceId();
+
+    // Clear the context to start a new trace
+    const rootContext = api.ROOT_CONTEXT;
+
+    // Start a new active span in the root context (new trace)
+    return api.context.with(rootContext, () => {
+      return this.tracer.startActiveSpan(
+        name,
+        {
+          attributes: {
+            ...this.createCorrelationAttributes(intentHash, stage, parentTraceId),
+            ...additionalAttributes,
+          },
+        },
+        async (span) => {
+          try {
+            const result = await fn(span);
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return result;
+          } catch (error) {
+            span.recordException(error as Error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+            throw error;
+          } finally {
+            span.end();
+          }
+        },
+      );
+    });
+  }
+
+  /**
+   * Get the current trace ID from the active span
+   */
+  getCurrentTraceId(): string | undefined {
+    const span = this.getActiveSpan();
+    if (span) {
+      const spanContext = span.spanContext();
+      return spanContext.traceId;
+    }
+    return undefined;
   }
 
   private async initializeOpenTelemetry() {

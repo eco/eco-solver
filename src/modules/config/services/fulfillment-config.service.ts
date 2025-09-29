@@ -1,20 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { normalize } from '@/common/tokens/normalize';
-import { UniversalAddress } from '@/common/types/universal-address.type';
 import { FulfillmentConfig } from '@/config/schemas';
-import { TokenConfigService } from '@/modules/config/services/token-config.service';
-
-import { BlockchainConfigService } from './blockchain-config.service';
 
 @Injectable()
 export class FulfillmentConfigService {
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly blockchainConfigService: BlockchainConfigService,
-    private readonly tokenConfigService: TokenConfigService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   get defaultStrategy(): FulfillmentConfig['defaultStrategy'] {
     return this.configService.get<FulfillmentConfig['defaultStrategy']>(
@@ -36,38 +27,19 @@ export class FulfillmentConfigService {
     );
   }
 
-  getNetworkFee(chainId: bigint | number | string) {
-    return this.blockchainConfigService.getFeeLogic(chainId);
-  }
-
-  getToken(chainId: bigint | number | string, address: UniversalAddress) {
-    return this.tokenConfigService.getTokenConfig(chainId, address as UniversalAddress);
-  }
-
-  normalize<
-    Tokens extends Readonly<Token> | Readonly<Token[]>,
-    Token extends Readonly<{ amount: bigint; token: UniversalAddress }>,
-    Normalized extends {
-      token: UniversalAddress;
-      decimals: number;
-      amount: bigint;
-    },
-    Result extends Tokens extends Readonly<Token[]> ? Normalized[] : Normalized,
-  >(chainId: bigint | number | string, tokens: Tokens): Result {
-    if (tokens instanceof Array) {
-      return tokens.map((token) => {
-        const { decimals } = this.tokenConfigService.getTokenConfig(
-          chainId,
-          token.token as UniversalAddress,
-        );
-        return { token: token.token, decimals, amount: normalize(token.amount, decimals) };
-      }) as Result;
-    }
-
-    const { decimals } = this.tokenConfigService.getTokenConfig(
-      chainId,
-      tokens.token as UniversalAddress,
+  get routeEnablementConfig(): FulfillmentConfig['validations']['routeEnablement'] | undefined {
+    return this.configService.get<FulfillmentConfig['validations']['routeEnablement']>(
+      'fulfillment.validations.routeEnablement',
     );
-    return { token: tokens.token, decimals, amount: normalize(tokens.amount, decimals) } as Result;
+  }
+
+  getStrategyRouteEnablementConfig(
+    strategyName: string,
+  ): FulfillmentConfig['validations']['routeEnablement'] | undefined {
+    // Convert strategy name from constant format (e.g., 'standard') to config key format
+    const strategyKey = strategyName.replace(/-/g, '');
+    return this.configService.get<FulfillmentConfig['validations']['routeEnablement']>(
+      `fulfillment.strategies.${strategyKey}.routeEnablement`,
+    );
   }
 }

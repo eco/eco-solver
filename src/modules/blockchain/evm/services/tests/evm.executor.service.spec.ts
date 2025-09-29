@@ -69,7 +69,7 @@ describe('EvmExecutorService', () => {
     evmConfigService = {
       getChain: jest.fn().mockReturnValue({
         chainId: 10,
-        inboxAddress: '0xInboxAddress',
+        portalAddress: '0xInboxAddress',
       }),
       getInboxAddress: jest.fn().mockReturnValue('0xInboxAddress' as Address),
       getPortalAddress: jest
@@ -107,14 +107,19 @@ describe('EvmExecutorService', () => {
     };
 
     const mockOtelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        addEvent: jest.fn(),
-        end: jest.fn(),
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            addEvent: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({

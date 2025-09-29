@@ -1,5 +1,5 @@
 import { Intent } from '@/common/interfaces/intent.interface';
-import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
+import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
 
 export type WalletType = 'basic' | 'kernel';
 
@@ -10,24 +10,6 @@ export interface StrategyMetadata {
   name: string;
   enabled: boolean;
   description?: string;
-}
-
-/**
- * Core fulfillment strategy interface
- * Defines the contract that all strategies must implement
- */
-export interface IFulfillmentStrategy {
-  readonly name: string;
-
-  validate(intent: Intent): Promise<boolean>;
-
-  execute(intent: Intent): Promise<void>;
-
-  canHandle(intent: Intent): boolean;
-
-  getQuote(intent: Intent): Promise<QuoteResult>;
-
-  getWalletIdForIntent(intent: Intent): Promise<WalletType>;
 }
 
 /**

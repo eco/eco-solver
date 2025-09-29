@@ -34,7 +34,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 // Mock TokenConfigService
 const createMockTokenConfigService = () => ({
@@ -130,26 +130,19 @@ const createMockLogger = () => ({
 });
 
 const createMockOpenTelemetryService = () => ({
-  startSpan: jest.fn().mockReturnValue({
-    setAttribute: jest.fn(),
-    setAttributes: jest.fn(),
-    addEvent: jest.fn(),
-    setStatus: jest.fn(),
-    recordException: jest.fn(),
-    end: jest.fn(),
-  }),
-  getActiveSpan: jest.fn(),
-  withSpan: jest.fn().mockImplementation(async (name, callback) => {
-    const mockSpan = {
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    };
-    return callback(mockSpan);
-  }),
+  tracer: {
+    startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+      const span = {
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      };
+      return fn(span);
+    }),
+  },
 });
 
 const createMockQueueService = () => ({
@@ -543,7 +536,7 @@ const createIntentForValidation = (validation: string, shouldPass: boolean = tru
 describe('StandardFulfillmentStrategy Integration Tests', () => {
   let module: TestingModule;
   let standardStrategy: StandardFulfillmentStrategy;
-  let queueService: jest.Mocked<QueueService>;
+  let queueService: jest.Mocked<IQueueService>;
 
   // Mock services
   let mockBlockchainReader: jest.Mocked<BlockchainReaderService>;
@@ -585,7 +578,7 @@ describe('StandardFulfillmentStrategy Integration Tests', () => {
     mockLogger = createMockLogger() as unknown as jest.Mocked<SystemLoggerService>;
     mockOtelService =
       createMockOpenTelemetryService() as unknown as jest.Mocked<OpenTelemetryService>;
-    queueService = createMockQueueService() as unknown as jest.Mocked<QueueService>;
+    queueService = createMockQueueService() as unknown as jest.Mocked<IQueueService>;
     mockFulfillmentConfigService =
       createMockFulfillmentConfigService() as unknown as jest.Mocked<FulfillmentConfigService>;
     mockBlockchainConfigService =

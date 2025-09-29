@@ -158,13 +158,19 @@ describe('ChainListener', () => {
     } as any;
 
     otelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            addEvent: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     } as any;
 
     blockchainConfigService = {

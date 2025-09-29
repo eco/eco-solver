@@ -155,7 +155,7 @@ src/
 ### Processing Flow
 
 1. **Listen**: Blockchain listeners (self-initializing) monitor chain events for new intents
-2. **Emit**: Listeners emit 'intent.discovered' events with intent and strategy
+2. **Emit**: Listeners add intents to the fulfillment queue
 3. **Handle**: FulfillmentService handles events via @OnEvent decorator
 4. **Store**: FulfillmentService persists intents to MongoDB
 5. **Queue**: FulfillmentService adds intent to fulfillment queue with strategy
@@ -930,7 +930,7 @@ graph TB
 
 ### Key Interaction Patterns:
 
-1. **Event Detection**: Blockchain listeners (EVM/SVM/TVM) monitor on-chain events and emit 'intent.discovered' events
+1. **Event Detection**: Blockchain listeners (EVM/SVM/TVM) monitor on-chain events
 2. **Event Handling**: FulfillmentService listens for events using @OnEvent decorator
 3. **Centralized Processing**: All intents flow through FulfillmentService for consistent handling
 4. **Strategy Selection**: FulfillmentService determines the appropriate strategy based on event data or configuration

@@ -21,3 +21,15 @@ export interface SolverRegistrationRequestBody {
     };
   };
 }
+
+export interface SolverRegistrationResponseBody {
+  solverID: string;
+  intentExecutionTypes: string[];
+  supportsNativeTransfers?: boolean;
+  quotesUrl: string;
+  quotesV2Url?: string;
+  reverseQuotesUrl: string;
+  receiveSignedIntentUrl: string;
+  gaslessIntentTransactionDataUrl: string;
+  useSolverDataFormat: boolean;
+}

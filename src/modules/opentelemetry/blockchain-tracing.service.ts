@@ -71,44 +71,52 @@ export class BlockchainTracingService {
   }
 
   /**
-   * Create a span for contract reads
+   * Create a span for contract reads using startActiveSpan
    */
-  createContractReadSpan(contractAddress: string, functionName: string, chainId: number): api.Span {
-    const span = this.otelService.startSpan(`contract.read ${functionName}`, {
-      kind: api.SpanKind.CLIENT,
-    });
-
-    span.setAttributes({
-      'contract.address': contractAddress,
-      'contract.function': functionName,
-      'contract.chain_id': chainId,
-      'contract.operation': 'read',
-    });
-
-    return span;
-  }
-
-  /**
-   * Create a span for contract writes
-   */
-  createContractWriteSpan(
+  createContractReadSpan<T>(
     contractAddress: string,
     functionName: string,
     chainId: number,
+    fn: (span: api.Span) => T,
+  ): T {
+    return this.otelService.tracer.startActiveSpan(
+      `contract.read ${functionName}`,
+      {
+        kind: api.SpanKind.CLIENT,
+        attributes: {
+          'contract.address': contractAddress,
+          'contract.function': functionName,
+          'contract.chain_id': chainId,
+          'contract.operation': 'read',
+        },
+      },
+      (span: api.Span) => fn(span),
+    );
+  }
+
+  /**
+   * Create a span for contract writes using startActiveSpan
+   */
+  createContractWriteSpan<T>(
+    contractAddress: string,
+    functionName: string,
+    chainId: number,
+    fn: (span: api.Span) => T,
     value?: bigint,
-  ): api.Span {
-    const span = this.otelService.startSpan(`contract.write ${functionName}`, {
-      kind: api.SpanKind.CLIENT,
-    });
-
-    span.setAttributes({
-      'contract.address': contractAddress,
-      'contract.function': functionName,
-      'contract.chain_id': chainId,
-      'contract.operation': 'write',
-      'contract.value': value?.toString() || '0',
-    });
-
-    return span;
+  ): T {
+    return this.otelService.tracer.startActiveSpan(
+      `contract.write ${functionName}`,
+      {
+        kind: api.SpanKind.CLIENT,
+        attributes: {
+          'contract.address': contractAddress,
+          'contract.function': functionName,
+          'contract.chain_id': chainId,
+          'contract.operation': 'write',
+          'contract.value': value?.toString() || '0',
+        },
+      },
+      (span) => fn(span),
+    );
   }
 }

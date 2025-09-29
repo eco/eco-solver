@@ -34,7 +34,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
           options: {},
         },
         intentSourceAddress: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG',
-        inboxAddress: 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN',
+        portalAddress: 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN',
         fee: {
           tokens: {
             flatFee: '100000',
@@ -156,14 +156,19 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
 
   // Mock OpenTelemetry
   const mockOtelService = {
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    },
   };
 
   // Mock BlockchainConfigService
@@ -271,7 +276,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     const creatorAddress = padTo32Bytes(
       '0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5',
     ) as UniversalAddress;
-    const inboxAddress = padTo32Bytes(
+    const portalAddress = padTo32Bytes(
       '0x8f5bbfd66eb9f23e3e8fdd1af56db1a3e1c3d8f5',
     ) as UniversalAddress;
     const usdtAddress = padTo32Bytes(
@@ -296,7 +301,7 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
       route: {
         salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
         deadline: BigInt(Date.now() + 86400000), // 24 hours from now
-        portal: inboxAddress,
+        portal: portalAddress,
         nativeAmount: BigInt(0),
         calls: [
           {
@@ -363,6 +368,6 @@ describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
     expect(proverCall[1]).toBe(testIntent.reward.prover);
 
     // Verify OpenTelemetry span was created
-    expect(mockOtelService.startSpan).toHaveBeenCalled();
+    expect(mockOtelService.tracer.startActiveSpan).toHaveBeenCalled();
   });
 });

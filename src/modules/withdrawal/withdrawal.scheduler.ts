@@ -21,6 +21,8 @@ export class WithdrawalScheduler implements OnModuleInit {
   async onModuleInit() {
     // Create a job scheduler for checking proven intents
     try {
+      this.logger.log(`Starting withdrawal job scheduler...`);
+
       const intervalMinutes = this.withdrawalConfigService.checkIntervalMinutes;
       const cronPattern = `*/${intervalMinutes} * * * *`;
 

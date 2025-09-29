@@ -31,70 +31,66 @@ export class TraceInterceptor implements NestInterceptor {
     const response = context.switchToHttp().getResponse();
 
     const spanName = `${request.method} ${request.route?.path || request.url}`;
-    const span = this.otelService.startSpan(spanName, {
-      kind: api.SpanKind.SERVER,
-    });
 
-    // Add standard HTTP attributes
-    span.setAttributes({
-      [SEMATTRS_HTTP_METHOD]: request.method,
-      [SEMATTRS_HTTP_URL]: request.url,
-      [SEMATTRS_HTTP_TARGET]: request.originalUrl,
-      [SEMATTRS_HTTP_HOST]: request.headers.host,
-      [SEMATTRS_HTTP_SCHEME]: request.protocol,
-      [SEMATTRS_HTTP_USER_AGENT]: request.headers['user-agent'],
-      'http.request_id': request.id,
-      'controller.name': context.getClass().name,
-      'handler.name': context.getHandler().name,
-    });
+    return this.otelService.tracer.startActiveSpan(
+      spanName,
+      {
+        kind: api.SpanKind.SERVER,
+        attributes: {
+          [SEMATTRS_HTTP_METHOD]: request.method,
+          [SEMATTRS_HTTP_URL]: request.url,
+          [SEMATTRS_HTTP_TARGET]: request.originalUrl,
+          [SEMATTRS_HTTP_HOST]: request.headers.host,
+          [SEMATTRS_HTTP_SCHEME]: request.protocol,
+          [SEMATTRS_HTTP_USER_AGENT]: request.headers['user-agent'],
+          'http.request_id': request.id,
+          'controller.name': context.getClass().name,
+          'handler.name': context.getHandler().name,
+        },
+      },
+      (span) => {
+        // Add custom attributes from request
+        if (request.params && Object.keys(request.params).length > 0) {
+          span.setAttribute('http.params', JSON.stringify(request.params));
+        }
 
-    // Add custom attributes from request
-    if (request.params && Object.keys(request.params).length > 0) {
-      span.setAttribute('http.params', JSON.stringify(request.params));
-    }
+        return next.handle().pipe(
+          tap({
+            next: (data) => {
+              // Add response attributes
+              span.setAttributes({
+                [SEMATTRS_HTTP_STATUS_CODE]: response.statusCode,
+                'http.response.size': JSON.stringify(data)?.length,
+              });
 
-    const contextWithSpan = api.trace.setSpan(api.context.active(), span);
-
-    return api.context.with(contextWithSpan, () => {
-      return next.handle().pipe(
-        tap({
-          next: (data) => {
-            // Add response attributes
-            span.setAttributes({
-              [SEMATTRS_HTTP_STATUS_CODE]: response.statusCode,
-              'http.response.size': JSON.stringify(data)?.length,
-            });
-
-            // Set span status based on HTTP status code
-            if (response.statusCode >= 400) {
+              // Set span status based on HTTP status code
+              if (response.statusCode >= 400) {
+                span.setStatus({
+                  code: api.SpanStatusCode.ERROR,
+                  message: `HTTP ${response.statusCode}`,
+                });
+              } else {
+                span.setStatus({ code: api.SpanStatusCode.OK });
+              }
+            },
+            error: (error) => {
+              // Record exception and set error status
+              span.recordException(error);
               span.setStatus({
                 code: api.SpanStatusCode.ERROR,
-                message: `HTTP ${response.statusCode}`,
+                message: error.message,
               });
-            } else {
-              span.setStatus({ code: api.SpanStatusCode.OK });
-            }
-          },
-          error: (error) => {
-            // Record exception and set error status
-            span.recordException(error);
-            span.setStatus({
-              code: api.SpanStatusCode.ERROR,
-              message: error.message,
-            });
 
-            // Add error attributes
-            span.setAttributes({
-              [SEMATTRS_HTTP_STATUS_CODE]: error.status || 500,
-              'error.type': error.name,
-              'error.message': error.message,
-            });
-          },
-          complete: () => {
-            span.end();
-          },
-        }),
-      );
-    });
+              // Add error attributes
+              span.setAttributes({
+                [SEMATTRS_HTTP_STATUS_CODE]: error.status || 500,
+                'error.type': error.name,
+                'error.message': error.message,
+              });
+            },
+          }),
+        );
+      },
+    );
   }
 }

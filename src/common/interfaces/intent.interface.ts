@@ -13,13 +13,13 @@ export interface Intent<
   sourceAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
   destAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
 > {
-  intentHash: Hex; // Changed from intentHash for consistency
-  destination: bigint; // Target chain ID (moved from route)
+  intentHash: Hex;
+  destination: bigint;
   route: Readonly<{
     salt: Hex;
-    deadline: bigint; // Added deadline to route (Portal structure)
-    portal: destAddr; // Changed from inbox
-    nativeAmount: bigint; // Changed from nativeAmount
+    deadline: bigint;
+    portal: destAddr;
+    nativeAmount: bigint;
     tokens: Readonly<
       {
         amount: bigint;
@@ -41,7 +41,6 @@ export interface Intent<
     >;
   }>;
   status?: IntentStatus;
-  // Additional fields for Portal integration
   sourceChainId: bigint; // Source chain context
   vaultAddress?: string; // Derived vault address
   // Transaction tracking

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { normalize } from '@/common/tokens/normalize';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
@@ -136,5 +137,32 @@ export class TokenConfigService {
       // If chain is not supported, return empty array
       return [];
     }
+  }
+
+  /**
+   * Normalizes token amounts to a standard 18 decimal representation
+   * @param chainId - Chain identifier
+   * @param tokens - Single token or array of tokens with amounts
+   * @returns Normalized token(s) with amounts adjusted to 18 decimals
+   */
+  normalize<
+    Tokens extends Readonly<Token> | Readonly<Token[]>,
+    Token extends Readonly<{ amount: bigint; token: UniversalAddress }>,
+    Normalized extends {
+      token: UniversalAddress;
+      decimals: number;
+      amount: bigint;
+    },
+    Result extends Tokens extends Readonly<Token[]> ? Normalized[] : Normalized,
+  >(chainId: bigint | number | string, tokens: Tokens): Result {
+    if (tokens instanceof Array) {
+      return tokens.map((token) => {
+        const { decimals } = this.getTokenConfig(chainId, token.token as UniversalAddress);
+        return { token: token.token, decimals, amount: normalize(token.amount, decimals) };
+      }) as Result;
+    }
+
+    const { decimals } = this.getTokenConfig(chainId, tokens.token as UniversalAddress);
+    return { token: tokens.token, decimals, amount: normalize(tokens.amount, decimals) } as Result;
   }
 }

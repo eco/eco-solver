@@ -13,7 +13,7 @@ import { TronAddress } from '@/modules/blockchain/tvm/types';
 /**
  * Converts a normalized Intent to EVM-specific intent
  */
-export function toEVMIntent(intent: Intent): EVMIntent {
+export function toEvmIntent(intent: Intent): EVMIntent {
   return {
     intentHash: intent.intentHash,
     destination: intent.destination,
@@ -58,7 +58,7 @@ export function toEvmRoute(route: Intent['route']): EVMIntent['route'] {
 /**
  * Converts a normalized Intent to a TVM-specific intent
  */
-export function toTVMIntent(intent: Intent): TVMIntent {
+export function toTvmIntent(intent: Intent): TVMIntent {
   return {
     intentHash: intent.intentHash,
     destination: intent.destination,
@@ -95,7 +95,7 @@ export function toTVMIntent(intent: Intent): TVMIntent {
 /**
  * Converts a normalized Intent to SVM-specific intent
  */
-export function toSVMIntent(intent: Intent): SVMIntent {
+export function toSvmIntent(intent: Intent): SVMIntent {
   return {
     intentHash: intent.intentHash,
     destination: intent.destination,
@@ -126,42 +126,5 @@ export function toSVMIntent(intent: Intent): SVMIntent {
       })),
     },
     status: intent.status,
-  };
-}
-
-/**
- * Helper to convert only route portion of intent
- */
-export function toEVMRoute(route: Intent['route']): EVMIntent['route'] {
-  return {
-    salt: route.salt,
-    deadline: route.deadline,
-    portal: AddressNormalizer.denormalizeToEvm(route.portal),
-    nativeAmount: route.nativeAmount,
-    tokens: route.tokens.map((token) => ({
-      amount: token.amount,
-      token: AddressNormalizer.denormalizeToEvm(token.token),
-    })),
-    calls: route.calls.map((call) => ({
-      data: call.data,
-      target: AddressNormalizer.denormalizeToEvm(call.target),
-      value: call.value,
-    })),
-  };
-}
-
-/**
- * Helper to convert only a reward portion of intent
- */
-export function toEVMReward(reward: Intent['reward']): EVMIntent['reward'] {
-  return {
-    deadline: reward.deadline,
-    creator: AddressNormalizer.denormalizeToEvm(reward.creator),
-    prover: AddressNormalizer.denormalizeToEvm(reward.prover),
-    nativeAmount: reward.nativeAmount,
-    tokens: reward.tokens.map((token) => ({
-      amount: token.amount,
-      token: AddressNormalizer.denormalizeToEvm(token.token),
-    })),
   };
 }

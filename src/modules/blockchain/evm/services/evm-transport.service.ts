@@ -6,6 +6,7 @@ import {
   extractChain,
   fallback,
   http,
+  PublicClient,
   Transport,
   webSocket,
 } from 'viem';
@@ -18,6 +19,7 @@ import { BlockchainTracingService } from '@/modules/opentelemetry/blockchain-tra
 interface ChainTransport {
   chain: Chain;
   transport: Transport;
+  pollingTransport?: Transport;
 }
 
 @Injectable()
@@ -67,6 +69,25 @@ export class EvmTransportService implements OnModuleInit {
     });
   }
 
+  getPollingPublicClient(chainId: number): PublicClient | undefined {
+    this.initializeChainTransport(chainId);
+    const chainTransport = this.chainTransports.get(chainId);
+    if (!chainTransport || !chainTransport.pollingTransport) {
+      return undefined;
+    }
+
+    return createPublicClient({
+      chain: chainTransport.chain,
+      transport: chainTransport.pollingTransport,
+    });
+  }
+
+  hasPollingTransport(chainId: number): boolean {
+    this.initializeChainTransport(chainId);
+    const chainTransport = this.chainTransports.get(chainId);
+    return !!chainTransport?.pollingTransport;
+  }
+
   private initializeChainTransport(chainId: number): void {
     if (this.chainTransports.has(chainId)) {
       return;
@@ -84,34 +105,45 @@ export class EvmTransportService implements OnModuleInit {
     const rpc = EvmRpcSchema.safeParse(network.rpc);
     const wsOptions = EvmWsSchema.safeParse(network.rpc);
 
-    // Create transport - prefer WebSocket if available for better performance with event listening
     let transport: Transport;
+    let pollingTransport: Transport | undefined;
+
     if (wsOptions.success) {
+      // WebSocket configuration
       const { urls, options } = wsOptions.data;
-      if (urls.length > 1) {
-        transport = fallback(urls.map((url) => webSocket(url, options)));
-      } else {
-        transport = webSocket(urls[0], options);
+
+      // Create WebSocket transport
+      const wsTransports = urls.map((url) => webSocket(url, options));
+      transport = wsTransports.length > 1 ? fallback(wsTransports) : wsTransports[0];
+
+      // Get HTTP configuration from config service (handles defaults)
+      const httpRpcConfig = this.evmConfigService.getHttpConfigForWebSocket(network);
+      if (httpRpcConfig) {
+        const httpTransports = httpRpcConfig.urls.map((url) => http(url, httpRpcConfig.options));
+        pollingTransport = httpTransports.length > 1 ? fallback(httpTransports) : httpTransports[0];
       }
     } else if (rpc.success) {
+      // HTTP-only configuration
       const { urls, options } = rpc.data;
-      if (urls.length > 1) {
-        transport = fallback(urls.map((url) => http(url, options)));
-      } else {
-        transport = http(urls[0], options);
-      }
+      const httpTransports = urls.map((url) => http(url, options));
+      transport = httpTransports.length > 1 ? fallback(httpTransports) : httpTransports[0];
+      // No polling transport for HTTP-only configuration
     } else {
       throw new Error(`No valid RPC or WebSocket configuration found for chain ${chainId}`);
     }
 
-    // Wrap transport with OpenTelemetry tracing if available
+    // Wrap transports with OpenTelemetry tracing if available
     if (this.blockchainTracing) {
       transport = this.blockchainTracing.wrapTransport(transport, chain);
+      if (pollingTransport) {
+        pollingTransport = this.blockchainTracing.wrapTransport(pollingTransport, chain);
+      }
     }
 
     this.chainTransports.set(chainId, {
       chain,
       transport,
+      pollingTransport,
     });
   }
 }

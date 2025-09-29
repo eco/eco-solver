@@ -4,11 +4,11 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import {
-  IFulfillmentStrategy,
   IStrategyRegistry,
   StrategyMetadata,
 } from '@/common/interfaces/strategy-registry.interface';
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { IFulfillmentStrategy } from '@/modules/fulfillment/interfaces/fulfillment-strategy.interface';
 import {
   CrowdLiquidityFulfillmentStrategy,
   NativeIntentsFulfillmentStrategy,

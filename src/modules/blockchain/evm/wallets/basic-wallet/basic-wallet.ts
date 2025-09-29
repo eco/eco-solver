@@ -23,7 +23,7 @@ export class BasicWallet extends BaseEvmWallet {
   async writeContracts(calls: EvmCall[], options?: WriteContractsOptions): Promise<Hash[]> {
     const keepSender = options?.keepSender ?? false;
 
-    if (keepSender) {
+    if (keepSender || calls.length === 1) {
       // Execute transactions sequentially, keeping original sender
       const hashes: Hash[] = [];
 

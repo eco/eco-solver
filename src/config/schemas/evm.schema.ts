@@ -14,6 +14,7 @@ export const EvmAddressSchema = z
  */
 export const EvmRpcSchema = z.object({
   urls: z.array(z.string().url()),
+  pollingInterval: z.coerce.number().int().positive().optional(),
   options: z
     .object({
       batch: z
@@ -38,6 +39,7 @@ export const EvmRpcSchema = z.object({
  */
 export const EvmWsSchema = z.object({
   urls: z.array(z.string().regex(/^wss?:/)),
+  http: EvmRpcSchema.optional(),
   options: z
     .object({
       timeout: z.coerce.number().int().positive().optional(),
@@ -76,6 +78,7 @@ const EvmTokenSchema = z.object({
         }),
     ])
     .optional(),
+  fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
 });
 
 /**
@@ -127,7 +130,7 @@ const EvmNetworkSchema = z.object({
   chainId: z.coerce.number().int().positive(),
   rpc: z.union([EvmRpcSchema, EvmWsSchema]),
   tokens: z.array(EvmTokenSchema).default([]),
-  fee: AssetsFeeSchema,
+  fee: AssetsFeeSchema.optional(),
   provers: z.record(z.enum(ProverTypeValues), EvmAddressSchema),
   defaultProver: z.enum(ProverTypeValues),
   contracts: z.object({
@@ -146,6 +149,7 @@ const EvmNetworkSchema = z.object({
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
   wallets: WalletsSchema,
+  listenersEnabled: z.boolean().default(true),
 });
 
 export type EvmConfig = z.infer<typeof EvmSchema>;

@@ -19,7 +19,7 @@ import {
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { QueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
   BlockchainExecutorService: jest.fn().mockImplementation(() => ({})),
@@ -37,28 +37,25 @@ jest.mock('@/modules/queue/queue.service', () => ({
 
 jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
   OpenTelemetryService: jest.fn().mockImplementation(() => ({
-    startSpan: jest.fn().mockReturnValue({
-      setAttribute: jest.fn(),
-      setAttributes: jest.fn(),
-      addEvent: jest.fn(),
-      setStatus: jest.fn(),
-      recordException: jest.fn(),
-      end: jest.fn(),
-    }),
-    getActiveSpan: jest.fn(),
-    withSpan: jest.fn((name, fn) => {
-      const mockSpan = {
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-      };
-      return fn(mockSpan);
-    }),
+    tracer: {
+      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    },
   })),
 }));
 
 describe('NativeIntentsFulfillmentStrategy', () => {
   let strategy: NativeIntentsFulfillmentStrategy;
-  let queueService: jest.Mocked<QueueService>;
+  let queueService: jest.Mocked<IQueueService>;
   // Mock validation services
   let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let duplicateRewardTokensValidation: jest.Mocked<any>;
@@ -82,22 +79,19 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       addIntentToExecutionQueue: jest.fn(),
     };
     const mockOtelService = {
-      startSpan: jest.fn().mockReturnValue({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
-      getActiveSpan: jest.fn(),
-      withSpan: jest.fn((name, fn) => {
-        const mockSpan = {
-          setAttributes: jest.fn(),
-          addEvent: jest.fn(),
-        };
-        return fn(mockSpan);
-      }),
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            addEvent: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
     };
 
     // Create mock validations

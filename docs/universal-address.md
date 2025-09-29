@@ -169,7 +169,7 @@ interface Intent {
     // ...
   };
   route: {
-    inbox: UniversalAddress;     // Chain-agnostic
+    portal: UniversalAddress;     // Chain-agnostic
     tokens: Array<{
       token: UniversalAddress;   // Chain-agnostic
       amount: bigint;

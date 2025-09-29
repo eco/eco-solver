@@ -36,6 +36,10 @@ export class ProverService implements OnModuleInit {
     const sourceChainId = Number(intent.sourceChainId);
     const destinationChainId = Number(intent.destination);
 
+    if (sourceChainId === destinationChainId) {
+      return { isValid: false, reason: 'Cannot fulfill on the same chain' };
+    }
+
     const expectedPortal = this.blockchainConfigService.getPortalAddress(destinationChainId);
     if (!expectedPortal) {
       return {

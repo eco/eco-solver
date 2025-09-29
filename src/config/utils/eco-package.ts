@@ -30,7 +30,7 @@ export function getEcoNpmPackageConfig(config: DeepPartial<Config>): DeepPartial
 
         return {
           intentSourceAddress: IntentSource,
-          inboxAddress: Inbox,
+          portalAddress: Inbox,
           provers,
           ...network,
         };

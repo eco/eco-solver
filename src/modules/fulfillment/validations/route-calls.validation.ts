@@ -17,27 +17,22 @@ export class RouteCallsValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, _context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.RouteCallsValidation', {
-        attributes: {
-          'validation.name': 'RouteCallsValidation',
-          'intent.id': intent.intentHash,
-          'intent.destination_chain': intent.destination.toString(),
-          'route.calls.count': intent.route.calls?.length || 0,
-          'route.portal': intent.route.portal,
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'RouteCallsValidation',
+      'intent.hash': intent.intentHash,
+      'intent.destination_chain': intent.destination.toString(),
+      'route.calls.count': intent.route.calls?.length || 0,
+      'route.portal': intent.route.portal,
+    });
 
     try {
       // Validate route calls
       if (!intent.route.calls || intent.route.calls.length === 0) {
         // It's valid to have no calls (token-only transfer)
-        span.setAttribute('route.calls.empty', true);
-        if (!activeSpan) {
-          span.setStatus({ code: api.SpanStatusCode.OK });
-        }
+        span?.setAttribute('route.calls.empty', true);
+        span?.setStatus({ code: api.SpanStatusCode.OK });
         return true;
       }
 
@@ -46,7 +41,7 @@ export class RouteCallsValidation implements Validation {
       for (let i = 0; i < intent.route.calls.length; i++) {
         const call = intent.route.calls[i];
 
-        span.setAttributes({
+        span?.setAttributes({
           [`route.call.${i}.target`]: call.target,
           [`route.call.${i}.value`]: call.value?.toString() || '0',
         });
@@ -55,33 +50,25 @@ export class RouteCallsValidation implements Validation {
           const isValidTokenTransferCall =
             await this.blockchainReaderService.validateTokenTransferCall(intent.destination, call);
 
-          span.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
+          span?.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
 
           if (!isValidTokenTransferCall) {
             throw new Error(`Invalid token transfer call for target ${call.target}`);
           }
         } catch (error) {
-          span.setAttribute(`route.call.${i}.validationError`, (error as Error).message);
+          span?.setAttribute(`route.call.${i}.validationError`, (error as Error).message);
           throw new Error(
             `Invalid route call for target ${call.target} on chain ${intent.destination}: ${(error as Error).message}`,
           );
         }
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }

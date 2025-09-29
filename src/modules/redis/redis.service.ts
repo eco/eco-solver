@@ -1,26 +1,18 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 
-import Redis from 'ioredis';
+import Redis, { Cluster } from 'ioredis';
 
-import { RedisConfigService } from '@/modules/config/services';
+import { RedisConnectionFactory } from './redis-connection.factory';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
-  private client: Redis;
+  private client: Redis | Cluster;
 
-  constructor(private redisConfig: RedisConfigService) {
-    if (this.redisConfig.url) {
-      this.client = new Redis(this.redisConfig.url);
-    } else {
-      this.client = new Redis({
-        host: this.redisConfig.host,
-        port: this.redisConfig.port,
-        password: this.redisConfig.password,
-      });
-    }
+  constructor(private connectionFactory: RedisConnectionFactory) {
+    this.client = this.connectionFactory.createConnection();
   }
 
-  getClient(): Redis {
+  getClient(): Redis | Cluster {
     return this.client;
   }
 

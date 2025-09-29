@@ -1,4 +1,3 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -8,7 +7,7 @@ import { ApiModule } from '@/modules/api/api.module';
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { BullBoardDashboardModule } from '@/modules/bull-board/bull-board.module';
 import { ConfigModule } from '@/modules/config/config.module';
-import { DatabaseConfigService, RedisConfigService } from '@/modules/config/services';
+import { DatabaseConfigService } from '@/modules/config/services';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
 import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
@@ -17,6 +16,7 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
+import { RedisModule } from '@/modules/redis/redis.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
 
 @Module({
@@ -39,18 +39,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
       }),
       inject: [DatabaseConfigService],
     }),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (redisConfig: RedisConfigService) => ({
-        connection: {
-          host: redisConfig.host,
-          port: redisConfig.port,
-          password: redisConfig.password,
-          maxRetriesPerRequest: null,
-        },
-      }),
-      inject: [RedisConfigService],
-    }),
+    RedisModule.forRootRedisAsync(),
     QueueModule,
     IntentsModule,
     BlockchainModule.forRootAsync(),

@@ -13,6 +13,7 @@ export function createMockValidationContext(
       .mockResolvedValue('0x1234567890123456789012345678901234567890' as Address),
     getWalletBalance: jest.fn().mockResolvedValue(BigInt(10000000000000000000)), // 10 ETH
     getWalletId: jest.fn().mockResolvedValue('basic'),
+    getStrategyName: jest.fn().mockReturnValue('standard'),
   };
 
   return {

@@ -41,7 +41,6 @@ General application settings.
 interface AppConfig {
   env: 'development' | 'staging' | 'production';
   port: number;
-  apiKeys: string[];
   cors: {
     enabled: boolean;
     origins: string[];
@@ -93,7 +92,7 @@ interface EvmConfig {
     chainId: bigint;
     rpcUrls: string[];
     intentSourceAddress: string;
-    inboxAddress: string;
+    portalAddress: string;
     startBlock?: bigint;
     confirmations: number;
     feeLogic: {

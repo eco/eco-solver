@@ -21,7 +21,7 @@ export class IntentConverter {
         source: intent.sourceChainId?.toString(),
         destination: intent.destination.toString(),
         salt: intent.route.salt,
-        inbox: intent.route.portal,
+        portal: intent.route.portal,
         deadline: intent.route.deadline,
         nativeAmount: intent.route.nativeAmount,
         calls: intent.route.calls.map((call) => ({
@@ -41,6 +41,7 @@ export class IntentConverter {
   static toInterface(schema: IntentSchema): IntentInterface {
     return {
       intentHash: schema.intentHash as Hex,
+      publishTxHash: schema.publishTxHash,
       reward: {
         prover: schema.reward.prover,
         creator: schema.reward.creator,
@@ -54,7 +55,7 @@ export class IntentConverter {
       route: {
         salt: schema.route.salt as `0x${string}`,
         deadline: schema.route.deadline,
-        portal: schema.route.inbox,
+        portal: schema.route.portal,
         nativeAmount: schema.route.nativeAmount,
         calls: schema.route.calls.map((call) => ({
           data: call.data as `0x${string}`,

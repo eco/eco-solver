@@ -194,7 +194,7 @@ interface EvmConfig {
     chainId: bigint;
     rpcUrls: string[];
     intentSourceAddress: string;
-    inboxAddress: string;
+    portalAddress: string;
     confirmations: number;
     gasSettings: {
       maxFeePerGas?: bigint;

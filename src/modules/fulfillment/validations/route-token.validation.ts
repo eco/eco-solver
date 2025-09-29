@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
@@ -19,24 +21,21 @@ export class RouteTokenValidation implements Validation {
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('validation.RouteTokenValidation', {
-        attributes: {
-          'validation.name': 'RouteTokenValidation',
-          'intent.hash': intent.intentHash,
-          'intent.source_chain': intent.sourceChainId?.toString(),
-          'intent.destination_chain': intent.destination?.toString(),
-          'route.tokens.count': intent.route.tokens?.length || 0,
-          'reward.tokens.count': intent.reward.tokens?.length || 0,
-        },
-      });
+    const span = api.trace.getActiveSpan();
+
+    span?.setAttributes({
+      'validation.name': 'RouteTokenValidation',
+      'intent.hash': intent.intentHash,
+      'intent.source_chain': intent.sourceChainId?.toString(),
+      'intent.destination_chain': intent.destination?.toString(),
+      'route.tokens.count': intent.route.tokens?.length || 0,
+      'reward.tokens.count': intent.reward.tokens?.length || 0,
+    });
 
     if (context.quoting) {
       // Skip validation when is quoting
-      span.setAttribute('validation.skipped', true);
-      span.setAttribute('validation.quoting', true);
+      span?.setAttribute('validation.skipped', true);
+      span?.setAttribute('validation.quoting', true);
       return true;
     }
 
@@ -52,7 +51,7 @@ export class RouteTokenValidation implements Validation {
       }
 
       const nativeTokenAmount = intent.route.calls.reduce((acc, call) => acc + call.value, 0n);
-      span.setAttribute('route.native_token_amount', nativeTokenAmount.toString());
+      span?.setAttribute('route.native_token_amount', nativeTokenAmount.toString());
 
       if (nativeTokenAmount !== 0n) {
         throw new ValidationError(
@@ -70,7 +69,7 @@ export class RouteTokenValidation implements Validation {
           routeToken.token,
         );
 
-        span.setAttributes({
+        span?.setAttributes({
           [`route.token.${i}.address`]: routeToken.token,
           [`route.token.${i}.amount`]: routeToken.amount.toString(),
           [`route.token.${i}.supported`]: isSupported,
@@ -78,8 +77,10 @@ export class RouteTokenValidation implements Validation {
 
         // Check if token is supported when there are restrictions
         if (!isSupported) {
+          const chainType = ChainTypeDetector.detect(destinationChainId);
+          const tokenAddress = AddressNormalizer.denormalize(routeToken.token, chainType);
           throw new ValidationError(
-            `Token ${routeToken.token} is not supported on chain ${destinationChainId}`,
+            `Token ${tokenAddress} is not supported on chain ${destinationChainId}`,
             undefined,
             'RouteTokenValidation',
           );
@@ -92,7 +93,7 @@ export class RouteTokenValidation implements Validation {
         const token = intent.reward.tokens[i];
         const isSupported = this.tokenConfigService.isTokenSupported(sourceChainId, token.token);
 
-        span.setAttributes({
+        span?.setAttributes({
           [`reward.token.${i}.address`]: token.token,
           [`reward.token.${i}.amount`]: token.amount.toString(),
           [`reward.token.${i}.supported`]: isSupported,
@@ -100,28 +101,22 @@ export class RouteTokenValidation implements Validation {
 
         // Check if reward token is supported when there are restrictions
         if (!isSupported) {
+          const chainType = ChainTypeDetector.detect(sourceChainId);
+          const tokenAddress = AddressNormalizer.denormalize(token.token, chainType);
           throw new ValidationError(
-            `Reward token ${token.token} is not supported on chain ${sourceChainId}`,
+            `Reward token ${tokenAddress} is not supported on chain ${sourceChainId}`,
             ValidationErrorType.PERMANENT,
             'RouteTokenValidation',
           );
         }
       }
 
-      if (!activeSpan) {
-        span.setStatus({ code: api.SpanStatusCode.OK });
-      }
+      span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(error as Error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span?.recordException(error as Error);
+      span?.setStatus({ code: api.SpanStatusCode.ERROR });
       throw error;
-    } finally {
-      if (!activeSpan) {
-        span.end();
-      }
     }
   }
 }
