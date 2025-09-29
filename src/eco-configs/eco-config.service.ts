@@ -348,7 +348,10 @@ export class EcoConfigService {
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
     const { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    const rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, { isWebSocketEnabled, preferredProviders: ['alchemy', 'infura'] })
+    const rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, {
+      isWebSocketEnabled,
+      preferredProviders: ['alchemy', 'infura'],
+    })
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
     const rpcs: string[] = []

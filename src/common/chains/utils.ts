@@ -1,4 +1,3 @@
-
 /**
  * Checks if a URL is a WebSocket URL.
  * @param url - The URL to check.
