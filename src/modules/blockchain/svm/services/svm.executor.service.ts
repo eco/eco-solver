@@ -386,7 +386,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         this.logger.debug(
           `Processing withdrawal for destination: ${destination}, routeHash: ${routeHash}`,
         );
-        const intentHashHex = PortalHashUtils.intentHash(
+        const intentHashHex = PortalHashUtils.getIntentHash(
           destination,
           routeHash as `0x${string}`,
           PortalHashUtils.computeRewardHash(reward, destination),
