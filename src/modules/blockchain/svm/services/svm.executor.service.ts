@@ -9,7 +9,6 @@ import {
   Connection,
   Keypair,
   PublicKey,
-  SystemProgram,
   Transaction,
   TransactionInstruction,
   TransactionMessage,
@@ -21,7 +20,7 @@ import {
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { TProverType } from '@/common/interfaces/prover.interface';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -44,6 +43,9 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
+import { HyperProverUtils } from '../utils/hyper-prover.utils';
+
+import { SvmHyperProver } from './svm-hyper.prover';
 import { SvmWalletManagerService, SvmWalletType } from './svm-wallet-manager.service';
 
 @Injectable()
@@ -60,6 +62,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     private walletManager: SvmWalletManagerService,
     private readonly otelService: OpenTelemetryService,
     private readonly proverService: ProverService,
+    private readonly svmHyperProver: SvmHyperProver,
   ) {
     super();
     this.logger.setContext(SvmExecutorService.name);
@@ -104,51 +107,52 @@ export class SvmExecutorService extends BaseChainExecutor {
           throw error;
         }
 
+        try {
+          // Step 1: Execute the fulfill transaction
+          const fulfillResult = await this.executeFulfillTransaction(intent, span);
 
-      try {
-        // Step 1: Execute the fulfill transaction
-        const fulfillResult = await this.executeFulfillTransaction(intent, span);
+          if (!fulfillResult.success) {
+            return fulfillResult;
+          }
 
-        if (!fulfillResult.success) {
-          return fulfillResult;
-        }
-
-        this.logger.log(
-          `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
-        );
-
-        // Step 2: Execute the prove transaction
-        const proveResult = await this.executeProveTransaction(intent, span);
-
-        if (proveResult && !proveResult.success) {
-          this.logger.error(
-            `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
+          this.logger.log(
+            `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
           );
-        } else if (proveResult && proveResult.success) {
-          this.logger.log(`Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`);
+
+          // Step 2: Execute the prove transaction
+          const proveResult = await this.executeProveTransaction(intent, span);
+
+          if (proveResult && !proveResult.success) {
+            this.logger.error(
+              `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
+            );
+          } else if (proveResult && proveResult.success) {
+            this.logger.log(
+              `Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`,
+            );
+          }
+
+          span.addEvent('svm.transaction.confirmed');
+          span.setStatus({ code: api.SpanStatusCode.OK });
+
+          return {
+            success: true,
+            txHash: fulfillResult.txHash,
+          };
+        } catch (error) {
+          this.logger.error('Solana execution error:', toError(error));
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          return {
+            success: false,
+            error: getErrorMessage(error),
+          };
+        } finally {
+          span.end();
         }
-
-        span.addEvent('svm.transaction.confirmed');
-        span.setStatus({ code: api.SpanStatusCode.OK });
-
-        return {
-          success: true,
-          txHash: fulfillResult.txHash,
-        };
-      } catch (error) {
-        this.logger.error('Solana execution error:', toError(error));
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-        return {
-          success: false,
-          error: getErrorMessage(error),
-        };
-      } finally {
-        span.end();
-      }
-    }
-  )
-}
+      },
+    );
+  }
 
   async getBalance(address: string, _chainId: number): Promise<bigint> {
     const publicKey = new PublicKey(address);
@@ -200,11 +204,11 @@ export class SvmExecutorService extends BaseChainExecutor {
       },
       async (span) => {
         const startTime = Date.now();
-        
+
         try {
           // Add validation events
           span.addEvent('svm.batch_withdraw.validation.started');
-          
+
           // Lazy initialization of Portal program
           if (!this.isInitialized) {
             span.addEvent('svm.batch_withdraw.initialization.started');
@@ -235,7 +239,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           // Track instruction generation phase
           span.addEvent('svm.batch_withdraw.instructions.generation.started');
-          
+
           // Create withdrawal instructions for each intent
           const { withdrawalInstructions, ataCreationInstructions } =
             await this.createWithdrawalInstructions(withdrawalData);
@@ -251,7 +255,8 @@ export class SvmExecutorService extends BaseChainExecutor {
           span.setAttributes({
             'svm.instructions.withdrawal_count': withdrawalInstructions.length,
             'svm.instructions.ata_creation_count': ataCreationInstructions.length,
-            'svm.instructions.total_count': withdrawalInstructions.length + ataCreationInstructions.length + 1, // +1 for compute budget
+            'svm.instructions.total_count':
+              withdrawalInstructions.length + ataCreationInstructions.length + 1, // +1 for compute budget
           });
 
           span.addEvent('svm.batch_withdraw.instructions.generation.completed', {
@@ -300,7 +305,9 @@ export class SvmExecutorService extends BaseChainExecutor {
             'svm.batch_withdraw_signature': signature,
             'svm.execution_time_ms': executionTime,
             'svm.transaction_success': true,
-            'svm.instructions_per_second': Math.round((transaction.instructions.length / executionTime) * 1000),
+            'svm.instructions_per_second': Math.round(
+              (transaction.instructions.length / executionTime) * 1000,
+            ),
           });
 
           span.addEvent('svm.batch_withdraw.transaction.submitted', {
@@ -321,7 +328,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         } catch (error) {
           const executionTime = Date.now() - startTime;
           const typedError = toError(error);
-          
+
           // Enhanced error tracking
           span.setAttributes({
             'svm.transaction_success': false,
@@ -339,9 +346,9 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           this.logger.error('Solana batch withdrawal error:', typedError);
           span.recordException(typedError);
-          span.setStatus({ 
+          span.setStatus({
             code: api.SpanStatusCode.ERROR,
-            message: getErrorMessage(error)
+            message: getErrorMessage(error),
           });
           throw error;
         }
@@ -486,7 +493,10 @@ export class SvmExecutorService extends BaseChainExecutor {
     tokens: any[],
     vaultPDA: PublicKey,
     claimantPublicKey: PublicKey,
-  ): Promise<{ tokenAccountMetas: AccountMeta[]; createATAInstructions: TransactionInstruction[] }> {
+  ): Promise<{
+    tokenAccountMetas: AccountMeta[];
+    createATAInstructions: TransactionInstruction[];
+  }> {
     const tokenAccountMetas: AccountMeta[] = [];
     const createATAInstructions: TransactionInstruction[] = [];
 
@@ -494,7 +504,11 @@ export class SvmExecutorService extends BaseChainExecutor {
       const mintPublicKey = new PublicKey(AddressNormalizer.denormalizeToSvm(token.token));
 
       // Calculate vault ATA
-      const vaultATA = await this.getAssociatedTokenAddress(mintPublicKey, vaultPDA, TOKEN_PROGRAM_ID);
+      const vaultATA = await this.getAssociatedTokenAddress(
+        mintPublicKey,
+        vaultPDA,
+        TOKEN_PROGRAM_ID,
+      );
 
       // Calculate claimant ATA
       const claimantATA = await this.getAssociatedTokenAddress(
@@ -646,7 +660,10 @@ export class SvmExecutorService extends BaseChainExecutor {
     return { fulfillmentIx, transferInstructions };
   }
 
-  private async executeFulfillTransaction(intent: Intent, span: api.Span): Promise<ExecutionResult> {
+  private async executeFulfillTransaction(
+    intent: Intent,
+    span: api.Span,
+  ): Promise<ExecutionResult> {
     try {
       // Add compute budget instruction for fulfill transaction
       const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
@@ -783,20 +800,27 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private async generateProveIx(
     intent: Intent,
-  ): Promise<{ instruction: any; signers: Keypair[] } | null> {
+  ): Promise<{ instruction: TransactionInstruction; signers: Keypair[] } | null> {
     try {
-      // Get the prover for this intent
+      // Get the base prover to determine the type
       const sourceChainId = Number(intent.sourceChainId);
-      const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
+      const baseProver = this.proverService.getProver(sourceChainId, intent.reward.prover);
 
       if (!this.portalProgram) {
         throw new Error('Portal program not initialized');
       }
-      const portalProgram = this.portalProgram;
 
-      if (!prover) {
+      if (!baseProver) {
         this.logger.warn(
           `No prover found for intent ${intent.intentHash}, skipping prove instruction`,
+        );
+        return null;
+      }
+
+      // Check if this is a HyperProver (the only one with SVM support)
+      if (baseProver.type !== ProverType.HYPER) {
+        this.logger.warn(
+          `Prover type ${baseProver.type} does not have SVM support for intent ${intent.intentHash}, skipping prove instruction`,
         );
         return null;
       }
@@ -804,27 +828,15 @@ export class SvmExecutorService extends BaseChainExecutor {
       const destinationChainId = Number(intent.destination);
       const proverAddress = this.blockchainConfigService.getProverAddress(
         destinationChainId,
-        prover.type as TProverType,
+        baseProver.type as TProverType,
       );
 
       if (!proverAddress) {
         this.logger.warn(
-          `No prover address configured for ${prover.type} on chain ${destinationChainId}, skipping prove instruction`,
+          `No prover address configured for ${baseProver.type} on chain ${destinationChainId}, skipping prove instruction`,
         );
         return null;
       }
-
-      // For Hyper prover, the data should be the source prover address as 32 bytes
-      // Get the source prover address (the prover address on the source chain)
-      const sourceProverAddress = intent.reward.prover;
-
-      // Convert to 32 bytes - pad or truncate as needed
-      const sourceProverBytes = Buffer.alloc(32);
-      const sourceProverBuffer = Buffer.from(
-        AddressNormalizer.denormalizeToEvm(sourceProverAddress).slice(2),
-        'hex',
-      );
-      sourceProverBuffer.copy(sourceProverBytes, 32 - sourceProverBuffer.length); // Right-align (pad left with zeros)
 
       // Calculate intent hash
       const { intentHash } = PortalHashUtils.getIntentHash(intent);
@@ -832,154 +844,57 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       const [fulfillMarkerPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('fulfill_marker'), intentHashBuffer],
-        portalProgram.programId,
+        this.portalProgram.programId,
       );
       const [dispatcherPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from('dispatcher')],
-        portalProgram.programId,
+        this.portalProgram.programId,
       );
 
-      const proveArgs: Parameters<typeof portalProgram.methods.prove>[0] = {
-        prover: new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
-        sourceChainDomainId: new BN(sourceChainId),
-        intentHashes: [{ 0: Array.from(intentHashBuffer) }],
-        data: sourceProverBytes,
+      // Create the context for SVM prove instruction generation
+      const context = {
+        portalProgram: this.portalProgram,
+        keypair: this.keypair!,
+        proverAddress,
+        intentHash: intentHashBuffer,
+        fulfillMarkerPDA,
+        dispatcherPDA,
       };
 
-      const proverDispatcherPDA = this.getProverDispatcherPDA(proverAddress);
-      const outboxPDA = this.getHyperlaneOutboxPDA();
-      const uniqueMessageKeypair = Keypair.generate(); // Generate a unique keypair for the message
-      const dispatchedMessagePDA = this.getHyperlaneDispatchedMessagePDA(
-        uniqueMessageKeypair.publicKey,
-      );
-      const mailboxProgram = this.getHyperlaneMailboxProgram();
+      // Use the SVM HyperProver to generate the instruction
+      const result = await this.svmHyperProver.generateSvmProveInstruction(intent, context);
 
-      const remainingAccounts = [
-        {
-          pubkey: fulfillMarkerPDA,
-          isSigner: false,
-          isWritable: false,
-        },
-        // Hyper prover specific accounts (matching the integration test)
-        { pubkey: proverDispatcherPDA, isSigner: false, isWritable: false },
-        { pubkey: this.keypair!.publicKey, isSigner: true, isWritable: true }, // payer
-        { pubkey: outboxPDA, isSigner: false, isWritable: true },
-        { pubkey: this.getNoopProgram(), isSigner: false, isWritable: false },
-        { pubkey: uniqueMessageKeypair.publicKey, isSigner: true, isWritable: false },
-        { pubkey: dispatchedMessagePDA, isSigner: false, isWritable: true },
-        {
-          pubkey: new PublicKey(SystemProgram.programId.toString()),
-          isSigner: false,
-          isWritable: false,
-        },
-        { pubkey: mailboxProgram, isSigner: false, isWritable: false },
-      ];
+      if (result) {
+        this.logger.debug(
+          `Generated prove instruction for intent ${intent.intentHash} with prover ${baseProver.type}`,
+        );
+      }
 
-      const proveIx = await portalProgram.methods
-        .prove(proveArgs)
-        .accounts({
-          prover: new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
-          dispatcher: dispatcherPDA,
-        })
-        .remainingAccounts(remainingAccounts)
-        .instruction();
-
-      this.logger.debug(
-        `Generated prove instruction for intent ${intent.intentHash} with prover ${prover.type} and unique message signer`,
-      );
-
-      return {
-        instruction: proveIx,
-        signers: [uniqueMessageKeypair],
-      };
+      return result;
     } catch (error) {
       this.logger.error(
         `Failed to generate prove instruction for intent ${intent.intentHash}:`,
         toError(error),
       );
-      // Return null to continue without prove instruction rather than failing the entire transaction
       return null;
     }
   }
 
-  private getProverDispatcherPDA(proverAddress: UniversalAddress): PublicKey {
-    // This matches hyper_prover::state::dispatcher_pda().0
-    const [pda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('dispatcher')],
-      new PublicKey(AddressNormalizer.denormalizeToSvm(proverAddress)),
-    );
-    return pda;
-  }
-
-  private getHyperlaneOutboxPDA(): PublicKey {
-    // This matches hyperlane_context::outbox_pda()
-    // Rust: Pubkey::find_program_address(&[b"hyperlane", b"-", b"outbox"], &MAILBOX_ID).0
-    const [pda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('hyperlane'), Buffer.from('-'), Buffer.from('outbox')],
-      this.getHyperlaneMailboxProgram(),
-    );
-    return pda;
-  }
-
-  private getHyperlaneDispatchedMessagePDA(uniqueMessage: PublicKey): PublicKey {
-    // This matches hyperlane_context::dispatched_message_pda(&unique_message.pubkey())
-    // Rust: Pubkey::find_program_address(&[b"hyperlane", b"-", b"dispatched_message", b"-", unique_message.pubkey().as_ref()], &MAILBOX_ID).0
-    const [pda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from('hyperlane'),
-        Buffer.from('-'),
-        Buffer.from('dispatched_message'),
-        Buffer.from('-'),
-        uniqueMessage.toBuffer(),
-      ],
-      this.getHyperlaneMailboxProgram(),
-    );
-    return pda;
-  }
-
-  private getHyperlaneMailboxProgram(): PublicKey {
-    return new PublicKey('E588QtVUvresuXq2KoNEwAmoifCzYGpRBdHByN9KQMbi');
-  }
-
-  private getNoopProgram(): PublicKey {
-    return new PublicKey('noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV');
-  }
-
   private async parseMessageIdFromTransaction(signature: string): Promise<Uint8Array | null> {
     try {
-      const transaction = await this.connection.getTransaction(signature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
-      });
-
-      if (!transaction?.meta?.logMessages) {
-        this.logger.warn(`No log messages found for transaction ${signature}`);
-        return null;
-      }
-
-      // Look for the "Dispatched message" log
-      const dispatchedMessageLog = transaction.meta.logMessages.find((log) =>
-        log.includes('Program log: Dispatched message to'),
+      const messageId = await HyperProverUtils.parseMessageIdFromTransaction(
+        this.connection,
+        signature,
       );
 
-      if (!dispatchedMessageLog) {
-        this.logger.warn(`No dispatched message log found in transaction ${signature}`);
+      if (!messageId) {
+        this.logger.warn(`Could not parse message ID from transaction ${signature}`);
         return null;
       }
 
-      // Parse the message ID from the log
-      // Expected format: "Program log: Dispatched message to 10, ID 0x92ca37ae8ecce8788a55825c82a6da6c19bcb3183c7e5eb2fdd95a0c37203560"
-      const messageIdMatch = dispatchedMessageLog.match(/ID (0x[a-fA-F0-9]{64})/);
-      if (!messageIdMatch) {
-        this.logger.warn(`Could not parse message ID from log: ${dispatchedMessageLog}`);
-        return null;
-      }
-
-      const messageIdHex = messageIdMatch[1];
-      const messageId = new Uint8Array(32);
-      messageId.set(Buffer.from(messageIdHex.slice(2), 'hex'));
-
-      this.logger.debug(`Parsed message ID from transaction ${signature}: ${messageIdHex}`);
+      this.logger.debug(
+        `Parsed message ID from transaction ${signature}: 0x${Buffer.from(messageId).toString('hex')}`,
+      );
       return messageId;
     } catch (error) {
       this.logger.error(
@@ -1126,10 +1041,16 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private determineErrorStage(error: Error): string {
     const errorMessage = error.message.toLowerCase();
-    
-    if (errorMessage.includes('portal program') || errorMessage.includes('not properly initialized')) {
+
+    if (
+      errorMessage.includes('portal program') ||
+      errorMessage.includes('not properly initialized')
+    ) {
       return 'initialization';
-    } else if (errorMessage.includes('withdrawal instruction') || errorMessage.includes('no valid withdrawal')) {
+    } else if (
+      errorMessage.includes('withdrawal instruction') ||
+      errorMessage.includes('no valid withdrawal')
+    ) {
       return 'instruction_generation';
     } else if (errorMessage.includes('transaction') || errorMessage.includes('send')) {
       return 'transaction_submission';

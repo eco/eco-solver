@@ -110,16 +110,6 @@ export async function simulateQuoteGasPayment(
 
     transaction.add(instruction);
 
-    console.log('Simulating transaction with instruction:', {
-      programId: instruction.programId.toString(),
-      keys: instruction.keys.map((k) => ({
-        pubkey: k.pubkey.toString(),
-        isSigner: k.isSigner,
-        isWritable: k.isWritable,
-      })),
-      dataLength: instruction.data.length,
-    });
-
     // Simulate the transaction
     const result = await connection.simulateTransaction(transaction);
 
