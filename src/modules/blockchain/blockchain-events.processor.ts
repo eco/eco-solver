@@ -90,6 +90,10 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
         await this.handleIntentPublished(jobData);
         break;
 
+      case 'IntentFunded':
+        await this.handleIntentFunded(jobData);
+        break;
+
       case 'IntentFulfilled':
         await this.handleIntentFulfilled(jobData);
         break;
@@ -139,6 +143,33 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
       this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
       throw error;
     }
+  }
+
+  private async handleIntentFunded(jobData: BlockchainEventJob): Promise<void> {
+    let event: any;
+
+    // Parse event based on chain type
+    switch (jobData.chainType) {
+      case 'svm':
+        // For Solana, eventData is already parsed
+        event = jobData.eventData;
+        break;
+
+      case 'evm':
+      case 'tvm':
+        // IntentFunded events are currently only supported on SVM (Solana)
+        // EVM and TVM chains may not emit this event type
+        this.logger.warn(
+          `IntentFunded events are not yet supported on ${jobData.chainType} chains. Skipping event for intent ${jobData.intentHash}`,
+        );
+        return;
+
+      default:
+        throw new Error(`Unsupported chain type for IntentFunded: ${jobData.chainType}`);
+    }
+
+    this.eventsService.emit('intent.funded', event);
+    this.logger.log(`IntentFunded event emitted for intent ${jobData.intentHash}`);
   }
 
   private async handleIntentFulfilled(jobData: BlockchainEventJob): Promise<void> {

@@ -86,80 +86,83 @@ export class BasicWallet implements ISvmWallet {
         },
       },
       async (span) => {
-
-    try {
-      if (transaction instanceof Transaction) {
-        span.addEvent('svm.transaction.submitting_legacy');
-
-        // For legacy transactions, use sendAndConfirmTransaction
-        const signature = await sendAndConfirmTransaction(
-          this.connection,
-          transaction,
-          [this.keypair],
-          {
-            commitment: options?.commitment || 'confirmed',
-            preflightCommitment: options?.preflightCommitment || 'confirmed',
-            skipPreflight: options?.skipPreflight || false,
-            maxRetries: options?.maxRetries,
-          },
-        );
-
-        span.setAttribute('svm.transaction_signature', signature);
-        span.addEvent('svm.transaction.confirmed');
-        span.setStatus({ code: api.SpanStatusCode.OK });
-
-        return signature;
-      } else {
-        span.addEvent('svm.transaction.submitting_versioned');
-
-        // For versioned transactions
-        transaction.sign([this.keypair]);
-        const signature = await this.connection.sendTransaction(transaction, {
-          skipPreflight: options?.skipPreflight || false,
-          preflightCommitment: options?.preflightCommitment || 'confirmed',
-          maxRetries: options?.maxRetries,
-        });
-
-        span.setAttribute('svm.transaction_signature', signature);
-        span.addEvent('svm.transaction.submitted');
-
-        // Wait for confirmation if not skipping
-        if (!options?.skipPreflight) {
-          await this.connection.confirmTransaction(signature, options?.commitment || 'confirmed');
-          span.addEvent('svm.transaction.confirmed');
-        }
-
-        span.setStatus({ code: api.SpanStatusCode.OK });
-        return signature;
-      }
-    } catch (error) {
-      span.recordException(toError(error));
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-
-      // check if this is a SendTransactionError and extract detailed logs
-      if (error && typeof error === 'object' && 'getLogs' in error) {
         try {
-          const logs = await (error as any).getLogs(this.connection);
-          const detailedError = new Error(
-            `Failed to send transaction: ${getErrorMessage(error)}\nDetailed logs:\n${logs.join('\n')}`,
-          );
-          throw detailedError;
-        } catch (logError) {
-          const errorWithLogs = error as any;
-          if (errorWithLogs.logs && Array.isArray(errorWithLogs.logs)) {
-            const detailedError = new Error(
-              `Failed to send transaction: ${getErrorMessage(error)}\nTransaction logs:\n${errorWithLogs.logs.join('\n')}`,
-            );
-            throw detailedError;
-          }
-        }
-      }
+          if (transaction instanceof Transaction) {
+            span.addEvent('svm.transaction.submitting_legacy');
 
-      throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
-    } finally {
-      span.end();
-    }
-  })
+            // For legacy transactions, use sendAndConfirmTransaction
+            const signature = await sendAndConfirmTransaction(
+              this.connection,
+              transaction,
+              [this.keypair],
+              {
+                commitment: options?.commitment || 'confirmed',
+                preflightCommitment: options?.preflightCommitment || 'confirmed',
+                skipPreflight: options?.skipPreflight || false,
+                maxRetries: options?.maxRetries,
+              },
+            );
+
+            span.setAttribute('svm.transaction_signature', signature);
+            span.addEvent('svm.transaction.confirmed');
+            span.setStatus({ code: api.SpanStatusCode.OK });
+
+            return signature;
+          } else {
+            span.addEvent('svm.transaction.submitting_versioned');
+
+            // For versioned transactions
+            transaction.sign([this.keypair]);
+            const signature = await this.connection.sendTransaction(transaction, {
+              skipPreflight: options?.skipPreflight || false,
+              preflightCommitment: options?.preflightCommitment || 'confirmed',
+              maxRetries: options?.maxRetries,
+            });
+
+            span.setAttribute('svm.transaction_signature', signature);
+            span.addEvent('svm.transaction.submitted');
+
+            // Wait for confirmation if not skipping
+            if (!options?.skipPreflight) {
+              await this.connection.confirmTransaction(
+                signature,
+                options?.commitment || 'confirmed',
+              );
+              span.addEvent('svm.transaction.confirmed');
+            }
+
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return signature;
+          }
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+
+          // check if this is a SendTransactionError and extract detailed logs
+          if (error && typeof error === 'object' && 'getLogs' in error) {
+            try {
+              const logs = await (error as any).getLogs(this.connection);
+              const detailedError = new Error(
+                `Failed to send transaction: ${getErrorMessage(error)}\nDetailed logs:\n${logs.join('\n')}`,
+              );
+              throw detailedError;
+            } catch (logError) {
+              const errorWithLogs = error as any;
+              if (errorWithLogs.logs && Array.isArray(errorWithLogs.logs)) {
+                const detailedError = new Error(
+                  `Failed to send transaction: ${getErrorMessage(error)}\nTransaction logs:\n${errorWithLogs.logs.join('\n')}`,
+                );
+                throw detailedError;
+              }
+            }
+          }
+
+          throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   async getBalance(): Promise<bigint> {

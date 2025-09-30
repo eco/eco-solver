@@ -54,7 +54,10 @@ export class HyperProverUtils {
    * This matches hyperlane_context::dispatched_message_pda(&unique_message.pubkey())
    * Rust: Pubkey::find_program_address(&[b"hyperlane", b"-", b"dispatched_message", b"-", unique_message.pubkey().as_ref()], &MAILBOX_ID).0
    */
-  static getHyperlaneDispatchedMessagePDA(uniqueMessage: PublicKey, config?: HyperProverConfig): PublicKey {
+  static getHyperlaneDispatchedMessagePDA(
+    uniqueMessage: PublicKey,
+    config?: HyperProverConfig,
+  ): PublicKey {
     const [pda] = PublicKey.findProgramAddressSync(
       [
         Buffer.from(HYPER_PROVER_CONSTANTS.SEEDS.HYPERLANE),
@@ -72,7 +75,8 @@ export class HyperProverUtils {
    * Get the Hyperlane mailbox program ID
    */
   static getHyperlaneMailboxProgram(config?: HyperProverConfig): PublicKey {
-    const programId = config?.hyperlaneMailbox || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.HYPERLANE_MAILBOX;
+    const programId =
+      config?.hyperlaneMailbox || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.HYPERLANE_MAILBOX;
     return new PublicKey(programId);
   }
 
@@ -104,7 +108,8 @@ export class HyperProverUtils {
    * Get the overhead IGP account
    */
   static getOverheadIgpAccount(config?: HyperProverConfig): PublicKey {
-    const accountId = config?.overheadIgpAccount || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.OVERHEAD_IGP_ACCOUNT;
+    const accountId =
+      config?.overheadIgpAccount || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.OVERHEAD_IGP_ACCOUNT;
     return new PublicKey(accountId);
   }
 

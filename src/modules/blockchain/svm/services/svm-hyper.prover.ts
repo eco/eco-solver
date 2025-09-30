@@ -11,7 +11,7 @@ import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 
 import { ISvmProver, SvmProveContext } from '../types/svm-prover.types';
 import { HYPER_PROVER_CONSTANTS } from '../utils/hyper-prover.constants';
-import { HyperProverUtils, HyperProverConfig } from '../utils/hyper-prover.utils';
+import { HyperProverConfig, HyperProverUtils } from '../utils/hyper-prover.utils';
 
 @Injectable()
 export class SvmHyperProver extends HyperProver implements ISvmProver {
@@ -79,7 +79,11 @@ export class SvmHyperProver extends HyperProver implements ISvmProver {
       { pubkey: proverDispatcherPDA, isSigner: false, isWritable: false },
       { pubkey: context.keypair.publicKey, isSigner: true, isWritable: true }, // payer
       { pubkey: outboxPDA, isSigner: false, isWritable: true },
-      { pubkey: HyperProverUtils.getNoopProgram(hyperlaneConfig), isSigner: false, isWritable: false },
+      {
+        pubkey: HyperProverUtils.getNoopProgram(hyperlaneConfig),
+        isSigner: false,
+        isWritable: false,
+      },
       { pubkey: uniqueMessageKeypair.publicKey, isSigner: true, isWritable: false },
       { pubkey: dispatchedMessagePDA, isSigner: false, isWritable: true },
       {

@@ -939,7 +939,10 @@ export class SvmExecutorService extends BaseChainExecutor {
               `IGP not configured for Solana, skipping gas payment for intent ${intent.intentHash}`,
             );
             gasPaymentSpan.recordException(new Error('IGP not configured'));
-            gasPaymentSpan.setStatus({ code: api.SpanStatusCode.ERROR, message: 'IGP not configured' });
+            gasPaymentSpan.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: 'IGP not configured',
+            });
             gasPaymentSpan.end();
             return BigInt(0);
           }
@@ -1028,18 +1031,19 @@ export class SvmExecutorService extends BaseChainExecutor {
           );
 
           return quotedAmount;
-    } catch (error) {
-      this.logger.warn(
-        `Failed to pay for gas for intent ${intent.intentHash}: ${getErrorMessage(error)}. Continuing without payment.`,
-      );
-      span.addEvent('svm.gas_payment.failed', {
-        error: getErrorMessage(error),
-      });
-      return BigInt(0);
-    } finally {
-      gasPaymentSpan.end();
-    }
-  })
+        } catch (error) {
+          this.logger.warn(
+            `Failed to pay for gas for intent ${intent.intentHash}: ${getErrorMessage(error)}. Continuing without payment.`,
+          );
+          span.addEvent('svm.gas_payment.failed', {
+            error: getErrorMessage(error),
+          });
+          return BigInt(0);
+        } finally {
+          gasPaymentSpan.end();
+        }
+      },
+    );
   }
 
   private async initializeProgram() {
