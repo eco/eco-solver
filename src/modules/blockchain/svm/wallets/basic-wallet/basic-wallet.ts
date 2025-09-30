@@ -70,7 +70,6 @@ export class BasicWallet implements ISvmWallet {
     );
   }
 
-
   async sendTransaction(
     transaction: Transaction | VersionedTransaction,
     options?: SvmTransactionOptions,

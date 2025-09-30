@@ -2,14 +2,16 @@ import { Injectable } from '@nestjs/common';
 
 import { AnchorProvider, BN, Program, setProvider } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
-import { createAssociatedTokenAccountInstruction } from '@solana/spl-token';
+import { createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
+  AccountMeta,
   ComputeBudgetProgram,
   Connection,
   Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
@@ -65,91 +67,88 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   async fulfill(intent: Intent, _walletId?: string): Promise<ExecutionResult> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.executor.fulfill', {
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.fulfill',
+      {
         attributes: {
-          'svm.intent_id': intent.intentHash,
+          'svm.intent_hash': intent.intentHash,
           'svm.source_chain': intent.sourceChainId?.toString(),
           'svm.destination_chain': intent.destination.toString(),
           'svm.operation': 'fulfill',
           'svm.wallet_id': _walletId || 'default',
         },
-      });
-
-    // Lazy initialization of Portal program
-    if (!this.isInitialized) {
-      try {
-        await this.initializeProgram();
-        this.isInitialized = true;
-      } catch (error) {
-        this.logger.error('Failed to initialize Portal program during fulfill:', toError(error));
-        if (!activeSpan) {
-          span.recordException(toError(error));
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
+      },
+      async (span) => {
+        // Lazy initialization of Portal program
+        if (!this.isInitialized) {
+          try {
+            await this.initializeProgram();
+            this.isInitialized = true;
+          } catch (error) {
+            this.logger.error(
+              'Failed to initialize Portal program during fulfill:',
+              toError(error),
+            );
+            span.recordException(toError(error));
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+            span.end();
+            throw error;
+          }
         }
-        throw error;
-      }
-    }
 
-    if (!this.portalProgram || !this.keypair) {
-      const error = new Error('Portal program or keypair not properly initialized');
-      if (!activeSpan) {
-        span.recordException(error);
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      throw error;
-    }
+        if (!this.portalProgram || !this.keypair) {
+          const error = new Error('Portal program or keypair not properly initialized');
+          span.recordException(error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          span.end();
+          throw error;
+        }
 
-    try {
-      // Step 1: Execute the fulfill transaction
-      const fulfillResult = await this.executeFulfillTransaction(intent, span);
 
-      if (!fulfillResult.success) {
-        return fulfillResult;
-      }
+      try {
+        // Step 1: Execute the fulfill transaction
+        const fulfillResult = await this.executeFulfillTransaction(intent, span);
 
-      this.logger.log(
-        `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
-      );
+        if (!fulfillResult.success) {
+          return fulfillResult;
+        }
 
-      // Step 2: Execute the prove transaction
-      const proveResult = await this.executeProveTransaction(intent, span);
-
-      if (proveResult && !proveResult.success) {
-        this.logger.error(
-          `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
+        this.logger.log(
+          `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
         );
-      } else if (proveResult && proveResult.success) {
-        this.logger.log(`Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`);
-      }
 
-      span.addEvent('svm.transaction.confirmed');
-      if (!activeSpan) {
+        // Step 2: Execute the prove transaction
+        const proveResult = await this.executeProveTransaction(intent, span);
+
+        if (proveResult && !proveResult.success) {
+          this.logger.error(
+            `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
+          );
+        } else if (proveResult && proveResult.success) {
+          this.logger.log(`Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`);
+        }
+
+        span.addEvent('svm.transaction.confirmed');
         span.setStatus({ code: api.SpanStatusCode.OK });
-      }
 
-      return {
-        success: true,
-        txHash: fulfillResult.txHash,
-      };
-    } catch (error) {
-      this.logger.error('Solana execution error:', toError(error));
-      if (!activeSpan) {
+        return {
+          success: true,
+          txHash: fulfillResult.txHash,
+        };
+      } catch (error) {
+        this.logger.error('Solana execution error:', toError(error));
         span.recordException(toError(error));
         span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
-      return {
-        success: false,
-        error: getErrorMessage(error),
-      };
-    } finally {
-      if (!activeSpan) {
+        return {
+          success: false,
+          error: getErrorMessage(error),
+        };
+      } finally {
         span.end();
       }
     }
-  }
+  )
+}
 
   async getBalance(address: string, _chainId: number): Promise<bigint> {
     const publicKey = new PublicKey(address);
@@ -186,91 +185,176 @@ export class SvmExecutorService extends BaseChainExecutor {
     withdrawalData: any,
     _walletId?: string,
   ): Promise<string> {
-    const span = this.otelService.startSpan('svm.executor.batchWithdraw', {
-      attributes: {
-        'svm.chain_id': chainId.toString(),
-        'svm.wallet_id': _walletId || 'default',
-        'svm.operation': 'batchWithdraw',
-        'svm.intent_count': withdrawalData.destinations?.length || 0,
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.batchWithdraw',
+      {
+        attributes: {
+          'svm.chain_id': chainId.toString(),
+          'svm.wallet_id': _walletId || 'default',
+          'svm.operation': 'batchWithdraw',
+          'svm.intent_count': withdrawalData.destinations?.length || 0,
+          'svm.withdrawal_data.destinations_count': withdrawalData.destinations?.length || 0,
+          'svm.withdrawal_data.route_hashes_count': withdrawalData.routeHashes?.length || 0,
+          'svm.withdrawal_data.rewards_count': withdrawalData.rewards?.length || 0,
+        },
       },
-    });
+      async (span) => {
+        const startTime = Date.now();
+        
+        try {
+          // Add validation events
+          span.addEvent('svm.batch_withdraw.validation.started');
+          
+          // Lazy initialization of Portal program
+          if (!this.isInitialized) {
+            span.addEvent('svm.batch_withdraw.initialization.started');
+            await this.initializeProgram();
+            this.isInitialized = true;
+            span.addEvent('svm.batch_withdraw.initialization.completed');
+          }
 
-    try {
-      // Lazy initialization of Portal program
-      if (!this.isInitialized) {
-        await this.initializeProgram();
-        this.isInitialized = true;
-      }
+          if (!this.portalProgram || !this.keypair) {
+            const error = new Error('Portal program or keypair not properly initialized');
+            span.recordException(error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+            throw error;
+          }
 
-      if (!this.portalProgram || !this.keypair) {
-        throw new Error('Portal program or keypair not properly initialized');
-      }
+          span.addEvent('svm.batch_withdraw.validation.completed');
 
-      this.logger.log(
-        `Executing batch withdrawal for ${withdrawalData.destinations?.length || 0} intents on Solana (chain ${chainId})`,
-      );
+          this.logger.log(
+            `Executing batch withdrawal for ${withdrawalData.destinations?.length || 0} intents on Solana (chain ${chainId})`,
+          );
 
-      span.setAttribute('svm.destinations_count', withdrawalData.destinations?.length || 0);
+          // Add more detailed attributes
+          span.setAttributes({
+            'svm.destinations_count': withdrawalData.destinations?.length || 0,
+            'svm.portal_program_id': this.portalProgram.programId.toString(),
+            'svm.payer_address': this.keypair.publicKey.toString(),
+          });
 
-      // Create withdrawal instructions for each intent
-      const { withdrawalInstructions, ataCreationInstructions } =
-        await this.createWithdrawalInstructions(withdrawalData);
+          // Track instruction generation phase
+          span.addEvent('svm.batch_withdraw.instructions.generation.started');
+          
+          // Create withdrawal instructions for each intent
+          const { withdrawalInstructions, ataCreationInstructions } =
+            await this.createWithdrawalInstructions(withdrawalData);
 
-      if (withdrawalInstructions.length === 0) {
-        throw new Error('No valid withdrawal instructions generated');
-      }
+          if (withdrawalInstructions.length === 0) {
+            const error = new Error('No valid withdrawal instructions generated');
+            span.recordException(error);
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+            throw error;
+          }
 
-      const computeUnits = Math.min(1_400_000, 500_000 * withdrawalInstructions.length);
-      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: computeUnits,
-      });
+          // Add instruction metrics
+          span.setAttributes({
+            'svm.instructions.withdrawal_count': withdrawalInstructions.length,
+            'svm.instructions.ata_creation_count': ataCreationInstructions.length,
+            'svm.instructions.total_count': withdrawalInstructions.length + ataCreationInstructions.length + 1, // +1 for compute budget
+          });
 
-      this.logger.log(
-        `Creating transaction with ${ataCreationInstructions.length} ATA creation instructions and ${withdrawalInstructions.length} withdrawal instructions`,
-      );
+          span.addEvent('svm.batch_withdraw.instructions.generation.completed', {
+            withdrawal_instructions: withdrawalInstructions.length,
+            ata_creation_instructions: ataCreationInstructions.length,
+          });
 
-      // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
-      const transaction = new Transaction()
-        .add(computeBudgetIx)
-        .add(...ataCreationInstructions)
-        .add(...withdrawalInstructions);
+          const computeUnits = Math.min(1_400_000, 500_000 * withdrawalInstructions.length);
+          const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+            units: computeUnits,
+          });
 
-      const wallet = this.walletManager.getWallet();
-      const signature = await wallet.sendTransaction(transaction, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
+          span.setAttribute('svm.compute_units_requested', computeUnits);
 
-      span.setAttribute('svm.batch_withdraw_signature', signature);
-      span.addEvent('svm.batch_withdraw.submitted', {
-        instruction_count: withdrawalInstructions.length + ataCreationInstructions.length + 2, // +2 for compute budget and price instructions
-        ata_creation_count: ataCreationInstructions.length,
-        withdrawal_count: withdrawalInstructions.length,
-        signature,
-      });
+          this.logger.log(
+            `Creating transaction with ${ataCreationInstructions.length} ATA creation instructions and ${withdrawalInstructions.length} withdrawal instructions`,
+          );
 
-      this.logger.log(
-        `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature}`,
-      );
+          // Track transaction creation
+          span.addEvent('svm.batch_withdraw.transaction.creation.started');
 
-      span.setStatus({ code: api.SpanStatusCode.OK });
-      return signature;
-    } catch (error) {
-      this.logger.error('Solana batch withdrawal error:', toError(error));
-      span.recordException(toError(error));
-      span.setStatus({ code: api.SpanStatusCode.ERROR });
-      throw error;
-    } finally {
-      span.end();
-    }
+          // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
+          const transaction = new Transaction()
+            .add(computeBudgetIx)
+            .add(...ataCreationInstructions)
+            .add(...withdrawalInstructions);
+
+          span.addEvent('svm.batch_withdraw.transaction.creation.completed', {
+            total_instructions: transaction.instructions.length,
+            transaction_size_bytes: transaction.serialize({ requireAllSignatures: false }).length,
+          });
+
+          // Track transaction submission
+          span.addEvent('svm.batch_withdraw.transaction.submission.started');
+
+          const wallet = this.walletManager.getWallet();
+          const signature = await wallet.sendTransaction(transaction, {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
+
+          const executionTime = Date.now() - startTime;
+
+          // Add comprehensive success attributes
+          span.setAttributes({
+            'svm.batch_withdraw_signature': signature,
+            'svm.execution_time_ms': executionTime,
+            'svm.transaction_success': true,
+            'svm.instructions_per_second': Math.round((transaction.instructions.length / executionTime) * 1000),
+          });
+
+          span.addEvent('svm.batch_withdraw.transaction.submitted', {
+            signature,
+            execution_time_ms: executionTime,
+            instructions_executed: transaction.instructions.length,
+            ata_creations_executed: ataCreationInstructions.length,
+            withdrawals_executed: withdrawalInstructions.length,
+            compute_units_used: computeUnits,
+          });
+
+          this.logger.log(
+            `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature} (${executionTime}ms)`,
+          );
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return signature;
+        } catch (error) {
+          const executionTime = Date.now() - startTime;
+          const typedError = toError(error);
+          
+          // Enhanced error tracking
+          span.setAttributes({
+            'svm.transaction_success': false,
+            'svm.execution_time_ms': executionTime,
+            'svm.error_type': typedError.constructor.name,
+            'svm.error_stage': this.determineErrorStage(typedError),
+          });
+
+          span.addEvent('svm.batch_withdraw.error', {
+            error_message: getErrorMessage(error),
+            error_type: typedError.constructor.name,
+            execution_time_ms: executionTime,
+            stage: this.determineErrorStage(typedError),
+          });
+
+          this.logger.error('Solana batch withdrawal error:', typedError);
+          span.recordException(typedError);
+          span.setStatus({ 
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error)
+          });
+          throw error;
+        }
+      },
+    );
   }
 
   private async createWithdrawalInstructions(withdrawalData: any): Promise<{
-    withdrawalInstructions: any[];
-    ataCreationInstructions: any[];
+    withdrawalInstructions: TransactionInstruction[];
+    ataCreationInstructions: TransactionInstruction[];
   }> {
-    const withdrawalInstructions: any[] = [];
-    const ataCreationInstructions: any[] = [];
+    const withdrawalInstructions: TransactionInstruction[] = [];
+    const ataCreationInstructions: TransactionInstruction[] = [];
 
     if (!withdrawalData.destinations || !withdrawalData.routeHashes || !withdrawalData.rewards) {
       throw new Error(
@@ -402,22 +486,21 @@ export class SvmExecutorService extends BaseChainExecutor {
     tokens: any[],
     vaultPDA: PublicKey,
     claimantPublicKey: PublicKey,
-  ): Promise<{ tokenAccountMetas: any[]; createATAInstructions: any[] }> {
-    const tokenAccountMetas: any[] = [];
-    const createATAInstructions: any[] = [];
-    const tokenProgram = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  ): Promise<{ tokenAccountMetas: AccountMeta[]; createATAInstructions: TransactionInstruction[] }> {
+    const tokenAccountMetas: AccountMeta[] = [];
+    const createATAInstructions: TransactionInstruction[] = [];
 
     for (const token of tokens) {
       const mintPublicKey = new PublicKey(AddressNormalizer.denormalizeToSvm(token.token));
 
       // Calculate vault ATA
-      const vaultATA = await this.getAssociatedTokenAddress(mintPublicKey, vaultPDA, tokenProgram);
+      const vaultATA = await this.getAssociatedTokenAddress(mintPublicKey, vaultPDA, TOKEN_PROGRAM_ID);
 
       // Calculate claimant ATA
       const claimantATA = await this.getAssociatedTokenAddress(
         mintPublicKey,
         claimantPublicKey,
-        tokenProgram,
+        TOKEN_PROGRAM_ID,
       );
 
       // Check if ATAs exist and create them if they don't
@@ -483,7 +566,6 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async generateFulfillIx(intent: Intent) {
-    this.logger.debug(`Generating fulfill instruction for intent: ${intent.intentHash}`);
     if (!this.portalProgram || !this.keypair) {
       throw new Error('Portal program not initialized');
     }
@@ -564,7 +646,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     return { fulfillmentIx, transferInstructions };
   }
 
-  private async executeFulfillTransaction(intent: Intent, span: any): Promise<ExecutionResult> {
+  private async executeFulfillTransaction(intent: Intent, span: api.Span): Promise<ExecutionResult> {
     try {
       // Add compute budget instruction for fulfill transaction
       const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
@@ -614,7 +696,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private async executeProveTransaction(
     intent: Intent,
-    span: any,
+    span: api.Span,
   ): Promise<ExecutionResult | null> {
     try {
       const proveResult = await this.generateProveIx(intent);
@@ -670,9 +752,17 @@ export class SvmExecutorService extends BaseChainExecutor {
           `Gas payment result for intent ${intent.intentHash} with message id: 0x${Buffer.from(messageId).toString('hex')}, payment amount: ${gasPaymentResult}`,
         );
       } else {
-        this.logger.warn(
-          `Could not parse message ID from prove transaction ${signature} for intent ${intent.intentHash}, skipping gas payment`,
-        );
+        const errorMessage = `Could not parse message ID from prove transaction ${signature} for intent ${intent.intentHash}`;
+        span.addEvent('svm.prove_transaction.message_id_parse_failed', {
+          transaction_signature: signature,
+          intent_hash: intent.intentHash,
+          error: errorMessage,
+        });
+        span.setStatus({
+          code: api.SpanStatusCode.ERROR,
+          message: errorMessage,
+        });
+        throw new Error(errorMessage);
       }
 
       return {
@@ -902,7 +992,7 @@ export class SvmExecutorService extends BaseChainExecutor {
   private async payForGasForProve(
     intent: Intent,
     messageId: Uint8Array,
-    span: any,
+    span: api.Span,
   ): Promise<bigint> {
     try {
       // Get IGP configuration
@@ -1032,5 +1122,23 @@ export class SvmExecutorService extends BaseChainExecutor {
     this.portalProgram = new Program(idlWithAddress, provider);
 
     this.logger.log(`Portal program initialized at ${portalProgramId.toString()}`);
+  }
+
+  private determineErrorStage(error: Error): string {
+    const errorMessage = error.message.toLowerCase();
+    
+    if (errorMessage.includes('portal program') || errorMessage.includes('not properly initialized')) {
+      return 'initialization';
+    } else if (errorMessage.includes('withdrawal instruction') || errorMessage.includes('no valid withdrawal')) {
+      return 'instruction_generation';
+    } else if (errorMessage.includes('transaction') || errorMessage.includes('send')) {
+      return 'transaction_submission';
+    } else if (errorMessage.includes('confirmation') || errorMessage.includes('confirm')) {
+      return 'transaction_confirmation';
+    } else if (errorMessage.includes('ata') || errorMessage.includes('associated token')) {
+      return 'ata_creation';
+    } else {
+      return 'unknown';
+    }
   }
 }
