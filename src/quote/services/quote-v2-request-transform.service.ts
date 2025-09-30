@@ -188,24 +188,6 @@ export class QuoteV2RequestTransformService {
     }
   }
 
-  private createRewardDataForwardXX(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
-    // In forward mode: initially zero, solver fills required reward
-    const { quoteRequest } = v2Request
-    const proverType = this.proofService.getProverType(quoteRequest.sourceChainID, prover)
-    if (!proverType) throw new Error('No intent prover type')
-    const deadlineBuffer = this.proofService.getProofMinimumDate(proverType)
-    const TEN_MINUTES = 600
-    const deadline = BigInt(Math.floor(deadlineBuffer.getTime() / 1000) + TEN_MINUTES)
-
-    return {
-      creator: quoteRequest.funder,
-      prover,
-      deadline,
-      nativeValue: 0n,
-      tokens: [],
-    }
-  }
-
   private createRouteDataReverse(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
     const { quoteRequest } = v2Request
     const isNativeDestination = quoteRequest.destinationToken === zeroAddress
