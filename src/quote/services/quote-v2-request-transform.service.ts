@@ -39,8 +39,8 @@ export class QuoteV2RequestTransformService {
 
       const prover = sourceConfig.provers?.[0] || zeroAddress
 
-      const reward = this.reverseTransformer.createRewardDataReverse(v2Request, prover)
-      const route = this.reverseTransformer.createRouteDataReverse(
+      const reward = this.reverseTransformer.createRewardData(v2Request, prover)
+      const route = this.reverseTransformer.createRouteData(
         v2Request,
         destinationConfig.inboxAddress,
       )
@@ -99,9 +99,9 @@ export class QuoteV2RequestTransformService {
 
       // Forward: reward = what the solver demands on source side
       // But at transform time, we don’t yet know it, so seed with *zero* and let solver fill
-      const reward = this.forwardTransformer.createRewardDataForward(v2Request, prover)
+      const reward = this.forwardTransformer.createRewardData(v2Request, prover)
 
-      const route = this.forwardTransformer.createRouteDataForward(
+      const route = this.forwardTransformer.createRouteData(
         v2Request,
         destinationConfig.inboxAddress,
       )

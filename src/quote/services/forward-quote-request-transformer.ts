@@ -13,7 +13,7 @@ export class ForwardQuoteRequestTransformer {
 
   constructor(private readonly proofService: ProofService) {}
 
-  createRouteDataForward(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
+  createRouteData(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
     const { quoteRequest } = v2Request
     const isNativeDestination = quoteRequest.destinationToken === zeroAddress
 
@@ -50,7 +50,7 @@ export class ForwardQuoteRequestTransformer {
     }
   }
 
-  createRewardDataForward(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
+  createRewardData(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
     const { quoteRequest } = v2Request
     const isNative = quoteRequest.sourceToken === zeroAddress
 

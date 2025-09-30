@@ -11,7 +11,7 @@ export class ReverseQuoteRequestTransformer {
 
   constructor(private readonly proofService: ProofService) {}
 
-  createRouteDataReverse(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
+  createRouteData(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
     const { quoteRequest } = v2Request
     const isNativeDestination = quoteRequest.destinationToken === zeroAddress
 
@@ -48,7 +48,7 @@ export class ReverseQuoteRequestTransformer {
     }
   }
 
-  createRewardDataReverse(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
+  createRewardData(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
     const { quoteRequest } = v2Request
     const isNative = quoteRequest.sourceToken === zeroAddress
     const sourceAmount = BigInt(quoteRequest.sourceAmount)
