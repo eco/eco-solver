@@ -32,7 +32,7 @@ export class QuoteV2Service implements OnModuleInit {
   async getQuote(v2Request: QuoteV2RequestDTO): Promise<EcoResponse<QuoteV2ResponseDTO>> {
     // Transform V2 request to QuoteIntentDataDTO
     const { response: quoteIntentDataDTO, error: transformError } =
-      this.transformToQuoteIntent(v2Request)
+      this.quoteV2RequestTransformService.transformToQuoteIntentForward(v2Request)
 
     if (transformError) {
       return { error: transformError }
@@ -50,7 +50,7 @@ export class QuoteV2Service implements OnModuleInit {
   async getReverseQuote(v2Request: QuoteV2RequestDTO): Promise<EcoResponse<QuoteV2ResponseDTO>> {
     // Transform V2 request to QuoteIntentDataDTO
     const { response: quoteIntentDataDTO, error: transformError } =
-      this.transformToQuoteIntent(v2Request)
+      this.quoteV2RequestTransformService.transformToQuoteIntentReverse(v2Request)
 
     if (transformError) {
       return { error: transformError }
@@ -63,27 +63,6 @@ export class QuoteV2Service implements OnModuleInit {
     }
 
     return this.transformToV2(quote!, quoteIntentDataDTO!)
-  }
-
-  private transformToQuoteIntent(v2Request: QuoteV2RequestDTO): EcoResponse<QuoteIntentDataDTO> {
-    try {
-      // Transform V2 request to QuoteIntentDataDTO
-      const quoteIntentDataDTO =
-        this.quoteV2RequestTransformService.transformToQuoteIntent(v2Request)
-      return { response: quoteIntentDataDTO }
-    } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Error transforming V2 request:`,
-          properties: {
-            error: ex.message,
-            dAppID: v2Request.dAppID,
-          },
-        }),
-      )
-
-      return { error: EcoError.InvalidQuoteV2Request(ex.message) }
-    }
   }
 
   async transformToV2(
