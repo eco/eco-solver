@@ -15,9 +15,12 @@ import { ChainTypeDetector } from './chain-type-detector';
 
 export class PortalHashUtils {
   static getIntentHash(intent: Intent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
-  static getIntentHash(destination: bigint, routeHash: Hex, rewardHash: Hex): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
-  
-  
+  static getIntentHash(
+    destination: bigint,
+    routeHash: Hex,
+    rewardHash: Hex,
+  ): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
+
   static getIntentHash(
     intentOrDestination: Intent | bigint,
     routeHash?: Hex,
@@ -41,7 +44,10 @@ export class PortalHashUtils {
     // Compute the intent hash using encodePacked
     // intentHash = keccak256(abi.encodePacked(destination, routeHash, rewardHash))
     const intentHash = keccak256(
-      encodePacked(['uint64', 'bytes32', 'bytes32'], [destination, computedRouteHash, computedRewardHash]),
+      encodePacked(
+        ['uint64', 'bytes32', 'bytes32'],
+        [destination, computedRouteHash, computedRewardHash],
+      ),
     );
 
     return {
