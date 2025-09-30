@@ -74,10 +74,9 @@ export class BasicWallet implements ISvmWallet {
     transaction: Transaction | VersionedTransaction,
     options?: SvmTransactionOptions,
   ): Promise<string> {
-    const activeSpan = api.trace.getActiveSpan();
-    const span =
-      activeSpan ||
-      this.otelService.startSpan('svm.wallet.sendTransaction', {
+    return this.otelService.tracer.startActiveSpan(
+      'svm.wallet.sendTransaction',
+      {
         attributes: {
           'svm.wallet_address': this.keypair.publicKey.toString(),
           'svm.transaction_type': transaction instanceof Transaction ? 'legacy' : 'versioned',
@@ -85,7 +84,8 @@ export class BasicWallet implements ISvmWallet {
           'svm.commitment': options?.commitment || 'confirmed',
           'svm.skip_preflight': options?.skipPreflight || false,
         },
-      });
+      },
+      async (span) => {
 
     try {
       if (transaction instanceof Transaction) {
@@ -106,7 +106,7 @@ export class BasicWallet implements ISvmWallet {
 
         span.setAttribute('svm.transaction_signature', signature);
         span.addEvent('svm.transaction.confirmed');
-        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+        span.setStatus({ code: api.SpanStatusCode.OK });
 
         return signature;
       } else {
@@ -129,14 +129,12 @@ export class BasicWallet implements ISvmWallet {
           span.addEvent('svm.transaction.confirmed');
         }
 
-        if (!activeSpan) span.setStatus({ code: api.SpanStatusCode.OK });
+        span.setStatus({ code: api.SpanStatusCode.OK });
         return signature;
       }
     } catch (error) {
-      if (!activeSpan) {
-        span.recordException(toError(error));
-        span.setStatus({ code: api.SpanStatusCode.ERROR });
-      }
+      span.recordException(toError(error));
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
 
       // check if this is a SendTransactionError and extract detailed logs
       if (error && typeof error === 'object' && 'getLogs' in error) {
@@ -159,10 +157,9 @@ export class BasicWallet implements ISvmWallet {
 
       throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
     } finally {
-      if (!activeSpan) {
-        span.end();
-      }
+      span.end();
     }
+  })
   }
 
   async getBalance(): Promise<bigint> {

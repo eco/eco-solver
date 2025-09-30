@@ -6,6 +6,17 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { HYPER_PROVER_CONSTANTS } from './hyper-prover.constants';
 
 /**
+ * Configuration for Hyper prover utilities
+ */
+export interface HyperProverConfig {
+  hyperlaneMailbox?: string;
+  noop?: string;
+  igpProgram?: string;
+  igpAccount?: string;
+  overheadIgpAccount?: string;
+}
+
+/**
  * Utility functions for Hyper prover PDA derivation and program access
  */
 export class HyperProverUtils {
@@ -26,14 +37,14 @@ export class HyperProverUtils {
    * This matches hyperlane_context::outbox_pda()
    * Rust: Pubkey::find_program_address(&[b"hyperlane", b"-", b"outbox"], &MAILBOX_ID).0
    */
-  static getHyperlaneOutboxPDA(): PublicKey {
+  static getHyperlaneOutboxPDA(config?: HyperProverConfig): PublicKey {
     const [pda] = PublicKey.findProgramAddressSync(
       [
         Buffer.from(HYPER_PROVER_CONSTANTS.SEEDS.HYPERLANE),
         Buffer.from(HYPER_PROVER_CONSTANTS.SEEDS.SEPARATOR),
         Buffer.from(HYPER_PROVER_CONSTANTS.SEEDS.OUTBOX),
       ],
-      this.getHyperlaneMailboxProgram(),
+      this.getHyperlaneMailboxProgram(config),
     );
     return pda;
   }
@@ -43,7 +54,7 @@ export class HyperProverUtils {
    * This matches hyperlane_context::dispatched_message_pda(&unique_message.pubkey())
    * Rust: Pubkey::find_program_address(&[b"hyperlane", b"-", b"dispatched_message", b"-", unique_message.pubkey().as_ref()], &MAILBOX_ID).0
    */
-  static getHyperlaneDispatchedMessagePDA(uniqueMessage: PublicKey): PublicKey {
+  static getHyperlaneDispatchedMessagePDA(uniqueMessage: PublicKey, config?: HyperProverConfig): PublicKey {
     const [pda] = PublicKey.findProgramAddressSync(
       [
         Buffer.from(HYPER_PROVER_CONSTANTS.SEEDS.HYPERLANE),
@@ -52,7 +63,7 @@ export class HyperProverUtils {
         Buffer.from(HYPER_PROVER_CONSTANTS.SEEDS.SEPARATOR),
         uniqueMessage.toBuffer(),
       ],
-      this.getHyperlaneMailboxProgram(),
+      this.getHyperlaneMailboxProgram(config),
     );
     return pda;
   }
@@ -60,15 +71,41 @@ export class HyperProverUtils {
   /**
    * Get the Hyperlane mailbox program ID
    */
-  static getHyperlaneMailboxProgram(): PublicKey {
-    return new PublicKey(HYPER_PROVER_CONSTANTS.PROGRAM_IDS.HYPERLANE_MAILBOX);
+  static getHyperlaneMailboxProgram(config?: HyperProverConfig): PublicKey {
+    const programId = config?.hyperlaneMailbox || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.HYPERLANE_MAILBOX;
+    return new PublicKey(programId);
   }
 
   /**
    * Get the noop program ID
    */
-  static getNoopProgram(): PublicKey {
-    return new PublicKey(HYPER_PROVER_CONSTANTS.PROGRAM_IDS.NOOP);
+  static getNoopProgram(config?: HyperProverConfig): PublicKey {
+    const programId = config?.noop || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.NOOP;
+    return new PublicKey(programId);
+  }
+
+  /**
+   * Get the IGP program ID
+   */
+  static getIgpProgram(config?: HyperProverConfig): PublicKey {
+    const programId = config?.igpProgram || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.IGP_PROGRAM;
+    return new PublicKey(programId);
+  }
+
+  /**
+   * Get the IGP account
+   */
+  static getIgpAccount(config?: HyperProverConfig): PublicKey {
+    const accountId = config?.igpAccount || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.IGP_ACCOUNT;
+    return new PublicKey(accountId);
+  }
+
+  /**
+   * Get the overhead IGP account
+   */
+  static getOverheadIgpAccount(config?: HyperProverConfig): PublicKey {
+    const accountId = config?.overheadIgpAccount || HYPER_PROVER_CONSTANTS.DEFAULT_PROGRAM_IDS.OVERHEAD_IGP_ACCOUNT;
+    return new PublicKey(accountId);
   }
 
   /**

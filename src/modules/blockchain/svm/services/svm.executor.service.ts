@@ -909,104 +909,125 @@ export class SvmExecutorService extends BaseChainExecutor {
     messageId: Uint8Array,
     span: api.Span,
   ): Promise<bigint> {
-    try {
-      // Get IGP configuration
-      const igpProgramId = new PublicKey('BhNcatUDC2D5JTyeaqrdSukiVFsEHK7e3hVmKMztwefv');
-      const igpAccount = new PublicKey('JAvHW21tYXE9dtdG83DReqU2b4LUexFuCbtJT5tF8X6M');
-      const overheadIgpAccount = new PublicKey('AkeHBbE5JkwVppujCQQ6WuxsVsJtruBAjUo6fDCFp6fF');
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.payForGasForProve',
+      {
+        attributes: {
+          'svm.intent_hash': intent.intentHash,
+          'svm.source_chain': intent.sourceChainId?.toString(),
+          'svm.destination_chain': intent.destination.toString(),
+          'svm.message_id': Buffer.from(messageId).toString('hex'),
+          'svm.operation': 'payForGas',
+        },
+      },
+      async (gasPaymentSpan) => {
+        try {
+          const hyperlaneConfig = {
+            hyperlaneMailbox: this.solanaConfigService.hyperlane?.mailbox,
+            noop: this.solanaConfigService.hyperlane?.noop,
+            igpProgram: this.solanaConfigService.hyperlane?.igpProgram,
+            igpAccount: this.solanaConfigService.hyperlane?.igpAccount,
+            overheadIgpAccount: this.solanaConfigService.hyperlane?.overheadIgpAccount,
+          };
 
-      if (!igpProgramId || !igpAccount) {
-        this.logger.warn(
-          `IGP not configured for Solana, skipping gas payment for intent ${intent.intentHash}`,
-        );
-        return BigInt(0);
-      }
+          const igpProgramId = HyperProverUtils.getIgpProgram(hyperlaneConfig);
+          const igpAccount = HyperProverUtils.getIgpAccount(hyperlaneConfig);
+          const overheadIgpAccount = HyperProverUtils.getOverheadIgpAccount(hyperlaneConfig);
 
-      const destinationDomain = Number(intent.sourceChainId);
-      const gasAmount = BigInt(130000); // fixed gas amount for now
+          if (!igpProgramId || !igpAccount) {
+            this.logger.warn(
+              `IGP not configured for Solana, skipping gas payment for intent ${intent.intentHash}`,
+            );
+            gasPaymentSpan.recordException(new Error('IGP not configured'));
+            gasPaymentSpan.setStatus({ code: api.SpanStatusCode.ERROR, message: 'IGP not configured' });
+            gasPaymentSpan.end();
+            return BigInt(0);
+          }
 
-      span.addEvent('svm.gas_payment.processing', {
-        destination_domain: destinationDomain,
-        gas_amount: gasAmount.toString(),
-        igp_program_id: igpProgramId.toString(),
-        igp_account: igpAccount.toString(),
-        overhead_igp_account: overheadIgpAccount.toString(),
-        message_id: Buffer.from(messageId).toString('hex'),
-      });
+          const destinationDomain = Number(intent.sourceChainId);
+          const gasAmount = BigInt(130000); // fixed gas amount for now
 
-      // Get wallet for payer and fee payer
-      const wallet = this.walletManager.getWallet();
-      const payer = wallet.getKeypair().publicKey;
+          gasPaymentSpan.addEvent('svm.gas_payment.processing', {
+            destination_domain: destinationDomain,
+            gas_amount: gasAmount.toString(),
+            igp_program_id: igpProgramId.toString(),
+            igp_account: igpAccount.toString(),
+            overhead_igp_account: overheadIgpAccount.toString(),
+            message_id: Buffer.from(messageId).toString('hex'),
+          });
 
-      const {
-        instruction: payForGasInstruction,
-        quotedAmount,
-        uniqueGasPaymentKeypair,
-        gasPaymentPDA,
-      } = await quoteAndCreatePayForGasInstruction(
-        this.connection,
-        igpProgramId,
-        payer,
-        igpAccount,
-        overheadIgpAccount,
-        messageId,
-        destinationDomain,
-        gasAmount,
-        payer,
-      );
+          const wallet = this.walletManager.getWallet();
+          const payer = wallet.getKeypair().publicKey;
 
-      span.setAttribute('svm.gas_payment.quoted_amount', quotedAmount.toString());
-      span.setAttribute('svm.gas_payment.pda', gasPaymentPDA.toString());
-      span.addEvent('svm.gas_payment.quoted');
+          const {
+            instruction: payForGasInstruction,
+            quotedAmount,
+            uniqueGasPaymentKeypair,
+            gasPaymentPDA,
+          } = await quoteAndCreatePayForGasInstruction(
+            this.connection,
+            igpProgramId,
+            payer,
+            igpAccount,
+            overheadIgpAccount,
+            messageId,
+            destinationDomain,
+            gasAmount,
+            payer,
+          );
 
-      const { blockhash } = await this.connection.getLatestBlockhash();
-      const payForGasTransaction = new Transaction({
-        recentBlockhash: blockhash,
-        feePayer: payer,
-      });
+          gasPaymentSpan.setAttribute('svm.gas_payment.quoted_amount', quotedAmount.toString());
+          gasPaymentSpan.setAttribute('svm.gas_payment.pda', gasPaymentPDA.toString());
+          gasPaymentSpan.addEvent('svm.gas_payment.quoted');
 
-      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 300_000,
-      });
+          const { blockhash } = await this.connection.getLatestBlockhash();
+          const payForGasTransaction = new Transaction({
+            recentBlockhash: blockhash,
+            feePayer: payer,
+          });
 
-      payForGasTransaction.add(computeBudgetIx);
-      payForGasTransaction.add(payForGasInstruction);
+          const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+            units: 300_000,
+          });
 
-      // Sign the transaction with both wallet keypair and unique gas payment keypair
-      payForGasTransaction.sign(wallet.getKeypair(), uniqueGasPaymentKeypair);
+          payForGasTransaction.add(computeBudgetIx);
+          payForGasTransaction.add(payForGasInstruction);
 
-      span.addEvent('svm.gas_payment.submitting', {
-        quoted_amount: quotedAmount.toString(),
-        instruction_count: 2, // compute budget + pay for gas
-        signatures_count: payForGasTransaction.signatures.length,
-        signers: [payer.toString(), uniqueGasPaymentKeypair.publicKey.toString()],
-      });
+          // Sign the transaction with both wallet keypair and unique gas payment keypair
+          payForGasTransaction.sign(wallet.getKeypair(), uniqueGasPaymentKeypair);
 
-      let signature: string;
-      try {
-        signature = await this.connection.sendRawTransaction(payForGasTransaction.serialize(), {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-        });
-      } catch (sendError) {
-        throw new Error(`Failed to send transaction: ${getErrorMessage(sendError)}`);
-      }
+          span.addEvent('svm.gas_payment.submitting', {
+            quoted_amount: quotedAmount.toString(),
+            instruction_count: 2, // compute budget + pay for gas
+            signatures_count: payForGasTransaction.signatures.length,
+            signers: [payer.toString(), uniqueGasPaymentKeypair.publicKey.toString()],
+          });
 
-      // Wait for confirmation
-      try {
-        await this.connection.confirmTransaction(signature, 'confirmed');
-      } catch (confirmError) {
-        this.logger.warn(`Gas payment transaction sent but confirmation failed: ${signature}`);
-      }
+          let signature: string;
+          try {
+            signature = await this.connection.sendRawTransaction(payForGasTransaction.serialize(), {
+              skipPreflight: false,
+              preflightCommitment: 'confirmed',
+            });
+          } catch (sendError) {
+            throw new Error(`Failed to send transaction: ${getErrorMessage(sendError)}`);
+          }
 
-      span.setAttribute('svm.gas_payment.transaction_signature', signature);
-      span.addEvent('svm.gas_payment.confirmed');
+          // Wait for confirmation
+          try {
+            await this.connection.confirmTransaction(signature, 'confirmed');
+          } catch (confirmError) {
+            this.logger.warn(`Gas payment transaction sent but confirmation failed: ${signature}`);
+          }
 
-      this.logger.log(
-        `Gas payment completed for intent ${intent.intentHash}: paid ${quotedAmount} lamports for ${gasAmount} gas to domain ${destinationDomain}. Tx: ${signature}`,
-      );
+          gasPaymentSpan.setAttribute('svm.gas_payment.transaction_signature', signature);
+          gasPaymentSpan.addEvent('svm.gas_payment.confirmed');
 
-      return quotedAmount;
+          this.logger.log(
+            `Gas payment completed for intent ${intent.intentHash}: paid ${quotedAmount} lamports for ${gasAmount} gas to domain ${destinationDomain}. Tx: ${signature}`,
+          );
+
+          return quotedAmount;
     } catch (error) {
       this.logger.warn(
         `Failed to pay for gas for intent ${intent.intentHash}: ${getErrorMessage(error)}. Continuing without payment.`,
@@ -1015,7 +1036,10 @@ export class SvmExecutorService extends BaseChainExecutor {
         error: getErrorMessage(error),
       });
       return BigInt(0);
+    } finally {
+      gasPaymentSpan.end();
     }
+  })
   }
 
   private async initializeProgram() {

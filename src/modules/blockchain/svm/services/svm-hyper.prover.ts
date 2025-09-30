@@ -6,18 +6,19 @@ import { Keypair, PublicKey, SystemProgram, TransactionInstruction } from '@sola
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { BlockchainConfigService } from '@/modules/config/services';
+import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 
 import { ISvmProver, SvmProveContext } from '../types/svm-prover.types';
 import { HYPER_PROVER_CONSTANTS } from '../utils/hyper-prover.constants';
-import { HyperProverUtils } from '../utils/hyper-prover.utils';
+import { HyperProverUtils, HyperProverConfig } from '../utils/hyper-prover.utils';
 
 @Injectable()
 export class SvmHyperProver extends HyperProver implements ISvmProver {
   constructor(
     protected readonly blockchainConfigService: BlockchainConfigService,
     protected readonly moduleRef: ModuleRef,
+    private readonly solanaConfigService: SolanaConfigService,
   ) {
     super(blockchainConfigService, moduleRef);
   }
@@ -50,14 +51,23 @@ export class SvmHyperProver extends HyperProver implements ISvmProver {
       data: sourceProverBytes,
     };
 
+    const hyperlaneConfig: HyperProverConfig = {
+      hyperlaneMailbox: this.solanaConfigService.hyperlane?.mailbox,
+      noop: this.solanaConfigService.hyperlane?.noop,
+      igpProgram: this.solanaConfigService.hyperlane?.igpProgram,
+      igpAccount: this.solanaConfigService.hyperlane?.igpAccount,
+      overheadIgpAccount: this.solanaConfigService.hyperlane?.overheadIgpAccount,
+    };
+
     // Generate Hyper-specific accounts
     const proverDispatcherPDA = HyperProverUtils.getProverDispatcherPDA(context.proverAddress);
-    const outboxPDA = HyperProverUtils.getHyperlaneOutboxPDA();
+    const outboxPDA = HyperProverUtils.getHyperlaneOutboxPDA(hyperlaneConfig);
     const uniqueMessageKeypair = Keypair.generate(); // Generate a unique keypair for the message
     const dispatchedMessagePDA = HyperProverUtils.getHyperlaneDispatchedMessagePDA(
       uniqueMessageKeypair.publicKey,
+      hyperlaneConfig,
     );
-    const mailboxProgram = HyperProverUtils.getHyperlaneMailboxProgram();
+    const mailboxProgram = HyperProverUtils.getHyperlaneMailboxProgram(hyperlaneConfig);
 
     const remainingAccounts = [
       {
@@ -69,7 +79,7 @@ export class SvmHyperProver extends HyperProver implements ISvmProver {
       { pubkey: proverDispatcherPDA, isSigner: false, isWritable: false },
       { pubkey: context.keypair.publicKey, isSigner: true, isWritable: true }, // payer
       { pubkey: outboxPDA, isSigner: false, isWritable: true },
-      { pubkey: HyperProverUtils.getNoopProgram(), isSigner: false, isWritable: false },
+      { pubkey: HyperProverUtils.getNoopProgram(hyperlaneConfig), isSigner: false, isWritable: false },
       { pubkey: uniqueMessageKeypair.publicKey, isSigner: true, isWritable: false },
       { pubkey: dispatchedMessagePDA, isSigner: false, isWritable: true },
       {
