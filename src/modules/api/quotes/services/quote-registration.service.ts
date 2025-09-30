@@ -138,6 +138,7 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
       intentExecutionTypes: ['SELF_PUBLISH'],
       quotesUrl: this.getLocalQuoteEndpoint(),
       quotesV2Url: this.getLocalQuoteEndpoint(),
+      reverseQuotesV2Url: this.getLocalQuoteEndpoint(),
 
       // Use placeholder value since endpoint is required
       receiveSignedIntentUrl: this.getLocalQuoteEndpoint(),

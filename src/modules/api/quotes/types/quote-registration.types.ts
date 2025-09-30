@@ -6,6 +6,7 @@ export interface SolverRegistrationRequestBody {
   quotesUrl: string;
   quotesV2Url?: string;
   reverseQuotesUrl?: string;
+  reverseQuotesV2Url?: string;
 
   receiveSignedIntentUrl: string;
 
