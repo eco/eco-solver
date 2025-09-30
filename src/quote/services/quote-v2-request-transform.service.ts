@@ -2,16 +2,13 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { encodeFunctionData, erc20Abi, Hex, zeroAddress } from 'viem'
+import { ForwardQuoteRequestTransformer } from '@/quote/services/forward-quote-request-transformer'
+import { Hex, zeroAddress } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
-import { ProofService } from '@/prover/proof.service'
 import { QuoteError } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
-import { QuoteRewardDataDTO, QuoteRewardTokensDTO } from '@/quote/dto/quote.reward.data.dto'
-import { QuoteRouteDataDTO } from '@/quote/dto/quote.route.data.dto'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
-
-const MAX_BIGINT = BigInt(Number.MAX_SAFE_INTEGER)
+import { ReverseQuoteRequestTransformer } from '@/quote/services/reverse-quote-request-transformer'
 
 @Injectable()
 export class QuoteV2RequestTransformService {
@@ -19,7 +16,8 @@ export class QuoteV2RequestTransformService {
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly proofService: ProofService,
+    private readonly forwardTransformer: ForwardQuoteRequestTransformer,
+    private readonly reverseTransformer: ReverseQuoteRequestTransformer,
   ) {}
 
   /**
@@ -41,8 +39,11 @@ export class QuoteV2RequestTransformService {
 
       const prover = sourceConfig.provers?.[0] || zeroAddress
 
-      const reward = this.createRewardDataReverse(v2Request, prover)
-      const route = this.createRouteDataReverse(v2Request, destinationConfig.inboxAddress)
+      const reward = this.reverseTransformer.createRewardDataReverse(v2Request, prover)
+      const route = this.reverseTransformer.createRouteDataReverse(
+        v2Request,
+        destinationConfig.inboxAddress,
+      )
 
       const quoteIntentData: QuoteIntentDataDTO = {
         quoteID,
@@ -98,9 +99,12 @@ export class QuoteV2RequestTransformService {
 
       // Forward: reward = what the solver demands on source side
       // But at transform time, we don’t yet know it, so seed with *zero* and let solver fill
-      const reward = this.createRewardDataForward(v2Request, prover)
+      const reward = this.forwardTransformer.createRewardDataForward(v2Request, prover)
 
-      const route = this.createRouteDataForward(v2Request, destinationConfig.inboxAddress)
+      const route = this.forwardTransformer.createRouteDataForward(
+        v2Request,
+        destinationConfig.inboxAddress,
+      )
 
       const quoteIntentData: QuoteIntentDataDTO = {
         quoteID,
@@ -132,133 +136,6 @@ export class QuoteV2RequestTransformService {
       )
 
       return { error: EcoError.InvalidQuoteV2Request(ex.message) }
-    }
-  }
-
-  private createRewardDataReverse(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
-    const { quoteRequest } = v2Request
-    const isNative = quoteRequest.sourceToken === zeroAddress
-    const sourceAmount = BigInt(quoteRequest.sourceAmount)
-
-    const tokens: QuoteRewardTokensDTO[] = isNative
-      ? []
-      : [{ token: quoteRequest.sourceToken, amount: sourceAmount }]
-
-    const nativeValue = isNative ? sourceAmount : 0n
-
-    const proverType = this.proofService.getProverType(quoteRequest.sourceChainID, prover)
-    if (!proverType) throw new Error('No intent prover type')
-    const deadlineBuffer = this.proofService.getProofMinimumDate(proverType)
-    const TEN_MINUTES = 600
-    const deadline = BigInt(Math.floor(deadlineBuffer.getTime() / 1000) + TEN_MINUTES)
-
-    return {
-      creator: quoteRequest.funder,
-      prover,
-      deadline,
-      nativeValue,
-      tokens,
-    }
-  }
-
-  private createRewardDataForward(v2Request: QuoteV2RequestDTO, prover: Hex): QuoteRewardDataDTO {
-    const { quoteRequest } = v2Request
-    const isNative = quoteRequest.sourceToken === zeroAddress
-
-    // Deadline exactly as before
-    const proverType = this.proofService.getProverType(quoteRequest.sourceChainID, prover)
-    if (!proverType) throw new Error('No intent prover type')
-    const deadlineBuffer = this.proofService.getProofMinimumDate(proverType)
-    const TEN_MINUTES = 600
-    const deadline = BigInt(Math.floor(deadlineBuffer.getTime() / 1000) + TEN_MINUTES)
-
-    // In forward quotes:
-    // - amounts are unknown -> set to 0n (solver will fill them)
-    // - token identity MUST be provided so solver knows what it can pull
-    const tokens = isNative
-      ? [] // native reward: keep in nativeValue (still 0 for quote stage)
-      : [{ token: quoteRequest.sourceToken, amount: MAX_BIGINT }]
-
-    return {
-      creator: quoteRequest.funder,
-      prover,
-      deadline,
-      nativeValue: isNative ? 0n : 0n, // always 0 at quote stage
-      tokens,
-    }
-  }
-
-  private createRouteDataReverse(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
-    const { quoteRequest } = v2Request
-    const isNativeDestination = quoteRequest.destinationToken === zeroAddress
-
-    const tokens: QuoteRewardTokensDTO[] = isNativeDestination
-      ? []
-      : [{ token: quoteRequest.destinationToken, amount: BigInt(quoteRequest.sourceAmount) }]
-
-    const calls = isNativeDestination
-      ? [
-          {
-            target: quoteRequest.recipient,
-            data: '0x' as Hex,
-            value: BigInt(quoteRequest.sourceAmount),
-          },
-        ]
-      : [
-          {
-            target: quoteRequest.destinationToken,
-            data: encodeFunctionData({
-              abi: erc20Abi,
-              functionName: 'transfer',
-              args: [quoteRequest.recipient, 0n], // solver fills
-            }),
-            value: 0n,
-          },
-        ]
-
-    return {
-      source: BigInt(quoteRequest.sourceChainID),
-      destination: BigInt(quoteRequest.destinationChainID),
-      inbox,
-      tokens,
-      calls,
-    }
-  }
-
-  private createRouteDataForward(v2Request: QuoteV2RequestDTO, inbox: Hex): QuoteRouteDataDTO {
-    const { quoteRequest } = v2Request
-    const isNativeDestination = quoteRequest.destinationToken === zeroAddress
-
-    const tokens = isNativeDestination
-      ? []
-      : [{ token: quoteRequest.destinationToken, amount: BigInt(quoteRequest.sourceAmount) }]
-
-    const calls = isNativeDestination
-      ? [
-          {
-            target: quoteRequest.recipient,
-            data: '0x' as Hex,
-            value: BigInt(quoteRequest.sourceAmount),
-          },
-        ]
-      : [
-          {
-            target: quoteRequest.destinationToken,
-            data: encodeFunctionData({
-              abi: erc20Abi,
-              functionName: 'transfer',
-              args: [quoteRequest.recipient, BigInt(quoteRequest.sourceAmount)],
-            }),
-            value: 0n,
-          },
-        ]
-
-    return {
-      source: BigInt(quoteRequest.sourceChainID),
-      destination: BigInt(quoteRequest.destinationChainID),
-      inbox,
-      tokens,
-      calls,
     }
   }
 
