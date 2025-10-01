@@ -6,15 +6,19 @@ import { CCTPLiFiStrategyContext } from '@/liquidity-manager/types/types'
  * @returns Total slippage percentage (0-1)
  */
 export function calculateTotalSlippage(context: CCTPLiFiStrategyContext): number {
-  const amountIn =
-    context.sourceSwapQuote?.fromAmount ??
-    context.destinationSwapQuote?.fromAmount ??
-    context.cctpTransfer.amount.toString()
+  const stepSlip = (from?: string, toMin?: string) => {
+    if (!from || !toMin) return 0
+    const f = parseFloat(from)
+    const t = parseFloat(toMin)
+    if (!isFinite(f) || f === 0) return 0
+    return 1 - t / f
+  }
 
-  const amountOut =
-    context.destinationSwapQuote?.toAmountMin ??
-    context.sourceSwapQuote?.toAmountMin ??
-    context.cctpTransfer.amount.toString()
+  const s1 = stepSlip(context.sourceSwapQuote?.fromAmount, context.sourceSwapQuote?.toAmountMin)
+  const s2 = stepSlip(
+    context.destinationSwapQuote?.fromAmount,
+    context.destinationSwapQuote?.toAmountMin,
+  )
 
-  return 1 - parseFloat(amountOut) / parseFloat(amountIn)
+  return 1 - (1 - s1) * (1 - s2)
 }
