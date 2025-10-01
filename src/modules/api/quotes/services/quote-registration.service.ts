@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { Address, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
+import { BlockchainAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
@@ -122,18 +123,6 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
   }
 
   private getRegistrationRequestBody(): SolverRegistrationRequestBody {
-    const allChains = this.blockchainConfigService.getAllConfiguredChains();
-    const chainIDs = allChains.filter((chain): chain is number => typeof chain === 'number');
-
-    const chainsWhitelistEntries = chainIDs.map((chainID) => {
-      const chainType = ChainTypeDetector.detect(chainID);
-      const tokenAddresses = this.blockchainConfigService
-        .getSupportedTokens(chainID)
-        .map((token) => AddressNormalizer.denormalize(token.address, chainType));
-      const whitelist = { send: '*', receive: tokenAddresses as unknown as string };
-      return [chainID.toString(), [whitelist]];
-    });
-
     return {
       intentExecutionTypes: ['SELF_PUBLISH'],
       quotesUrl: this.getLocalQuoteEndpoint(),
@@ -145,9 +134,7 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
 
       supportsNativeTransfers: false,
       crossChainRoutes: {
-        crossChainRoutesConfig: {
-          '*': Object.fromEntries(chainsWhitelistEntries),
-        },
+        crossChainRoutesConfig: this.getCrossChainRoutes(),
       },
     };
   }
@@ -181,5 +168,50 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
     });
 
     return { signature, address: walletAccount.address };
+  }
+
+  private getCrossChainRoutes() {
+    const chainIDs = this.blockchainConfigService.getAllConfiguredChains();
+
+    const routes: SolverRegistrationRequestBody['crossChainRoutes']['crossChainRoutesConfig'] = {};
+
+    for (const sourceChainId of chainIDs) {
+      // Initialize object
+      routes[sourceChainId] = {};
+
+      for (const destinationChainId of chainIDs) {
+        if (sourceChainId === destinationChainId) {
+          // Skip same-chain routes
+          continue;
+        }
+
+        routes[sourceChainId][destinationChainId] = this.getCrossChainRoute(
+          sourceChainId,
+          destinationChainId,
+        );
+      }
+    }
+
+    return routes;
+  }
+
+  private getCrossChainRoute(
+    source: number,
+    destination: number,
+  ): { send: BlockchainAddress; receive: BlockchainAddress[] }[] {
+    const sourceTokens = this.getChainTokens(source);
+    const destinationTokens = this.getChainTokens(destination);
+
+    return sourceTokens.map((token) => ({
+      send: token,
+      receive: destinationTokens,
+    }));
+  }
+
+  private getChainTokens(chainID: number): BlockchainAddress[] {
+    const chainType = ChainTypeDetector.detect(chainID);
+    return this.blockchainConfigService
+      .getSupportedTokens(chainID)
+      .map((token) => AddressNormalizer.denormalize(token.address, chainType));
   }
 }
