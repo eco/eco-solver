@@ -159,7 +159,7 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
       return txHash
     } catch (error) {
       this.ecoAnalytics.trackError(
-        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.CCTP_LIFI_EXECUTION_ERROR,
+        ANALYTICS_EVENTS.LIQUIDITY_MANAGER.USDT0_LIFI_EXECUTION_ERROR,
         error,
         {
           id: quote.id,
