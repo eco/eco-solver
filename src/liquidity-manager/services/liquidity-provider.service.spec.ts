@@ -18,6 +18,7 @@ import { GatewayProviderService } from './liquidity-providers/Gateway/gateway-pr
 import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
 import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
 import { USDT0ProviderService } from './liquidity-providers/USDT0/usdt0-provider.service'
+import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -74,6 +75,10 @@ describe('LiquidityProviderService', () => {
         {
           provide: USDT0ProviderService,
           useValue: createMock<USDT0ProviderService>(),
+        },
+        {
+          provide: USDT0LiFiProviderService,
+          useValue: createMock<USDT0LiFiProviderService>(),
         },
       ],
     }).compile()

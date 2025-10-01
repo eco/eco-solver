@@ -38,6 +38,7 @@ import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.
 import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 import { USDT0ProviderService } from '../USDT0/usdt0-provider.service'
+import { USDT0LiFiProviderService } from '../USDT0-LiFi/usdt0-lifi-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -232,6 +233,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: USDT0ProviderService,
           useValue: createMock<USDT0ProviderService>(),
+        },
+        {
+          provide: USDT0LiFiProviderService,
+          useValue: createMock<USDT0LiFiProviderService>(),
         },
       ],
     }).compile()

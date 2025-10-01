@@ -1,4 +1,5 @@
 import { CheckOFTDeliveryJobManager } from '@/liquidity-manager/jobs/check-oft-delivery.job'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { UnrecoverableError } from 'bullmq'
 
@@ -238,5 +239,56 @@ describe('CheckOFTDeliveryJobManager', () => {
     } finally {
       ;(globalThis as any).fetch = originalFetch
     }
+  })
+
+  // New: USDT0-LiFi destination swap enqueued on complete with context
+  it('onComplete(): enqueues USDT0_LIFI_DESTINATION_SWAP when usdt0LiFiContext present', async () => {
+    // Ensure ModuleRef is initialized for AutoInject pattern in tests
+    ;(ModuleRefProvider as any).getModuleRef = jest.fn().mockReturnValue({
+      get: () => ({ updateStatus: jest.fn() }),
+    })
+    const mgr = new CheckOFTDeliveryJobManager()
+    const queue: any = {}
+    const processor: any = {
+      logger: { debug: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      queue,
+      liquidityManagerService: {
+        liquidityProviderManager: {},
+      },
+    }
+
+    // Inject a queue wrapper with startUSDT0LiFiDestinationSwap
+    ;(processor.liquidityManagerService as any)['liquidityManagerQueue'] = {
+      startUSDT0LiFiDestinationSwap: jest.fn().mockResolvedValue(undefined),
+    }
+
+    const job: any = {
+      name: LiquidityManagerJobName.CHECK_OFT_DELIVERY,
+      data: {
+        id: 'id-4',
+        groupID: 'grp-1',
+        rebalanceJobID: 'reb-1',
+        destinationChainId: 10,
+        usdt0LiFiContext: {
+          destinationSwapQuote: {
+            id: 'q-1',
+            fromToken: { address: '0xfrom', decimals: 6, chainId: 10 },
+            toToken: { address: '0xto', decimals: 6, chainId: 10 },
+            fromAmount: '1000',
+            toAmount: '990',
+            toAmountMin: '980',
+          },
+          walletAddress: '0xwallet',
+          originalTokenOut: { address: '0xusdt', chainId: 10, decimals: 6 },
+        },
+      },
+      returnvalue: { status: 'complete' },
+    }
+
+    await mgr.onComplete(job, processor)
+    expect(
+      (processor.liquidityManagerService as any)['liquidityManagerQueue']
+        .startUSDT0LiFiDestinationSwap,
+    ).toHaveBeenCalled()
   })
 })

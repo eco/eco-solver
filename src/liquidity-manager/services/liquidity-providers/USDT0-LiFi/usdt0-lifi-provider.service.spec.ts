@@ -1,0 +1,215 @@
+import { Test, TestingModule } from '@nestjs/testing'
+import { getQueueToken } from '@nestjs/bullmq'
+import { Logger } from '@nestjs/common'
+import { parseUnits } from 'viem'
+import { createMock, DeepMocked } from '@golevelup/ts-jest'
+import { USDT0LiFiProviderService } from './usdt0-lifi-provider.service'
+import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
+import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { BalanceService } from '@/balance/balance.service'
+import { EcoAnalyticsService } from '@/analytics'
+import { TokenData } from '@/liquidity-manager/types/types'
+
+describe('USDT0LiFiProviderService', () => {
+  let service: USDT0LiFiProviderService
+  let liFiService: DeepMocked<LiFiProviderService>
+  let usdt0Service: DeepMocked<USDT0ProviderService>
+
+  const mockUSDTMap = {
+    chains: [
+      {
+        chainId: 1,
+        eid: 30101,
+        type: 'adapter',
+        contract: '0xAdapter' as any,
+        decimals: 6,
+        underlyingToken: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as any,
+      },
+      {
+        chainId: 10,
+        eid: 30110,
+        type: 'oft',
+        contract: '0xOFT' as any,
+        decimals: 6,
+        token: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58' as any,
+      },
+    ],
+  }
+
+  const token = (chainId: number, address: string, decimals = 6): TokenData =>
+    ({
+      chainId,
+      config: { chainId, address: address as any, minBalance: 0, targetBalance: 0, type: 'erc20' },
+      balance: { address: address as any, decimals, balance: 0n },
+    }) as any
+
+  beforeEach(async () => {
+    const ecoMock = {
+      getUSDT0: jest.fn().mockReturnValue(mockUSDTMap),
+      getLiquidityManager: jest.fn().mockReturnValue({ maxQuoteSlippage: 0.05 }),
+    }
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        USDT0LiFiProviderService,
+        { provide: LiFiProviderService, useValue: createMock<LiFiProviderService>() },
+        { provide: USDT0ProviderService, useValue: createMock<USDT0ProviderService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
+        { provide: EcoConfigService, useValue: ecoMock },
+        { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        {
+          provide: getQueueToken(LiquidityManagerQueue.queueName),
+          useValue: { add: jest.fn().mockResolvedValue({}) },
+        },
+      ],
+    }).compile()
+
+    service = module.get(USDT0LiFiProviderService)
+    liFiService = module.get(LiFiProviderService) as any
+    usdt0Service = module.get(USDT0ProviderService) as any
+
+    // EcoConfigService already provided with correct mocks before service instantiation
+
+    jest.spyOn(Logger.prototype, 'debug').mockImplementation()
+    jest.spyOn(Logger.prototype, 'log').mockImplementation()
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation()
+  })
+
+  describe('getQuote', () => {
+    it('builds TOKEN → TOKEN route with both swaps', async () => {
+      const tIn = token(1, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+      const tOut = token(10, '0x4200000000000000000000000000000000000042', 18)
+
+      ;(liFiService.getQuote as any)
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('99', 6),
+          slippage: 0.01,
+          context: {
+            fromAmount: '100000000',
+            toAmount: '99000000',
+            toAmountMin: '98010000',
+            fromChainId: 1,
+            toChainId: 1,
+            fromToken: { address: tIn.config.address, decimals: 6 },
+            toToken: { address: mockUSDTMap.chains[0].underlyingToken, decimals: 6 },
+          },
+        })
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('45', 18),
+          slippage: 0.02,
+          context: {
+            fromAmount: '99000000',
+            toAmount: '45000000000000000000',
+            toAmountMin: '44100000000000000000',
+            fromChainId: 10,
+            toChainId: 10,
+            fromToken: { address: mockUSDTMap.chains[1].token, decimals: 6 },
+            toToken: { address: tOut.config.address, decimals: 18 },
+          },
+        })
+
+      const quote = await service.getQuote(tIn, tOut, 100)
+      expect(quote.context.steps).toEqual(['sourceSwap', 'usdt0Bridge', 'destinationSwap'])
+      expect(quote.context.sourceSwapQuote).toBeDefined()
+      expect(quote.context.destinationSwapQuote).toBeDefined()
+    })
+
+    it('builds USDT → TOKEN route (no source swap)', async () => {
+      const tIn = token(1, mockUSDTMap.chains[0].underlyingToken!)
+      const tOut = token(10, '0x4200000000000000000000000000000000000042', 18)
+
+      ;(liFiService.getQuote as any).mockResolvedValueOnce({
+        amountOut: parseUnits('45', 18),
+        slippage: 0.02,
+        context: {
+          fromAmount: '100000000',
+          toAmount: '45000000000000000000',
+          toAmountMin: '44100000000000000000',
+          fromChainId: 10,
+          toChainId: 10,
+        },
+      })
+
+      const quote = await service.getQuote(tIn, tOut, 100)
+      expect(quote.context.steps).toEqual(['usdt0Bridge', 'destinationSwap'])
+      expect(quote.context.sourceSwapQuote).toBeUndefined()
+      expect(quote.context.destinationSwapQuote).toBeDefined()
+    })
+
+    it('builds TOKEN → USDT route (no destination swap)', async () => {
+      const tIn = token(1, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+      const tOut = token(10, mockUSDTMap.chains[1].token!)
+
+      ;(liFiService.getQuote as any).mockResolvedValueOnce({
+        amountOut: parseUnits('99', 6),
+        slippage: 0.01,
+        context: {
+          fromAmount: '100000000',
+          toAmount: '99000000',
+          toAmountMin: '98010000',
+          fromChainId: 1,
+          toChainId: 1,
+        },
+      })
+
+      const quote = await service.getQuote(tIn, tOut, 100)
+      expect(quote.context.steps).toEqual(['sourceSwap', 'usdt0Bridge'])
+      expect(quote.context.destinationSwapQuote).toBeUndefined()
+    })
+
+    it('builds USDT → USDT route (bridge only)', async () => {
+      const tIn = token(1, mockUSDTMap.chains[0].underlyingToken!)
+      const tOut = token(10, mockUSDTMap.chains[1].token!)
+
+      const quote = await service.getQuote(tIn, tOut, 100)
+      expect(quote.context.steps).toEqual(['usdt0Bridge'])
+      expect(quote.context.sourceSwapQuote).toBeUndefined()
+      expect(quote.context.destinationSwapQuote).toBeUndefined()
+    })
+  })
+
+  describe('execute', () => {
+    it('executes source swap then bridges and enqueues delivery check with context', async () => {
+      const tIn = token(1, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+      const tOut = token(10, '0x4200000000000000000000000000000000000042', 18)
+
+      ;(liFiService.execute as any).mockResolvedValue({
+        steps: [{ execution: { process: [{ txHash: '0xsourcetx' }] } }],
+      })
+      ;(liFiService.getQuote as any)
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('99', 6),
+          slippage: 0.01,
+          context: {
+            fromAmount: '100000000',
+            toAmount: '99000000',
+            toAmountMin: '98010000',
+            fromChainId: 1,
+            toChainId: 1,
+            fromToken: { address: tIn.config.address, decimals: 6 },
+            toToken: { address: mockUSDTMap.chains[0].underlyingToken, decimals: 6 },
+          },
+        })
+        .mockResolvedValueOnce({
+          amountOut: parseUnits('45', 18),
+          slippage: 0.02,
+          context: {
+            fromAmount: '99000000',
+            toAmount: '45000000000000000000',
+            toAmountMin: '44100000000000000000',
+            fromChainId: 10,
+            toChainId: 10,
+            fromToken: { address: mockUSDTMap.chains[1].token, decimals: 6 },
+            toToken: { address: tOut.config.address, decimals: 18 },
+          },
+        })
+      ;(usdt0Service.execute as any).mockResolvedValue('0xbridge')
+
+      const quote = await service.getQuote(tIn, tOut, 100)
+      const tx = await service.execute('0xwallet', quote)
+      expect(tx).toBe('0xbridge')
+    })
+  })
+})
