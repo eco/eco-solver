@@ -99,10 +99,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     targetSlippage: 0.02,
     intervalDuration: 300000, // 5 minutes
     thresholds: { surplus: 0.15, deficit: 0.15 }, // 15% threshold
-    coreTokens: [
-      { token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', chainID: 1 }, // USDC on Ethereum
-      { token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', chainID: 10 }, // USDC on Optimism
-    ],
     walletStrategies: {
       'eco-wallet': ['CCTPLiFi'], // Only test CCTPLiFi strategy
     },
@@ -1108,7 +1104,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         await liquidityManagerService.storeRebalancing(walletAddress, rebalance)
       }
 
-      expect(rebalanceRepo.create).toHaveBeenCalledTimes(2)
+      const expectedCreateCalls = rebalances.reduce(
+        (sum, rebalance) => sum + rebalance.quotes.length,
+        0,
+      )
+      expect(rebalanceRepo.create).toHaveBeenCalledTimes(expectedCreateCalls)
     })
   })
 

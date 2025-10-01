@@ -6,7 +6,6 @@ import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import {
   analyzeToken,
   analyzeTokenGroup,
-  getGroupTotal,
   getSortGroupByDiff,
 } from '@/liquidity-manager/utils/token'
 import {
@@ -326,14 +325,31 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
   ) {
-    const swapQuotes = await this.getSwapQuotes(walletAddress, deficitToken, surplusTokens)
+    // Phase 1: same-chain first
+    const sameChain = surplusTokens.filter((t) => t.config.chainId === deficitToken.config.chainId)
+    const sameChainQuotes = await this.getRebalancingQuotes(walletAddress, deficitToken, sameChain)
 
-    // Continue with swap quotes if possible
-    if (swapQuotes.length > 0) {
-      return swapQuotes
+    // Compute post-same-chain balance
+    const sameOutTotal = sameChainQuotes.reduce<bigint>((acc, quote) => {
+      return this.quoteTargetsDeficitToken(quote, deficitToken) ? acc + quote.amountOut : acc
+    }, 0n)
+    const targetMin = deficitToken.analysis.targetSlippage.min
+    const currentAfterSame = deficitToken.analysis.balance.current + sameOutTotal
+
+    if (currentAfterSame >= targetMin) {
+      return sameChainQuotes
     }
 
-    return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokens)
+    // Phase 2: cross-chain for the remaining amount in the same run
+    const crossChain = surplusTokens.filter((t) => t.config.chainId !== deficitToken.config.chainId)
+    const crossChainQuotes = await this.getRebalancingQuotes(
+      walletAddress,
+      deficitToken,
+      crossChain,
+      { startingCurrentBalance: currentAfterSame },
+    )
+
+    return [...sameChainQuotes, ...crossChainQuotes]
   }
 
   startRebalancing(walletAddress: string, rebalances: RebalanceRequest[]) {
@@ -415,26 +431,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   }
 
   /**
-   * Checks if a swap is possible between the deficit and surplus tokens.
-   * @dev swaps are possible if the deficit is compensated by the surplus of tokens in the same chain.
-   * @param walletAddress
-   * @param deficitToken
-   * @param surplusTokens
-   * @private
-   */
-  private async getSwapQuotes(
-    walletAddress: string,
-    deficitToken: TokenDataAnalyzed,
-    surplusTokens: TokenDataAnalyzed[],
-  ) {
-    const surplusTokensSameChain = surplusTokens.filter(
-      (token) => token.config.chainId === deficitToken.config.chainId,
-    )
-
-    return this.getRebalancingQuotes(walletAddress, deficitToken, surplusTokensSameChain)
-  }
-
-  /**
    * Checks if a rebalancing is possible between the deficit and surplus tokens.
    * @param walletAddress
    * @param deficitToken
@@ -445,29 +441,34 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
     walletAddress: string,
     deficitToken: TokenDataAnalyzed,
     surplusTokens: TokenDataAnalyzed[],
+    options?: { startingCurrentBalance?: bigint },
   ) {
     if (!Array.isArray(surplusTokens) || surplusTokens.length === 0) {
       return []
     }
 
     const sortedSurplusTokens = getSortGroupByDiff(surplusTokens)
-    const surplusTokensTotal = getGroupTotal(sortedSurplusTokens)
-
-    if (!deficitToken?.analysis?.diff || deficitToken.analysis.diff > surplusTokensTotal) {
-      // Not enough surplus tokens to rebalance
-      return []
-    }
 
     const quotes: RebalanceQuote[] = []
-    const failedSurplusTokens: TokenDataAnalyzed[] = []
-    let currentBalance = deficitToken.analysis.balance.current
+    let currentBalance: bigint =
+      options?.startingCurrentBalance ?? deficitToken.analysis.balance.current
+
+    // Precompute thresholds
+    const targetMin = deficitToken.analysis.targetSlippage.min
+    const deficitDecimals = deficitToken.balance.decimals
+    const minTradeBase6 = this.config?.minTradeBase6
+    const minTradeTokens = minTradeBase6 ? Number(minTradeBase6) / 1_000_000 : 0 // stables (base-6)
 
     // First try all direct routes from surplus tokens to deficit token
     for (const surplusToken of sortedSurplusTokens) {
       let swapAmount = 0
       try {
-        // Calculate the amount to swap
-        swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
+        // Calculate remaining needed amount in tokens (approx):
+        const remainingBaseUnits = currentBalance < targetMin ? targetMin - currentBalance : 0n
+        const remainingTokens = Number(remainingBaseUnits) / 10 ** deficitDecimals
+
+        // Calculate the amount to swap (tokens)
+        swapAmount = Math.min(remainingTokens, surplusToken.analysis.diff)
 
         // Skip zero/negative swap amounts
         if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
@@ -476,6 +477,22 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
               message: 'Skipping quote for zero/negative swapAmount',
               properties: {
                 swapAmount,
+                surplusToken: surplusToken.config,
+                deficitToken: deficitToken.config,
+              },
+            }),
+          )
+          continue
+        }
+
+        // Skip dust trades below global threshold (stables) only when threshold is configured
+        if (minTradeTokens > 0 && swapAmount < minTradeTokens) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: 'Skipping quote below global minTradeBase6 threshold',
+              properties: {
+                swapAmount,
+                minTradeBase6,
                 surplusToken: surplusToken.config,
                 deficitToken: deficitToken.config,
               },
@@ -506,14 +523,14 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
         for (const quote of strategyQuotes) {
           quotes.push(quote)
-          currentBalance += quote.amountOut
+          if (this.quoteTargetsDeficitToken(quote, deficitToken)) {
+            currentBalance += quote.amountOut
+            if (currentBalance >= targetMin) break
+          }
         }
 
-        if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
+        if (currentBalance >= targetMin) break
       } catch (error) {
-        // Track failed surplus tokens
-        failedSurplusTokens.push(surplusToken)
-
         this.ecoAnalytics.trackError(ANALYTICS_EVENTS.LIQUIDITY_MANAGER.QUOTE_ROUTE_ERROR, error, {
           surplusToken: surplusToken.config,
           deficitToken: deficitToken.config,
@@ -525,7 +542,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
         this.logger.debug(
           EcoLogMessage.withError({
-            message: 'Direct route not found, will try with fallback',
+            message: 'Direct route failed',
             properties: {
               surplusToken: surplusToken.config,
               deficitToken: deficitToken.config,
@@ -536,85 +553,35 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       }
     }
 
-    // If we've reached the target balance or have no more tokens to try, return what we've got
-    if (currentBalance >= deficitToken.analysis.targetSlippage.min || !failedSurplusTokens.length) {
-      return quotes
-    }
-
-    // Try the failed surplus tokens with the fallback (core token) strategies
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'Still below target balance, trying fallback routes with core tokens',
-        properties: {
-          currentBalance: currentBalance.toString(),
-          targetMin: deficitToken.analysis.targetSlippage.min.toString(),
-          failedTokensCount: failedSurplusTokens.length,
-        },
-      }),
-    )
-
-    // Try each failed token with the fallback method
-    for (const surplusToken of failedSurplusTokens) {
-      // Skip if we've already reached target balance
-      if (currentBalance >= deficitToken.analysis.targetSlippage.min) break
-      let swapAmount = 0
-      try {
-        // Calculate the amount to swap
-        swapAmount = Math.min(deficitToken.analysis.diff, surplusToken.analysis.diff)
-
-        if (!Number.isFinite(swapAmount) || swapAmount <= 0) {
-          this.logger.warn(
-            EcoLogMessage.fromDefault({
-              message: 'Skipping fallback quote for zero/negative swapAmount',
-              properties: {
-                swapAmount,
-                surplusToken: surplusToken.config,
-                deficitToken: deficitToken.config,
-              },
-            }),
-          )
-          continue
-        }
-
-        // Use the fallback method that routes through core tokens
-        const fallbackQuotes = await this.liquidityProviderManager.fallback(
-          surplusToken,
-          deficitToken,
-          swapAmount,
-        )
-
-        quotes.push(...fallbackQuotes)
-        for (const quote of fallbackQuotes) {
-          currentBalance += quote.amountOut
-        }
-      } catch (fallbackError) {
-        this.ecoAnalytics.trackError(
-          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.FALLBACK_ROUTE_ERROR,
-          fallbackError,
-          {
-            surplusToken: surplusToken.config,
-            deficitToken: deficitToken.config,
-            swapAmount,
-            currentBalance,
-            targetBalance: deficitToken.analysis.targetSlippage.min,
-            operation: 'fallback_route_quote',
-            service: this.constructor.name,
-          },
-        )
-
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: 'Unable to find fallback route',
-            properties: {
-              surplusToken: surplusToken.config,
-              deficitToken: deficitToken.config,
-            },
-            error: fallbackError,
-          }),
-        )
-      }
-    }
-
     return quotes
+  }
+
+  private quoteTargetsDeficitToken(
+    quote: RebalanceQuote,
+    deficitToken: TokenDataAnalyzed,
+  ): boolean {
+    const tokenOut = quote?.tokenOut
+    if (!tokenOut?.config) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: 'Skipping quote for invalid quote tokenOut config',
+          properties: {
+            quote,
+            deficitToken,
+          },
+        }),
+      )
+      return false
+    }
+
+    const quoteAddress = tokenOut.config.address?.toLowerCase?.()
+    const targetAddress = deficitToken.config.address?.toLowerCase?.()
+
+    return (
+      !!quoteAddress &&
+      !!targetAddress &&
+      tokenOut.chainId === deficitToken.config.chainId &&
+      quoteAddress === targetAddress
+    )
   }
 }
