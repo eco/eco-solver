@@ -5,6 +5,7 @@ import {
 import {
   LiquidityManagerJobName,
   LiquidityManagerQueueDataType,
+  LiquidityManagerQueue,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue, UnrecoverableError } from 'bullmq'
@@ -257,11 +258,9 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
         }),
       )
 
-      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
-
-      // If USDT0-LiFi context is present, enqueue destination swap job
+      // If destination swap is required (USDT0-LiFi context), enqueue it and defer completion
       const ctx = (job.data as any).usdt0LiFiContext
-      if (ctx) {
+      if (ctx && ctx.destinationSwapQuote) {
         try {
           const data = {
             groupID,
@@ -272,9 +271,8 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
             originalTokenOut: ctx.originalTokenOut,
             id: job.data.id,
           }
-          await processor.liquidityManagerService[
-            'liquidityManagerQueue'
-          ].startUSDT0LiFiDestinationSwap(data as any)
+          const lmQueue = new LiquidityManagerQueue(processor.queue)
+          await lmQueue.startUSDT0LiFiDestinationSwap(data as any)
           processor.logger.debug(
             EcoLogMessage.withId({
               message:
@@ -283,6 +281,8 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
               properties: { data },
             }),
           )
+          // Rebalance completion will be marked by the destination swap job
+          return
         } catch (err) {
           processor.logger.error(
             EcoLogMessage.withErrorAndId({
@@ -292,8 +292,13 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
               error: err as any,
             }),
           )
+          // do not mark as completed here; leave as is for operator to retry
+          return
         }
       }
+
+      // No destination swap required → mark rebalance as completed
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
     }
   }
 

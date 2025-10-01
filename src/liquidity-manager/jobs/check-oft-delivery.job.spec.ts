@@ -1,6 +1,9 @@
 import { CheckOFTDeliveryJobManager } from '@/liquidity-manager/jobs/check-oft-delivery.job'
 import { ModuleRefProvider } from '@/common/services/module-ref-provider'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueue,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { UnrecoverableError } from 'bullmq'
 
 describe('CheckOFTDeliveryJobManager', () => {
@@ -257,10 +260,10 @@ describe('CheckOFTDeliveryJobManager', () => {
       },
     }
 
-    // Inject a queue wrapper with startUSDT0LiFiDestinationSwap
-    ;(processor.liquidityManagerService as any)['liquidityManagerQueue'] = {
-      startUSDT0LiFiDestinationSwap: jest.fn().mockResolvedValue(undefined),
-    }
+    // Spy on LiquidityManagerQueue usage invoked inside onComplete
+    const startSpy = jest
+      .spyOn(LiquidityManagerQueue.prototype as any, 'startUSDT0LiFiDestinationSwap')
+      .mockResolvedValue(undefined)
 
     const job: any = {
       name: LiquidityManagerJobName.CHECK_OFT_DELIVERY,
@@ -286,9 +289,6 @@ describe('CheckOFTDeliveryJobManager', () => {
     }
 
     await mgr.onComplete(job, processor)
-    expect(
-      (processor.liquidityManagerService as any)['liquidityManagerQueue']
-        .startUSDT0LiFiDestinationSwap,
-    ).toHaveBeenCalled()
+    expect(startSpy).toHaveBeenCalled()
   })
 })
