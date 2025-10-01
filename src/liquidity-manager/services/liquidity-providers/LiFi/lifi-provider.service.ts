@@ -104,6 +104,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { swapSlippage, maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
+    const liFiConfig = this.ecoConfigService.getLiFi()
 
     // Validate tokens and chains before making API call
     const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
@@ -135,6 +136,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toTokenAddress: tokenOut.config.address,
       options: {
         slippage: tokenIn.chainId === tokenOut.chainId ? swapSlippage : maxQuoteSlippage,
+        bridges: liFiConfig.bridges,
       },
     }
 

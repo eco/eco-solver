@@ -411,6 +411,11 @@ export interface LiquidityManagerConfig {
 export interface LiFiConfigType {
   integrator: string
   apiKey?: string
+  bridges?: {
+    allow?: string[]
+    deny?: string[]
+    prefer?: string[]
+  }
 }
 
 export interface IndexerConfig {

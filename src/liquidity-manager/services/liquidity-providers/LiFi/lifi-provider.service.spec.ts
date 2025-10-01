@@ -131,6 +131,97 @@ describe('LiFiProviderService', () => {
   })
 
   describe('getQuote', () => {
+    it('passes Allow/Deny/Prefer bridges to getRoutes options', async () => {
+      const mockTokenIn = {
+        chainId: 1,
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 6 },
+      }
+      const mockTokenOut = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      }
+
+      const bridges = {
+        allow: ['stargate'],
+        deny: ['across'],
+        prefer: ['relay'],
+      }
+
+      jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco', bridges } as any)
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ swapSlippage: 0.001, maxQuoteSlippage: 0.005 } as any)
+
+      const mockRoute = {
+        fromAmount: '1000000',
+        toAmount: '1000000',
+        toAmountMin: '995000',
+        steps: [],
+      }
+
+      const getRoutesSpy = jest
+        .spyOn(LiFi, 'getRoutes')
+        .mockResolvedValue({ routes: [mockRoute] } as any)
+
+      await lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1)
+
+      expect(getRoutesSpy).toHaveBeenCalled()
+      const calledWith = getRoutesSpy.mock.calls[0][0]
+      expect(calledWith).toEqual(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            bridges,
+            slippage: 0.005,
+          }),
+        }),
+      )
+    })
+
+    it('uses swapSlippage for same-chain routes and maxQuoteSlippage for cross-chain', async () => {
+      const mockRoute = {
+        fromAmount: '1000000',
+        toAmount: '1000000',
+        toAmountMin: '995000',
+        steps: [],
+      }
+
+      jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco' } as any)
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ swapSlippage: 0.001, maxQuoteSlippage: 0.005 } as any)
+
+      const getRoutesSpy = jest
+        .spyOn(LiFi, 'getRoutes')
+        .mockResolvedValue({ routes: [mockRoute] } as any)
+
+      // Same-chain
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 1, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
+      let calledWith = getRoutesSpy.mock.calls[getRoutesSpy.mock.calls.length - 1][0]
+      expect(calledWith).toEqual(
+        expect.objectContaining({
+          options: expect.objectContaining({ slippage: 0.001 }),
+        }),
+      )
+
+      // Cross-chain
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 10, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
+      calledWith = getRoutesSpy.mock.calls[getRoutesSpy.mock.calls.length - 1][0]
+      expect(calledWith).toEqual(
+        expect.objectContaining({
+          options: expect.objectContaining({ slippage: 0.005 }),
+        }),
+      )
+    })
     it('should return a quote for direct route when tokens are supported', async () => {
       const mockTokenIn = {
         chainId: 1,
