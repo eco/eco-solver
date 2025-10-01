@@ -455,7 +455,6 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     // Precompute thresholds
     const targetMin = deficitToken.analysis.targetSlippage.min
-    const deficitDecimals = deficitToken.balance.decimals
     const minTradeBase6 = this.config?.minTradeBase6
     const minTradeTokens = minTradeBase6 ? Number(minTradeBase6) / 1_000_000 : 0 // stables (base-6)
 
@@ -465,7 +464,8 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
       try {
         // Calculate remaining needed amount in tokens (approx):
         const remainingBaseUnits = currentBalance < targetMin ? targetMin - currentBalance : 0n
-        const remainingTokens = Number(remainingBaseUnits) / 10 ** deficitDecimals
+        // All tokens are base-6: convert base units to tokens directly
+        const remainingTokens = Number(remainingBaseUnits) / 1_000_000
 
         // Calculate the amount to swap (tokens)
         swapAmount = Math.min(remainingTokens, surplusToken.analysis.diff)
@@ -485,7 +485,7 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
           continue
         }
 
-        // Skip dust trades below global threshold (stables) only when threshold is configured
+        // Skip dust trades below global threshold (base-6 tokens)
         if (minTradeTokens > 0 && swapAmount < minTradeTokens) {
           this.logger.debug(
             EcoLogMessage.fromDefault({

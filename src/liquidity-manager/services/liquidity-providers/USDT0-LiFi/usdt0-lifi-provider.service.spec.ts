@@ -210,6 +210,17 @@ describe('USDT0LiFiProviderService', () => {
       const quote = await service.getQuote(tIn, tOut, 100)
       const tx = await service.execute('0xwallet', quote)
       expect(tx).toBe('0xbridge')
+
+      // ensure USDT0LiFi context is propagated into USDT0ProviderService.execute
+      expect(usdt0Service.execute).toHaveBeenCalledTimes(1)
+      const [, forwardedQuote] = (usdt0Service.execute as any).mock.calls[0]
+      expect(forwardedQuote?.context?.usdt0LiFiContext).toBeDefined()
+      expect(forwardedQuote.context.usdt0LiFiContext.destinationSwapQuote).toBeDefined()
+      expect(forwardedQuote.context.usdt0LiFiContext.walletAddress).toBe('0xwallet')
+
+      // and USDT0LiFi provider itself does not enqueue a delivery check job
+      const spy = jest.spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
+      expect(spy).not.toHaveBeenCalled()
     })
   })
 

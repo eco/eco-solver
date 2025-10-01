@@ -127,34 +127,28 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
       // Step 2: Bridge via USDT0
       const usdt0Quote = await this.buildUSDT0Quote(quote)
 
-      // Attach USDT0-LiFi context into delivery check so onComplete schedules destination swap
-      const txHash = (await this.usdt0Service.execute(walletAddress, usdt0Quote as any)) as Hex
-
-      // USDT0ProviderService internally enqueues CheckOFTDeliveryJob; we cannot inject extra context there,
-      // so we enqueue another delivery check with our context (safe duplication; scan job is idempotent-ish).
-      const data: any = {
-        groupID: quote.groupID!,
-        rebalanceJobID: quote.rebalanceJobID!,
-        sourceChainId: quote.tokenIn.chainId,
-        destinationChainId: quote.tokenOut.chainId,
-        txHash,
-        walletAddress: walletAddress as Hex,
-        amountLD: quote.context.oftTransfer.amount.toString(),
-        id: quote.id,
-        usdt0LiFiContext:
-          steps.includes('destinationSwap') && destinationSwapQuote
-            ? {
-                destinationSwapQuote,
-                walletAddress,
-                originalTokenOut: {
-                  address: destinationSwapQuote.toToken.address as Hex,
-                  chainId: quote.tokenOut.chainId,
-                  decimals: quote.tokenOut.balance.decimals,
-                },
-              }
-            : undefined,
+      // Provide USDT0-LiFi destination swap context to the USDT0 provider so it enqueues a single delivery job
+      // with the correct context, avoiding duplicate jobs and race conditions.
+      const withCtx = {
+        ...usdt0Quote,
+        context: {
+          ...(usdt0Quote as any).context,
+          usdt0LiFiContext:
+            steps.includes('destinationSwap') && destinationSwapQuote
+              ? {
+                  destinationSwapQuote,
+                  walletAddress,
+                  originalTokenOut: {
+                    address: destinationSwapQuote.toToken.address as Hex,
+                    chainId: quote.tokenOut.chainId,
+                    decimals: quote.tokenOut.balance.decimals,
+                  },
+                }
+              : undefined,
+        },
       }
-      await this.liquidityManagerQueue.startOFTDeliveryCheck(data)
+
+      const txHash = (await this.usdt0Service.execute(walletAddress, withCtx as any)) as Hex
 
       return txHash
     } catch (error) {

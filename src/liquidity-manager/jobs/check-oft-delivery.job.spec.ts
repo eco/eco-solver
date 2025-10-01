@@ -291,4 +291,55 @@ describe('CheckOFTDeliveryJobManager', () => {
     await mgr.onComplete(job, processor)
     expect(startSpy).toHaveBeenCalled()
   })
+
+  it('process(): returns pending when API non-OK and preserves context across retries (no throw)', async () => {
+    const mgr = new CheckOFTDeliveryJobManager()
+    ;(mgr as any).ecoConfigService = {
+      getUSDT0: () => ({
+        scanApiBaseUrl: 'https://scan.layerzero-api.com/v1',
+        chains: [
+          {
+            chainId: 1,
+            eid: 30101,
+            type: 'adapter',
+            contract: '0x1',
+            decimals: 6,
+            underlyingToken: '0x2',
+          },
+          { chainId: 10, eid: 30110, type: 'oft', contract: '0x3', decimals: 6, token: '0x4' },
+        ],
+      }),
+    }
+    ;(mgr as any).delay = jest.fn(async () => {})
+
+    const processor: any = {
+      logger: { debug: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    }
+
+    const job: any = {
+      name: LiquidityManagerJobName.CHECK_OFT_DELIVERY,
+      data: {
+        id: 'id-ctx',
+        sourceChainId: 1,
+        destinationChainId: 10,
+        txHash: '0x' + 'f'.repeat(64),
+        walletAddress: '0x' + '5'.repeat(40),
+        amountLD: '100',
+        usdt0LiFiContext: { destinationSwapQuote: { id: 'q-2' } },
+      },
+      moveToDelayed: jest.fn(),
+      token: 't',
+    }
+
+    const originalFetch = (globalThis as any).fetch
+    ;(globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 })
+
+    try {
+      const res = await mgr.process(job, processor)
+      expect(res).toEqual({ status: 'pending' })
+      expect(job.data.usdt0LiFiContext).toBeDefined()
+    } finally {
+      ;(globalThis as any).fetch = originalFetch
+    }
+  })
 })
