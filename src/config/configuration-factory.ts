@@ -41,7 +41,7 @@ export const configurationFactory = async () => {
     const secrets = await awsSecretsService.getSecrets(awsConfig);
 
     // Merge AWS secrets into the configuration
-    mergedConfig = merge({}, mergedConfig, secrets);
+    mergedConfig = merge({}, secrets, mergedConfig);
   }
 
   if (mergedConfig.useEcoPackageConfig) {
