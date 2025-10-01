@@ -212,4 +212,59 @@ describe('USDT0LiFiProviderService', () => {
       expect(tx).toBe('0xbridge')
     })
   })
+
+  describe('extractTransactionHashFromLiFiResult', () => {
+    it('returns the latest txHash scanning steps and processes in reverse (tx in last process of last step)', () => {
+      const lifiResult = {
+        steps: [
+          {
+            execution: {
+              process: [
+                { type: 'ALLOWANCE', status: 'DONE' },
+                { type: 'SWAP', status: 'DONE' },
+              ],
+            },
+          },
+          {
+            execution: {
+              process: [
+                { type: 'ALLOWANCE', status: 'DONE' },
+                { type: 'SWAP', status: 'DONE', txHash: '0xlast' },
+              ],
+            },
+          },
+        ],
+      }
+      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-1')
+      expect(tx).toBe('0xlast')
+    })
+
+    it('returns txHash when present in an earlier process of a later step', () => {
+      const lifiResult = {
+        steps: [
+          { execution: { process: [{ type: 'APPROVE', status: 'DONE' }] } },
+          { execution: { process: [{ type: 'SWAP', status: 'DONE', txHash: '0xhash2' }] } },
+        ],
+      }
+      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-2')
+      expect(tx).toBe('0xhash2')
+    })
+
+    it('returns txHash when only the first step contains it', () => {
+      const lifiResult = {
+        steps: [
+          { execution: { process: [{ type: 'SWAP', status: 'DONE', txHash: '0xfirst' }] } },
+          { execution: { process: [{ type: 'SWAP', status: 'DONE' }] } },
+        ],
+      }
+      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-3')
+      expect(tx).toBe('0xfirst')
+    })
+
+    it('returns 0x0 when no txHash is present', () => {
+      const lifiResult = { steps: [{ execution: { process: [] } }] }
+      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-4')
+      expect(tx).toBe('0x0')
+    })
+  })
 })

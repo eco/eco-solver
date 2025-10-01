@@ -202,6 +202,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       if (quote.rebalanceJobID) {
         await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
       }
+      return result
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withErrorAndId({

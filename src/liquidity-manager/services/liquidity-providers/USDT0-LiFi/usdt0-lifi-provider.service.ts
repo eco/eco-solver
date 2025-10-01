@@ -308,29 +308,23 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
   }
 
   private extractTransactionHashFromLiFiResult(lifiResult: any, id: string): Hex {
-    if (lifiResult?.steps?.[0]?.execution?.process?.[0]?.txHash) {
-      return lifiResult.steps[0].execution.process[0].txHash as Hex
-    }
-    if (lifiResult?.steps?.[0]?.execution?.process?.length > 0) {
-      const processes = lifiResult.steps[0].execution.process
-      const lastProcess = processes[processes.length - 1]
-      if (lastProcess?.txHash) return lastProcess.txHash as Hex
-    }
-    if (lifiResult?.steps?.length > 0) {
+    if (Array.isArray(lifiResult?.steps) && lifiResult.steps.length > 0) {
       for (let i = lifiResult.steps.length - 1; i >= 0; i--) {
         const step = lifiResult.steps[i]
-        if (step?.execution?.process?.length > 0) {
-          const processes = step.execution.process
-          const lastProcess = processes[processes.length - 1]
-          if (lastProcess?.txHash) return lastProcess.txHash as Hex
+        const processes = step?.execution?.process
+        if (Array.isArray(processes) && processes.length > 0) {
+          for (let j = processes.length - 1; j >= 0; j--) {
+            const txHash = processes[j]?.txHash
+            if (txHash) return txHash as Hex
+          }
         }
       }
     }
-    this.logger.debug(
+    this.logger.warn(
       EcoLogMessage.withId({
         message: 'USDT0LiFi: Could not extract tx hash from LiFi result',
         id,
-        properties: { resultStructure: Object.keys(lifiResult || {}) },
+        properties: { lifiResult },
       }),
     )
     return '0x0' as Hex
