@@ -39,13 +39,13 @@ describe('getTransport', () => {
     expect(http).toHaveBeenCalledWith(rpcUrls[1], undefined)
     expect(webSocket).not.toHaveBeenCalled()
     expect(fallback).toHaveBeenCalledTimes(1)
-    expect(fallback).toHaveBeenCalledWith([mockHttpTransport, mockHttpTransport], { rank: true })
+    expect(fallback).toHaveBeenCalledWith([mockHttpTransport, mockHttpTransport], { rank: false })
     expect(transport).toEqual(mockFallbackTransport)
   })
 
   it('should return a single websocket transport for a single websocket rpc url', () => {
     const rpcUrls = ['ws://test.rpc']
-    const transport = getTransport(rpcUrls, { isWebsocket: true })
+    const transport = getTransport(rpcUrls)
 
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[0], { keepAlive: true, reconnect: true })
     expect(webSocket).toHaveBeenCalledTimes(1)
@@ -56,32 +56,32 @@ describe('getTransport', () => {
 
   it('should return a fallback transport for multiple websocket rpc urls', () => {
     const rpcUrls = ['ws://test.rpc', 'ws://test2.rpc']
-    const transport = getTransport(rpcUrls, { isWebsocket: true })
+    const transport = getTransport(rpcUrls)
 
     expect(webSocket).toHaveBeenCalledTimes(2)
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[0], { keepAlive: true, reconnect: true })
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[1], { keepAlive: true, reconnect: true })
     expect(http).not.toHaveBeenCalled()
     expect(fallback).toHaveBeenCalledTimes(1)
-    expect(fallback).toHaveBeenCalledWith([mockWsTransport, mockWsTransport], { rank: true })
+    expect(fallback).toHaveBeenCalledWith([mockWsTransport, mockWsTransport], { rank: false })
     expect(transport).toEqual(mockFallbackTransport)
   })
 
   it('should pass http config to http transport', () => {
     const rpcUrls = ['http://test.rpc']
-    const config = { config: { timeout: 1000 } }
+    const config = { timeout: 1000 }
     getTransport(rpcUrls, config)
-    expect(http).toHaveBeenCalledWith(rpcUrls[0], config.config)
+    expect(http).toHaveBeenCalledWith(rpcUrls[0], config)
   })
 
   it('should pass websocket config to websocket transport', () => {
     const rpcUrls = ['ws://test.rpc']
-    const config = { isWebsocket: true, config: { key: 'test' } } as const
+    const config = { key: 'test' }
     getTransport(rpcUrls, config)
     expect(webSocket).toHaveBeenCalledWith(rpcUrls[0], {
       keepAlive: true,
       reconnect: true,
-      ...config.config,
+      ...config,
     })
   })
 
