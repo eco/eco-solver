@@ -1,4 +1,5 @@
 import { createMock } from '@golevelup/ts-jest'
+import { DockerTestUtils } from '@/common/test-utils/docker-test-utils'
 import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
 import { GenericContainer } from 'testcontainers'
 import { jest } from '@jest/globals'
@@ -74,6 +75,13 @@ describe('EcoCronJobManager', () => {
   })
 
   it('checkAndEmitDeduped should add job with correct parameters', async () => {
+    const shouldSkip = await DockerTestUtils.shouldSkipDockerTests()
+    if (shouldSkip) {
+      const reason = await DockerTestUtils.getSkipReason()
+      console.log(`Skipping test: ${reason}`)
+      return
+    }
+
     const redisContainer = await new GenericContainer('redis').withExposedPorts(6379).start()
 
     const queue = new Queue('test-queue', {
@@ -159,6 +167,13 @@ describe('EcoCronJobManager', () => {
   })
 
   it('should not add duplicate jobs when jobId matches an active one', async () => {
+    const shouldSkip = await DockerTestUtils.shouldSkipDockerTests()
+    if (shouldSkip) {
+      const reason = await DockerTestUtils.getSkipReason()
+      console.log(`Skipping test: ${reason}`)
+      return
+    }
+
     const redisContainer = await new GenericContainer('redis').withExposedPorts(6379).start()
 
     const queue = new Queue('test-queue', {

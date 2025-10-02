@@ -10,12 +10,16 @@ import { Hex } from 'viem'
 export class RewardDataModel implements RewardType {
   @Prop({ required: true, type: String })
   creator: Hex
+
   @Prop({ required: true, type: String })
   prover: Hex
+
   @Prop({ required: true, type: BigInt })
   deadline: bigint
+
   @Prop({ required: true, type: BigInt })
   nativeValue: bigint
+
   @Prop({ required: true, type: [TokenAmountDataSchema] })
   tokens: TokenAmountDataModel[]
 
@@ -45,7 +49,6 @@ export class RewardDataModel implements RewardType {
 export const RewardDataModelSchema = SchemaFactory.createForClass(RewardDataModel)
 RewardDataModelSchema.index({ creator: 1 }, { unique: false })
 RewardDataModelSchema.index({ prover: 1 }, { unique: false })
-RewardDataModelSchema.index({ tokens: 1 }, { unique: false })
 
 RewardDataModelSchema.methods.getHash = function (): Hex {
   return hashReward(this)

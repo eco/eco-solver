@@ -12,8 +12,6 @@ import { PermitValidationArgs } from '@/intent-initiation/permit-validation/inte
 import { PermitValidator } from '@/intent-initiation/permit-validation/permit-validator'
 import { PublicClient, publicActions, isAddressEqual, Address } from 'viem'
 import { QuoteRewardDataDTO } from '@/quote/dto/quote.reward.data.dto'
-import { ValidateVaultFundingArgs } from '@/intent-initiation/permit-validation/interfaces/validate-vault-funding-args.interface'
-import { VaultFundingValidator } from '@/intent-initiation/permit-validation/vault-funding-validator'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import * as _ from 'lodash'
 
@@ -110,29 +108,6 @@ export class PermitValidationService {
 
       return { error: EcoError.PermitSimulationsFailed }
     }
-  }
-
-  async validateVaultFunding(args: ValidateVaultFundingArgs): Promise<EcoResponse<void>> {
-    const { client, intentSourceAddress, intentHash } = args
-
-    const { error: vaultFundingError } = await VaultFundingValidator.validateVaultFunding({
-      client,
-      intentSourceAddress,
-      intentHash,
-      preventRedundantFunding: true,
-    })
-
-    if (vaultFundingError) {
-      return { error: vaultFundingError }
-    }
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `✅ Vault funded and valid for intent ${intentHash}`,
-      }),
-    )
-
-    return {}
   }
 
   private getPermitSimulationParams(

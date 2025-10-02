@@ -21,7 +21,8 @@
     "inlineSources": true,
     "resolveJsonModule": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "v2-abi/*": ["./v2-abi/*"]
     }
   },
   "ts-node": {

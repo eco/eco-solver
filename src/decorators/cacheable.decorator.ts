@@ -25,7 +25,8 @@ export function Cacheable(opts?: { ttl?: number; bypassArgIndex?: number }) {
       }
 
       // Construct the cache key based on function arguments
-      const cacheKey = `${key}:${JSON.stringify(args)}` // Unique key for the cache
+      // Use serializeWithBigInt to handle any BigInt values in arguments
+      const cacheKey = `${key}:${serializeWithBigInt(args)}`
 
       // Determine whether to bypass cache
       const forceRefresh = opts.bypassArgIndex ? args[opts.bypassArgIndex] === true : false
