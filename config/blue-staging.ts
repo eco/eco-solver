@@ -6,23 +6,15 @@ export default {
   indexer: {
     url: process.env.INDEXER_URL || 'https://protocol-indexer-production.up.railway.app',
   },
-
+  gitConfig: {
+    repo: 'eco-incorp/config-eco-solver',
+    branch: 'main',
+    env: 'staging-blue',
+  },
   aws: [
     {
       region: 'us-east-2',
       secretID: process.env.AWS_SECRET_ID_MISC || 'solver-blue-staging',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CONFIGS || 'solver-configs-blue-staging',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_CHAINS || 'solver-configs-chains-blue-staging',
-    },
-    {
-      region: 'us-east-2',
-      secretID: process.env.AWS_SECRET_ID_WHITELIST || 'solver-whitelist-blue-staging',
     },
   ],
   //don't add anything else here
