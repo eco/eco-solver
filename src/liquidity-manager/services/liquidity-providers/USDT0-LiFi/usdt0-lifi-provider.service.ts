@@ -59,6 +59,13 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'USDT0LiFi'>> {
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'USDT0LiFi: getQuote start',
+        id,
+        properties: { tokenIn, tokenOut, swapAmount },
+      }),
+    )
     const { maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
 
     const validation = USDT0LiFiValidator.validateRoute(
@@ -105,6 +112,18 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
       id,
     }
 
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'USDT0LiFi: getQuote built',
+        id,
+        properties: {
+          steps: context.steps,
+          totalSlippage,
+          quote,
+        },
+      }),
+    )
+
     return quote
   }
 
@@ -112,6 +131,13 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
     const { steps, sourceSwapQuote, destinationSwapQuote } = quote.context
 
     try {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0LiFi: execute start',
+          id: quote.id,
+          properties: { steps, rebalanceJobID: quote.rebalanceJobID, quote },
+        }),
+      )
       // Step 1: Source swap
       if (steps.includes('sourceSwap') && sourceSwapQuote) {
         const txHash = await this.executeSourceSwap(walletAddress, sourceSwapQuote)
@@ -148,7 +174,27 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
         },
       }
 
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0LiFi: Bridging via USDT0 with context',
+          id: quote.id,
+          properties: {
+            hasDestinationSwap: Boolean(withCtx.context.usdt0LiFiContext),
+            sourceChainId: quote.tokenIn.chainId,
+            destinationChainId: quote.tokenOut.chainId,
+          },
+        }),
+      )
+
       const txHash = (await this.usdt0Service.execute(walletAddress, withCtx as any)) as Hex
+
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0LiFi: USDT0 bridge broadcasted',
+          id: quote.id,
+          properties: { txHash },
+        }),
+      )
 
       return txHash
     } catch (error) {
@@ -197,6 +243,18 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
       const src = await this.liFiService.getQuote(tokenIn, usdtToken, swapAmount, id)
       sourceSwapQuote = src.context
       oftAmount = Number(formatUnits(BigInt(sourceSwapQuote.toAmount), 6))
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0LiFi: Source swap quote acquired',
+          id,
+          properties: {
+            fromChainId: sourceSwapQuote.fromChainId,
+            toChainId: sourceSwapQuote.toChainId,
+            toAmount: sourceSwapQuote.toAmount,
+            srcQuote: src,
+          },
+        }),
+      )
     }
 
     // destination swap quote
@@ -204,6 +262,18 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
       const usdtToken = this.createUSDTTokenData(tokenOut.chainId)
       const dst = await this.liFiService.getQuote(usdtToken, tokenOut, oftAmount, id)
       destinationSwapQuote = dst.context
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0LiFi: Destination swap quote acquired',
+          id,
+          properties: {
+            fromChainId: destinationSwapQuote.fromChainId,
+            toChainId: destinationSwapQuote.toChainId,
+            toAmount: destinationSwapQuote.toAmount,
+            dstQuote: dst,
+          },
+        }),
+      )
     }
 
     return {

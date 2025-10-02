@@ -327,7 +327,10 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
   ) {
     // Phase 1: same-chain first
     const sameChain = surplusTokens.filter((t) => t.config.chainId === deficitToken.config.chainId)
-    const sameChainQuotes = await this.getRebalancingQuotes(walletAddress, deficitToken, sameChain)
+    let sameChainQuotes: RebalanceQuote[] = []
+    if (sameChain.length > 0) {
+      sameChainQuotes = await this.getRebalancingQuotes(walletAddress, deficitToken, sameChain)
+    }
 
     // Compute post-same-chain balance
     const sameOutTotal = sameChainQuotes.reduce<bigint>((acc, quote) => {
@@ -342,12 +345,12 @@ export class LiquidityManagerService implements OnApplicationBootstrap {
 
     // Phase 2: cross-chain for the remaining amount in the same run
     const crossChain = surplusTokens.filter((t) => t.config.chainId !== deficitToken.config.chainId)
-    const crossChainQuotes = await this.getRebalancingQuotes(
-      walletAddress,
-      deficitToken,
-      crossChain,
-      { startingCurrentBalance: currentAfterSame },
-    )
+    let crossChainQuotes: RebalanceQuote[] = []
+    if (crossChain.length > 0) {
+      crossChainQuotes = await this.getRebalancingQuotes(walletAddress, deficitToken, crossChain, {
+        startingCurrentBalance: currentAfterSame,
+      })
+    }
 
     return [...sameChainQuotes, ...crossChainQuotes]
   }

@@ -66,6 +66,19 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
 
     processor.logger.debug(
       EcoLogMessage.withId({
+        message: 'USDT0LiFiDestinationSwapJob: process start',
+        id,
+        properties: {
+          destinationChainId,
+          walletAddress,
+          fromToken: destinationSwapQuote?.fromToken?.address,
+          toToken: destinationSwapQuote?.toToken?.address,
+        },
+      }),
+    )
+
+    processor.logger.debug(
+      EcoLogMessage.withId({
         message: 'USDT0LiFi: DestinationSwapJob: Starting execution',
         id,
         properties: {
@@ -118,6 +131,13 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
   ): Promise<{ txHash: Hex; finalAmount: string }> {
     processor.logger.debug(
       EcoLogMessage.withId({
+        message: 'USDT0LiFiDestinationSwapJob: executeDestinationSwap start',
+        id: destinationSwapQuote.id,
+        properties: { destinationChainId, walletAddress },
+      }),
+    )
+    processor.logger.debug(
+      EcoLogMessage.withId({
         message: 'USDT0LiFi: DestinationSwapJob: Executing destination swap',
         id: destinationSwapQuote.id,
         properties: { destinationSwapQuote, walletAddress, destinationChainId },
@@ -164,9 +184,17 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
       context: destinationSwapQuote,
     }
 
-    await processor.liquidityManagerService.liquidityProviderManager.execute(
+    const execResult = await processor.liquidityManagerService.liquidityProviderManager.execute(
       walletAddress,
       tempQuote as any,
+    )
+
+    processor.logger.debug(
+      EcoLogMessage.withId({
+        message: 'USDT0LiFiDestinationSwapJob: executeDestinationSwap completed',
+        id: destinationSwapQuote.id,
+        properties: { execResult },
+      }),
     )
 
     return {
