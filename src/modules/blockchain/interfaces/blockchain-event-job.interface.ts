@@ -1,5 +1,6 @@
 export type BlockchainEventType =
   | 'IntentPublished'
+  | 'IntentFunded'
   | 'IntentFulfilled'
   | 'IntentWithdrawn'
   | 'IntentProven';

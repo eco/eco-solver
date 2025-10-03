@@ -76,5 +76,35 @@ describe('PortalHashUtils', () => {
         '0x42a830edfa337c22f7ba9b65a2a999c1e000a14f5cdb7060b5d089418cda6f86',
       );
     });
+
+    it('should compute intent hash with individual parameters (overloaded method)', () => {
+      const destination = 2494104990n;
+      const routeHash = '0x378829325d346fe8874fe362393507307c215cb10f1d9710b8c2bf4f209c00c4';
+      const rewardHash = '0x42a830edfa337c22f7ba9b65a2a999c1e000a14f5cdb7060b5d089418cda6f86';
+
+      const result = PortalHashUtils.getIntentHash(destination, routeHash, rewardHash);
+
+      expect(result).toHaveProperty('intentHash');
+      expect(result).toHaveProperty('routeHash');
+      expect(result).toHaveProperty('rewardHash');
+
+      // Should produce the same hashes as the full object method
+      expect(result.intentHash).toBe(
+        '0x95078a3a90665fa977269f9d93e086c91cdd3a7d6530a9a1c835937597190971',
+      );
+      expect(result.routeHash).toBe(routeHash);
+      expect(result.rewardHash).toBe(rewardHash);
+    });
+
+    it('should produce the same intentHash for both overloads', () => {
+      const fullResult = PortalHashUtils.getIntentHash(mockIntent);
+      const paramResult = PortalHashUtils.getIntentHash(
+        mockIntent.destination,
+        fullResult.routeHash,
+        fullResult.rewardHash,
+      );
+
+      expect(fullResult.intentHash).toBe(paramResult.intentHash);
+    });
   });
 });

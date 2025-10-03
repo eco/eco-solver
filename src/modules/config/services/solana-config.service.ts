@@ -47,6 +47,10 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return this.configService.get<boolean>('svm.listenersEnabled') ?? true;
   }
 
+  get hyperlane(): SolanaConfig['hyperlane'] {
+    return this.configService.get<SolanaConfig['hyperlane']>('svm.hyperlane');
+  }
+
   isConfigured(): boolean {
     // Check if essential Solana configuration is present
     const config = this.configService.get('svm');

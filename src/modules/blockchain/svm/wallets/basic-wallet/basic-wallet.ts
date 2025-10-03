@@ -137,6 +137,26 @@ export class BasicWallet implements ISvmWallet {
         } catch (error) {
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
+
+          // check if this is a SendTransactionError and extract detailed logs
+          if (error && typeof error === 'object' && 'getLogs' in error) {
+            try {
+              const logs = await (error as any).getLogs(this.connection);
+              const detailedError = new Error(
+                `Failed to send transaction: ${getErrorMessage(error)}\nDetailed logs:\n${logs.join('\n')}`,
+              );
+              throw detailedError;
+            } catch (logError) {
+              const errorWithLogs = error as any;
+              if (errorWithLogs.logs && Array.isArray(errorWithLogs.logs)) {
+                const detailedError = new Error(
+                  `Failed to send transaction: ${getErrorMessage(error)}\nTransaction logs:\n${errorWithLogs.logs.join('\n')}`,
+                );
+                throw detailedError;
+              }
+            }
+          }
+
           throw new Error(`Failed to send transaction: ${getErrorMessage(error)}`);
         } finally {
           span.end();

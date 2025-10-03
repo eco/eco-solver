@@ -11,6 +11,7 @@ import { SolanaListener } from './listeners/solana.listener';
 import { SvmListenersManagerService } from './listeners/svm-listeners-manager.service';
 import { SvmExecutorService } from './services/svm.executor.service';
 import { SvmReaderService } from './services/svm.reader.service';
+import { SvmHyperProver } from './services/svm-hyper.prover';
 import { SvmWalletManagerService } from './services/svm-wallet-manager.service';
 import { BasicWalletModule } from './wallets/basic-wallet';
 
@@ -30,6 +31,7 @@ import { BasicWalletModule } from './wallets/basic-wallet';
     SvmWalletManagerService,
     SolanaListener,
     SvmListenersManagerService,
+    SvmHyperProver,
   ],
   exports: [
     SvmExecutorService,

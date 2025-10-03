@@ -30,6 +30,17 @@ const SvmTokenSchema = z.object({
 });
 
 /**
+ * Hyperlane configuration schema for SVM
+ */
+const HyperlaneSchema = z.object({
+  mailbox: SvmAddressSchema,
+  noop: SvmAddressSchema,
+  igpProgram: SvmAddressSchema,
+  igpAccount: SvmAddressSchema,
+  overheadIgpAccount: SvmAddressSchema,
+});
+
+/**
  * Solana configuration schema
  */
 export const SolanaSchema = z.object({
@@ -47,6 +58,7 @@ export const SolanaSchema = z.object({
   tokens: z.array(SvmTokenSchema).default([]),
   fee: AssetsFeeSchema.optional(),
   listenersEnabled: z.boolean().default(true),
+  hyperlane: HyperlaneSchema.optional(),
 });
 
 export type SolanaConfig = z.infer<typeof SolanaSchema>;

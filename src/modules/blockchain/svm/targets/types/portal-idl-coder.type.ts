@@ -8,5 +8,6 @@ export type CalldataWithAccountsInstruction = Snakify<PortalIdlTypes['calldataWi
 
 // Events
 export type IntentPublishedInstruction = Snakify<PortalIdlTypes['intentPublished']>;
+export type IntentFundedInstruction = Snakify<PortalIdlTypes['intentFunded']>;
 export type IntentFulfilledInstruction = Snakify<PortalIdlTypes['intentFulfilled']>;
 export type IntentWithdrawnInstruction = Snakify<PortalIdlTypes['intentWithdrawn']>;

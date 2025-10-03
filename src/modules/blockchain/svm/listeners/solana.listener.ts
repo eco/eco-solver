@@ -9,6 +9,7 @@ import { toError } from '@/common/utils/error-handler';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import {
   IntentFulfilledInstruction,
+  IntentFundedInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
@@ -104,6 +105,33 @@ export class SolanaListener extends BaseChainListener {
               this.logger.debug(
                 `Queued IntentPublished event for intent ${intent.intentHash} from Solana`,
               );
+              break;
+
+            case 'IntentFunded':
+              const fundedEvent = SvmEventParser.parseIntentFundedEvent(
+                ev.data as IntentFundedInstruction,
+                logs,
+                this.solanaConfigService.chainId,
+              );
+
+              const fundedJob: BlockchainEventJob = {
+                eventType: 'IntentFunded',
+                chainId: this.solanaConfigService.chainId,
+                chainType: 'svm',
+                contractName: 'portal',
+                intentHash: fundedEvent.intentHash,
+                eventData: fundedEvent,
+                metadata: {
+                  txHash: logs.signature || undefined,
+                  contractAddress: this.programId.toString(),
+                },
+              };
+
+              await this.queueService.addBlockchainEvent(fundedJob);
+              this.logger.debug(
+                `Queued IntentFunded event for intent ${fundedEvent.intentHash} from Solana`,
+              );
+
               break;
 
             case 'IntentFulfilled':

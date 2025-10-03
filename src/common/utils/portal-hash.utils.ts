@@ -14,20 +14,46 @@ import { Intent } from '../interfaces/intent.interface';
 import { ChainTypeDetector } from './chain-type-detector';
 
 export class PortalHashUtils {
-  static getIntentHash(intent: Intent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
-    const routeHash = PortalHashUtils.computeRouteHash(intent.route, intent.destination);
-    const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
+  static getIntentHash(intent: Intent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
+  static getIntentHash(
+    destination: bigint,
+    routeHash: Hex,
+    rewardHash: Hex,
+  ): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
+
+  static getIntentHash(
+    intentOrDestination: Intent | bigint,
+    routeHash?: Hex,
+    rewardHash?: Hex,
+  ): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
+    let destination: bigint;
+    let computedRouteHash: Hex;
+    let computedRewardHash: Hex;
+
+    if (typeof intentOrDestination === 'object') {
+      const intent = intentOrDestination;
+      destination = intent.destination;
+      computedRouteHash = PortalHashUtils.computeRouteHash(intent.route, intent.destination);
+      computedRewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
+    } else {
+      destination = intentOrDestination;
+      computedRouteHash = routeHash!;
+      computedRewardHash = rewardHash!;
+    }
 
     // Compute the intent hash using encodePacked
     // intentHash = keccak256(abi.encodePacked(destination, routeHash, rewardHash))
     const intentHash = keccak256(
-      encodePacked(['uint64', 'bytes32', 'bytes32'], [intent.destination, routeHash, rewardHash]),
+      encodePacked(
+        ['uint64', 'bytes32', 'bytes32'],
+        [destination, computedRouteHash, computedRewardHash],
+      ),
     );
 
     return {
       intentHash,
-      routeHash,
-      rewardHash,
+      routeHash: computedRouteHash,
+      rewardHash: computedRewardHash,
     };
   }
 
