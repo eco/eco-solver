@@ -1,11 +1,6 @@
-import { CCTPLiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { USDT0LiFiStrategyContext } from '@/liquidity-manager/types/types'
 
-/**
- * Calculates the total slippage for a CCTPLiFi route
- * @param context The route context containing all steps
- * @returns Total slippage percentage (0-1)
- */
-export function calculateTotalSlippage(context: CCTPLiFiStrategyContext): number {
+export function calculateTotalSlippage(context: USDT0LiFiStrategyContext): number {
   const stepSlip = (from?: string, toMin?: string) => {
     if (!from || !toMin) return 0
     const f = parseFloat(from)

@@ -119,13 +119,73 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
       return
     }
 
+    if (!surplus.total) {
+      processor.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `CheckBalancesCronJob: No surpluses found`,
+          properties: { walletAddress },
+        }),
+      )
+      return
+    }
+
     const rebalances: RebalanceRequest[] = []
 
     for (const deficitToken of deficit.items) {
+      try {
+        const decimals = deficitToken.balance.decimals
+        const { current, minimum, maximum, target } = deficitToken.analysis.balance
+        const remainingBaseUnits = current < minimum ? minimum - current : 0n
+        const remainingTokens = parseFloat(formatUnits(remainingBaseUnits, decimals))
+
+        processor.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Rebalance candidate selected',
+            properties: {
+              walletAddress,
+              token: {
+                chainId: deficitToken.config.chainId,
+                address: deficitToken.config.address,
+                decimals,
+              },
+              state: deficitToken.analysis.state,
+              diffTokens: deficitToken.analysis.diff,
+              balance: {
+                current: current.toString(),
+                minimum: minimum.toString(),
+                maximum: maximum.toString(),
+                target: target.toString(),
+              },
+              remainingToMin: {
+                baseUnits: remainingBaseUnits.toString(),
+                tokens: remainingTokens,
+              },
+            },
+          }),
+        )
+      } catch (e) {
+        processor.logger.debug(
+          EcoLogMessage.withError({
+            message: 'Failed to emit debug for rebalance candidate',
+            error: e as Error,
+          }),
+        )
+      }
       // Filter dynamic surplus list to only usable entries (still SURPLUS with diff>0)
       const usableSurplus = surplus.items.filter(
         (t) => t?.analysis?.state === TokenState.SURPLUS && (t?.analysis?.diff ?? 0) > 0,
       )
+
+      if (usableSurplus.length === 0) {
+        processor.logger.log(
+          EcoLogMessage.fromDefault({
+            message: `CheckBalancesCronJob: No usable surplus left`,
+            properties: { walletAddress },
+          }),
+        )
+        break
+      }
+
       const rebalancingQuotes = await processor.liquidityManagerService.getOptimizedRebalancing(
         walletAddress,
         deficitToken,
@@ -152,7 +212,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
       rebalances.push(rebalanceRequest)
     }
 
-    if (!rebalances.length) {
+    if (rebalances.length === 0) {
       processor.logger.warn(
         EcoLogMessage.fromDefault({
           message: 'CheckBalancesCronJob: No rebalancing routes available',
@@ -243,7 +303,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<Chec
    */
   private displayRebalancingTable(items: RebalanceRequest[]) {
     // Skip if no rebalancing quotes are found.
-    if (!items.length) return
+    if (items.length === 0) return
 
     const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format
     const slippageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format

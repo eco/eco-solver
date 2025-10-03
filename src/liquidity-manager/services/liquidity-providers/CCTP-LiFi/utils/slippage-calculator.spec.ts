@@ -53,5 +53,21 @@ describe('SlippageCalculator', () => {
       // Slippage = 1 - (950 / 1000) = 0.05
       expect(SlippageCalculator.calculateTotalSlippage(context)).toBeCloseTo(0.05)
     })
+
+    it('should ignore malformed/zero inputs gracefully', () => {
+      const context: CCTPLiFiStrategyContext = {
+        rebalance: {},
+        cctpTransfer: { amount: 1000n },
+        sourceSwapQuote: {
+          fromAmount: '0',
+          toAmountMin: '0',
+        },
+        destinationSwapQuote: {
+          fromAmount: 'abc',
+          toAmountMin: 'def',
+        },
+      } as unknown as CCTPLiFiStrategyContext
+      expect(SlippageCalculator.calculateTotalSlippage(context)).toBe(0)
+    })
   })
 })

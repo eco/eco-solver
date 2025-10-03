@@ -23,6 +23,10 @@ import {
   CheckOFTDeliveryJobData,
   CheckOFTDeliveryJobManager,
 } from '@/liquidity-manager/jobs/check-oft-delivery.job'
+import {
+  USDT0LiFiDestinationSwapJobData,
+  USDT0LiFiDestinationSwapJobManager,
+} from '../jobs/usdt0-lifi-destination-swap.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -30,6 +34,7 @@ export enum LiquidityManagerJobName {
   CHECK_CCTP_ATTESTATION = 'CHECK_CCTP_ATTESTATION',
   EXECUTE_CCTP_MINT = 'EXECUTE_CCTP_MINT',
   CCTP_LIFI_DESTINATION_SWAP = 'CCTP_LIFI_DESTINATION_SWAP',
+  USDT0_LIFI_DESTINATION_SWAP = 'USDT0_LIFI_DESTINATION_SWAP',
   CHECK_CCTPV2_ATTESTATION = 'CHECK_CCTPV2_ATTESTATION',
   EXECUTE_CCTPV2_MINT = 'EXECUTE_CCTPV2_MINT',
   CHECK_EVERCLEAR_INTENT = 'CHECK_EVERCLEAR_INTENT',
@@ -114,5 +119,9 @@ export class LiquidityManagerQueue {
 
   startOFTDeliveryCheck(data: CheckOFTDeliveryJobData): Promise<void> {
     return CheckOFTDeliveryJobManager.start(this.queue, data)
+  }
+
+  startUSDT0LiFiDestinationSwap(data: USDT0LiFiDestinationSwapJobData): Promise<void> {
+    return USDT0LiFiDestinationSwapJobManager.start(this.queue, data)
   }
 }

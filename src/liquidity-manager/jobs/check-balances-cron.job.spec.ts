@@ -63,6 +63,7 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
             ],
           },
           surplus: {
+            total: 1,
             items: [
               {
                 config: { chainId: 1, address: '0xA' },
@@ -166,7 +167,7 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
         analyzeTokens: jest.fn().mockResolvedValue({
           items: [],
           deficit: { total: 2, items: [deficit1, deficit2] },
-          surplus: { items: [surplusToken, inRangeToken] },
+          surplus: { total: 2, items: [surplusToken, inRangeToken] },
         }),
         // First call: should receive only [surplusToken]
         // Return a quote that exhausts surplusToken: amountIn = 10_000_000, so balance hits target
@@ -188,11 +189,6 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
                 strategy: 'TEST',
               },
             ] as any
-          })
-          // Second call: after updateGroupBalances, surplusToken becomes IN_RANGE → filtered out
-          .mockImplementationOnce(async (_wallet: string, _def: any, usable: any[]) => {
-            expect(usable).toHaveLength(0)
-            return []
           }),
         storeRebalancing: jest.fn().mockResolvedValue(undefined),
         startRebalancing: jest.fn().mockResolvedValue(undefined),
@@ -217,7 +213,7 @@ describe('CheckBalancesCronJobManager.process with quotes', () => {
 
     await mgr.process(job as any, processor as LiquidityManagerProcessor)
 
-    // Ensure both deficits were processed
-    expect(processor.liquidityManagerService.getOptimizedRebalancing).toHaveBeenCalledTimes(2)
+    // With early break when no usable surplus remains, only the first deficit triggers quoting
+    expect(processor.liquidityManagerService.getOptimizedRebalancing).toHaveBeenCalledTimes(1)
   })
 })

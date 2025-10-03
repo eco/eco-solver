@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { formatUnits, parseUnits } from 'viem'
+import { parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -23,7 +23,6 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
-import { TokenConfig } from '@/balance/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
@@ -105,6 +104,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
     const { swapSlippage, maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
+    const liFiConfig = this.ecoConfigService.getLiFi()
 
     // Validate tokens and chains before making API call
     const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
@@ -136,6 +136,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toTokenAddress: tokenOut.config.address,
       options: {
         slippage: tokenIn.chainId === tokenOut.chainId ? swapSlippage : maxQuoteSlippage,
+        bridges: liFiConfig.bridges,
       },
     }
 
@@ -156,9 +157,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     return {
       amountIn: BigInt(route.fromAmount),
       amountOut: BigInt(route.toAmount),
-      slippage: slippage,
-      tokenIn: tokenIn,
-      tokenOut: tokenOut,
+      slippage,
+      tokenIn,
+      tokenOut,
       strategy: this.getStrategy(),
       context: route,
       id,
@@ -201,6 +202,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       if (quote.rebalanceJobID) {
         await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
       }
+      return result
     } catch (error) {
       this.logger.error(
         EcoLogMessage.withErrorAndId({
@@ -218,116 +220,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     }
   }
 
-  /**
-   * Attempts to get a quote by routing through a core token when no direct route exists
-   * @param tokenIn The source token
-   * @param tokenOut The destination token
-   * @param swapAmount The amount to swap
-   * @returns A quote for the route through a core token
-   */
-  async fallback(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-  ): Promise<RebalanceQuote[]> {
-    // Log that we're using the fallback method with core tokens
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'LiFi: Using fallback method with core tokens',
-        properties: {
-          fromToken: tokenIn.config.address,
-          fromChain: tokenIn.chainId,
-          toToken: tokenOut.config.address,
-          toChain: tokenOut.chainId,
-        },
-      }),
-    )
-
-    // Try each core token as an intermediary
-    const { coreTokens } = this.ecoConfigService.getLiquidityManager()
-
-    for (const coreToken of coreTokens) {
-      try {
-        // Create core token data structure
-        const coreTokenConfig: TokenConfig = {
-          address: coreToken.token,
-          chainId: coreToken.chainID,
-          type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
-        }
-        const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
-          this.walletAddress,
-          [coreTokenConfig],
-        )
-
-        // Validate core token route before attempting
-        if (!this.validateTokenSupport(tokenIn, coreTokenData)) {
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: 'LiFi: Skipping core token route due to unsupported token/chain',
-              properties: {
-                coreToken: coreToken.token,
-                coreChain: coreToken.chainID,
-              },
-            }),
-          )
-          continue
-        }
-
-        // Try routing through core token
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Trying core token as intermediary',
-            properties: {
-              coreToken: coreToken.token,
-              coreChain: coreToken.chainID,
-            },
-          }),
-        )
-
-        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
-
-        const toAmountMin = parseFloat(
-          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
-        )
-
-        const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
-
-        return [coreTokenQuote, rebalanceQuote]
-      } catch (coreError) {
-        this.ecoAnalytics.trackError(
-          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.LIFI_CORE_TOKEN_ROUTE_ERROR,
-          coreError,
-          {
-            coreToken: coreToken.token,
-            coreChain: coreToken.chainID,
-            fromToken: tokenIn.config.address,
-            fromChain: tokenIn.chainId,
-            toToken: tokenOut.config.address,
-            toChain: tokenOut.chainId,
-            swapAmount,
-            operation: 'core_token_fallback',
-            service: this.constructor.name,
-          },
-        )
-
-        this.logger.debug(
-          EcoLogMessage.fromDefault({
-            message: 'Failed to route through core token',
-            properties: {
-              coreToken: coreToken.token,
-              coreChain: coreToken.chainID,
-              error: coreError instanceof Error ? coreError.message : String(coreError),
-            },
-          }),
-        )
-      }
-    }
-
-    // If we get here, no core token route worked
-    throw EcoError.RebalancingRouteNotFound()
-  }
+  // Note: fallback routing removed; use configured strategies within main quote loop
 
   /**
    * Validates if both tokens and chains are supported by LiFi
