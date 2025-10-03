@@ -119,7 +119,7 @@ describe('RegistrationService', () => {
   describe('register', () => {
     it('should successfully register when enabled', async () => {
       const mockResponse: AxiosResponse = {
-        data: { success: true, solverId: 'solver-123' },
+        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -132,6 +132,9 @@ describe('RegistrationService', () => {
 
       await service.register();
 
+      const call = (httpService.post as jest.Mock).mock.calls[0];
+      const requestBody = call[1];
+
       expect(httpService.post).toHaveBeenCalledWith(
         'https://api.example.com/api/v1/quotes',
         expect.objectContaining({
@@ -139,7 +142,6 @@ describe('RegistrationService', () => {
           quotesUrl: 'https://api.example.com/api/v1/quotes',
           receiveSignedIntentUrl: 'https://api.example.com/api/v1/quotes',
           supportsNativeTransfers: false,
-          crossChainRoutes: expect.any(Object),
         }),
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -150,6 +152,14 @@ describe('RegistrationService', () => {
           }),
         }),
       );
+
+      // Verify cross-chain routes structure
+      expect(requestBody.crossChainRoutes).toBeDefined();
+      expect(requestBody.crossChainRoutes.crossChainRoutesConfig).toBeDefined();
+
+      // Should have routes for each source chain
+      const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
+      expect(Object.keys(routeConfig)).toEqual(['1', '10', '137']);
 
       expect(logger.log).toHaveBeenCalledWith('Successfully registered with ID: solver-123');
     });
@@ -176,7 +186,7 @@ describe('RegistrationService', () => {
 
     it('should not throw error when apiUrl is configured', async () => {
       const mockResponse: AxiosResponse = {
-        data: { success: true },
+        data: { data: { quotesUrl: 'test' } },
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -195,7 +205,7 @@ describe('RegistrationService', () => {
 
     it('should handle registration failure response', async () => {
       const mockResponse: AxiosResponse = {
-        data: { success: false, message: 'Invalid credentials' },
+        data: { data: {} }, // Missing quotesUrl indicates failure
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -208,7 +218,7 @@ describe('RegistrationService', () => {
 
       await service.register();
 
-      expect(logger.error).toHaveBeenCalledWith('Registration failed: Invalid credentials');
+      expect(logger.error).toHaveBeenCalledWith('Registration failed');
     });
 
     it('should handle HTTP error with response', async () => {
@@ -245,11 +255,9 @@ describe('RegistrationService', () => {
       );
     });
 
-    it('should handle cases when no chains are configured', async () => {
-      (blockchainConfigService.getAllConfiguredChains as jest.Mock).mockReturnValue([]);
-
+    it('should create cross-chain routes for multiple chains', async () => {
       const mockResponse: AxiosResponse = {
-        data: { success: true },
+        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -262,17 +270,88 @@ describe('RegistrationService', () => {
 
       await service.register();
 
-      expect(httpService.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          crossChainRoutes: {
-            crossChainRoutesConfig: {
-              '*': {},
-            },
-          },
-        }),
-        expect.any(Object),
-      );
+      const call = (httpService.post as jest.Mock).mock.calls[0];
+      const requestBody = call[1];
+      const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
+
+      // Verify each source chain has routes to all other chains (excluding itself)
+      expect(routeConfig['1']).toBeDefined();
+      expect(routeConfig['1']['1']).toBeUndefined(); // No same-chain route
+      expect(routeConfig['1']['10']).toBeDefined();
+      expect(routeConfig['1']['137']).toBeDefined();
+
+      expect(routeConfig['10']).toBeDefined();
+      expect(routeConfig['10']['10']).toBeUndefined(); // No same-chain route
+      expect(routeConfig['10']['1']).toBeDefined();
+      expect(routeConfig['10']['137']).toBeDefined();
+
+      expect(routeConfig['137']).toBeDefined();
+      expect(routeConfig['137']['137']).toBeUndefined(); // No same-chain route
+      expect(routeConfig['137']['1']).toBeDefined();
+      expect(routeConfig['137']['10']).toBeDefined();
+
+      // Verify route structure: each route maps source tokens to destination tokens
+      const route1to10 = routeConfig['1']['10'];
+      expect(Array.isArray(route1to10)).toBe(true);
+      expect(route1to10.length).toBe(2); // 2 tokens configured in mock
+
+      route1to10.forEach((mapping: any) => {
+        expect(mapping).toHaveProperty('send');
+        expect(mapping).toHaveProperty('receive');
+        expect(Array.isArray(mapping.receive)).toBe(true);
+        expect(mapping.receive.length).toBe(2); // 2 tokens on destination
+      });
+    });
+
+    it('should handle single chain configuration', async () => {
+      (blockchainConfigService.getAllConfiguredChains as jest.Mock).mockReturnValue([1]);
+
+      const mockResponse: AxiosResponse = {
+        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {
+          headers: new AxiosHeaders(),
+        },
+      };
+
+      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
+
+      await service.register();
+
+      const call = (httpService.post as jest.Mock).mock.calls[0];
+      const requestBody = call[1];
+      const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
+
+      // Should have entry for the single chain but with no destinations
+      expect(routeConfig['1']).toBeDefined();
+      expect(Object.keys(routeConfig['1']).length).toBe(0);
+    });
+
+    it('should skip same-chain routes', async () => {
+      const mockResponse: AxiosResponse = {
+        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {
+          headers: new AxiosHeaders(),
+        },
+      };
+
+      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
+
+      await service.register();
+
+      const call = (httpService.post as jest.Mock).mock.calls[0];
+      const requestBody = call[1];
+      const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
+
+      // Verify no source chain has itself as a destination
+      Object.keys(routeConfig).forEach((sourceChain) => {
+        expect(routeConfig[sourceChain][sourceChain]).toBeUndefined();
+      });
     });
   });
 });
