@@ -8,6 +8,8 @@
 import { encodeAbiParameters, encodePacked, Hex, keccak256 } from 'viem'
 import { IntentV2Pure } from '@/contracts/v2-abi/Portal'
 import { rewardStructAbiItem, routeStructAbiItem } from '@/contracts'
+import { EcoLogger } from '../logging/eco-logger';
+import { EcoLogMessage } from '../logging/eco-log-message';
 
 export enum ChainType {
   EVM = 'evm',
@@ -28,14 +30,30 @@ export class PortalHashUtils {
    * @param intent - intent
    * @returns Object containing intentHash, routeHash, and rewardHash
    */
-  static getIntentHash(intent: IntentV2Pure): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
+  static getIntentHash(intent: IntentV2Pure, logger?: EcoLogger): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
     const { destination, reward, route } = intent
 
     const encodedRoute = PortalHashUtils.getEncodedRoute(route)
     const routeHash = keccak256(encodedRoute)
 
+    logger?.debug(
+      EcoLogMessage.fromDefault({
+        message: `getIntentHash: encodedRoute`,
+        properties: { encodedRoute },
+      }),
+    )
+
+
     // Encode and hash the reward
     const encodedReward = encodeAbiParameters([rewardStructAbiItem], [reward])
+
+    logger?.debug(
+      EcoLogMessage.fromDefault({
+        message: `getIntentHash: encodedReward`,
+        properties: { encodedReward },
+      }),
+    )
+
     const rewardHash = keccak256(encodedReward)
 
     // Compute the final intent hash using encodePacked

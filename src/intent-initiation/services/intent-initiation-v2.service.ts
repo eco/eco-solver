@@ -723,7 +723,7 @@ export class IntentInitiationV2Service implements OnModuleInit {
     }
 
     const allowPartial = false
-    const { intentHash, routeHash } = PortalHashUtils.getIntentHash(intent)
+    const { intentHash, routeHash } = PortalHashUtils.getIntentHash(intent, this.logger)
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
