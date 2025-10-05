@@ -686,6 +686,13 @@ export class IntentInitiationV2Service implements OnModuleInit {
       salt,
     }
 
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getIntentFundForTx: params`,
+        properties: { quote, quoteRoute, quoteReward, routeWithSalt },
+      }),
+    )
+
     const { quoteID } = quote
     const chainConfig = getChainConfig(Number(quoteRoute.source))
     const intentSourceContract = chainConfig.IntentSource
@@ -720,10 +727,8 @@ export class IntentInitiationV2Service implements OnModuleInit {
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `getIntentFundForTx`,
-        properties: {
-          intentHash,
-        },
+        message: `getIntentFundForTx: intent`,
+        properties: { intent, intentHash, routeHash, quoteReward, quoteRewardV2, destination },
       }),
     )
 
@@ -770,6 +775,13 @@ export class IntentInitiationV2Service implements OnModuleInit {
       functionName: 'fundFor',
       args,
     })
+
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `getIntentFundForTx: encodeFunctionData data:`,
+        properties: { data },
+      }),
+    )
 
     // Final transaction object
     const fundTx = {
