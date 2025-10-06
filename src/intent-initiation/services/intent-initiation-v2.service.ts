@@ -942,6 +942,15 @@ export class IntentInitiationV2Service implements OnModuleInit {
       args: [owner, salt, deadline, timestamp, chainPermits, proof, signature],
     })
 
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `generateTxs: permitData`,
+        properties: {
+          permitArgs: { owner, salt, deadline, timestamp, chainPermits, proof, signature },
+        },
+      }),
+    )
+
     // Simulate it before returning
     try {
       const publicClient = await walletClientService.getPublicClient(chainID)
