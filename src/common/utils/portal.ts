@@ -8,8 +8,8 @@
 import { encodeAbiParameters, encodePacked, Hex, keccak256 } from 'viem'
 import { IntentV2Pure } from '@/contracts/v2-abi/Portal'
 import { rewardStructAbiItem, routeStructAbiItem } from '@/contracts'
-import { EcoLogger } from '../logging/eco-logger';
-import { EcoLogMessage } from '../logging/eco-log-message';
+import { EcoLogger } from '../logging/eco-logger'
+import { EcoLogMessage } from '../logging/eco-log-message'
 
 export enum ChainType {
   EVM = 'evm',
@@ -30,7 +30,10 @@ export class PortalHashUtils {
    * @param intent - intent
    * @returns Object containing intentHash, routeHash, and rewardHash
    */
-  static getIntentHash(intent: IntentV2Pure, logger?: EcoLogger): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
+  static getIntentHash(
+    intent: IntentV2Pure,
+    logger?: EcoLogger,
+  ): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {
     const { destination, reward, route } = intent
 
     const encodedRoute = PortalHashUtils.getEncodedRoute(route)
@@ -42,7 +45,6 @@ export class PortalHashUtils {
         properties: { encodedRoute },
       }),
     )
-
 
     // Encode and hash the reward
     const encodedReward = encodeAbiParameters([rewardStructAbiItem], [reward])
