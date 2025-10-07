@@ -1,7 +1,10 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cacheable } from '@/decorators/cacheable.decorator'
 import { decodeFunctionData, encodeFunctionData, erc20Abi, Hex, isAddressEqual } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Inject, Injectable, Logger } from '@nestjs/common'
+import { PortalHashUtils } from '@/common/utils/portal'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
@@ -9,9 +12,6 @@ import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
 import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
 import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
-import { Cacheable } from '@/decorators/cacheable.decorator'
-import { PortalHashUtils } from '@/common/utils/portal'
 import { randomBytes } from 'crypto'
 
 @Injectable()
@@ -32,7 +32,7 @@ export class QuoteV2TransformService {
   async transformToV2(
     quoteData: QuoteDataDTO,
     quoteIntent: QuoteIntentDataDTO,
-  ): Promise<QuoteV2ResponseDTO | null> {
+  ): Promise<QuoteV2ResponseDTO> {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: 'Transforming quote to V2 format',
@@ -43,24 +43,17 @@ export class QuoteV2TransformService {
       }),
     )
 
-    // Take the first valid quote entry
-    const quoteEntry = quoteData.quoteEntries[0]
-    if (!quoteEntry) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'No quote entries found to transform',
-          properties: { quoteID: quoteIntent.quoteID },
-        }),
-      )
-      return null
-    }
-
     try {
-      const quoteResponse = await this.buildQuoteResponse(quoteEntry, quoteIntent)
+      const quoteResponses: QuoteV2QuoteResponseDTO[] = []
       const contracts = await this.getContractAddresses(quoteIntent)
 
+      for (const quoteEntry of quoteData.quoteEntries) {
+        const quoteV2QuoteResponse = await this.buildQuoteResponse(quoteEntry, quoteIntent)
+        quoteResponses.push(quoteV2QuoteResponse)
+      }
+
       return {
-        quoteResponse,
+        quoteResponses,
         contracts,
       }
     } catch (error) {
@@ -103,7 +96,7 @@ export class QuoteV2TransformService {
     const fees = await this.buildFees(quoteEntry, quoteIntent)
 
     // Convert expiry time to UNIX seconds
-    const deadline = parseInt(quoteEntry.expiryTime)
+    const deadline = quoteIntent.reward.deadline
 
     // Build the complete route structure needed for encoding
     // The route from quoteIntent needs additional fields for the Portal contract
@@ -147,7 +140,7 @@ export class QuoteV2TransformService {
       refundRecipient,
       recipient,
       fees,
-      deadline,
+      deadline: Number(deadline),
       estimatedFulfillTimeSec: quoteEntry.estimatedFulfillTimeSec,
       encodedRoute,
     }

@@ -58,13 +58,14 @@ export class QuoteV2Controller {
       })
     }
 
-    // Track successful V2 response
-    this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.V2_RESPONSE_SUCCESS, {
-      dAppID: v2Request.dAppID,
-      processingTimeMs: processingTime,
-      sourceChainID: v2Response!.quoteResponse.sourceChainID,
-      destinationChainID: v2Response!.quoteResponse.destinationChainID,
-    })
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Responding to V2 quote request:`,
+        properties: {
+          v2Response,
+        },
+      }),
+    )
 
     return v2Response!
   }
@@ -108,13 +109,14 @@ export class QuoteV2Controller {
       })
     }
 
-    // Track successful V2 response
-    this.ecoAnalytics.trackSuccess(ANALYTICS_EVENTS.QUOTE.V2_RESPONSE_SUCCESS, {
-      dAppID: v2Request.dAppID,
-      processingTimeMs: processingTime,
-      sourceChainID: v2Response!.quoteResponse.sourceChainID,
-      destinationChainID: v2Response!.quoteResponse.destinationChainID,
-    })
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `Responding to V2 reverse quote request:`,
+        properties: {
+          v2Response,
+        },
+      }),
+    )
 
     return v2Response!
   }
