@@ -251,7 +251,8 @@ describe('CheckOFTDeliveryJobManager', () => {
       get: () => ({ updateStatus: jest.fn() }),
     })
     const mgr = new CheckOFTDeliveryJobManager()
-    const queue: any = {}
+    ;(mgr as any).rebalanceRepository = { updateStatus: jest.fn() }
+    const queue: any = { add: jest.fn() }
     const processor: any = {
       logger: { debug: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() },
       queue,
@@ -290,6 +291,39 @@ describe('CheckOFTDeliveryJobManager', () => {
 
     await mgr.onComplete(job, processor)
     expect(startSpy).toHaveBeenCalled()
+  })
+
+  it('onComplete(): marks FAILED when enqueueing destination swap throws', async () => {
+    ;(ModuleRefProvider as any).getModuleRef = jest.fn().mockReturnValue({
+      get: () => ({ updateStatus: jest.fn() }),
+    })
+    const mgr = new CheckOFTDeliveryJobManager()
+    const queue: any = {}
+    const processor: any = {
+      logger: { debug: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      queue,
+      liquidityManagerService: { liquidityProviderManager: {} },
+    }
+
+    const startSpy = jest
+      .spyOn(LiquidityManagerQueue.prototype as any, 'startUSDT0LiFiDestinationSwap')
+      .mockRejectedValue(new Error('enqueue failed'))
+
+    const job: any = {
+      name: LiquidityManagerJobName.CHECK_OFT_DELIVERY,
+      data: {
+        id: 'id-fail-enqueue',
+        groupID: 'grp-1',
+        rebalanceJobID: 'reb-1',
+        destinationChainId: 10,
+        usdt0LiFiContext: { destinationSwapQuote: { id: 'q-1' }, walletAddress: '0xw' },
+      },
+      returnvalue: { status: 'complete' },
+    }
+
+    await mgr.onComplete(job, processor)
+    expect(startSpy).toHaveBeenCalled()
+    expect((mgr as any).rebalanceRepository.updateStatus).toHaveBeenCalled()
   })
 
   it('process(): returns pending when API non-OK and preserves context across retries (no throw)', async () => {
