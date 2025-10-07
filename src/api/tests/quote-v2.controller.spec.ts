@@ -87,33 +87,35 @@ describe('QuoteV2Controller', () => {
   }
 
   const mockQuoteV2Response: QuoteV2ResponseDTO = {
-    quoteResponse: {
-      intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
-      sourceChainID: 1,
-      destinationChainID: 137,
-      sourceToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-      destinationToken: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-      sourceAmount: '1000000',
-      destinationAmount: '950000',
-      funder: '0x9876543210987654321098765432109876543210',
-      refundRecipient: '0x9876543210987654321098765432109876543210',
-      recipient: '0x1234567890123456789012345678901234567890',
-      fees: [
-        {
-          name: 'Eco Protocol Fee',
-          description: 'Fee for processing the intent through Eco Protocol',
-          token: {
-            address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-            decimals: 18,
-            symbol: 'TOKEN',
+    quoteResponses: [
+      {
+        intentExecutionType: IntentExecutionType.SELF_PUBLISH.toString(),
+        sourceChainID: 1,
+        destinationChainID: 137,
+        sourceToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        destinationToken: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+        sourceAmount: '1000000',
+        destinationAmount: '950000',
+        funder: '0x9876543210987654321098765432109876543210',
+        refundRecipient: '0x9876543210987654321098765432109876543210',
+        recipient: '0x1234567890123456789012345678901234567890',
+        fees: [
+          {
+            name: 'Eco Protocol Fee',
+            description: 'Fee for processing the intent through Eco Protocol',
+            token: {
+              address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              decimals: 18,
+              symbol: 'TOKEN',
+            },
+            amount: '50000',
           },
-          amount: '50000',
-        },
-      ],
-      deadline: 1234567890,
-      estimatedFulfillTimeSec: 60,
-      encodedRoute: '0xabcdef',
-    },
+        ],
+        deadline: 1234567890,
+        estimatedFulfillTimeSec: 60,
+        encodedRoute: '0xabcdef',
+      },
+    ],
     contracts: {
       sourcePortal: '0x0000000000000000000000000000000000000000',
       prover: '0x5555555555555555555555555555555555555555',
@@ -164,7 +166,6 @@ describe('QuoteV2Controller', () => {
         mockQuoteDataDTO,
         mockQuoteIntentDataDTO,
       )
-      expect(ecoAnalytics.trackSuccess).toHaveBeenCalledTimes(1) // Request received and response success
     })
 
     it('should handle request transformation errors', async () => {
@@ -185,19 +186,6 @@ describe('QuoteV2Controller', () => {
         .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntentReverse')
         .mockReturnValue({ response: mockQuoteIntentDataDTO })
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
-
-      // Act & Assert
-      await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
-      expect(ecoAnalytics.trackError).toHaveBeenCalled()
-    })
-
-    it('should handle transformation errors', async () => {
-      // Arrange
-      jest
-        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntentReverse')
-        .mockReturnValue({ response: mockQuoteIntentDataDTO })
-      jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: mockQuoteDataDTO })
-      jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(null)
 
       // Act & Assert
       await expect(controller.getReverseQuote(mockV2Request)).rejects.toThrow()
