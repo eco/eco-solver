@@ -11,6 +11,8 @@ import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-mana
 import { BalanceService } from '@/balance/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 describe('USDT0LiFiProviderService', () => {
   let service: USDT0LiFiProviderService
@@ -59,6 +61,7 @@ describe('USDT0LiFiProviderService', () => {
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: ecoMock },
         { provide: EcoAnalyticsService, useValue: createMock<EcoAnalyticsService>() },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: getQueueToken(LiquidityManagerQueue.queueName),
           useValue: { add: jest.fn().mockResolvedValue({}) },
@@ -69,6 +72,8 @@ describe('USDT0LiFiProviderService', () => {
     service = module.get(USDT0LiFiProviderService)
     liFiService = module.get(LiFiProviderService) as any
     usdt0Service = module.get(USDT0ProviderService) as any
+    // Inject a mock RebalanceRepository directly for failure path assertion
+    ;(service as any).rebalanceRepository = createMock<RebalanceRepository>()
 
     // EcoConfigService already provided with correct mocks before service instantiation
 
@@ -222,6 +227,51 @@ describe('USDT0LiFiProviderService', () => {
       const spy = jest.spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
       expect(spy).not.toHaveBeenCalled()
     })
+  })
+
+  it('marks FAILED on USDT0 bridge error and rethrows', async () => {
+    const tIn = token(1, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+    const tOut = token(10, '0x4200000000000000000000000000000000000042', 18)
+
+    ;(liFiService.execute as any).mockResolvedValue({
+      steps: [{ execution: { process: [{ txHash: '0xsourcetx' }] } }],
+    })
+    ;(liFiService.getQuote as any)
+      .mockResolvedValueOnce({
+        amountOut: parseUnits('99', 6),
+        slippage: 0.01,
+        context: {
+          fromAmount: '100000000',
+          toAmount: '99000000',
+          toAmountMin: '98010000',
+          fromChainId: 1,
+          toChainId: 1,
+          fromToken: { address: tIn.config.address, decimals: 6 },
+          toToken: { address: mockUSDTMap.chains[0].underlyingToken, decimals: 6 },
+        },
+      })
+      .mockResolvedValueOnce({
+        amountOut: parseUnits('45', 18),
+        slippage: 0.02,
+        context: {
+          fromAmount: '99000000',
+          toAmount: '45000000000000000000',
+          toAmountMin: '44100000000000000000',
+          fromChainId: 10,
+          toChainId: 10,
+          fromToken: { address: mockUSDTMap.chains[1].token, decimals: 6 },
+          toToken: { address: tOut.config.address, decimals: 18 },
+        },
+      })
+    ;(usdt0Service.execute as any).mockRejectedValue(new Error('bridge failed'))
+
+    const injectedRepo = (service as any).rebalanceRepository as jest.Mocked<RebalanceRepository>
+    injectedRepo.updateStatus = jest.fn() as any
+
+    const quote = await service.getQuote(tIn, tOut, 100)
+    const withIds = { ...quote, groupID: 'grp-1', rebalanceJobID: 'reb-1' } as any
+    await expect(service.execute('0xwallet', withIds)).rejects.toThrow('bridge failed')
+    expect(injectedRepo.updateStatus).toHaveBeenCalledWith('reb-1', RebalanceStatus.FAILED)
   })
 
   describe('extractTransactionHashFromLiFiResult', () => {
