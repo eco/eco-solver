@@ -119,7 +119,7 @@ const ValidationErrorSchema = extendApi(
 // Schema for successful quote response
 export const SuccessfulQuoteResponseSchema = extendApi(
   z.object({
-    quoteResponse: QuoteDataSchema,
+    quoteResponses: z.array(QuoteDataSchema),
     contracts: ContractsSchema,
   }),
   {
