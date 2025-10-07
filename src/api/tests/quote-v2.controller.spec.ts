@@ -21,7 +21,9 @@ describe('QuoteV2Controller', () => {
   let ecoAnalytics: EcoAnalyticsService
 
   const mockV2Request: QuoteV2RequestDTO = {
+    quoteID: 'test-quote-id',
     dAppID: 'test-dapp-id',
+    intentExecutionTypes: [IntentExecutionType.SELF_PUBLISH.toString()],
     quoteRequest: {
       sourceChainID: 1,
       destinationChainID: 137,
@@ -144,8 +146,8 @@ describe('QuoteV2Controller', () => {
     it('should return a V2 quote successfully using reverse quote logic', async () => {
       // Arrange
       jest
-        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntent')
-        .mockReturnValue(mockQuoteIntentDataDTO)
+        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntentReverse')
+        .mockReturnValue({ response: mockQuoteIntentDataDTO })
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: mockQuoteDataDTO })
       jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(mockQuoteV2Response)
 
@@ -154,7 +156,7 @@ describe('QuoteV2Controller', () => {
 
       // Assert
       expect(result).toEqual(mockQuoteV2Response)
-      expect(quoteV2RequestTransformService.transformToQuoteIntent).toHaveBeenCalledWith(
+      expect(quoteV2RequestTransformService.transformToQuoteIntentReverse).toHaveBeenCalledWith(
         mockV2Request,
       )
       expect(quoteService.getReverseQuote).toHaveBeenCalledWith(mockQuoteIntentDataDTO)
@@ -168,7 +170,7 @@ describe('QuoteV2Controller', () => {
     it('should handle request transformation errors', async () => {
       // Arrange
       jest
-        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntent')
+        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntentReverse')
         .mockImplementation(() => {
           throw new Error('Invalid request')
         })
@@ -180,8 +182,8 @@ describe('QuoteV2Controller', () => {
     it('should handle quote service errors', async () => {
       // Arrange
       jest
-        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntent')
-        .mockReturnValue(mockQuoteIntentDataDTO)
+        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntentReverse')
+        .mockReturnValue({ response: mockQuoteIntentDataDTO })
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
 
       // Act & Assert
@@ -192,8 +194,8 @@ describe('QuoteV2Controller', () => {
     it('should handle transformation errors', async () => {
       // Arrange
       jest
-        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntent')
-        .mockReturnValue(mockQuoteIntentDataDTO)
+        .spyOn(quoteV2RequestTransformService, 'transformToQuoteIntentReverse')
+        .mockReturnValue({ response: mockQuoteIntentDataDTO })
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: mockQuoteDataDTO })
       jest.spyOn(quoteV2TransformService, 'transformToV2').mockResolvedValue(null)
 
