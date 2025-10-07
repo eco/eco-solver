@@ -393,16 +393,16 @@ export interface LiquidityManagerConfig {
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
   swapSlippage: number
+  /**
+   * Global minimum trade size for stables in base-6 units (e.g., 1_000_000 = 1 USDC).
+   * Trades below this threshold will be skipped to avoid dust movements.
+   */
+  minTradeBase6?: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
-  // Core tokens are used as intermediaries between two chains
-  coreTokens: {
-    token: Hex
-    chainID: number
-  }[]
   walletStrategies: {
     [walletName: string]: Strategy[]
   }
@@ -411,6 +411,11 @@ export interface LiquidityManagerConfig {
 export interface LiFiConfigType {
   integrator: string
   apiKey?: string
+  bridges?: {
+    allow?: string[]
+    deny?: string[]
+    prefer?: string[]
+  }
 }
 
 export interface IndexerConfig {
