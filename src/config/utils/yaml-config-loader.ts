@@ -11,7 +11,7 @@ import * as yaml from 'js-yaml';
 export function loadYamlConfig(configPaths?: string | string[]): Record<string, any> {
   if (!configPaths) return {};
 
-  const paths = Array.isArray(configPaths) ? configPaths : [configPaths];
+  const paths = Array.isArray(configPaths) ? configPaths : configPaths.split(',');
   let mergedConfig = {};
 
   for (const configPath of paths) {
