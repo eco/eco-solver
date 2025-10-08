@@ -5,16 +5,16 @@ import * as yaml from 'js-yaml';
 
 import { AwsConfig } from '@/config/schemas';
 
-import { AwsSecretsService } from '../aws-secrets.service';
+import { AwsSecretsManager } from '../aws-secrets-manager';
 
 jest.mock('@aws-sdk/client-secrets-manager');
 
-describe('AwsSecretsService', () => {
-  let service: AwsSecretsService;
+describe('AwsSecrets', () => {
+  let service: AwsSecretsManager;
   let mockSecretsManagerClient: jest.MockedObjectDeep<SecretsManagerClient>;
 
   beforeEach(() => {
-    service = new AwsSecretsService();
+    service = new AwsSecretsManager();
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
     mockSecretsManagerClient = new SecretsManagerClient(
