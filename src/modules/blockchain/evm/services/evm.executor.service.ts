@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi, Hex, pad } from 'viem';
 
+import { permit3Abi } from '@/common/abis/permit3.abi';
 import { portalAbi } from '@/common/abis/portal.abi';
 import {
   BaseChainExecutor,
@@ -288,6 +289,226 @@ export class EvmExecutorService extends BaseChainExecutor {
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           this.logger.error(
             `Failed to execute batchWithdraw on chain ${chainId}: ${getErrorMessage(error)}`,
+            toError(error),
+          );
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Execute permit3 transaction for cross-chain token approvals
+   * @param chainId Chain ID where permit will be executed
+   * @param permitContract Address of the Permit3 contract
+   * @param owner Owner address of the tokens
+   * @param salt Unique salt value
+   * @param deadline Expiration timestamp (uint48)
+   * @param timestamp Unix timestamp when permit was created
+   * @param permits Array of permit entries for this chain
+   * @param merkleProof Merkle proof for cross-chain validation
+   * @param signature EIP-712 signature
+   * @param walletType Wallet type to use for execution
+   * @returns Transaction hash
+   */
+  async permit3(
+    chainId: number,
+    permitContract: UniversalAddress,
+    owner: UniversalAddress,
+    salt: Hex,
+    deadline: number,
+    timestamp: number,
+    permits: Array<{
+      modeOrExpiration: number;
+      tokenKey: Hex;
+      account: UniversalAddress;
+      amountDelta: bigint;
+    }>,
+    merkleProof: Hex[],
+    signature: Hex,
+    walletType: WalletType = 'kernel',
+  ): Promise<Hex> {
+    return this.otelService.tracer.startActiveSpan(
+      'evm.executor.permit3',
+      {
+        attributes: {
+          'evm.chain_id': chainId.toString(),
+          'evm.wallet_type': walletType,
+          'evm.permit_count': permits.length,
+          'evm.operation': 'permit3',
+        },
+      },
+      async (span) => {
+        try {
+          // Convert UniversalAddress to Hex
+          const permitContractHex = AddressNormalizer.denormalizeToEvm(permitContract);
+          const ownerHex = AddressNormalizer.denormalizeToEvm(owner);
+
+          // Get wallet for this chain
+          const wallet = this.walletManager.getWallet(walletType, chainId);
+
+          // Convert permits accounts to Hex
+          const permitsHex = permits.map((p) => ({
+            modeOrExpiration: p.modeOrExpiration,
+            tokenKey: p.tokenKey,
+            account: AddressNormalizer.denormalizeToEvm(p.account),
+            amountDelta: p.amountDelta,
+          }));
+
+          // Encode the permit function call
+          const data = encodeFunctionData({
+            abi: permit3Abi,
+            functionName: 'permit',
+            args: [
+              ownerHex,
+              salt,
+              deadline,
+              timestamp,
+              {
+                chainId: BigInt(chainId),
+                permits: permitsHex,
+              },
+              merkleProof,
+              signature,
+            ],
+          });
+
+          this.logger.log(`Executing permit3 on chain ${chainId} with ${permits.length} permits`);
+
+          span.setAttribute('evm.permit_contract', permitContractHex);
+
+          // Execute the transaction
+          const txHash = await wallet.writeContract({
+            to: permitContractHex,
+            data,
+            value: 0n,
+          });
+
+          span.setAttributes({
+            'evm.tx_hash': txHash,
+            'evm.status': 'success',
+          });
+
+          this.logger.log(`Successfully executed permit3 on chain ${chainId}. TxHash: ${txHash}`);
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return txHash;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          this.logger.error(
+            `Failed to execute permit3 on chain ${chainId}: ${getErrorMessage(error)}`,
+            toError(error),
+          );
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Execute fundFor transaction to fund an intent on behalf of a user
+   * @param chainId Source chain ID
+   * @param destination Destination chain ID
+   * @param routeHash Hash of the route
+   * @param reward Reward structure
+   * @param allowPartial Whether to allow partial funding
+   * @param funder Address funding the intent
+   * @param permitContract Address of the Permit3 contract
+   * @param walletType Wallet type to use for execution
+   * @returns Transaction hash
+   */
+  async fundFor(
+    chainId: number,
+    destination: bigint,
+    routeHash: Hex,
+    reward: {
+      deadline: bigint;
+      creator: UniversalAddress;
+      prover: UniversalAddress;
+      nativeAmount: bigint;
+      tokens: Array<{ token: UniversalAddress; amount: bigint }>;
+    },
+    allowPartial: boolean,
+    funder: UniversalAddress,
+    permitContract: UniversalAddress,
+    walletType: WalletType = 'kernel',
+  ): Promise<Hex> {
+    return this.otelService.tracer.startActiveSpan(
+      'evm.executor.fundFor',
+      {
+        attributes: {
+          'evm.chain_id': chainId.toString(),
+          'evm.destination_chain': destination.toString(),
+          'evm.wallet_type': walletType,
+          'evm.allow_partial': allowPartial,
+          'evm.operation': 'fundFor',
+        },
+      },
+      async (span) => {
+        try {
+          // Convert UniversalAddress to Hex
+          const funderHex = AddressNormalizer.denormalizeToEvm(funder);
+          const permitContractHex = AddressNormalizer.denormalizeToEvm(permitContract);
+
+          // Convert reward addresses to Hex
+          const rewardHex = {
+            deadline: reward.deadline,
+            creator: AddressNormalizer.denormalizeToEvm(reward.creator),
+            prover: AddressNormalizer.denormalizeToEvm(reward.prover),
+            nativeAmount: reward.nativeAmount,
+            tokens: reward.tokens.map((t) => ({
+              token: AddressNormalizer.denormalizeToEvm(t.token),
+              amount: t.amount,
+            })),
+          };
+
+          // Get wallet for this chain
+          const wallet = this.walletManager.getWallet(walletType, chainId);
+
+          // Get Portal address from config
+          const portalAddressUA = this.evmConfigService.getPortalAddress(chainId);
+          if (!portalAddressUA) {
+            throw new Error(`No Portal address configured for chain ${chainId}`);
+          }
+          const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
+
+          span.setAttribute('portal.address', portalAddress);
+
+          // Encode the fundFor function call
+          const data = encodeFunctionData({
+            abi: portalAbi,
+            functionName: 'fundFor',
+            args: [destination, routeHash, rewardHex, allowPartial, funderHex, permitContractHex],
+          });
+
+          this.logger.log(`Executing fundFor on chain ${chainId} for destination ${destination}`);
+
+          // Execute the transaction
+          const txHash = await wallet.writeContract({
+            to: portalAddress,
+            data,
+            value: 0n,
+          });
+
+          span.setAttributes({
+            'evm.tx_hash': txHash,
+            'evm.status': 'success',
+          });
+
+          this.logger.log(`Successfully executed fundFor on chain ${chainId}. TxHash: ${txHash}`);
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return txHash;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          this.logger.error(
+            `Failed to execute fundFor on chain ${chainId}: ${getErrorMessage(error)}`,
             toError(error),
           );
           throw error;

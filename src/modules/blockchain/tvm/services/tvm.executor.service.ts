@@ -441,6 +441,22 @@ export class TvmExecutorService extends BaseChainExecutor {
   }
 
   /**
+   * permit3 is not yet implemented for TVM
+   * TODO: Implement when Portal contract supports permit3
+   */
+  async permit3(): Promise<any> {
+    throw new Error('permit3 is not yet implemented for TVM');
+  }
+
+  /**
+   * fundFor is not yet implemented for TVM
+   * TODO: Implement when Portal contract supports gasless intents
+   */
+  async fundFor(): Promise<any> {
+    throw new Error('fundFor is not yet implemented for TVM');
+  }
+
+  /**
    * Creates a TronWeb instance for the given chain
    * @param chainId - The chain ID to create client for
    * @returns TronWeb instance

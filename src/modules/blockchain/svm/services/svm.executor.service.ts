@@ -583,6 +583,21 @@ export class SvmExecutorService extends BaseChainExecutor {
     return pda;
   }
 
+  /**
+   * permit3 is not supported on Solana (SVM)
+   */
+  async permit3(): Promise<any> {
+    throw new Error('permit3 is not supported on Solana (SVM)');
+  }
+
+  /**
+   * fundFor is not yet implemented for Solana
+   * TODO: Implement when Portal program supports gasless intents
+   */
+  async fundFor(): Promise<any> {
+    throw new Error('fundFor is not yet implemented for Solana (SVM)');
+  }
+
   private async generateFulfillIx(intent: Intent) {
     if (!this.portalProgram || !this.keypair) {
       throw new Error('Portal program not initialized');
