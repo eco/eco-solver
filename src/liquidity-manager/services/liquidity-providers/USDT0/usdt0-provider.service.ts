@@ -369,6 +369,9 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
         amountLD: quote.amountOut.toString(),
         id: quote.id,
       }
+      // Propagate optional USDT0-LiFi destination swap context if provided by caller
+      const extraCtx = (quote as any)?.context?.usdt0LiFiContext
+      if (extraCtx) (data as any).usdt0LiFiContext = extraCtx
       await lmQueue.startOFTDeliveryCheck(data)
       this.logger.debug(
         EcoLogMessage.withId({

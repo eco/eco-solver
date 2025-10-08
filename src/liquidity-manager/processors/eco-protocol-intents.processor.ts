@@ -17,6 +17,7 @@ import { LiquidityManagerQueueType } from '@/liquidity-manager/queues/liquidity-
 import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { RebalanceJobManager } from '@/liquidity-manager/jobs/rebalance.job'
+import { USDT0LiFiDestinationSwapJobManager } from '../jobs/usdt0-lifi-destination-swap.job'
 
 /**
  * Processor for handling liquidity manager jobs.
@@ -48,6 +49,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new CheckEverclearIntentJobManager(),
       new GatewayTopUpJobManager(),
       new CheckOFTDeliveryJobManager(),
+      new USDT0LiFiDestinationSwapJobManager(),
     ])
   }
 }

@@ -39,6 +39,7 @@ import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.
 import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 import { USDT0ProviderService } from '../USDT0/usdt0-provider.service'
+import { USDT0LiFiProviderService } from '../USDT0-LiFi/usdt0-lifi-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -100,10 +101,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     targetSlippage: 0.02,
     intervalDuration: 300000, // 5 minutes
     thresholds: { surplus: 0.15, deficit: 0.15 }, // 15% threshold
-    coreTokens: [
-      { token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', chainID: 1 }, // USDC on Ethereum
-      { token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', chainID: 10 }, // USDC on Optimism
-    ],
     walletStrategies: {
       'eco-wallet': ['CCTPLiFi'], // Only test CCTPLiFi strategy
     },
@@ -237,6 +234,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: USDT0ProviderService,
           useValue: createMock<USDT0ProviderService>(),
+        },
+        {
+          provide: USDT0LiFiProviderService,
+          useValue: createMock<USDT0LiFiProviderService>(),
         },
       ],
     }).compile()
@@ -1109,7 +1110,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         await liquidityManagerService.storeRebalancing(walletAddress, rebalance)
       }
 
-      expect(rebalanceRepo.create).toHaveBeenCalledTimes(2)
+      const expectedCreateCalls = rebalances.reduce(
+        (sum, rebalance) => sum + rebalance.quotes.length,
+        0,
+      )
+      expect(rebalanceRepo.create).toHaveBeenCalledTimes(expectedCreateCalls)
     })
   })
 

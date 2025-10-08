@@ -346,9 +346,9 @@ describe('CCTPLiFiProviderService', () => {
           amountOut: parseUnits('85', 6), // High slippage
           slippage: 0.15, // 15% slippage
           context: {
-            fromAmount: '100000000',
+            fromAmount: '100000000', // 100 USDC
             toAmount: '85000000',
-            toAmountMin: '72250000',
+            toAmountMin: '72250000', // 72.25 USDC min (27.75% slippage)
             fromAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
             toAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             fromChainId: 1,
@@ -359,9 +359,9 @@ describe('CCTPLiFiProviderService', () => {
           amountOut: parseUnits('35', 18),
           slippage: 0.15,
           context: {
-            fromAmount: '85000000',
+            fromAmount: '85000000', // 85 USDC
             toAmount: '85000000',
-            toAmountMin: '80000000',
+            toAmountMin: '80000000', // 80 USDC min (5.88% slippage)
             fromAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
             toAddress: '0x4200000000000000000000000000000000000042',
             fromChainId: 10,
@@ -373,7 +373,10 @@ describe('CCTPLiFiProviderService', () => {
 
       // Verify quote is generated even with high slippage
       expect(quote.strategy).toBe('CCTPLiFi')
-      expect(quote.slippage).toBeCloseTo(0.2, 1) // Combined slippage: 1 - (80M/100M) = 0.2
+      // Compound slippage formula: 1 - (1 - s1) * (1 - s2)
+      // s1 = 1 - 72.25/100 = 0.2775, s2 = 1 - 80/85 = 0.058824
+      // Total = 1 - (0.7225 * 0.941176) = 1 - 0.68 = 0.32
+      expect(quote.slippage).toBeCloseTo(0.32, 1)
     })
   })
 

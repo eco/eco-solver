@@ -265,8 +265,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     // Slippage reported in percentage units (e.g., 0.005 means 0.005%)
     const slippagePercent = (Number(percentCfg.numerator) / Number(percentCfg.denominator)) * 100
     const quote: RebalanceQuote<'Gateway'> = {
-      amountIn: amountIn,
-      amountOut: amountOut,
+      amountIn,
+      amountOut,
       slippage: slippagePercent,
       tokenIn,
       tokenOut,

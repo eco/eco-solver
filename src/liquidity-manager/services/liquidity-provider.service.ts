@@ -25,6 +25,7 @@ import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositor
 import { RebalanceTokenModel } from '@/liquidity-manager/schemas/rebalance-token.schema'
 import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rejection.schema'
 import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
+import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -46,6 +47,7 @@ export class LiquidityProviderService {
     protected readonly everclearProviderService: EverclearProviderService,
     protected readonly gatewayProviderService: GatewayProviderService,
     protected readonly usdt0ProviderService: USDT0ProviderService,
+    protected readonly usdt0LiFiProviderService: USDT0LiFiProviderService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rejectionRepository: RebalanceQuoteRejectionRepository,
   ) {
@@ -214,82 +216,6 @@ export class LiquidityProviderService {
     return service.execute(walletAddress, quote)
   }
 
-  /**
-   * Attempts a route using fallback mechanisms (like core tokens)
-   * @param tokenIn The source token
-   * @param tokenOut The destination token
-   * @param swapAmount The amount to swap
-   * @param quoteId Optional quote ID for tracking (fallback to generated UUID)
-   * @param walletAddress Optional wallet address for analytics
-   * @returns A quote using the fallback mechanism
-   */
-  @LogOperation('fallback_quote_generation', LiquidityManagerLogger)
-  async fallback(
-    @LogContext tokenIn: TokenData,
-    @LogContext tokenOut: TokenData,
-    @LogContext swapAmount: number,
-    @LogContext quoteId?: string,
-    @LogContext walletAddress?: string,
-  ): Promise<RebalanceQuote[]> {
-    const fallbackQuoteId = quoteId || uuidv4()
-    const quotes = await this.liFiProviderService.fallback(tokenIn, tokenOut, swapAmount)
-    const maxQuoteSlippage = this.ecoConfigService.getLiquidityManager().maxQuoteSlippage
-
-    const slippage = getTotalSlippage(_.map(quotes, 'slippage'))
-
-    if (slippage > maxQuoteSlippage) {
-      // Persist fallback rejection for analytics (non-blocking)
-      this.rejectionRepository.create({
-        rebalanceId: fallbackQuoteId,
-        strategy: 'LiFi', // Fallback uses LiFi service
-        reason: RejectionReason.HIGH_SLIPPAGE,
-        tokenIn: RebalanceTokenModel.fromTokenData(tokenIn),
-        tokenOut: RebalanceTokenModel.fromTokenData(tokenOut),
-        swapAmount,
-        details: {
-          slippage,
-          maxQuoteSlippage,
-          fallback: true,
-          quotes: quotes.map((quote) => ({
-            slippage: quote.slippage,
-            amountIn: quote.amountIn.toString(),
-            amountOut: quote.amountOut.toString(),
-          })),
-        },
-        walletAddress,
-      })
-
-      this.logger.logQuoteRejection(
-        {
-          rebalanceId: fallbackQuoteId,
-          walletAddress: walletAddress || 'unknown',
-          strategy: 'LiFi',
-          sourceChainId: tokenIn.config.chainId,
-          destinationChainId: tokenOut.config.chainId,
-          tokenInAddress: tokenIn.config.address,
-          tokenOutAddress: tokenOut.config.address,
-        },
-        RejectionReason.HIGH_SLIPPAGE,
-        {
-          slippage,
-          maxQuoteSlippage,
-          fallback: true,
-          quotes: quotes.map((quote) => ({
-            tokenIn: this.formatToken(tokenIn),
-            tokenOut: this.formatToken(tokenOut),
-            amountIn: quote.amountIn.toString(),
-            amountOut: quote.amountOut.toString(),
-          })),
-        },
-      )
-      throw new Error(
-        `Fallback quote slippage ${slippage} exceeds maximum allowed ${maxQuoteSlippage}`,
-      )
-    }
-
-    return quotes
-  }
-
   private getStrategyService(strategy: Strategy): IRebalanceProvider<Strategy> {
     switch (strategy) {
       case 'LiFi':
@@ -314,6 +240,8 @@ export class LiquidityProviderService {
         return this.gatewayProviderService
       case 'USDT0':
         return this.usdt0ProviderService
+      case 'USDT0LiFi':
+        return this.usdt0LiFiProviderService as unknown as IRebalanceProvider<Strategy>
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }

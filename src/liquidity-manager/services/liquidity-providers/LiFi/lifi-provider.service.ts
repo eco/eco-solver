@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { formatUnits, parseUnits } from 'viem'
+import { parseUnits } from 'viem'
 import {
   createConfig,
   EVM,
@@ -23,7 +23,6 @@ import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalancePro
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { BalanceService } from '@/balance/balance.service'
-import { TokenConfig } from '@/balance/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
@@ -95,7 +94,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     @LogContext swapAmount: number,
     @LogContext id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
-    const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
+    const { swapSlippage, maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
+    const liFiConfig = this.ecoConfigService.getLiFi()
 
     // Validate tokens and chains before making API call
     const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
@@ -120,10 +120,10 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       toAddress: this.walletAddress,
       toChainId: tokenOut.chainId,
       toTokenAddress: tokenOut.config.address,
-    }
-
-    if (routesRequest.fromChainId === routesRequest.toChainId && swapSlippage) {
-      routesRequest.options = { ...routesRequest.options, slippage: swapSlippage }
+      options: {
+        slippage: tokenIn.chainId === tokenOut.chainId ? swapSlippage : maxQuoteSlippage,
+        bridges: liFiConfig.bridges,
+      },
     }
 
     // Add business event logging for quote generation attempt
@@ -138,9 +138,9 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     return {
       amountIn: BigInt(route.fromAmount),
       amountOut: BigInt(route.toAmount),
-      slippage: slippage,
-      tokenIn: tokenIn,
-      tokenOut: tokenOut,
+      slippage,
+      tokenIn,
+      tokenOut,
       strategy: this.getStrategy(),
       context: route,
       id,
@@ -163,10 +163,11 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
       // Add business event logging for provider execution
       this.logger.logProviderExecution('LiFi', walletAddress, quote)
 
-      await this._execute(quote)
+      const result = await this._execute(quote)
       if (quote.rebalanceJobID) {
         await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
       }
+      return result
     } catch (error) {
       try {
         if (quote.rebalanceJobID) {
@@ -177,83 +178,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     }
   }
 
-  /**
-   * Attempts to get a quote by routing through a core token when no direct route exists
-   * @param tokenIn The source token
-   * @param tokenOut The destination token
-   * @param swapAmount The amount to swap
-   * @returns A quote for the route through a core token
-   */
-  @LogOperation('provider_fallback', LiquidityManagerLogger)
-  async fallback(
-    @LogContext tokenIn: TokenData,
-    @LogContext tokenOut: TokenData,
-    @LogContext swapAmount: number,
-  ): Promise<RebalanceQuote[]> {
-    // Add business event logging for fallback quote generation
-    this.logger.logFallbackQuoteGeneration(tokenIn, tokenOut, swapAmount, false)
-
-    // Try each core token as an intermediary
-    const { coreTokens } = this.ecoConfigService.getLiquidityManager()
-
-    for (const coreToken of coreTokens) {
-      try {
-        // Create core token data structure
-        const coreTokenConfig: TokenConfig = {
-          address: coreToken.token,
-          chainId: coreToken.chainID,
-          type: 'erc20',
-          minBalance: 0,
-          targetBalance: 0,
-        }
-        const [coreTokenData] = await this.balanceService.getAllTokenDataForAddress(
-          this.walletAddress,
-          [coreTokenConfig],
-        )
-
-        // Validate core token route before attempting
-        if (!this.validateTokenSupport(tokenIn, coreTokenData)) {
-          // Domain validation failure is logged by the validate method decorator
-          continue
-        }
-
-        // Core token routing is automatically logged by decorator
-
-        const coreTokenQuote = await this.getQuote(tokenIn, coreTokenData, swapAmount)
-
-        const toAmountMin = parseFloat(
-          formatUnits(BigInt(coreTokenQuote.context.toAmountMin), coreTokenData.balance.decimals),
-        )
-
-        const rebalanceQuote = await this.getQuote(coreTokenData, tokenOut, toAmountMin)
-
-        // Log successful fallback quote generation
-        this.logger.logFallbackQuoteGeneration(tokenIn, tokenOut, swapAmount, true)
-
-        return [coreTokenQuote, rebalanceQuote]
-      } catch (coreError) {
-        this.ecoAnalytics.trackError(
-          ANALYTICS_EVENTS.LIQUIDITY_MANAGER.LIFI_CORE_TOKEN_ROUTE_ERROR,
-          coreError,
-          {
-            coreToken: coreToken.token,
-            coreChain: coreToken.chainID,
-            fromToken: tokenIn.config.address,
-            fromChain: tokenIn.chainId,
-            toToken: tokenOut.config.address,
-            toChain: tokenOut.chainId,
-            swapAmount,
-            operation: 'core_token_fallback',
-            service: this.constructor.name,
-          },
-        )
-        // Core token fallback failure is automatically logged by decorator
-      }
-    }
-
-    // If we get here, no core token route worked
-    throw EcoError.RebalancingRouteNotFound()
-  }
+  // Note: fallback routing removed; use configured strategies within main quote loop
 
   /**
    * Validates if both tokens and chains are supported by LiFi

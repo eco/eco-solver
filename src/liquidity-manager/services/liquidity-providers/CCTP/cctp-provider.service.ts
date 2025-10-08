@@ -104,11 +104,11 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     )
 
     return {
-      amountIn: amountIn,
-      amountOut: amountOut,
+      amountIn,
+      amountOut,
       slippage: 0,
-      tokenIn: tokenIn,
-      tokenOut: tokenOut,
+      tokenIn,
+      tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
       id,
