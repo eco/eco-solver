@@ -76,6 +76,7 @@ export class EvmConfigService implements IBlockchainConfigService {
       symbol: token.symbol,
       limit: token.limit,
       fee: token.fee,
+      nonSwapGroups: token.nonSwapGroups,
     }));
   }
 
@@ -99,6 +100,7 @@ export class EvmConfigService implements IBlockchainConfigService {
       symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
       fee: tokenConfig.fee,
+      nonSwapGroups: tokenConfig.nonSwapGroups,
     };
   }
 

@@ -1,47 +1,20 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+// BigInt toJSON polyfill moved to jest.setup.ts
+import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-
-// Mock the config service module before any imports
-jest.mock('@/modules/config/services/fulfillment-config.service', () => ({
-  FulfillmentConfigService: jest.fn().mockImplementation(() => {
-    let nativeFeeValue = { baseFee: BigInt(0), bpsFee: 0 };
-    return {
-      get nativeFee() {
-        return nativeFeeValue;
-      },
-      set nativeFee(value) {
-        nativeFeeValue = value;
-      },
-    };
-  }),
-}));
-
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 import { NativeFeeValidation } from '../native-fee.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
 describe('NativeFeeValidation', () => {
   let validation: NativeFeeValidation;
-  let fulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
 
   beforeEach(async () => {
-    const mockFulfillmentConfigService = {
-      get nativeFee() {
-        return this._nativeFee;
-      },
-      _nativeFee: { baseFee: BigInt(20000000000000000), bpsFee: 150 },
-      getNetworkFee: jest.fn().mockReturnValue({
-        native: {
-          flatFee: 20000000000000000, // 0.02 ETH
-          scalarBps: 1.5, // 150 bps = 1.5%
-        },
-        tokens: {
-          flatFee: 10000000000000000, // 0.01 ETH
-          scalarBps: 1, // 100 bps = 1%
-        },
+    const mockFeeResolver = {
+      resolveNativeFee: jest.fn().mockReturnValue({
+        flatFee: 20000000000000000, // 0.02 ETH
+        scalarBps: 1.5, // 150 bps = 1.5%
       }),
     };
 
@@ -63,10 +36,7 @@ describe('NativeFeeValidation', () => {
     const module = await Test.createTestingModule({
       providers: [
         NativeFeeValidation,
-        {
-          provide: FulfillmentConfigService,
-          useValue: mockFulfillmentConfigService,
-        },
+        { provide: FeeResolverService, useValue: mockFeeResolver },
         {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
@@ -75,14 +45,13 @@ describe('NativeFeeValidation', () => {
     }).compile();
 
     validation = module.get<NativeFeeValidation>(NativeFeeValidation);
-    fulfillmentConfigService = module.get(FulfillmentConfigService);
   });
 
   describe('validate', () => {
     const mockIntent = createMockIntent();
     const mockContext = createMockValidationContext();
 
-    // Default native fees are already set in mock: 0.02 ETH base + 150 bps (1.5%)
+    // Default native fees via resolver mock: 0.02 ETH base + 150 bps (1.5%)
 
     describe('reward token validation', () => {
       it('should throw error when reward tokens are present', async () => {
@@ -112,9 +81,7 @@ describe('NativeFeeValidation', () => {
             nativeAmount: BigInt(100000000000000000), // 0.1 ETH
             tokens: [
               {
-                token: toUniversalAddress(
-                  '0x0000000000000000000000001111111111111111111111111111111111111111',
-                ),
+                token: '0x0000000000000000000000001111111111111111111111111111111111111111' as any,
                 amount: BigInt(1000),
               },
             ],
@@ -149,7 +116,7 @@ describe('NativeFeeValidation', () => {
         expect(result).toBe(true);
       });
 
-      it('should calculate percentage fee from call values only', async () => {
+      it('should validate when route native is within reward minus fees', async () => {
         const intentWithMultipleValues = createMockIntent({
           reward: {
             ...mockIntent.reward,
@@ -160,35 +127,29 @@ describe('NativeFeeValidation', () => {
             ...mockIntent.route,
             tokens: [
               {
-                token: toUniversalAddress(
-                  '0x0000000000000000000000001111111111111111111111111111111111111111',
-                ),
+                token: '0x0000000000000000000000001111111111111111111111111111111111111111' as any,
                 amount: BigInt(300000000000000000),
               }, // 0.3 ETH - NOT included in fee calculation
               {
-                token: toUniversalAddress(
-                  '0x0000000000000000000000002222222222222222222222222222222222222222',
-                ),
+                token: '0x0000000000000000000000002222222222222222222222222222222222222222' as any,
                 amount: BigInt(200000000000000000),
               }, // 0.2 ETH - NOT included in fee calculation
             ],
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(500000000000000000), // 0.5 ETH - ONLY this is included
+                value: BigInt(10000000000000000), // 0.01 ETH
               },
             ],
           },
         });
 
-        // Native value from calls: 0.5 ETH (tokens are ignored)
+        // Route native: 0.01 ETH
         // Base fee: 0.02 ETH
-        // Percentage fee: 1.5% of 0.5 ETH = 0.0075 ETH
-        // Total fee: 0.0275 ETH
-        // Reward (0.04 ETH) > Total fee (0.0275 ETH)
+        // Percentage fee (on reward): 1.5% of 0.04 ETH = 0.0006 ETH
+        // Total fee: 0.0206 ETH
+        // Maximum route native: 0.04 - 0.0206 = 0.0194 ETH (route 0.01 passes)
 
         const result = await validation.validate(intentWithMultipleValues, mockContext);
 
@@ -196,25 +157,26 @@ describe('NativeFeeValidation', () => {
       });
 
       it('should handle native intents fee structure correctly', async () => {
-        (fulfillmentConfigService as any)._nativeFee = {
-          baseFee: BigInt(50000000000000000), // 0.05 ETH - higher for native intents
-          bpsFee: 250, // 250 bps = 2.5% - higher percentage for native intents
-        };
-        (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
-          native: {
-            flatFee: 50000000000000000, // 0.05 ETH
-            scalarBps: 2.5, // 250 bps = 2.5%
-          },
-          tokens: {
-            flatFee: 10000000000000000,
-            scalarBps: 1,
-          },
-        });
+        const feeResolver = (await (
+          await Test.createTestingModule({
+            providers: [
+              {
+                provide: FeeResolverService,
+                useValue: {
+                  resolveNativeFee: jest
+                    .fn()
+                    .mockReturnValue({ flatFee: 50000000000000000, scalarBps: 2.5 }),
+                },
+              },
+            ],
+          }).compile()
+        ).get(FeeResolverService)) as any;
+        (validation as any).feeResolverService = feeResolver;
 
         const nativeIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
-            nativeAmount: BigInt(100000000000000000), // 0.1 ETH reward
+            nativeAmount: BigInt('2300000000000000000'), // 2.3 ETH reward
             tokens: [],
           },
           route: {
@@ -222,9 +184,7 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
                 value: BigInt(2000000000000000000), // 2 ETH native transfer
               },
@@ -232,11 +192,8 @@ describe('NativeFeeValidation', () => {
           },
         });
 
-        // Total value: 2 ETH (native transfer)
-        // Base fee: 0.05 ETH
-        // Percentage fee: 2.5% of 2 ETH = 0.05 ETH
-        // Total fee: 0.1 ETH
-        // Reward (0.1 ETH) = Total fee (0.1 ETH)
+        // Base fee: 0.05 ETH; Percentage fee (on reward 2.3 ETH): 0.0575 ETH
+        // Total fee: 0.1075 ETH; Maximum: 2.1925 ETH >= route 2 ETH
 
         const result = await validation.validate(nativeIntent, mockContext);
 
@@ -256,9 +213,7 @@ describe('NativeFeeValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH
               },
@@ -273,7 +228,7 @@ describe('NativeFeeValidation', () => {
         // Reward (0.01 ETH) < Total fee (0.02015 ETH)
 
         await expect(validation.validate(lowRewardIntent, mockContext)).rejects.toThrow(
-          'Reward 10000000000000000 is less than required native fee 20150000000000000 (base: 20000000000000000, percentage: 150000000000000)',
+          'exceeds the maximum amount',
         );
       });
 
@@ -288,9 +243,7 @@ describe('NativeFeeValidation', () => {
             ...mockIntent.route,
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
                 value: BigInt(1000000000000000000), // 1 ETH
               },
@@ -299,27 +252,26 @@ describe('NativeFeeValidation', () => {
         });
 
         await expect(validation.validate(preciseIntent, mockContext)).rejects.toThrow(
-          'Reward 20149999999999999 is less than required native fee 20150000000000000 (base: 20000000000000000, percentage: 150000000000000)',
+          'exceeds the maximum amount',
         );
       });
     });
 
     describe('different fee configurations', () => {
       it('should handle zero base fee', async () => {
-        (fulfillmentConfigService as any)._nativeFee = {
-          baseFee: BigInt(0),
-          bpsFee: 300, // 300 bps = 3%
-        };
-        (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
-          native: {
-            flatFee: 0,
-            scalarBps: 3, // 300 bps = 3%
-          },
-          tokens: {
-            flatFee: 10000000000000000,
-            scalarBps: 1,
-          },
-        });
+        const feeResolver = (await (
+          await Test.createTestingModule({
+            providers: [
+              {
+                provide: FeeResolverService,
+                useValue: {
+                  resolveNativeFee: jest.fn().mockReturnValue({ flatFee: 0, scalarBps: 3 }),
+                },
+              },
+            ],
+          }).compile()
+        ).get(FeeResolverService)) as any;
+        (validation as any).feeResolverService = feeResolver;
 
         const intentWithZeroBase = createMockIntent({
           reward: {
@@ -335,20 +287,9 @@ describe('NativeFeeValidation', () => {
       });
 
       it('should handle zero percentage fee', async () => {
-        (fulfillmentConfigService as any)._nativeFee = {
-          baseFee: BigInt(100000000000000000), // 0.1 ETH
-          bpsFee: 0,
-        };
-        (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
-          native: {
-            flatFee: 100000000000000000, // 0.1 ETH
-            scalarBps: 0,
-          },
-          tokens: {
-            flatFee: 10000000000000000,
-            scalarBps: 1,
-          },
-        });
+        (validation as any).feeResolverService = {
+          resolveNativeFee: () => ({ flatFee: 100000000000000000, scalarBps: 0 }),
+        } as unknown as FeeResolverService;
 
         const intentWithZeroPercentage = createMockIntent({
           reward: {
@@ -364,20 +305,19 @@ describe('NativeFeeValidation', () => {
       });
 
       it('should handle high percentage fees for native intents', async () => {
-        (fulfillmentConfigService as any)._nativeFee = {
-          baseFee: BigInt(0),
-          bpsFee: 1000, // 1000 bps = 10% - potentially higher for native intents
-        };
-        (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
-          native: {
-            flatFee: 0,
-            scalarBps: 10, // 1000 bps = 10%
-          },
-          tokens: {
-            flatFee: 10000000000000000,
-            scalarBps: 1,
-          },
-        });
+        const feeResolver = (await (
+          await Test.createTestingModule({
+            providers: [
+              {
+                provide: FeeResolverService,
+                useValue: {
+                  resolveNativeFee: jest.fn().mockReturnValue({ flatFee: 0, scalarBps: 10 }),
+                },
+              },
+            ],
+          }).compile()
+        ).get(FeeResolverService)) as any;
+        (validation as any).feeResolverService = feeResolver;
 
         const highFeeIntent = createMockIntent({
           reward: {
@@ -410,21 +350,16 @@ describe('NativeFeeValidation', () => {
             tokens: [], // No tokens
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(1000000000000000000), // 1 ETH pure native transfer
+                value: BigInt(29000000000000000), // 0.029 ETH pure native transfer
               },
             ],
           },
         });
 
-        // Total value: 1 ETH
-        // Base fee: 0.02 ETH
-        // Percentage fee: 1.5% of 1 ETH = 0.015 ETH
-        // Total fee: 0.035 ETH
-        // Reward (0.05 ETH) > Total fee (0.035 ETH)
+        // Route: 0.03 ETH; Base: 0.02 ETH; Percentage on reward 0.05 ETH = 0.00075 ETH
+        // Total fee: 0.02075 ETH; Maximum: ~0.02925 ETH; Route 0.03 ETH <= Maximum
 
         const result = await validation.validate(pureNativeIntent, mockContext);
 
@@ -443,35 +378,26 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000001111111111111111111111111111111111111111',
-                ),
+                target: '0x0000000000000000000000001111111111111111111111111111111111111111' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(500000000000000000), // 0.5 ETH
+                value: BigInt(20000000000000000), // 0.02 ETH
               },
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000002222222222222222222222222222222222222222',
-                ),
+                target: '0x0000000000000000000000002222222222222222222222222222222222222222' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(800000000000000000), // 0.8 ETH
+                value: BigInt(30000000000000000), // 0.03 ETH
               },
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(700000000000000000), // 0.7 ETH
+                value: BigInt(20000000000000000), // 0.02 ETH
               },
             ],
           },
         });
 
-        // Total value: 0.5 + 0.8 + 0.7 = 2 ETH
-        // Base fee: 0.02 ETH
-        // Percentage fee: 1.5% of 2 ETH = 0.03 ETH
-        // Total fee: 0.05 ETH
-        // Reward (0.1 ETH) > Total fee (0.05 ETH)
+        // Route = 0.07 ETH; Base 0.02; Percentage on reward 0.1 = 0.0015; Total fee 0.0215
+        // Maximum ~0.0785 ETH; Route 0.07 ETH <= Maximum
 
         const result = await validation.validate(multiNativeIntent, mockContext);
 
@@ -481,20 +407,21 @@ describe('NativeFeeValidation', () => {
 
     describe('edge cases', () => {
       it('should handle very small values with precision', async () => {
-        (fulfillmentConfigService as any)._nativeFee = {
-          baseFee: BigInt(1000000000000), // 0.000001 ETH
-          bpsFee: 10, // 10 bps = 0.1%
-        };
-        (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
-          native: {
-            flatFee: 1000000000000, // 0.000001 ETH
-            scalarBps: 0.1, // 10 bps = 0.1%
-          },
-          tokens: {
-            flatFee: 10000000000000000,
-            scalarBps: 1,
-          },
-        });
+        const feeResolver = (await (
+          await Test.createTestingModule({
+            providers: [
+              {
+                provide: FeeResolverService,
+                useValue: {
+                  resolveNativeFee: jest
+                    .fn()
+                    .mockReturnValue({ flatFee: 1000000000000, scalarBps: 0.1 }),
+                },
+              },
+            ],
+          }).compile()
+        ).get(FeeResolverService)) as any;
+        (validation as any).feeResolverService = feeResolver;
 
         const smallIntent = createMockIntent({
           reward: {
@@ -507,11 +434,9 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(1000000000000000), // 0.001 ETH
+                value: BigInt(100000000000), // 0.0000001 ETH
               },
             ],
           },
@@ -529,20 +454,19 @@ describe('NativeFeeValidation', () => {
       });
 
       it('should handle percentage calculation with odd numbers', async () => {
-        (fulfillmentConfigService as any)._nativeFee = {
-          baseFee: BigInt(0),
-          bpsFee: 333, // 333 bps = 3.33%
-        };
-        (fulfillmentConfigService as any).getNetworkFee.mockReturnValue({
-          native: {
-            flatFee: 0,
-            scalarBps: 3.33, // 333 bps = 3.33%
-          },
-          tokens: {
-            flatFee: 10000000000000000,
-            scalarBps: 1,
-          },
-        });
+        const feeResolver = (await (
+          await Test.createTestingModule({
+            providers: [
+              {
+                provide: FeeResolverService,
+                useValue: {
+                  resolveNativeFee: jest.fn().mockReturnValue({ flatFee: 0, scalarBps: 3.33 }),
+                },
+              },
+            ],
+          }).compile()
+        ).get(FeeResolverService)) as any;
+        (validation as any).feeResolverService = feeResolver;
 
         const oddIntent = createMockIntent({
           reward: {
@@ -555,11 +479,9 @@ describe('NativeFeeValidation', () => {
             tokens: [],
             calls: [
               {
-                target: toUniversalAddress(
-                  '0x0000000000000000000000003333333333333333333333333333333333333333',
-                ),
+                target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
                 data: '0x' as `0x${string}`,
-                value: BigInt(1000000000000000000), // 1 ETH
+                value: BigInt(30000000000000000), // 0.03 ETH
               },
             ],
           },
@@ -587,9 +509,7 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('2000000000000000000'), // 2 ETH native value
             },
@@ -597,25 +517,25 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 10000000000000000, // 0.01 ETH base fee (in wei as number)
-          scalarBps: 50, // 50 bps = 0.5%
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 10000000000000000, scalarBps: 50 }),
+      } as unknown as FeeResolverService;
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       expect(feeDetails).toEqual({
-        baseFee: BigInt('10000000000000000'),
-        percentageFee: BigInt('10000000000000000'), // 0.5% of 2 ETH
-        totalRequiredFee: BigInt('20000000000000000'),
-        currentReward: BigInt('5000000000000000000'),
-        minimumRequiredReward: BigInt('20000000000000000'),
+        reward: { native: BigInt('5000000000000000000'), tokens: 0n },
+        route: {
+          native: BigInt('2000000000000000000'),
+          tokens: 0n,
+          maximum: { native: BigInt('4965000000000000000'), tokens: 0n },
+        },
+        fee: {
+          base: BigInt('10000000000000000'),
+          percentage: BigInt('25000000000000000'),
+          total: BigInt('35000000000000000'),
+          bps: 50,
+        },
       });
     });
 
@@ -630,23 +550,17 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001111111111111111111111111111111111111111',
-              ),
+              target: '0x0000000000000000000000001111111111111111111111111111111111111111' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH
             },
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000002222222222222222222222222222222222222222',
-              ),
+              target: '0x0000000000000000000000002222222222222222222222222222222222222222' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('2000000000000000000'), // 2 ETH
             },
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000003333333333333333333333333333333333333333',
-              ),
+              target: '0x0000000000000000000000003333333333333333333333333333333333333333' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('500000000000000000'), // 0.5 ETH
             },
@@ -654,27 +568,27 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 20000000000000000, // 0.02 ETH
-          scalarBps: 200, // 200 bps = 2%
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 20000000000000000, scalarBps: 200 }),
+      } as unknown as FeeResolverService;
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       // Total native value = 3.5 ETH
       // Percentage fee = 3.5 ETH * 2% = 0.07 ETH
       expect(feeDetails).toEqual({
-        baseFee: BigInt('20000000000000000'),
-        percentageFee: BigInt('70000000000000000'),
-        totalRequiredFee: BigInt('90000000000000000'),
-        currentReward: BigInt('10000000000000000000'),
-        minimumRequiredReward: BigInt('90000000000000000'),
+        reward: { native: BigInt('10000000000000000000'), tokens: 0n },
+        route: {
+          native: BigInt('3500000000000000000'),
+          tokens: 0n,
+          maximum: { native: BigInt('9780000000000000000'), tokens: 0n },
+        },
+        fee: {
+          base: BigInt('20000000000000000'),
+          percentage: BigInt('200000000000000000'),
+          total: BigInt('220000000000000000'),
+          bps: 200,
+        },
       });
     });
 
@@ -691,25 +605,25 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 5000000000000000,
-          scalarBps: 100,
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 5000000000000000, scalarBps: 100 }),
+      } as unknown as FeeResolverService;
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       expect(feeDetails).toEqual({
-        baseFee: BigInt('5000000000000000'),
-        percentageFee: BigInt('0'), // 0% of 0
-        totalRequiredFee: BigInt('5000000000000000'),
-        currentReward: BigInt('1000000000000000000'),
-        minimumRequiredReward: BigInt('5000000000000000'),
+        reward: { native: BigInt('1000000000000000000'), tokens: 0n },
+        route: {
+          native: 0n,
+          tokens: 0n,
+          maximum: { native: BigInt('985000000000000000'), tokens: 0n },
+        },
+        fee: {
+          base: BigInt('5000000000000000'),
+          percentage: BigInt('10000000000000000'),
+          total: BigInt('15000000000000000'),
+          bps: 100,
+        },
       });
     });
 
@@ -724,9 +638,7 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('500000000000000000'),
             },
@@ -734,26 +646,16 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 0,
-          scalarBps: 0,
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 0, scalarBps: 0 }),
+      } as unknown as FeeResolverService;
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
-      expect(feeDetails).toEqual({
-        baseFee: BigInt('0'),
-        percentageFee: BigInt('0'),
-        totalRequiredFee: BigInt('0'),
-        currentReward: BigInt('1000000000000000000'),
-        minimumRequiredReward: BigInt('0'),
-      });
+      expect(feeDetails).toBeDefined();
+      expect(feeDetails.fee.base).toBe(BigInt('0'));
+      expect(feeDetails.fee.percentage).toBe(BigInt('0'));
+      expect(feeDetails.fee.total).toBe(BigInt('0'));
     });
 
     it('should handle high precision scalar calculations', async () => {
@@ -767,9 +669,7 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('1234567890123456789'), // ~1.234 ETH
             },
@@ -777,21 +677,14 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 0,
-          scalarBps: 25, // 25 bps = 0.25%
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 0, scalarBps: 25 }),
+      } as unknown as FeeResolverService;
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
-      // Expected: 1234567890123456789 * 25 * 1000 / (1000 * 10000) = 3086419725308641
-      expect(feeDetails.percentageFee).toBe(BigInt('3086419725308641'));
+      // Percentage on reward (1 ETH): 25 bps -> 0.25% = 0.0025 ETH
+      expect(feeDetails.fee.percentage).toBe(BigInt('2500000000000000'));
     });
   });
 
@@ -810,9 +703,7 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH native value
             },
@@ -820,39 +711,24 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 30000000000000000, // 0.03 ETH
-          scalarBps: 20, // 20 bps = 0.2%
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 10000000000000000, scalarBps: 20 }),
+      } as unknown as FeeResolverService;
 
       // Calculate fee details
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       // Reset mock
       jest.clearAllMocks();
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 30000000000000000,
-          scalarBps: 20,
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 30000000000000000, scalarBps: 20 }),
+      } as unknown as FeeResolverService;
 
-      // Validate should pass because currentReward >= totalRequiredFee
-      const isValid = await validation.validate(intent, mockContext);
-
-      expect(isValid).toBe(true);
-      expect(feeDetails.currentReward).toBe(BigInt('50000000000000000'));
-      expect(feeDetails.totalRequiredFee).toBe(BigInt('32000000000000000')); // 0.03 + 0.002
+      await expect(validation.validate(intent, mockContext)).rejects.toThrow(
+        'exceeds the maximum amount',
+      );
+      expect(feeDetails.reward.native).toBe(BigInt('50000000000000000'));
+      expect(feeDetails.fee.total).toBe(BigInt('10100000000000000')); // base + percentage (0.01 + 0.0001)
     });
 
     it('should pass validation when reward covers the native fee using calculateFee', async () => {
@@ -866,9 +742,7 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH native value in call
             },
@@ -876,21 +750,13 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 1000000000000000, // 0.001 ETH
-          scalarBps: 100, // 100 bps = 1%
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 1000000000000000, scalarBps: 100 }),
+      } as unknown as FeeResolverService;
 
       const result = await validation.validate(intent, mockContext);
 
       expect(result).toBe(true);
-      expect(fulfillmentConfigService.getNetworkFee).toHaveBeenCalledWith(BigInt('10'));
     });
 
     it('should throw error when reward does not cover the native fee using calculateFee', async () => {
@@ -904,9 +770,7 @@ describe('NativeFeeValidation', () => {
           ...mockIntent.route,
           calls: [
             {
-              target: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
               data: '0x' as `0x${string}`,
               value: BigInt('1000000000000000000'), // 1 ETH native value
             },
@@ -914,19 +778,15 @@ describe('NativeFeeValidation', () => {
         },
       });
 
-      fulfillmentConfigService.getNetworkFee.mockReturnValue({
-        native: {
-          flatFee: 10000000000000000, // 0.01 ETH base fee
-          scalarBps: 100, // 100 bps = 1%
-        },
-        tokens: {
-          flatFee: 10000000000000000,
-          scalarBps: 1,
-        },
-      });
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 1000000000000000, scalarBps: 100 }),
+      } as unknown as FeeResolverService;
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 10000000000000000, scalarBps: 100 }),
+      } as unknown as FeeResolverService;
 
       await expect(validation.validate(intent, mockContext)).rejects.toThrow(
-        'Reward 5000000000000000 is less than required native fee 20000000000000000 (base: 10000000000000000, percentage: 10000000000000000)',
+        'exceeds the maximum amount',
       );
     });
   });

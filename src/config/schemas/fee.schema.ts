@@ -10,7 +10,9 @@ const FeeSchema = z.object({
 
 export const AssetsFeeSchema = z.object({
   tokens: FeeSchema,
+  nonSwapTokens: FeeSchema,
   native: FeeSchema.optional(),
 });
 
 export type AssetsFeeSchemaType = z.infer<typeof AssetsFeeSchema>;
+export type FeeSchemaType = z.infer<typeof FeeSchema>;
