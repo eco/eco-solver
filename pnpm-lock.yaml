@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@eco-foundation/routes-ts@2.8.17':
-    hash: 2d3acef9ddab46b9e50378e7583fe1e883f00225b9280eb0211dee20d6da62a1
+    hash: 7544e8c504458cb8fb8276c416ca209da4a5c85b4df2ae71c18a965797c29e86
     path: patches/@eco-foundation__routes-ts@2.8.17.patch
 
 importers:
@@ -39,7 +39,7 @@ importers:
         version: 2.0.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@eco-foundation/routes-ts':
         specifier: 2.8.17
-        version: 2.8.17(patch_hash=2d3acef9ddab46b9e50378e7583fe1e883f00225b9280eb0211dee20d6da62a1)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+        version: 2.8.17(patch_hash=7544e8c504458cb8fb8276c416ca209da4a5c85b4df2ae71c18a965797c29e86)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@launchdarkly/node-server-sdk':
         specifier: ^9.7.1
         version: 9.10.1
@@ -6890,7 +6890,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@eco-foundation/routes-ts@2.8.17(patch_hash=2d3acef9ddab46b9e50378e7583fe1e883f00225b9280eb0211dee20d6da62a1)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+  '@eco-foundation/routes-ts@2.8.17(patch_hash=7544e8c504458cb8fb8276c416ca209da4a5c85b4df2ae71c18a965797c29e86)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       viem: 2.37.8(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
