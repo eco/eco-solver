@@ -91,6 +91,25 @@ interface CCTPLiFiStrategyContext {
   id?: string
 }
 
+// USDT0LiFi strategy context for multi-step USDT0 + LiFi operations
+interface USDT0LiFiStrategyContext {
+  sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → USDT
+  oftTransfer: {
+    sourceChain: number
+    destinationChain: number
+    amount: bigint
+  }
+  destinationSwapQuote?: LiFiStrategyContext // LiFi route for USDT → token
+  steps: ('sourceSwap' | 'usdt0Bridge' | 'destinationSwap')[]
+  gasEstimation?: {
+    sourceChainGas: bigint
+    destinationChainGas: bigint
+    totalGasUSD: number
+    gasWarnings: string[]
+  }
+  id?: string
+}
+
 type Strategy =
   | 'LiFi'
   | 'CCTP'
@@ -103,6 +122,7 @@ type Strategy =
   | 'Everclear'
   | 'Gateway'
   | 'USDT0'
+  | 'USDT0LiFi'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -125,7 +145,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
                     ? GatewayStrategyContext
                     : S extends 'USDT0'
                       ? USDT0StrategyContext
-                      : never
+                      : S extends 'USDT0LiFi'
+                        ? USDT0LiFiStrategyContext
+                        : never
 
 // Quote
 

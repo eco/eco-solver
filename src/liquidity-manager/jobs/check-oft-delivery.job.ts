@@ -5,6 +5,7 @@ import {
 import {
   LiquidityManagerJobName,
   LiquidityManagerQueueDataType,
+  LiquidityManagerQueue,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue, UnrecoverableError } from 'bullmq'
@@ -14,6 +15,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LiFiStrategyContext } from '../types/types'
 
 export interface CheckOFTDeliveryJobData extends LiquidityManagerQueueDataType {
   sourceChainId: number
@@ -21,6 +23,16 @@ export interface CheckOFTDeliveryJobData extends LiquidityManagerQueueDataType {
   txHash: Hex // source tx hash
   walletAddress: Hex
   amountLD: string
+  // Optional USDT0-LiFi context to trigger a destination swap after delivery
+  usdt0LiFiContext?: {
+    destinationSwapQuote: LiFiStrategyContext
+    walletAddress: string
+    originalTokenOut: {
+      address: Hex
+      chainId: number
+      decimals: number
+    }
+  }
 }
 
 export type CheckOFTDeliveryJob = LiquidityManagerJob<
@@ -246,6 +258,56 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
         }),
       )
 
+      // If destination swap is required (USDT0-LiFi context), enqueue it and defer completion
+      const ctx = (job.data as any).usdt0LiFiContext
+      if (ctx && ctx.destinationSwapQuote) {
+        try {
+          const data = {
+            groupID,
+            rebalanceJobID,
+            destinationChainId: job.data.destinationChainId,
+            destinationSwapQuote: ctx.destinationSwapQuote,
+            walletAddress: ctx.walletAddress,
+            originalTokenOut: ctx.originalTokenOut,
+            id: job.data.id,
+          }
+          const lmQueue = new LiquidityManagerQueue(processor.queue)
+          await lmQueue.startUSDT0LiFiDestinationSwap(data as any)
+          processor.logger.debug(
+            EcoLogMessage.withId({
+              message:
+                'USDT0: CheckOFTDeliveryJob: Enqueued USDT0_LIFI_DESTINATION_SWAP after delivery',
+              id: job.data.id,
+              properties: { data },
+            }),
+          )
+          // Rebalance completion will be marked by the destination swap job
+          return
+        } catch (err) {
+          processor.logger.error(
+            EcoLogMessage.withErrorAndId({
+              message:
+                'USDT0: CheckOFTDeliveryJob: Failed to enqueue USDT0_LIFI_DESTINATION_SWAP job',
+              id: job.data.id,
+              error: err as any,
+            }),
+          )
+          // Mark rebalance as FAILED since we cannot continue the flow
+          try {
+            await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+          } catch {}
+          return
+        }
+      }
+
+      // No destination swap required → mark rebalance as completed
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0: CheckOFTDeliveryJob: No destination swap required, marking COMPLETED',
+          id: job.data.id,
+          properties: { rebalanceJobID, groupID },
+        }),
+      )
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
     }
   }
