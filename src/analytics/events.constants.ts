@@ -206,6 +206,9 @@ export const LIQUIDITY_MANAGER_EVENTS = {
   CCTP_LIFI_SOURCE_SWAP_ERROR: 'liquidity_cctp_lifi_source_swap_error',
   CCTP_LIFI_BRIDGE_ERROR: 'liquidity_cctp_lifi_bridge_error',
 
+  // USDT0 LiFi Provider Errors
+  USDT0_LIFI_EXECUTION_ERROR: 'liquidity_usdt0_lifi_execution_error',
+
   // LiFi Provider Errors
   LIFI_CACHE_INIT_ERROR: 'liquidity_lifi_cache_init_error',
   LIFI_CORE_TOKEN_ROUTE_ERROR: 'liquidity_lifi_core_token_route_error',
