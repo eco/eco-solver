@@ -14,16 +14,15 @@ import {
   AllowanceOrTransfer as MerkleAllowanceOrTransfer,
   StandardMerkleBuilder,
 } from '@/common/utils/standard-merkle-builder';
+import { QuotesService } from '@/modules/api/quotes/services/quotes.service';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QuoteRepository } from '@/modules/intents/repositories/quote.repository';
-import {
-  GaslessInitiation,
-  GaslessInitiationDocument,
-} from '@/modules/intents/schemas/gasless-initiation.schema';
+import { IntentDataSchema } from '@/modules/intents/schemas/intent-data.schema';
 import { Quote } from '@/modules/intents/schemas/quote.schema';
 import { LoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
+import { GaslessInitiation, GaslessInitiationDocument } from '../schemas/gasless-initiation.schema';
 import {
   AllowanceOrTransfer,
   GaslessIntentRequest,
@@ -46,6 +45,7 @@ export class GaslessIntentsService {
     @InjectModel(GaslessInitiation.name)
     private readonly gaslessInitiationModel: Model<GaslessInitiationDocument>,
     private readonly quoteRepository: QuoteRepository,
+    private readonly quotesService: QuotesService,
     private readonly blockchainExecutor: BlockchainExecutorService,
     private readonly logger: LoggerService,
     private readonly otelService: OpenTelemetryService,
@@ -85,7 +85,7 @@ export class GaslessIntentsService {
             gaslessIntentData.permit3.allowanceOrTransfers,
           );
 
-          // Build Merkle tree and get proofs
+          // Build a Merkle tree and get proofs
           const { merkleRoot, proofsByChainId } =
             this.merkleBuilder.createCrossChainProofs(permitsByChain);
 
@@ -206,8 +206,8 @@ export class GaslessIntentsService {
       const { quoteID, salt } = intent;
 
       // Fetch quote from database
-      const quote = await this.quoteRepository.getByQuoteId(quoteID, 'GASLESS');
-      const chainId = Number(BigInt(quote.route.source));
+      const quote = await this.quoteRepository.getByQuoteId(quoteID);
+      const chainId = quote.sourceChainID;
 
       // Initialize chain group if needed
       if (!intentsByChain.has(chainId)) {
@@ -283,63 +283,21 @@ export class GaslessIntentsService {
           // Execute fundFor transactions (sequentially for each intent)
           const fundForTxHashes: Hex[] = [];
           for (const { quote, salt } of chainIntents) {
-            const destination = BigInt(quote.route.destination);
+            // Convert quote to intent using QuotesService
+            const intent = IntentDataSchema.parse(quote.intent);
 
-            // Reconstruct intent for route hash calculation
-            const intent = {
-              destination,
-              route: {
-                salt,
-                deadline: BigInt(quote.route.deadline),
-                portal: quote.route.portal,
-                nativeAmount: BigInt(quote.route.nativeAmount),
-                tokens: quote.route.tokens.map((t: any) => ({
-                  amount: BigInt(t.amount),
-                  token: t.token,
-                })),
-                calls: quote.route.calls.map((c: any) => ({
-                  data: c.data,
-                  target: c.target,
-                  value: BigInt(c.value),
-                })),
-              },
-              reward: {
-                deadline: BigInt(quote.reward.deadline),
-                creator: quote.reward.creator,
-                prover: quote.reward.prover,
-                nativeAmount: BigInt(quote.reward.nativeAmount),
-                tokens: quote.reward.tokens.map((t: any) => ({
-                  amount: BigInt(t.amount),
-                  token: t.token,
-                })),
-              },
-            };
+            // Use the salt from the quote
+            intent.route.salt = salt;
 
-            const { routeHash } = PortalHashUtils.getIntentHash({
-              ...intent,
-              intentHash: '0x' as Hex,
-              sourceChainId: BigInt(quote.route.source),
-            });
-
-            // Prepare reward with UniversalAddress
-            const reward = {
-              deadline: intent.reward.deadline,
-              creator: intent.reward.creator,
-              prover: intent.reward.prover,
-              nativeAmount: intent.reward.nativeAmount,
-              tokens: intent.reward.tokens.map((t: any) => ({
-                token: t.token,
-                amount: t.amount,
-              })),
-            };
+            const { routeHash } = PortalHashUtils.getIntentHash(intent);
 
             const chainType = ChainTypeDetector.detect(chainId);
 
             const fundForTxHash = await executor.fundFor(
               chainId,
-              destination,
+              intent.destination,
               routeHash,
-              reward,
+              intent.reward,
               allowPartial,
               AddressNormalizer.normalize(permit3.owner, chainType),
               AddressNormalizer.normalize(permit3.permitContract, chainType),

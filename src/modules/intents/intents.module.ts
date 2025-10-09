@@ -5,7 +5,6 @@ import { EventsModule } from '@/modules/events/events.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { QuoteRepository } from './repositories/quote.repository';
-import { GaslessInitiation, GaslessInitiationSchema } from './schemas/gasless-initiation.schema';
 import { Intent, IntentSchema } from './schemas/intent.schema';
 import { Quote, QuoteSchema } from './schemas/quote.schema';
 import { IntentsService } from './intents.service';
@@ -16,7 +15,6 @@ import { IntentsEventsHandler } from './intents-events.handler';
     MongooseModule.forFeature([
       { name: Intent.name, schema: IntentSchema },
       { name: Quote.name, schema: QuoteSchema },
-      { name: GaslessInitiation.name, schema: GaslessInitiationSchema },
     ]),
     EventsModule,
     LoggingModule,

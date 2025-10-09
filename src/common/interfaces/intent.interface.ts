@@ -9,12 +9,12 @@ export class Call<addr extends UniversalAddress | BlockchainAddress = UniversalA
   value: bigint;
 }
 
-export interface Intent<
+export interface CoreIntent<
   sourceAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
   destAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
 > {
-  intentHash: Hex;
   destination: bigint;
+  sourceChainId: bigint; // Source chain context
   route: Readonly<{
     salt: Hex;
     deadline: bigint;
@@ -40,9 +40,14 @@ export interface Intent<
       }[]
     >;
   }>;
+}
+
+export interface Intent<
+  sourceAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
+  destAddr extends UniversalAddress | BlockchainAddress = UniversalAddress,
+> extends CoreIntent<sourceAddr, destAddr> {
+  intentHash: Hex;
   status?: IntentStatus;
-  sourceChainId: bigint; // Source chain context
-  vaultAddress?: string; // Derived vault address
   // Transaction tracking
   publishTxHash?: string; // Transaction hash where intent was published
 }
