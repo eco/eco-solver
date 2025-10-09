@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { AssetsFeeSchemaType, FeeSchemaType } from '@/config/schemas/fee.schema';
+import { AssetsFeeSchemaType, FeeSchemaType, RouteFeeOverride } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
 
 import { BlockchainConfigService } from './blockchain-config.service';
@@ -90,41 +90,37 @@ export class FeeResolverService {
       'fee.sourceToken': sourceTokenAddress ?? 'undefined',
       'fee.destinationToken': destinationTokenAddress ?? 'undefined',
     });
-    const feeConfig = this.resolveFee(destinationChainId, destinationTokenAddress);
+    const override = this.findRouteOverride(
+      destinationChainId,
+      destinationTokenAddress,
+      sourceChainId,
+      sourceTokenAddress,
+    );
+    const matched = this.isNonSwapMatch(
+      destinationChainId,
+      destinationTokenAddress,
+      sourceChainId,
+      sourceTokenAddress,
+    );
 
-    if (sourceTokenAddress && destinationTokenAddress && sourceChainId) {
-      let sourceTokenConfig: { nonSwapGroups?: string[] } | undefined;
-      let destinationTokenConfig: { nonSwapGroups?: string[] } | undefined;
-      try {
-        sourceTokenConfig = this.blockchainConfigService.getTokenConfig(
-          sourceChainId,
-          sourceTokenAddress,
-        );
-      } catch {
-        // ignore missing token config
-      }
-      try {
-        destinationTokenConfig = this.blockchainConfigService.getTokenConfig(
-          destinationChainId,
-          destinationTokenAddress,
-        );
-      } catch {
-        // ignore missing token config
-      }
-      // Check if the source and destination token have non-swap groups that match
-      // If they do, return the non-swap fee configuration
-      if (sourceTokenConfig?.nonSwapGroups && destinationTokenConfig?.nonSwapGroups) {
-        if (
-          sourceTokenConfig.nonSwapGroups.some((group) =>
-            destinationTokenConfig.nonSwapGroups?.includes(group),
-          )
-        ) {
-          span?.setAttributes({ 'fee.kind': 'nonSwapTokens', 'fee.nonSwapGroups.matched': true });
-          return feeConfig.nonSwapTokens;
-        }
-      }
+    // 0. Route-level exact override (srcChain+srcToken -> dstChain+dstToken)
+    if (override) {
+      const feeKind = matched ? 'nonSwapTokens' : 'tokens';
+      span?.setAttributes({
+        'fee.source': 'routeOverride',
+        'fee.kind': feeKind,
+        'fee.nonSwapGroups.matched': matched,
+      });
+      return override.fee[feeKind as 'tokens' | 'nonSwapTokens'];
     }
 
+    const feeConfig = this.resolveFee(destinationChainId, destinationTokenAddress);
+    // 1. Non-swap match (medium priority)
+    if (matched) {
+      span?.setAttributes({ 'fee.kind': 'nonSwapTokens', 'fee.nonSwapGroups.matched': true });
+      return feeConfig.nonSwapTokens;
+    }
+    // 2. Swap match (lowest priority)
     span?.setAttributes({ 'fee.kind': 'tokens', 'fee.nonSwapGroups.matched': false });
     return feeConfig.tokens;
   }
@@ -135,9 +131,69 @@ export class FeeResolverService {
    * @returns The resolved fee configuration for native transfers
    */
   resolveNativeFee(chainId: ChainIdentifier): FeeSchemaType | undefined {
-    // For native transfers, only check network and default fees
+    // For native transfers, check route override (chain+token agnostic not supported by scope), then network/default
     const span = api.trace.getActiveSpan();
     span?.setAttributes({ 'fee.kind': 'native', 'fee.destinationChainId': String(chainId) });
+    const overrides =
+      (this.fulfillmentConfigService as any).routeFeeOverrides ??
+      (this.fulfillmentConfigService.fulfillmentConfig as any)?.routeFeeOverrides;
+    if (overrides && overrides.length) {
+      const match = (overrides as RouteFeeOverride[]).find(
+        (o: RouteFeeOverride) => String(o.destinationChainId) === String(chainId) && !!o.fee.native,
+      );
+      if (match?.fee.native) {
+        span?.setAttributes({ 'fee.source': 'routeOverride' });
+        return match.fee.native;
+      }
+    }
     return this.resolveFee(chainId).native;
+  }
+
+  private isNonSwapMatch(
+    destinationChainId?: ChainIdentifier,
+    destinationTokenAddress?: UniversalAddress,
+    sourceChainId?: ChainIdentifier,
+    sourceTokenAddress?: UniversalAddress,
+  ): boolean {
+    if (!destinationChainId || !destinationTokenAddress || !sourceChainId || !sourceTokenAddress) {
+      return false;
+    }
+    try {
+      const src = this.blockchainConfigService.getTokenConfig(sourceChainId, sourceTokenAddress);
+      const dst = this.blockchainConfigService.getTokenConfig(
+        destinationChainId,
+        destinationTokenAddress,
+      );
+      return Boolean(
+        src?.nonSwapGroups?.length &&
+          dst?.nonSwapGroups?.length &&
+          src.nonSwapGroups!.some((g) => dst.nonSwapGroups!.includes(g)),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private findRouteOverride(
+    destinationChainId?: ChainIdentifier,
+    destinationTokenAddress?: UniversalAddress,
+    sourceChainId?: ChainIdentifier,
+    sourceTokenAddress?: UniversalAddress,
+  ): RouteFeeOverride | undefined {
+    const overrides =
+      (this.fulfillmentConfigService as any).routeFeeOverrides ??
+      (this.fulfillmentConfigService.fulfillmentConfig as any)?.routeFeeOverrides;
+    if (!overrides?.length) return undefined;
+    if (!destinationChainId || !destinationTokenAddress || !sourceChainId || !sourceTokenAddress) {
+      return undefined;
+    }
+    const match = (overrides as RouteFeeOverride[]).find(
+      (o: RouteFeeOverride) =>
+        String(o.sourceChainId) === String(sourceChainId) &&
+        String(o.destinationChainId) === String(destinationChainId) &&
+        o.sourceToken.toLowerCase() === String(sourceTokenAddress).toLowerCase() &&
+        o.destinationToken.toLowerCase() === String(destinationTokenAddress).toLowerCase(),
+    );
+    return match;
   }
 }

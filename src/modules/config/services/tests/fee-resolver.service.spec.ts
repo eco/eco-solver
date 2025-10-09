@@ -623,4 +623,65 @@ describe('FeeResolverService', () => {
       );
     });
   });
+
+  describe('route-level overrides (exact 4-tuple)', () => {
+    const destinationChainId = '1';
+    const sourceChainId = '10';
+    const srcToken = '0xsrc' as UniversalAddress;
+    const dstToken = '0xdst' as UniversalAddress;
+
+    beforeEach(() => {
+      // Inject routeFeeOverrides into fulfillment config
+      Object.defineProperty(fulfillmentConfigService, 'fulfillmentConfig', {
+        get: jest.fn(() => ({
+          defaultFee,
+          routeFeeOverrides: [
+            {
+              sourceChainId: sourceChainId,
+              destinationChainId: destinationChainId,
+              sourceToken: srcToken,
+              destinationToken: dstToken,
+              fee: tokenFee,
+            },
+          ],
+        })),
+        configurable: true,
+      });
+    });
+
+    it('should take precedence over token/network/default for tokens path', () => {
+      // Set up non-matching nonSwapGroups so we select tokens branch
+      blockchainConfigService.getTokenConfig.mockImplementation((id, token) => {
+        if (token === srcToken) return { nonSwapGroups: ['a'] } as any;
+        if (token === dstToken) return { nonSwapGroups: ['b'] } as any;
+        return {} as any;
+      });
+
+      const result = service.resolveTokenFee(
+        destinationChainId,
+        dstToken,
+        sourceChainId,
+        srcToken,
+      )!;
+
+      expect(result).toEqual(tokenFee.tokens);
+    });
+
+    it('should select override.nonSwapTokens when groups match', () => {
+      blockchainConfigService.getTokenConfig.mockImplementation((id, token) => {
+        if (token === srcToken) return { nonSwapGroups: ['same'] } as any;
+        if (token === dstToken) return { nonSwapGroups: ['same'] } as any;
+        return {} as any;
+      });
+
+      const result = service.resolveTokenFee(
+        destinationChainId,
+        dstToken,
+        sourceChainId,
+        srcToken,
+      )!;
+
+      expect(result).toEqual(tokenFee.nonSwapTokens);
+    });
+  });
 });

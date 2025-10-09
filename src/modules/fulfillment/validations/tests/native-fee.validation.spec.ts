@@ -790,4 +790,44 @@ describe('NativeFeeValidation', () => {
       );
     });
   });
+
+  describe('override smoke (resolver-driven)', () => {
+    const mockIntent = createMockIntent();
+    const mockContext = createMockValidationContext();
+
+    it('reflects higher vs lower resolver fees in validation outcome', async () => {
+      // Route call: 0.01 ETH; Reward: 0.02 ETH
+      const intent = createMockIntent({
+        reward: {
+          ...mockIntent.reward,
+          nativeAmount: BigInt('20000000000000000'),
+          tokens: [],
+        },
+        route: {
+          ...mockIntent.route,
+          calls: [
+            {
+              target: '0x0000000000000000000000001234567890123456789012345678901234567890' as any,
+              data: '0x' as `0x${string}`,
+              value: BigInt('10000000000000000'),
+            },
+          ],
+        },
+      });
+
+      // High base fee (0.015 ETH) -> maximum 0.005 ETH -> should fail
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 15000000000000000, scalarBps: 0 }),
+      } as any;
+      await expect(validation.validate(intent, mockContext)).rejects.toThrow(
+        'exceeds the maximum amount',
+      );
+
+      // Lower base fee (0.01 ETH) -> maximum 0.01 ETH -> should pass
+      (validation as any).feeResolverService = {
+        resolveNativeFee: () => ({ flatFee: 10000000000000000, scalarBps: 0 }),
+      } as any;
+      await expect(validation.validate(intent, mockContext)).resolves.toBe(true);
+    });
+  });
 });
