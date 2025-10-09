@@ -426,13 +426,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     chainId: number,
     destination: bigint,
     routeHash: Hex,
-    reward: {
-      deadline: bigint;
-      creator: UniversalAddress;
-      prover: UniversalAddress;
-      nativeAmount: bigint;
-      tokens: Array<{ token: UniversalAddress; amount: bigint }>;
-    },
+    reward: Intent['reward'],
     allowPartial: boolean,
     funder: UniversalAddress,
     permitContract: UniversalAddress,

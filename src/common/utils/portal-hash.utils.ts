@@ -9,12 +9,12 @@ import { encodePacked, Hex, keccak256 } from 'viem';
 
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 
-import { Intent } from '../interfaces/intent.interface';
+import { CoreIntent, Intent } from '../interfaces/intent.interface';
 
 import { ChainTypeDetector } from './chain-type-detector';
 
 export class PortalHashUtils {
-  static getIntentHash(intent: Intent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
+  static getIntentHash(intent: CoreIntent): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
   static getIntentHash(
     destination: bigint,
     routeHash: Hex,
@@ -22,7 +22,7 @@ export class PortalHashUtils {
   ): { intentHash: Hex; routeHash: Hex; rewardHash: Hex };
 
   static getIntentHash(
-    intentOrDestination: Intent | bigint,
+    intentOrDestination: CoreIntent | bigint,
     routeHash?: Hex,
     rewardHash?: Hex,
   ): { intentHash: Hex; routeHash: Hex; rewardHash: Hex } {

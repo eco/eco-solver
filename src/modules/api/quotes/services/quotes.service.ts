@@ -8,6 +8,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { denormalize } from '@/common/tokens/normalize';
 import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -15,6 +16,9 @@ import { hours, now } from '@/common/utils/time';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { QuoteRepository } from '@/modules/intents/repositories/quote.repository';
+import { IntentDataSchema } from '@/modules/intents/schemas/intent-data.schema';
+import { Quote } from '@/modules/intents/schemas/quote.schema';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
@@ -26,11 +30,12 @@ export class QuotesService {
     private readonly fulfillmentService: FulfillmentService,
     private readonly blockchainConfigService: BlockchainConfigService,
     private readonly blockchainReaderService: BlockchainReaderService,
+    private readonly quoteRepository: QuoteRepository,
   ) {}
 
   async getQuote(request: QuoteRequest): Promise<QuoteResponse> {
     // Convert the simplified request to a proper Intent interface with correct types
-    const intent = this.convertToIntent(request);
+    const intent = this.convertToIntent(request.quoteRequest);
 
     // Always use the default strategy for simplified quotes
     const selectedStrategyName = this.fulfillmentConfigService.defaultStrategy;
@@ -131,38 +136,55 @@ export class QuotesService {
 
     const encodedRoute = PortalEncoder.encode(route, destinationChainType);
 
+    // Generate unique quote ID
+    const quoteID = crypto.randomUUID();
+
+    const quoteData = {
+      sourceChainID: sourceChainId,
+      destinationChainID: destinationChainId,
+      sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),
+      destinationToken: AddressNormalizer.denormalize(destinationToken, destinationChainType),
+      sourceAmount: sourceAmount.toString(),
+      destinationAmount: destinationAmount.toString(),
+      funder: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
+      refundRecipient: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
+      recipient: request.quoteRequest.recipient,
+      fees: quoteResult.fees
+        ? [
+            {
+              name: 'Eco Protocol Fee' as const,
+              description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
+              token: {
+                address: request.quoteRequest.sourceToken,
+                decimals: rewardTokenConfig.decimals,
+                symbol: rewardTokenConfig.symbol,
+              },
+              amount: totalFee.toString(),
+            },
+          ]
+        : [],
+      deadline: Number(intent.reward.deadline),
+      estimatedFulfillTimeSec: 30, // Default estimate can be made configurable
+      encodedRoute,
+    };
+
+    // Serialize intent for storage (convert bigints to strings)
+    const serializedIntent = BigintSerializer.serializeToObject(intent);
+    const intentData = IntentDataSchema.parse(serializedIntent);
+    const serializedIntentData = BigintSerializer.serializeToObject(intentData);
+
+    // Save quote to database
+    const quote: Quote = {
+      quoteID,
+      ...quoteData,
+      intent: serializedIntentData,
+    };
+
+    await this.quoteRepository.create(quote);
+
     // Build the response
     return {
-      quoteResponses: [
-        {
-          sourceChainID: sourceChainId,
-          destinationChainID: destinationChainId,
-          sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),
-          destinationToken: AddressNormalizer.denormalize(destinationToken, destinationChainType),
-          sourceAmount: sourceAmount.toString(),
-          destinationAmount: destinationAmount.toString(),
-          funder: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
-          refundRecipient: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
-          recipient: request.quoteRequest.recipient,
-          fees: quoteResult.fees
-            ? [
-                {
-                  name: 'Eco Protocol Fee' as const,
-                  description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
-                  token: {
-                    address: request.quoteRequest.sourceToken,
-                    decimals: rewardTokenConfig.decimals,
-                    symbol: rewardTokenConfig.symbol,
-                  },
-                  amount: totalFee.toString(),
-                },
-              ]
-            : [],
-          deadline: Number(intent.reward.deadline),
-          estimatedFulfillTimeSec: 30, // Default estimate can be made configurable
-          encodedRoute,
-        },
-      ],
+      quoteResponses: [quoteData],
       contracts: {
         sourcePortal: AddressNormalizer.denormalize(sourcePortalAddressUA, sourceChainType),
         destinationPortal: AddressNormalizer.denormalize(intent.route.portal, destinationChainType),
@@ -171,19 +193,19 @@ export class QuotesService {
     };
   }
 
-  private convertToIntent(request: QuoteRequest): Intent {
-    const { quoteRequest } = request;
-    const sourceChainId = BigInt(quoteRequest.sourceChainID);
-    const destinationChainId = BigInt(quoteRequest.destinationChainID);
-    // Determine a source chain type for normalization
-    const sourceChainType = ChainTypeDetector.detect(sourceChainId);
-    const destinationChainType = ChainTypeDetector.detect(destinationChainId);
-
+  private convertToIntent(quoteRequest: QuoteRequest['quoteRequest']): Intent {
     // Generate a random salt for intent uniqueness
     const salt = this.generateSalt();
 
     // Set the deadline to 2 hours from now
     const deadline = now() + hours(2);
+
+    const sourceChainId = BigInt(quoteRequest.sourceChainID);
+    const destinationChainId = BigInt(quoteRequest.destinationChainID);
+
+    // Determine a source chain type for normalization
+    const sourceChainType = ChainTypeDetector.detect(sourceChainId);
+    const destinationChainType = ChainTypeDetector.detect(destinationChainId);
 
     // Get portal address for a destination chain
     const portalAddressUA = this.blockchainConfigService.getPortalAddress(
@@ -229,15 +251,14 @@ export class QuotesService {
       nativeAmount: BigInt(0), // Fee will be calculated by the strategy
       tokens: [
         {
-          token: AddressNormalizer.normalize(request.quoteRequest.sourceToken, sourceChainType),
-          amount: request.quoteRequest.sourceAmount,
+          token: AddressNormalizer.normalize(quoteRequest.sourceToken, sourceChainType),
+          amount: quoteRequest.sourceAmount,
         },
       ], // No token rewards for simplified quotes
     } as const;
 
     // Generate intent hash using the new Viem-based function
     const { intentHash } = PortalHashUtils.getIntentHash({
-      intentHash: '0x' as Hex, // Placeholder will be replaced by computed hash
       destination: destinationChainId,
       sourceChainId,
       route,

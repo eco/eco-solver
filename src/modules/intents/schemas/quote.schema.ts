@@ -2,13 +2,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { Document } from 'mongoose';
 
-import { UniversalAddress } from '@/common/types/universal-address.type';
-
 export type QuoteDocument = Quote & Document;
 
 /**
- * Simplified quote schema for gasless intents
- * Stores essential route and reward data needed for intent initiation
+ * Quote schema matching QuoteDataSchema
+ * Stores quote data for gasless intent execution
  */
 @Schema({ timestamps: true })
 export class Quote {
@@ -16,80 +14,69 @@ export class Quote {
   quoteID: string;
 
   @Prop({ required: true, index: true })
-  dAppID: string;
+  sourceChainID: number;
 
   @Prop({ required: true, index: true })
-  intentExecutionType: string; // e.g., 'GASLESS', 'SELF_PUBLISH'
+  destinationChainID: number;
 
-  // Route data
+  @Prop({ required: true })
+  sourceToken: string;
+
+  @Prop({ required: true })
+  destinationToken: string;
+
+  @Prop({ required: true })
+  sourceAmount: string; // Store bigint as string
+
+  @Prop({ required: true })
+  destinationAmount: string; // Store bigint as string
+
+  @Prop({ required: true })
+  funder: string;
+
+  @Prop({ required: true })
+  refundRecipient: string;
+
+  @Prop({ required: true })
+  recipient: string;
+
   @Prop({
-    type: {
-      source: { type: String, required: true }, // Store bigint as string
-      destination: { type: String, required: true }, // Store bigint as string
-      salt: { type: String, required: true },
-      portal: { type: String, required: true },
-      deadline: { type: String, required: true }, // Store bigint as string
-      nativeAmount: { type: String, required: true }, // Store bigint as string
-      tokens: [
-        {
-          amount: { type: String, required: true }, // Store bigint as string
-          token: { type: String, required: true },
+    type: [
+      {
+        name: { type: String, required: true },
+        description: { type: String, required: true },
+        token: {
+          address: { type: String, required: true },
+          decimals: { type: Number, required: true },
+          symbol: { type: String, required: true },
         },
-      ],
-      calls: [
-        {
-          data: { type: String, required: true },
-          target: { type: String, required: true },
-          value: { type: String, required: true }, // Store bigint as string
-        },
-      ],
-    },
+        amount: { type: String, required: true }, // Store bigint as string
+      },
+    ],
     required: true,
   })
-  route: {
-    source: string;
-    destination: string;
-    salt: string;
-    portal: UniversalAddress;
-    deadline: string;
-    nativeAmount: string;
-    tokens: {
-      amount: string;
-      token: UniversalAddress;
-    }[];
-    calls: {
-      data: string;
-      target: UniversalAddress;
-      value: string;
-    }[];
-  };
+  fees: Array<{
+    name: string;
+    description: string;
+    token: {
+      address: string;
+      decimals: number;
+      symbol: string;
+    };
+    amount: string;
+  }>;
 
-  // Reward data
-  @Prop({
-    type: {
-      creator: { type: String, required: true },
-      prover: { type: String, required: true },
-      deadline: { type: String, required: true }, // Store bigint as string
-      nativeAmount: { type: String, required: true }, // Store bigint as string
-      tokens: [
-        {
-          amount: { type: String, required: true }, // Store bigint as string
-          token: { type: String, required: true },
-        },
-      ],
-    },
-    required: true,
-  })
-  reward: {
-    creator: UniversalAddress;
-    prover: UniversalAddress;
-    deadline: string;
-    nativeAmount: string;
-    tokens: {
-      amount: string;
-      token: UniversalAddress;
-    }[];
-  };
+  @Prop({ required: true })
+  deadline: number;
+
+  @Prop({ required: true })
+  estimatedFulfillTimeSec: number;
+
+  @Prop({ required: true })
+  encodedRoute: string;
+
+  @Prop({ type: Object, required: true })
+  intent: Record<string, any>;
 
   @Prop({ type: Date })
   createdAt?: Date;
@@ -101,7 +88,5 @@ export class Quote {
 export const QuoteSchema = SchemaFactory.createForClass(Quote);
 
 QuoteSchema.index({ quoteID: 1 }, { unique: true });
-QuoteSchema.index({ dAppID: 1 });
-QuoteSchema.index({ intentExecutionType: 1 });
-QuoteSchema.index({ 'route.source': 1 });
-QuoteSchema.index({ 'route.destination': 1 });
+QuoteSchema.index({ sourceChainID: 1 });
+QuoteSchema.index({ destinationChainID: 1 });

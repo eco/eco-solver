@@ -17,21 +17,19 @@ export class QuoteRepository {
   ) {}
 
   /**
-   * Find a quote by quoteID and intentExecutionType
+   * Find a quote by quoteID
    * @param quoteID Quote identifier
-   * @param intentExecutionType Execution type (e.g., 'GASLESS')
    * @returns Quote or null
    */
-  async findByQuoteId(quoteID: string, intentExecutionType: string): Promise<Quote | null> {
+  async findByQuoteId(quoteID: string): Promise<Quote | null> {
     const span = this.otelService.startSpan('quote.repository.findByQuoteId', {
       attributes: {
         'quote.id': quoteID,
-        'quote.execution_type': intentExecutionType,
       },
     });
 
     try {
-      const result = await this.model.findOne({ quoteID, intentExecutionType }).lean().exec();
+      const result = await this.model.findOne({ quoteID }).lean().exec();
 
       span.setAttribute('quote.found', !!result);
       span.setStatus({ code: api.SpanStatusCode.OK });
@@ -47,27 +45,23 @@ export class QuoteRepository {
   }
 
   /**
-   * Get a quote by quoteID and intentExecutionType, throws if not found
+   * Get a quote by quoteID, throws if not found
    * @param quoteID Quote identifier
-   * @param intentExecutionType Execution type
    * @returns Quote
    * @throws NotFoundException if quote not found
    */
-  async getByQuoteId(quoteID: string, intentExecutionType: string): Promise<Quote> {
+  async getByQuoteId(quoteID: string): Promise<Quote> {
     const span = this.otelService.startSpan('quote.repository.getByQuoteId', {
       attributes: {
         'quote.id': quoteID,
-        'quote.execution_type': intentExecutionType,
       },
     });
 
     try {
-      const quote = await this.findByQuoteId(quoteID, intentExecutionType);
+      const quote = await this.findByQuoteId(quoteID);
 
       if (!quote) {
-        const error = new NotFoundException(
-          `Quote not found: quoteID=${quoteID}, intentExecutionType=${intentExecutionType}`,
-        );
+        const error = new NotFoundException(`Quote not found: quoteID=${quoteID}`);
 
         span.recordException(error);
         span.setStatus({ code: api.SpanStatusCode.ERROR, message: 'Quote not found' });
@@ -78,6 +72,36 @@ export class QuoteRepository {
       span.setStatus({ code: api.SpanStatusCode.OK });
 
       return quote;
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({ code: api.SpanStatusCode.ERROR });
+      throw error;
+    } finally {
+      span.end();
+    }
+  }
+
+  /**
+   * Create and save a new quote
+   * @param quote Quote data to save
+   * @returns Saved quote
+   */
+  async create(quote: Quote): Promise<Quote> {
+    const span = this.otelService.startSpan('quote.repository.create', {
+      attributes: {
+        'quote.id': quote.quoteID,
+        'quote.source_chain': quote.sourceChainID,
+        'quote.destination_chain': quote.destinationChainID,
+      },
+    });
+
+    try {
+      const newQuote = new this.model(quote);
+      const saved = await newQuote.save();
+
+      span.setStatus({ code: api.SpanStatusCode.OK });
+
+      return saved.toObject();
     } catch (error) {
       span.recordException(error as Error);
       span.setStatus({ code: api.SpanStatusCode.ERROR });
