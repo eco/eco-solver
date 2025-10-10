@@ -1,9 +1,12 @@
 import { AwsToMongoDbMigrationService } from '@/dynamic-config/migration/aws-to-mongodb-migration.service'
 import { DynamicConfigModule } from '@/dynamic-config/dynamic-config.module'
 import { DynamicConfigValidationService } from '@/dynamic-config/migration/dynamic-config-validation.service'
+import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { Module } from '@nestjs/common'
+import { ModuleRef } from '@nestjs/core'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { MongooseModule } from '@nestjs/mongoose'
 
 /**
@@ -13,6 +16,7 @@ import { MongooseModule } from '@nestjs/mongoose'
 @Module({
   imports: [
     DynamicConfigModule,
+    EcoConfigModule.withAWS(), // Import the properly configured EcoConfigService
     EventEmitterModule.forRoot(),
     MongooseModule.forRootAsync({
       useFactory: () => {
@@ -35,17 +39,16 @@ import { MongooseModule } from '@nestjs/mongoose'
     }),
   ],
   providers: [
-    // Create a custom EcoConfigService provider that requires ConfigurationService
-    {
-      provide: EcoConfigService,
-      useFactory: async () => {
-        const service = new EcoConfigService([])
-        await service.onModuleInit()
-        return service
-      },
-    },
     AwsToMongoDbMigrationService,
     DynamicConfigValidationService,
+    {
+      provide: 'ModuleRefProviderInit',
+      inject: [ModuleRef],
+      useFactory: (moduleRef: ModuleRef) => {
+        ModuleRefProvider.setModuleRef(moduleRef)
+        return true
+      },
+    },
   ],
   exports: [AwsToMongoDbMigrationService, DynamicConfigValidationService],
 })

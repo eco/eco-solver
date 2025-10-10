@@ -16,6 +16,14 @@ import { NestFactory } from '@nestjs/core'
 class MigrationCLI {
   private logger = new Logger(MigrationCLI.name)
 
+  private async createApp() {
+    const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
+      logger: ['error', 'warn', 'log'],
+    })
+
+    return app
+  }
+
   async run() {
     const program = new Command()
 
@@ -81,9 +89,7 @@ class MigrationCLI {
     this.logger.log('Starting configuration migration...')
 
     try {
-      const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
-        logger: ['error', 'warn', 'log'],
-      })
+      const app = await this.createApp()
 
       const migrationService = app.get(AwsToMongoDbMigrationService)
       const result = await migrationService.migrateFromAws(options)
@@ -102,9 +108,7 @@ class MigrationCLI {
     this.logger.log('Validating migration...')
 
     try {
-      const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
-        logger: ['error', 'warn', 'log'],
-      })
+      const app = await this.createApp()
 
       const migrationService = app.get(AwsToMongoDbMigrationService)
       const validation = await migrationService.validateMigration()
@@ -123,9 +127,7 @@ class MigrationCLI {
     this.logger.log('Running comprehensive configuration validation...')
 
     try {
-      const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
-        logger: ['error', 'warn', 'log'],
-      })
+      const app = await this.createApp()
 
       const validationService = app.get(DynamicConfigValidationService)
       const result = await validationService.validateAllConfigurations()
@@ -144,9 +146,7 @@ class MigrationCLI {
     this.logger.log('Starting migration rollback...')
 
     try {
-      const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
-        logger: ['error', 'warn', 'log'],
-      })
+      const app = await this.createApp()
 
       const migrationService = app.get(AwsToMongoDbMigrationService)
 
@@ -179,9 +179,7 @@ class MigrationCLI {
     this.logger.log('Checking configuration status...')
 
     try {
-      const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
-        logger: ['error', 'warn', 'log'],
-      })
+      const app = await this.createApp()
 
       const ecoConfigService = app.get(EcoConfigService)
 
