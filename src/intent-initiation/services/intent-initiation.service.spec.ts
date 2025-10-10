@@ -110,6 +110,8 @@ describe('IntentInitiationService', () => {
       }),
     }
 
+    jest.spyOn(EcoConfigService.prototype, 'onModuleInit').mockResolvedValue(undefined)
+
     $ = EcoTester.setupTestFor(IntentInitiationService)
       .withProviders([
         PermitValidationService,

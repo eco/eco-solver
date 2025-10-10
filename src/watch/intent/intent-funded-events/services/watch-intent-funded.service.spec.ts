@@ -61,6 +61,8 @@ describe('WatchIntentFundedService', () => {
       }),
     }
 
+    jest.spyOn(EcoConfigService.prototype, 'onModuleInit').mockResolvedValue(undefined)
+
     $ = EcoTester.setupTestFor(WatchIntentFundedService)
       .withProviders([
         IntentFundedEventRepository,
