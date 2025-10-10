@@ -27,7 +27,7 @@ import { SolverRegistrationModule } from '@/solver-registration/solver-registrat
 import { WatchModule } from '@/watch/watch.module'
 import { ModuleRef } from '@nestjs/core'
 import { ModuleRefProvider } from '@/common/services/module-ref-provider'
-import { DynamicConfigModule } from '@/dynamic-config/configuration.module'
+import { DynamicConfigModule } from '@/dynamic-config/dynamic-config.module'
 
 @Module({
   imports: [
