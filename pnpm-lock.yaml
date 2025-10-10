@@ -21,8 +21,8 @@ importers:
         specifier: ^3.592.0
         version: 3.848.0
       '@eco-foundation/chains':
-        specifier: 2.0.4
-        version: 2.0.4(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+        specifier: ^2.0.6
+        version: 2.0.6(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@eco-foundation/eco-kms-core':
         specifier: ^2.0.0
         version: 2.0.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -666,8 +666,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@eco-foundation/chains@2.0.4':
-    resolution: {integrity: sha512-eGTeH7gdTRZzUwhyanzoSBy+Jp/15kls+PmV9UTO3qLRDvSxPMTlpb0B710pNV6X91+LWrKkMEGkdgmUNxZKXw==}
+  '@eco-foundation/chains@2.0.6':
+    resolution: {integrity: sha512-2j04l91I83sijE+1Nmv8XCH4lPDUKVFyru6na4x5Y9Xen8YbCVCFsiIaLUdA3D+X/Ke1NSI8SME1x1+l+nnUvA==}
 
   '@eco-foundation/eco-kms-core@2.0.0':
     resolution: {integrity: sha512-hCYeg6/pQsFz1StA96FX8uG40g8H5Jj/Z4Vb0Si4yXNYZ8DdqiOHa2JYv5F24Vipu3vkSBIPllkhNisE8R83jg==}
@@ -1946,8 +1946,8 @@ packages:
   '@types/node@18.19.121':
     resolution: {integrity: sha512-bHOrbyztmyYIi4f1R0s17QsPs1uyyYnGcXeZoGEd227oZjry0q6XQBQxd82X1I57zEfwO8h9Xo+Kl5gX1d9MwQ==}
 
-  '@types/node@20.19.13':
-    resolution: {integrity: sha512-yCAeZl7a0DxgNVteXFHt9+uyFbqXGy/ShC4BlcHkoE0AfGXYv/BUiplV72DjMYXHDBXFjhvr6DD1NiRVfB4j8g==}
+  '@types/node@20.19.20':
+    resolution: {integrity: sha512-2Q7WS25j4pS1cS8yw3d6buNCVJukOTeQ39bAnwR6sOJbaxvyCGebzTMypDFN82CxBLnl+lSWVdCCWbRY6y9yZQ==}
 
   '@types/node@20.19.8':
     resolution: {integrity: sha512-HzbgCY53T6bfu4tT7Aq3TvViJyHjLjPNaAS3HOuMc9pw97KHsUtXNX4L+wu59g1WnjsZSko35MbEqnO58rihhw==}
@@ -6842,7 +6842,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@eco-foundation/chains@2.0.4(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+  '@eco-foundation/chains@2.0.6(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       typia: 8.2.0(@samchon/openapi@3.3.0)(typescript@5.8.3)
       viem: 2.37.8(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
@@ -9153,7 +9153,7 @@ snapshots:
     dependencies:
       undici-types: 5.26.5
 
-  '@types/node@20.19.13':
+  '@types/node@20.19.20':
     dependencies:
       undici-types: 6.21.0
 
@@ -9217,7 +9217,7 @@ snapshots:
 
   '@types/through@0.0.33':
     dependencies:
-      '@types/node': 20.19.13
+      '@types/node': 20.19.20
 
   '@types/uuid@8.3.4': {}
 
