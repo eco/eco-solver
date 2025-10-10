@@ -72,7 +72,7 @@ diff --git a/deployAddresses.json b/deployAddresses.json
 index ba45ba7aa5961fbb517ce2a73f188e47a73d66a5..814dec35a7056b5b10d7f4fd17477dd0f874ba3e 100644
 --- a/deployAddresses.json
 +++ b/deployAddresses.json
-@@ -166,169 +166,169 @@
+@@ -166,169 +166,174 @@
      "MetaProver": "0x3d529eFAEDb3B999A404c1B8543441aE616cB914"
    },
    "1-pre": {
@@ -253,6 +253,11 @@ index ba45ba7aa5961fbb517ce2a73f188e47a73d66a5..814dec35a7056b5b10d7f4fd17477dd0
 -    "IntentSource": "0x17683C781adb1CD185B08041dA61b02a2DF65538",
 -    "Inbox": "0xE02A17467Df7b1950C8849dA226844e5d3Db781a",
 -    "HyperProver": "0x06A931CC393692eC523E413e341A00fe6C801824",
++    "IntentSource": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
++    "Inbox": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
++    "HyperProver": "0x5F6a847Ae9a6b2E845170010b156A468D43A0Db0",
++  },
++  "999-pre": {
 +    "IntentSource": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
 +    "Inbox": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
 +    "HyperProver": "0x5F6a847Ae9a6b2E845170010b156A468D43A0Db0",
@@ -702,7 +707,7 @@ index 06a2c581d862fd380849de30777a4a893c8b835e..555a66c0a38dddd84c440053439bc790
          "MetaProver": "0x3d529eFAEDb3B999A404c1B8543441aE616cB914"
      },
      "480-pre": {
-@@ -278,123 +278,123 @@ exports.EcoProtocolAddresses = {
+@@ -278,123 +278,129 @@ exports.EcoProtocolAddresses = {
          "MetaProver": "0x0000000000000000000000000000000000000000"
      },
      "1992-pre": {
@@ -797,6 +802,12 @@ index 06a2c581d862fd380849de30777a4a893c8b835e..555a66c0a38dddd84c440053439bc790
 -        "IntentSource": "0x17683C781adb1CD185B08041dA61b02a2DF65538",
 -        "Inbox": "0xE02A17467Df7b1950C8849dA226844e5d3Db781a",
 -        "HyperProver": "0x06A931CC393692eC523E413e341A00fe6C801824",
++        "IntentSource": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
++        "Inbox": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
++        "HyperProver": "0x5F6a847Ae9a6b2E845170010b156A468D43A0Db0",
++        "MetaProver": "0x3d529eFAEDb3B999A404c1B8543441aE616cB914",
++      },
++      "999-pre": {
 +        "IntentSource": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
 +        "Inbox": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
 +        "HyperProver": "0x5F6a847Ae9a6b2E845170010b156A468D43A0Db0",
