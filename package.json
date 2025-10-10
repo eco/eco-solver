@@ -81,6 +81,7 @@
     "canonicalize": "^2.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "commander": "^14.0.1",
     "config": "^3.3.11",
     "date-fns": "^3.6.0",
     "dayjs": "^1.11.13",
