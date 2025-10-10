@@ -70,7 +70,7 @@ describe('EcoConfigService MongoDB Integration', () => {
           return eventEmitter
         }
         return null
-      })
+      }),
     } as unknown as ModuleRef
 
     jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue(mockModuleRef)
@@ -190,8 +190,8 @@ describe('EcoConfigService MongoDB Integration', () => {
       // Create service without ConfigurationService
       // Mock ModuleRefProvider to return null (no ConfigurationService)
       jest.spyOn(ModuleRefProvider, 'getModuleRef').mockReturnValue({
-        get: jest.fn(() => null) // Always return null
-      }  as unknown as ModuleRef)
+        get: jest.fn(() => null), // Always return null
+      } as unknown as ModuleRef)
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
