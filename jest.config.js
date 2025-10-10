@@ -19,6 +19,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  setupFiles: ['<rootDir>/jest.pre.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   transformIgnorePatterns: ['node_modules/(?!(@zerodev|permissionless)/)'],
   modulePathIgnorePatterns: ['<rootDir>/node_modules/.pnpm'],

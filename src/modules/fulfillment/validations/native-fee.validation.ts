@@ -80,16 +80,16 @@ export class NativeFeeValidation implements FeeCalculationValidation {
     const rewardTokens = 0n; // Native fee validation is for pure native transfers
 
     // Get fee configuration using hierarchical resolver (for native transfers, only network and default fees apply)
-    const feeConfig = this.feeResolverService.resolveNativeFee(intent.destination);
-    if (!feeConfig.native) {
+    const nativeFee = this.feeResolverService.resolveNativeFee(intent.destination);
+    if (!nativeFee) {
       throw new ValidationError(`Native fee config not found for chain ${intent.destination}`);
     }
 
-    const baseFee = BigInt(feeConfig.native.flatFee);
+    const baseFee = BigInt(nativeFee.flatFee);
 
     // Calculate percentage fee from native reward amount
     const base = 1_000;
-    const nativePercentageFeeScalar = BigInt(Math.floor(feeConfig.native.scalarBps * base));
+    const nativePercentageFeeScalar = BigInt(Math.floor(nativeFee.scalarBps * base));
     const percentageFee = (rewardNative * nativePercentageFeeScalar) / BigInt(base * 10000);
     const totalFee = baseFee + percentageFee;
 
@@ -114,7 +114,7 @@ export class NativeFeeValidation implements FeeCalculationValidation {
         base: baseFee,
         percentage: percentageFee,
         total: totalFee,
-        bps: feeConfig.native.scalarBps,
+        bps: nativeFee.scalarBps,
       },
     };
   }

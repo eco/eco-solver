@@ -45,6 +45,51 @@ fulfillment:
       enabled: false
     rhinestone:
       enabled: false
+  # Global default fees (OC-26 base)
+  defaultFee:
+    tokens:
+      flatFee: 0.01          # e.g., 0.01 units (normalized via parseUnits in code paths that need it)
+      scalarBps: 1           # 1 bps = 0.01%
+    nonSwapTokens:
+      flatFee: 0.008
+      scalarBps: 0.8
+    native:
+      flatFee: 0.02          # e.g., 0.02 native (wei when used directly)
+      scalarBps: 1.5         # 150 bps = 1.5%
+
+  # Route-level per-pair overrides (OC-25)
+  # Exact match only: sourceChainId+sourceToken -> destinationChainId+destinationToken
+  # Example: treat USDC on OP to USDC on ETH as same-asset (nonSwapTokens); WETH->USDC as tokens
+  routeFeeOverrides:
+    - sourceChainId: '10'     # Optimism
+      destinationChainId: '1' # Ethereum
+      sourceToken: '0x0000000000000000000000000000000000000001'      # OP USDC (example)
+      destinationToken: '0x0000000000000000000000000000000000000002' # ETH USDC (example)
+      fee:
+        tokens:
+          flatFee: 0.005
+          scalarBps: 0.5
+        nonSwapTokens:
+          flatFee: 0.003      # Lower for same-asset
+          scalarBps: 0.3
+        native:
+          flatFee: 0.02
+          scalarBps: 1.5
+
+    - sourceChainId: '1'      # Ethereum
+      destinationChainId: '10' # Optimism
+      sourceToken: '0x0000000000000000000000000000000000000003'      # WETH (example)
+      destinationToken: '0x0000000000000000000000000000000000000004' # USDC (example)
+      fee:
+        tokens:
+          flatFee: 0.02
+          scalarBps: 3.0
+        nonSwapTokens:
+          flatFee: 0.02
+          scalarBps: 3.0
+        native:
+          flatFee: 0.02
+          scalarBps: 1.5
 
 # EVM configuration
 evm:
@@ -68,6 +113,16 @@ evm:
         - enabled: true
           startBlock: 0
           pollingInterval: 12000
+      # Example token definitions (OC-26 nonSwapGroups)
+      tokens:
+        - address: '0x0000000000000000000000000000000000000002' # ETH USDC
+          decimals: 6
+          symbol: USDC
+          nonSwapGroups: [ 'usdc' ]
+        - address: '0x0000000000000000000000000000000000000004' # ETH USDC (for second example)
+          decimals: 6
+          symbol: USDC
+          nonSwapGroups: [ 'usdc' ]
 
     - chainId: 10
       name: Optimism
@@ -79,6 +134,14 @@ evm:
         - enabled: true
           startBlock: 0
           pollingInterval: 2000
+      tokens:
+        - address: '0x0000000000000000000000000000000000000001' # OP USDC
+          decimals: 6
+          symbol: USDC
+          nonSwapGroups: [ 'usdc' ]
+        - address: '0x0000000000000000000000000000000000000003' # OP WETH
+          decimals: 18
+          symbol: WETH
 
 # Solana configuration
 solana:

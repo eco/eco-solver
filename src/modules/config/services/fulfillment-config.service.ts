@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { FulfillmentConfig } from '@/config/schemas';
+import { FulfillmentConfig, RouteFeeOverride } from '@/config/schemas';
 
 @Injectable()
 export class FulfillmentConfigService {
@@ -31,6 +31,10 @@ export class FulfillmentConfigService {
     return this.configService.get<FulfillmentConfig['validations']['routeEnablement']>(
       'fulfillment.validations.routeEnablement',
     );
+  }
+
+  get routeFeeOverrides(): RouteFeeOverride[] | undefined {
+    return this.configService.get<RouteFeeOverride[]>('fulfillment.routeFeeOverrides');
   }
 
   getStrategyRouteEnablementConfig(

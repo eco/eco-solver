@@ -79,6 +79,7 @@ const EvmTokenSchema = z.object({
     ])
     .optional(),
   fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
+  nonSwapGroups: z.array(z.string()).optional(),
 });
 
 /**

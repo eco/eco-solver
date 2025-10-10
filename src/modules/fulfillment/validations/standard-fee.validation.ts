@@ -100,12 +100,24 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       );
     }
 
+    const sourceTokenAddress = intent.reward.tokens[0].token;
     // Get the single token address from the route
-    const tokenAddress = intent.route.tokens[0].token;
-
+    const destinationTokenAddress = intent.route.tokens[0].token;
     // Get fee logic using the hierarchical resolver (token > network > fulfillment)
-    const feeConfig = this.feeResolverService.resolveFee(intent.destination, tokenAddress);
-    const baseFee = normalize(parseUnits(feeConfig.tokens.flatFee.toString(), 18), 18);
+    const tokenFee = this.feeResolverService.resolveTokenFee(
+      intent.destination,
+      destinationTokenAddress,
+      intent.sourceChainId,
+      sourceTokenAddress,
+    );
+    if (!tokenFee) {
+      throw new ValidationError(
+        `No fee configuration found for chain ${intent.destination}`,
+        ValidationErrorType.PERMANENT,
+        StandardFeeValidation.name,
+      );
+    }
+    const baseFee = normalize(parseUnits(tokenFee.flatFee.toString(), 18), 18);
 
     // Calculate reward values
     const rewardTokens = sum(
@@ -123,7 +135,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
 
     // Calculate percentage fee from reward tokens (for token transfers)
     const base = 10_000;
-    const scalarBpsInt = BigInt(Math.floor(feeConfig.tokens.scalarBps * base));
+    const scalarBpsInt = BigInt(Math.floor(tokenFee.scalarBps * base));
     const percentageFee = (rewardTokens * scalarBpsInt) / BigInt(base * 10000);
     const totalFee = baseFee + percentageFee;
 
@@ -148,7 +160,7 @@ export class StandardFeeValidation implements FeeCalculationValidation {
         base: baseFee,
         percentage: percentageFee,
         total: totalFee,
-        bps: feeConfig.tokens.scalarBps,
+        bps: tokenFee.scalarBps,
       },
     };
   }

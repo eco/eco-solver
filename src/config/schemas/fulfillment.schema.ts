@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
+import { AssetsFeeSchema, RouteFeeOverrideSchema } from '@/config/schemas/fee.schema';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
@@ -62,6 +62,7 @@ export const FulfillmentSchema = z.object({
   }),
   validations: ValidationsSchema.default({}),
   defaultFee: AssetsFeeSchema, // Global default fee configuration (lowest priority)
+  routeFeeOverrides: z.array(RouteFeeOverrideSchema).optional(),
 });
 
 export type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;

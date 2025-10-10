@@ -20,6 +20,10 @@ describe('EvmConfigService', () => {
           flatFee: 1000000000000000,
           scalarBps: 100,
         },
+        nonSwapTokens: {
+          flatFee: 1000000000000000,
+          scalarBps: 100,
+        },
       },
       provers: {
         hyper: '0x3333333333333333333333333333333333333333',
@@ -40,6 +44,10 @@ describe('EvmConfigService', () => {
       tokens: [],
       fee: {
         tokens: {
+          flatFee: 500000000000000,
+          scalarBps: 50,
+        },
+        nonSwapTokens: {
           flatFee: 500000000000000,
           scalarBps: 50,
         },
