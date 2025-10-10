@@ -453,7 +453,7 @@ export class KernelWallet extends BaseEvmWallet {
           }
 
           // TODO: Make expiration time configurable
-          const expiration = BigInt(now() + minutes(5));
+          const expiration = BigInt(now() + minutes(30));
 
           const executionHash = keccak256(
             encodeAbiParameters(
