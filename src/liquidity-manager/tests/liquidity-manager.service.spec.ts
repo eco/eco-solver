@@ -3,12 +3,16 @@ import { Model } from 'mongoose'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
+import { mockFlowProducerProviders, mockQueueProviders } from '../../test/utils/mock-queues'
 import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
-import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
+import {
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
@@ -17,28 +21,29 @@ import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
-import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
   let liquidityProviderService: LiquidityProviderService
   let crowdLiquidityService: CrowdLiquidityService
-  let kernelAccountClientService: LmTxGatedKernelAccountClientService
+  let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
   let checkQueue: DeepMocked<Queue>
+  let module: TestingModule
 
   beforeEach(async () => {
-    const chainMod: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         LiquidityManagerService,
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         {
-          provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+          provide: KernelAccountClientService,
+          useValue: createMock<KernelAccountClientService>(),
         },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         {
@@ -47,38 +52,45 @@ describe('LiquidityManagerService', () => {
         },
         {
           provide: RebalanceRepository,
-          useValue: { getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()) },
+          useValue: {
+            getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+            getPendingIncomingByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+          },
         },
         {
           provide: getModelToken(RebalanceModel.name),
           useValue: createMock<Model<RebalanceModel>>(),
         },
+        // provide mock queue/flow providers so tests don't require real Bull connections
+        // include the unnamed/default queue token used by some DI sites
+        ...mockQueueProviders(LIQUIDITY_MANAGER_QUEUE_NAME, CHECK_BALANCES_QUEUE_NAME, 'default'),
+        ...mockFlowProducerProviders(LIQUIDITY_MANAGER_FLOW_NAME, 'default'),
       ],
       imports: [
-        BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
-        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
-        BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
+        BullModule.registerQueue({ name: LIQUIDITY_MANAGER_QUEUE_NAME }),
+        BullModule.registerQueue({ name: CHECK_BALANCES_QUEUE_NAME }),
+        BullModule.registerFlowProducerAsync({ name: LIQUIDITY_MANAGER_FLOW_NAME }),
       ],
     })
-      .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      .overrideProvider(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
+      .overrideProvider(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
+      .overrideProvider(getFlowProducerToken(LIQUIDITY_MANAGER_FLOW_NAME))
       .useValue(createMock<FlowProducer>())
       .compile()
 
-    balanceService = chainMod.get(BalanceService)
-    ecoConfigService = chainMod.get(EcoConfigService)
-    crowdLiquidityService = chainMod.get(CrowdLiquidityService)
-    liquidityManagerService = chainMod.get(LiquidityManagerService)
-    kernelAccountClientService = chainMod.get(LmTxGatedKernelAccountClientService)
-    liquidityProviderService = chainMod.get(LiquidityProviderService)
-    queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
-    checkQueue = chainMod.get(getQueueToken(CheckBalancesQueue.queueName))
+    balanceService = module.get(BalanceService)
+    ecoConfigService = module.get(EcoConfigService)
+    crowdLiquidityService = module.get(CrowdLiquidityService)
+    liquidityManagerService = module.get(LiquidityManagerService)
+    kernelAccountClientService = module.get(KernelAccountClientService)
+    liquidityProviderService = module.get(LiquidityProviderService)
+    queue = module.get(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
+    checkQueue = module.get(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
 
     Object.defineProperty(queue, 'name', {
-      value: LiquidityManagerQueue.queueName,
+      value: LIQUIDITY_MANAGER_QUEUE_NAME,
       writable: false,
     })
 
@@ -139,12 +151,29 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10 }, balance: { balance: 100n } },
-        { config: { targetBalance: 100 }, balance: { balance: 100n } },
-        { config: { targetBalance: 200 }, balance: { balance: 100n } },
+        {
+          config: { targetBalance: 10, chainId: 1, address: '0x1' },
+          balance: { balance: 100n },
+          chainId: 1,
+        },
+        {
+          config: { targetBalance: 100, chainId: 1, address: '0x2' },
+          balance: { balance: 100n },
+          chainId: 1,
+        },
+        {
+          config: { targetBalance: 200, chainId: 1, address: '0x3' },
+          balance: { balance: 100n },
+          chainId: 1,
+        },
       ]
 
-      liquidityManagerService['config'] = mockConfig
+      // Set up the service properly by calling onApplicationBootstrap
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
+      jest
+        .spyOn(balanceService, 'getInboxTokens')
+        .mockReturnValue(mockTokens.map((t) => t.config) as any)
+      await liquidityManagerService.onApplicationBootstrap()
 
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue(mockTokens as any)
 

@@ -3,12 +3,16 @@ import { Model } from 'mongoose'
 import { getModelToken } from '@nestjs/mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BullModule, getFlowProducerToken, getQueueToken } from '@nestjs/bullmq'
+import { mockFlowProducerProviders, mockQueueProviders } from '../../test/utils/mock-queues'
 import { zeroAddress } from 'viem'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
-import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
+import {
+  LIQUIDITY_MANAGER_QUEUE_NAME,
+  LIQUIDITY_MANAGER_FLOW_NAME,
+  CHECK_BALANCES_QUEUE_NAME,
+} from '@/liquidity-manager/constants/queue.constants'
 import { LiquidityManagerService } from '@/liquidity-manager/services/liquidity-manager.service'
 import { LiquidityProviderService } from '@/liquidity-manager/services/liquidity-provider.service'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
@@ -19,13 +23,13 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { CheckBalancesCronJobManager } from '@/liquidity-manager/jobs/check-balances-cron.job'
-import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 
 describe('LiquidityManagerService', () => {
   let liquidityManagerService: LiquidityManagerService
   let liquidityProviderService: LiquidityProviderService
   let crowdLiquidityService: CrowdLiquidityService
-  let kernelAccountClientService: LmTxGatedKernelAccountClientService
+  let kernelAccountClientService: KernelAccountClientService
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let queue: DeepMocked<Queue>
@@ -40,8 +44,8 @@ describe('LiquidityManagerService', () => {
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: LiquidityProviderService, useValue: createMock<LiquidityProviderService>() },
         {
-          provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+          provide: KernelAccountClientService,
+          useValue: createMock<KernelAccountClientService>(),
         },
         { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
         {
@@ -57,18 +61,22 @@ describe('LiquidityManagerService', () => {
             getPendingIncomingByTokenForWallet: jest.fn(),
           },
         },
+        // mock queue/flow providers to satisfy Nest DI in tests (also include the unnamed/default token)
+        ...mockQueueProviders(LIQUIDITY_MANAGER_QUEUE_NAME, CHECK_BALANCES_QUEUE_NAME, 'default'),
+        ...mockFlowProducerProviders(LIQUIDITY_MANAGER_FLOW_NAME, 'default'),
       ],
       imports: [
-        BullModule.registerQueue({ name: LiquidityManagerQueue.queueName }),
-        BullModule.registerQueue({ name: CheckBalancesQueue.queueName }),
-        BullModule.registerFlowProducerAsync({ name: LiquidityManagerQueue.flowName }),
+        BullModule.registerQueue({ name: LIQUIDITY_MANAGER_QUEUE_NAME }),
+        BullModule.registerQueue({ name: CHECK_BALANCES_QUEUE_NAME }),
+        BullModule.registerFlowProducerAsync({ name: LIQUIDITY_MANAGER_FLOW_NAME }),
       ],
     })
-      .overrideProvider(getQueueToken(LiquidityManagerQueue.queueName))
+      // keep existing explicit overrides in case other tests rely on ts-jest mocks
+      .overrideProvider(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getQueueToken(CheckBalancesQueue.queueName))
+      .overrideProvider(getQueueToken(CHECK_BALANCES_QUEUE_NAME))
       .useValue(createMock<Queue>())
-      .overrideProvider(getFlowProducerToken(LiquidityManagerQueue.flowName))
+      .overrideProvider(getFlowProducerToken(LIQUIDITY_MANAGER_FLOW_NAME))
       .useValue(createMock<FlowProducer>())
       .compile()
 
@@ -76,9 +84,9 @@ describe('LiquidityManagerService', () => {
     ecoConfigService = chainMod.get(EcoConfigService)
     crowdLiquidityService = chainMod.get(CrowdLiquidityService)
     liquidityManagerService = chainMod.get(LiquidityManagerService)
-    kernelAccountClientService = chainMod.get(LmTxGatedKernelAccountClientService)
+    kernelAccountClientService = chainMod.get(KernelAccountClientService)
     liquidityProviderService = chainMod.get(LiquidityProviderService)
-    queue = chainMod.get(getQueueToken(LiquidityManagerQueue.queueName))
+    queue = chainMod.get(getQueueToken(LIQUIDITY_MANAGER_QUEUE_NAME))
     rebalanceModel = chainMod.get(getModelToken(RebalanceModel.name)) as any
     rebalanceRepository = chainMod.get(RebalanceRepository) as any
 
@@ -135,12 +143,54 @@ describe('LiquidityManagerService', () => {
   describe('analyzeTokens', () => {
     it('should analyze tokens and return the analysis', async () => {
       const mockTokens = [
-        { config: { targetBalance: 10 }, balance: { balance: 100n } },
-        { config: { targetBalance: 100 }, balance: { balance: 100n } },
-        { config: { targetBalance: 200 }, balance: { balance: 100n } },
+        // Token with surplus: target 10, actual ~20 (with thresholds: surplus at +10% = 11)
+        {
+          config: {
+            targetBalance: 10,
+            chainId: 1,
+            address: '0x1' as any,
+            minBalance: 0,
+            type: 'erc20' as any,
+          },
+          balance: { address: '0x1' as any, balance: 20000000000000000000n, decimals: 18 },
+          chainId: 1,
+        },
+        // Token with deficit: target 100, actual ~50 (with thresholds: deficit at -20% = 80)
+        {
+          config: {
+            targetBalance: 100,
+            chainId: 1,
+            address: '0x2' as any,
+            minBalance: 0,
+            type: 'erc20' as any,
+          },
+          balance: { address: '0x2' as any, balance: 50000000000000000000n, decimals: 18 },
+          chainId: 1,
+        },
+        // Token with deficit: target 200, actual ~100 (with thresholds: deficit at -20% = 160)
+        {
+          config: {
+            targetBalance: 200,
+            chainId: 1,
+            address: '0x3' as any,
+            minBalance: 0,
+            type: 'erc20' as any,
+          },
+          balance: { address: '0x3' as any, balance: 100000000000000000000n, decimals: 18 },
+          chainId: 1,
+        },
       ]
 
-      liquidityManagerService['config'] = mockConfig
+      // Set up the service properly by calling onApplicationBootstrap
+      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue(mockConfig as any)
+      jest
+        .spyOn(balanceService, 'getInboxTokens')
+        .mockReturnValue(mockTokens.map((t) => t.config) as any)
+      await liquidityManagerService.onApplicationBootstrap()
+
+      // Mock repository methods to return empty maps
+      rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(new Map())
+      rebalanceRepository.getPendingIncomingByTokenForWallet.mockResolvedValue(new Map())
 
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue(mockTokens as any)
 
@@ -148,7 +198,7 @@ describe('LiquidityManagerService', () => {
 
       expect(result.items).toHaveLength(3)
       expect(result.surplus.items).toHaveLength(1)
-      expect(result.deficit.items).toHaveLength(1)
+      expect(result.deficit.items).toHaveLength(2)
     })
 
     it('should subtract reserved (pending) amountIn before classification (reservation-aware)', async () => {
@@ -161,11 +211,13 @@ describe('LiquidityManagerService', () => {
         chainId: 10,
         config: {
           chainId: 10,
-          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as any,
           targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
         },
         balance: {
-          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+          address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as any,
           decimals: 6,
           balance: 200_000_000n,
         },
@@ -174,15 +226,20 @@ describe('LiquidityManagerService', () => {
         chainId: 8453,
         config: {
           chainId: 8453,
-          address: '0x4200000000000000000000000000000000000006',
+          address: '0x4200000000000000000000000000000000000006' as any,
           targetBalance: 50,
+          minBalance: 0,
+          type: 'erc20' as any,
         },
         balance: {
-          address: '0x4200000000000000000000000000000000000006',
+          address: '0x4200000000000000000000000000000000000006' as any,
           decimals: 6,
           balance: 50_000_000n,
         },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [usdcOP.config, tokenB.config] as any
 
       jest
         .spyOn(balanceService, 'getAllTokenDataForAddress')
@@ -223,9 +280,18 @@ describe('LiquidityManagerService', () => {
       // target=100, up=10% → max=110
       const token = {
         chainId: 10,
-        config: { chainId: 10, address: '0xToken', targetBalance: 100 },
-        balance: { address: '0xToken', decimals: 6, balance: 120_000_000n },
+        config: {
+          chainId: 10,
+          address: '0xToken' as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0xToken' as any, decimals: 6, balance: 120_000_000n },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [token.config] as any
 
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
 
@@ -247,9 +313,19 @@ describe('LiquidityManagerService', () => {
 
       const token = {
         chainId: 10,
-        config: { chainId: 10, address: '0xTokenT', targetBalance: 100 },
-        balance: { address: '0xTokenT', decimals: 6, balance: 105_000_000n },
+        config: {
+          chainId: 10,
+          address: '0xTokenT' as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0xTokenT' as any, decimals: 6, balance: 105_000_000n },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [token.config] as any
+
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
 
       const key = `10:${'0xTokenT'.toLowerCase()}`
@@ -270,9 +346,19 @@ describe('LiquidityManagerService', () => {
 
       const token = {
         chainId: 10,
-        config: { chainId: 10, address: '0xNeg', targetBalance: 100 },
-        balance: { address: '0xNeg', decimals: 6, balance: 50_000_000n },
+        config: {
+          chainId: 10,
+          address: '0xNeg' as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0xNeg' as any, decimals: 6, balance: 50_000_000n },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [token.config] as any
+
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
 
       const key = `10:${'0xNeg'.toLowerCase()}`
@@ -293,9 +379,19 @@ describe('LiquidityManagerService', () => {
 
       const token18 = {
         chainId: 1,
-        config: { chainId: 1, address: '0x18dec', targetBalance: 1 },
-        balance: { address: '0x18dec', decimals: 18, balance: 2_000_000_000_000_000_000n }, // 2.0
+        config: {
+          chainId: 1,
+          address: '0x18dec' as any,
+          targetBalance: 1,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0x18dec' as any, decimals: 18, balance: 2_000_000_000_000_000_000n }, // 2.0
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [token18.config] as any
+
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token18] as any)
 
       const key = `1:${'0x18dec'.toLowerCase()}`
@@ -317,9 +413,18 @@ describe('LiquidityManagerService', () => {
 
       const baseTokenFactory = () => ({
         chainId: 10,
-        config: { chainId: 10, address: '0xIdem', targetBalance: 100 },
-        balance: { address: '0xIdem', decimals: 6, balance: 200_000_000n },
+        config: {
+          chainId: 10,
+          address: '0xIdem' as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0xIdem' as any, decimals: 6, balance: 200_000_000n },
       })
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [baseTokenFactory().config] as any
 
       // Return fresh objects each time
       jest
@@ -347,9 +452,19 @@ describe('LiquidityManagerService', () => {
 
       const token = {
         chainId: 10,
-        config: { chainId: 10, address: '0xPresent', targetBalance: 100 },
-        balance: { address: '0xPresent', decimals: 6, balance: 100_000_000n },
+        config: {
+          chainId: 10,
+          address: '0xPresent' as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0xPresent' as any, decimals: 6, balance: 100_000_000n },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [token.config] as any
+
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
 
       rebalanceRepository.getPendingReservedByTokenForWallet.mockResolvedValue(
@@ -372,14 +487,32 @@ describe('LiquidityManagerService', () => {
       const addr = '0xSame'
       const tokenChain10 = {
         chainId: 10,
-        config: { chainId: 10, address: addr, targetBalance: 100 },
-        balance: { address: addr, decimals: 6, balance: 200_000_000n },
+        config: {
+          chainId: 10,
+          address: addr as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: addr as any, decimals: 6, balance: 200_000_000n },
       }
       const tokenChain8453 = {
         chainId: 8453,
-        config: { chainId: 8453, address: addr, targetBalance: 100 },
-        balance: { address: addr, decimals: 6, balance: 200_000_000n },
+        config: {
+          chainId: 8453,
+          address: addr as any,
+          targetBalance: 100,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: addr as any, decimals: 6, balance: 200_000_000n },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [
+        tokenChain10.config,
+        tokenChain8453.config,
+      ] as any
 
       jest
         .spyOn(balanceService, 'getAllTokenDataForAddress')
@@ -421,9 +554,19 @@ describe('LiquidityManagerService', () => {
 
       const token = {
         chainId: 42161,
-        config: { chainId: 42161, address: '0xOut', targetBalance: 50 },
-        balance: { address: '0xOut', decimals: 6, balance: 37_284_271n },
+        config: {
+          chainId: 42161,
+          address: '0xOut' as any,
+          targetBalance: 50,
+          minBalance: 0,
+          type: 'erc20' as any,
+        },
+        balance: { address: '0xOut' as any, decimals: 6, balance: 37_284_271n },
       }
+
+      // Set up tokensPerWallet to include the wallet
+      liquidityManagerService['tokensPerWallet'][wallet] = [token.config] as any
+
       jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([token] as any)
 
       const key = `42161:${'0xOut'.toLowerCase()}`
@@ -1066,7 +1209,7 @@ describe('LiquidityManagerService', () => {
         (liquidityManagerService as any).liquidityManagerFlowProducer,
         'add',
       )
-      const res = liquidityManagerService.startRebalancing(zeroAddress, [])
+      const res = await liquidityManagerService.startRebalancing(zeroAddress, [])
       expect(res).toBeUndefined()
       expect(queueAddSpy).not.toHaveBeenCalled()
     })

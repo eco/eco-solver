@@ -64,7 +64,7 @@ describe('IntentCreatedChainSyncService', () => {
       chainSyncService.syncTxsPerSource = mockSyncTxsPerSource
       ecoConfigService.getIntentSources.mockReturnValue(intentSources)
 
-      chainSyncService.syncTxs()
+      await chainSyncService.syncTxs()
       expect(mockSyncTxsPerSource).toHaveBeenCalledTimes(3)
       expect(mockSyncTxsPerSource).toHaveBeenNthCalledWith(1, intentSources[0])
       expect(mockSyncTxsPerSource).toHaveBeenNthCalledWith(2, intentSources[1])
@@ -151,18 +151,23 @@ describe('IntentCreatedChainSyncService', () => {
 
     it('should log when no transfers exist since last db record', async () => {
       chainSyncService['getLastRecordedTx'] = jest.fn().mockResolvedValueOnce([model])
-      const mockLog = jest.fn()
-      chainSyncService['logger'].log = mockLog
+      const mockLogMissingTransactions = jest.fn()
+      chainSyncService['chainSyncLogger'].logMissingTransactions = mockLogMissingTransactions
       await chainSyncService.syncTxsPerSource(intentSource)
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
-      expect(mockLog).toHaveBeenCalledTimes(1)
+      expect(mockLogMissingTransactions).toHaveBeenCalledTimes(1)
       // we search from the next block
       const searchFromBlock = model.event!.blockNumber + 1n
-      expect(mockLog).toHaveBeenCalledWith({
-        msg: `No transactions found for source ${intentSource.network} to sync from block ${searchFromBlock}`,
-        chainID: IntentSourceModel.getSource(model),
-        fromBlock: searchFromBlock,
-      })
+      // chainSyncLogger.logMissingTransactions is called with structured parameters
+      expect(mockLogMissingTransactions).toHaveBeenCalledWith(
+        intentSource.network,
+        intentSource.chainID,
+        searchFromBlock,
+        toBlock,
+        0, // eventCount = 0 (no transactions found)
+        'intent_created',
+        IntentCreatedChainSyncService.MAX_BLOCK_RANGE,
+      )
     })
 
     it('should process all the txs that are to a supported destination since the last saved blockNumber', async () => {

@@ -1,6 +1,6 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
@@ -52,7 +52,7 @@ export interface CreateRebalanceData {
  */
 @Injectable()
 export class RebalanceRepository {
-  private logger = new Logger(RebalanceRepository.name)
+  private logger = new LiquidityManagerLogger('RebalanceRepository')
 
   constructor(
     @InjectModel(RebalanceModel.name)
@@ -90,41 +90,46 @@ export class RebalanceRepository {
 
     try {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Persisting successful rebalance',
-          properties: {
-            strategy: rebalanceData.strategy,
-            wallet: rebalanceData.wallet,
-            tokenInChain: rebalanceData.tokenIn.chainId,
-            tokenOutChain: rebalanceData.tokenOut.chainId,
-            groupId: rebalanceData.groupId,
-          },
-        }),
+        {
+          rebalanceId: 'pending',
+          walletAddress: rebalanceData.wallet || 'system',
+          strategy: rebalanceData.strategy,
+          sourceChainId: rebalanceData.tokenIn.chainId,
+          destinationChainId: rebalanceData.tokenOut.chainId,
+          groupId: rebalanceData.groupId,
+        },
+        'Persisting successful rebalance',
+        {
+          token_in_chain: rebalanceData.tokenIn.chainId,
+          token_out_chain: rebalanceData.tokenOut.chainId,
+        },
       )
 
       const rebalanceModel = await this.model.create(rebalanceData)
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Successful rebalance persisted',
-          properties: {
-            rebalanceId: rebalanceModel._id,
-            strategy: rebalanceData.strategy,
-            groupId: rebalanceData.groupId,
-          },
-        }),
+        {
+          rebalanceId: rebalanceModel._id.toString(),
+          walletAddress: rebalanceData.wallet || 'system',
+          strategy: rebalanceData.strategy,
+          groupId: rebalanceData.groupId,
+        },
+        'Successful rebalance persisted',
       )
 
       return { response: rebalanceModel }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to persist successful rebalance',
-          properties: {
-            rebalanceData: rebalanceData,
-            error: error.message,
-          },
-        }),
+        {
+          rebalanceId: 'failed',
+          walletAddress: 'system',
+          strategy: 'unknown',
+        },
+        'Failed to persist successful rebalance',
+        error,
+        {
+          errorMessage: error.message,
+        },
       )
 
       return { error }
@@ -160,14 +165,16 @@ export class RebalanceRepository {
     const errors: any[] = []
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Creating batch rebalances',
-        properties: {
-          wallet: walletAddress,
-          groupId: batchGroupId,
-          quotesCount: quotes.length,
-        },
-      }),
+      {
+        rebalanceId: batchGroupId,
+        walletAddress: walletAddress,
+        strategy: 'batch',
+        groupId: batchGroupId,
+      },
+      'Creating batch rebalances',
+      {
+        quotes_count: quotes.length,
+      },
     )
 
     for (const quote of quotes) {
@@ -193,17 +200,20 @@ export class RebalanceRepository {
 
     if (errors.length > 0) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to store rebalancing batch',
-          properties: {
-            wallet: walletAddress,
-            groupId: batchGroupId,
-            quotesCount: quotes.length,
-            successCount: results.length,
-            errorCount: errors.length,
-            firstError: errors[0]?.message,
-          },
-        }),
+        {
+          rebalanceId: batchGroupId,
+          walletAddress: walletAddress,
+          strategy: 'batch',
+          groupId: batchGroupId,
+        },
+        'Failed to store rebalancing batch',
+        undefined,
+        {
+          quotes_count: quotes.length,
+          success_count: results.length,
+          error_count: errors.length,
+          first_error: errors[0]?.message,
+        },
       )
 
       return {
@@ -212,14 +222,16 @@ export class RebalanceRepository {
     }
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Rebalancing batch stored successfully',
-        properties: {
-          wallet: walletAddress,
-          groupId: batchGroupId,
-          storedCount: results.length,
-        },
-      }),
+      {
+        rebalanceId: batchGroupId,
+        walletAddress: walletAddress,
+        strategy: 'batch',
+        groupId: batchGroupId,
+      },
+      'Rebalancing batch stored successfully',
+      {
+        stored_count: results.length,
+      },
     )
 
     return { response: results }
@@ -336,15 +348,20 @@ export class RebalanceRepository {
       const oneHourAgo = getOneHourAgo()
       const count = await this.model.countDocuments({
         createdAt: { $gte: oneHourAgo },
-        status: RebalanceStatus.COMPLETED.toString(),
       })
       return count > 0
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to check successful rebalances in last hour',
-          properties: { error: error.message },
-        }),
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to check successful rebalances in last hour',
+        error,
+        {
+          errorMessage: error.message,
+        },
       )
       return false
     }
@@ -363,14 +380,21 @@ export class RebalanceRepository {
     try {
       const timeAgo = getTimeAgo(timeRangeMinutes)
       return await this.model.countDocuments({
-        createdAt: { $gte: timeAgo, status: RebalanceStatus.COMPLETED.toString() },
+        createdAt: { $gte: timeAgo },
       })
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to get recent success count',
-          properties: { timeRangeMinutes, error: error.message },
-        }),
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to get recent success count',
+        error,
+        {
+          time_range_minutes: timeRangeMinutes,
+          errorMessage: error.message,
+        },
       )
       return 0
     }

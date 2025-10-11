@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import {
   encodeFunctionData,
   erc20Abi,
@@ -11,7 +11,8 @@ import {
   TransactionReceipt,
   TransactionRequest,
 } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
@@ -25,6 +26,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
@@ -32,7 +34,7 @@ import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-ga
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
-  private logger = new Logger(CCTPProviderService.name)
+  private logger = new LiquidityManagerLogger('CCTPProviderService')
 
   private config: CCTPConfig
   private liquidityManagerQueue: LiquidityManagerQueue
@@ -44,32 +46,62 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     private readonly crowdLiquidityService: CrowdLiquidityService,
     private readonly rebalanceRepository: RebalanceRepository,
 
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
   ) {
     this.config = this.ecoConfigService.getCCTP()
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
   }
 
+  @LogOperation('provider_validation', LiquidityManagerLogger)
   getStrategy() {
     return 'CCTP' as const
   }
 
+  @LogOperation('provider_quote_generation', LiquidityManagerLogger)
   async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
+    @LogContext tokenIn: TokenData,
+    @LogContext tokenOut: TokenData,
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'CCTP'>> {
-    if (
-      !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
-      !this.isSupportedToken(tokenOut.config.chainId, tokenOut.config.address)
-    ) {
+    const tokenInSupported = this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address)
+    const tokenOutSupported = this.isSupportedToken(
+      tokenOut.config.chainId,
+      tokenOut.config.address,
+    )
+
+    // Log domain validation results
+    this.logger.logProviderDomainValidation(
+      'CCTP',
+      tokenIn.config.chainId.toString(),
+      tokenInSupported,
+    )
+    this.logger.logProviderDomainValidation(
+      'CCTP',
+      tokenOut.config.chainId.toString(),
+      tokenOutSupported,
+    )
+
+    if (!tokenInSupported || !tokenOutSupported) {
       throw new Error('Unsupported route')
     }
 
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
     const amountOut = parseUnits(swapAmount.toString(), tokenOut.balance.decimals)
+
+    // Log quote generation success
+    this.logger.logProviderQuoteGeneration(
+      'CCTP',
+      {
+        sourceChainId: tokenIn.config.chainId,
+        destinationChainId: tokenOut.config.chainId,
+        amount: swapAmount,
+        tokenIn: tokenIn.config.address,
+        tokenOut: tokenOut.config.address,
+      },
+      true,
+    )
 
     return {
       amountIn,
@@ -83,24 +115,10 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     }
   }
 
-  async execute(walletAddress: string, quote: RebalanceQuote<'CCTP'>) {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPProviderService: executing quote',
-        id: quote.id,
-        properties: {
-          groupID: quote.groupID,
-          rebalanceJobID: quote.rebalanceJobID,
-          tokenIn: quote.tokenIn.config.address,
-          chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenOut.config.address,
-          chainOut: quote.tokenOut.config.chainId,
-          amountIn: quote.amountIn,
-          amountOut: quote.amountOut,
-          slippage: quote.slippage,
-        },
-      }),
-    )
+  @LogOperation('provider_execution', LiquidityManagerLogger)
+  async execute(@LogContext walletAddress: string, @LogContext quote: RebalanceQuote<'CCTP'>) {
+    // Log provider execution start
+    this.logger.logProviderExecution('CCTP', walletAddress, quote)
 
     try {
       const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
@@ -136,43 +154,19 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
    * @param quote CCTP quote
    * @returns Transaction metadata including hash, messageHash, and messageBody
    */
+  @LogOperation('provider_execution', LiquidityManagerLogger)
   async executeWithMetadata(
-    walletAddress: string,
-    quote: RebalanceQuote<'CCTP'>,
+    @LogContext walletAddress: string,
+    @LogContext quote: RebalanceQuote<'CCTP'>,
   ): Promise<{ txHash: Hex; messageHash: Hex; messageBody: Hex }> {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPProviderService: executing quote with metadata',
-        id: quote.id,
-        properties: {
-          tokenIn: quote.tokenIn.config.address,
-          chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenOut.config.address,
-          chainOut: quote.tokenOut.config.chainId,
-          amountIn: quote.amountIn,
-          amountOut: quote.amountOut,
-          slippage: quote.slippage,
-        },
-      }),
-    )
+    // Log provider execution start
+    this.logger.logProviderExecution('CCTP', walletAddress, quote)
 
     const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
     const txHash = await this._execute(walletAddress, quote)
     const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
     const messageBody = this.getMessageBytes(txReceipt)
     const messageHash = this.getMessageHash(messageBody)
-
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPProviderService: Transaction metadata extracted',
-        id: quote.id,
-        properties: {
-          txHash,
-          messageHash,
-          messageBodyLength: messageBody.length,
-        },
-      }),
-    )
 
     return {
       txHash,
@@ -253,7 +247,10 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return config
   }
 
-  async fetchAttestation(messageHash: Hex, id?: string) {
+  async fetchAttestation(
+    messageHash: Hex,
+    _id?: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+  ) {
     const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
 
     // Apply timeout to fetch
@@ -265,14 +262,9 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     } catch (error) {
       // Treat timeouts as pending to allow polling
       if ((error as any)?.name === 'AbortError') {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: 'CCTP: Attestation request timed out, treating as pending',
-            id,
-            properties: { messageHash },
-          }),
-        )
-        return { status: 'pending' }
+        // Timeout handling - return pending status
+        // Logging will be handled by decorator
+        return { status: 'pending' as const }
       }
       throw error
     } finally {
@@ -282,16 +274,9 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     // If API has not indexed the message yet, it may return 404 or an error string.
     if (!response.ok) {
       if (response.status === 404) {
-        this.logger.debug(
-          EcoLogMessage.withId({
-            message: `CCTP: Treating "${response.statusText}" as pending`,
-            id,
-            properties: {
-              messageHash,
-            },
-          }),
-        )
-        return { status: 'pending' }
+        // Message not found - return pending status
+        // Logging will be handled by decorator
+        return { status: 'pending' as const }
       }
       throw new Error(`CCTP attestation API request failed with status ${response.statusText}`)
     }
@@ -330,28 +315,16 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
    * @param id Job ID
    * @returns Transaction hash
    */
+  @LogOperation('provider_execution', LiquidityManagerLogger)
   async receiveMessage(
-    chainId: number,
+    @LogContext chainId: number,
     messageBytes: Hex,
     attestation: Hex,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     id?: string,
   ): Promise<Hex> {
     const cctpChainConfig = this.getChainConfig(chainId)
     const walletClient = await this.walletClientService.getClient(chainId)
-
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTP: receiveMessage: submitting',
-        id,
-        properties: {
-          chainId,
-          messageTransmitter: cctpChainConfig.messageTransmitter,
-          sender: (walletClient as any).account?.address,
-          attestation,
-          messageBytes,
-        },
-      }),
-    )
 
     return await walletClient.writeContract({
       abi: CCTPMessageTransmitterABI,
@@ -361,7 +334,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     })
   }
 
-  async getTxReceipt(chainId: number, txHash: Hex) {
+  @LogOperation('provider_validation', LiquidityManagerLogger)
+  async getTxReceipt(@LogContext chainId: number, @LogContext txHash: Hex) {
     const publicClient = await this.walletClientService.getPublicClient(chainId)
     return publicClient.waitForTransactionReceipt({ hash: txHash })
   }

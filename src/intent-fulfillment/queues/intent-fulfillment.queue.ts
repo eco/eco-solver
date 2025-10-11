@@ -1,8 +1,10 @@
 import { Queue } from 'bullmq'
-import { initBullMQ } from '@/bullmq/bullmq.helper'
+import { BullModule } from '@nestjs/bullmq'
 import { Hex } from 'viem/_types/types/misc'
 import { Injectable } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 export enum IntentFulfillmentJobName {
   FULFILL_INTENT = 'FULFILL_INTENT',
@@ -18,13 +20,16 @@ export type IntentFulfillmentQueueType = Queue<
   unknown,
   IntentFulfillmentJobName
 >
+
+export const INTENT_FULFILLMENT_QUEUE_NAME = 'IntentFulfillment'
+
 @Injectable()
 export class IntentFulfillmentQueue {
   public static readonly prefix = '{intent-fulfillment}'
-  public static readonly queueName = 'IntentFulfillment'
+  public static readonly queueName = INTENT_FULFILLMENT_QUEUE_NAME
 
   constructor(
-    @InjectQueue(IntentFulfillmentQueue.queueName)
+    @InjectQueue(INTENT_FULFILLMENT_QUEUE_NAME)
     private readonly queue: IntentFulfillmentQueueType,
   ) {}
 
@@ -33,18 +38,18 @@ export class IntentFulfillmentQueue {
   }
 
   static init() {
-    return initBullMQ(
-      { queue: this.queueName, prefix: IntentFulfillmentQueue.prefix },
-      {
-        defaultJobOptions: {
-          removeOnFail: true,
-          removeOnComplete: true,
-        },
+    return BullModule.registerQueue({
+      name: this.queueName,
+      prefix: this.prefix,
+      defaultJobOptions: {
+        removeOnFail: true,
+        removeOnComplete: true,
       },
-    )
+    })
   }
 
-  addFulfillIntentJob(jobData: any) {
+  @LogOperation('add_fulfill_intent_job', GenericOperationLogger)
+  addFulfillIntentJob(@LogContext jobData: any) {
     return this.queue.add(IntentFulfillmentJobName.FULFILL_INTENT, jobData)
   }
 }

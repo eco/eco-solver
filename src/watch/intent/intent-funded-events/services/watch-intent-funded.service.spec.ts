@@ -132,8 +132,9 @@ describe('WatchIntentFundedService', () => {
       network: 'mainnet',
     } as unknown as IntentSource
 
-    const addJob = service['addJob'](source)
-    await addJob([log])
+    // Call the decorated method and await the returned function
+    const addJobFunction = await service.addJob(source)
+    await addJobFunction([log])
 
     const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xtx' })
     expect(saved).toBeDefined()
@@ -242,8 +243,9 @@ describe('WatchIntentFundedService', () => {
     // 👇 Mock isOurIntent to return false
     jest.spyOn(service as any, 'isOurIntent').mockResolvedValueOnce(false)
 
-    const addJob = service['addJob'](source, { doValidation: true })
-    await addJob([log])
+    // Call the decorated method and await the returned function
+    const addJobFunction = await service.addJob(source, { doValidation: true })
+    await addJobFunction([log])
 
     const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xskipme' })
     expect(saved).toBeUndefined()
@@ -280,8 +282,9 @@ describe('WatchIntentFundedService', () => {
     // 👇 Mock isOurIntent to return true
     jest.spyOn(service as any, 'isOurIntent').mockResolvedValueOnce(true)
 
-    const addJob = service['addJob'](source, { doValidation: true })
-    await addJob([log])
+    // Call the decorated method and await the returned function
+    const addJobFunction = await service.addJob(source, { doValidation: true })
+    await addJobFunction([log])
 
     const saved = await mockIntentFundedEventModel.findOne({ transactionHash: '0xprocessthis' })
     expect(saved).toBeDefined()
@@ -368,8 +371,9 @@ describe('WatchIntentFundedService', () => {
         return log.args.intentHash !== '0xinvalidIntent'
       })
 
-    const addJob = service['addJob'](source, { doValidation: true })
-    await addJob(logs)
+    // Call the decorated method and await the returned function
+    const addJobFunction = await service.addJob(source, { doValidation: true })
+    await addJobFunction(logs)
 
     // ⛳ Only the 2 valid logs should be saved
     const valid1 = await mockIntentFundedEventModel.findOne({ transactionHash: '0xvalid1' })

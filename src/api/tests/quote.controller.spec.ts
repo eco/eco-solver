@@ -13,6 +13,7 @@ describe('QuoteController Test', () => {
   let quoteController: QuoteController
   let quoteService: QuoteService
   const mockLogLog = jest.fn()
+  let protoLogSpy: jest.SpyInstance
   const quoteTestUtils = new QuoteTestUtils()
 
   beforeEach(async () => {
@@ -40,13 +41,17 @@ describe('QuoteController Test', () => {
     quoteController = module.get(QuoteController)
     quoteService = module.get(QuoteService)
 
+    // Mock the controller instance logger (keeps test-local spy) and spy on global Logger
     quoteController['logger'].log = mockLogLog
+    const LoggerClass = require('@nestjs/common').Logger
+    protoLogSpy = jest.spyOn(LoggerClass.prototype, 'log').mockImplementation(() => {})
   })
 
   afterEach(async () => {
     // restore the spy created with spyOn
     jest.restoreAllMocks()
     mockLogLog.mockClear()
+    if (protoLogSpy) protoLogSpy.mockRestore()
   })
 
   it('should be defined', () => {
@@ -91,10 +96,11 @@ describe('QuoteController Test', () => {
     }
 
     it('should return a 400 on bad request', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ error: SolverUnsupported })
 
       try {
-        const response = await quoteController.getQuote({} as any)
+        const response = await quoteController.getQuote(quoteRequest)
       } catch (ex) {
         expect(ex.status).toEqual(400)
         expect(ex.response.errorDesc).toContain("The solver doesn't support that chain.")
@@ -102,13 +108,14 @@ describe('QuoteController Test', () => {
     })
 
     it('should return a 500 on server error', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       jest
         .spyOn(quoteService, 'getQuote')
         .mockResolvedValue({ error: InternalSaveError(quote as any) })
       jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
 
       try {
-        const response = await quoteController.getQuote({} as any)
+        const response = await quoteController.getQuote(quoteRequest)
       } catch (ex) {
         expect(ex.status).toEqual(500)
         expect(ex.response.errorDesc).toContain('Internal Server Error')
@@ -116,12 +123,13 @@ describe('QuoteController Test', () => {
     })
 
     it('should log and return a quote', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       jest.spyOn(quoteService, 'getQuote').mockResolvedValue({ response: quote as any })
 
-      const result = await quoteController.getQuote({} as any)
+      const result = await quoteController.getQuote(quoteRequest)
       expect(result).toEqual(quote)
       expect(quoteService.getQuote).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledTimes(2)
+      expect(protoLogSpy).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -163,10 +171,11 @@ describe('QuoteController Test', () => {
     }
 
     it('should return a 400 on bad request', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ error: SolverUnsupported })
 
       try {
-        const response = await quoteController.getReverseQuote({} as any)
+        const response = await quoteController.getReverseQuote(quoteRequest)
       } catch (ex) {
         expect(ex.status).toEqual(400)
         expect(ex.response.errorDesc).toContain("The solver doesn't support that chain.")
@@ -174,13 +183,14 @@ describe('QuoteController Test', () => {
     })
 
     it('should return a 500 on server error', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       jest
         .spyOn(quoteService, 'getReverseQuote')
         .mockResolvedValue({ error: InternalSaveError(quote as any) })
       jest.spyOn(quoteService, 'storeQuoteIntentData').mockResolvedValue(quote as any)
 
       try {
-        const response = await quoteController.getReverseQuote({} as any)
+        const response = await quoteController.getReverseQuote(quoteRequest)
       } catch (ex) {
         expect(ex.status).toEqual(500)
         expect(ex.response.errorDesc).toContain('Internal Server Error')
@@ -188,12 +198,13 @@ describe('QuoteController Test', () => {
     })
 
     it('should log and return a reverse quote', async () => {
+      const quoteRequest = quoteTestUtils.createQuoteIntentDataDTO()
       jest.spyOn(quoteService, 'getReverseQuote').mockResolvedValue({ response: quote as any })
 
-      const result = await quoteController.getReverseQuote({} as any)
+      const result = await quoteController.getReverseQuote(quoteRequest)
       expect(result).toEqual(quote)
       expect(quoteService.getReverseQuote).toHaveBeenCalled()
-      expect(mockLogLog).toHaveBeenCalledTimes(2)
+      expect(protoLogSpy).toHaveBeenCalledTimes(2)
     })
   })
 })

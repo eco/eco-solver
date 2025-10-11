@@ -3,6 +3,7 @@ import { ExecuteSmartWalletArg } from '@/transaction/smart-wallets/smart-wallet.
 import { Permit2Abi } from '@/contracts/Permit2.abi'
 import { Permit2DTO } from '@/quote/dto/permit2/permit2.dto'
 import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { PermitBatchArg } from '@/common/permit/interfaces/permit-batch-arg.interface'
 import { PermitSingleArg } from '@/common/permit/interfaces/permit-single-arg.interface'
 
@@ -10,6 +11,8 @@ import { PermitSingleArg } from '@/common/permit/interfaces/permit-single-arg.in
  * This class processes the permit2 transaction. It generates the transaction for the permits and executes it.
  */
 export class Permit2Processor {
+  private static logger = new GenericOperationLogger('Permit2Processor')
+
   /**
    * This function generates the transaction for the permit2. It encodes the function data for the permit2 function
    * and returns it as an ExecuteSmartWalletArg object.
@@ -54,12 +57,44 @@ export class Permit2Processor {
     details: Permit2TypedDataDetailsDTO[],
   ): Hex {
     if (details.length === 1) {
+      this.logger.logSignature(
+        {
+          operationType: 'permit2_encoding',
+          status: 'started',
+          permitType: 'permit2_single',
+          signatureMethod: 'EIP-2612',
+        },
+        'Encoding Permit2 single permit transaction data',
+        {
+          details: details[0],
+          spender,
+          sigDeadline,
+          signature,
+        },
+      )
+
       return encodeFunctionData({
         abi: Permit2Abi,
         functionName: 'permit',
         args: [funder, this.buildPermitSingleArg(spender, sigDeadline, details[0]), signature],
       })
     }
+
+    this.logger.logSignature(
+      {
+        operationType: 'permit2_encoding',
+        status: 'started',
+        permitType: 'permit2_batch',
+        signatureMethod: 'EIP-2612',
+      },
+      'Encoding Permit2 batch permit transaction data',
+      {
+        details,
+        spender,
+        sigDeadline,
+        signature,
+      },
+    )
 
     return encodeFunctionData({
       abi: Permit2Abi,

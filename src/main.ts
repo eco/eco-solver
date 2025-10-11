@@ -1,4 +1,8 @@
-/* eslint-disable no-console */
+// Conditionally import dd-trace based on environment variable
+if (process.env.DD_TRACE_ENABLED === 'true') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('dd-trace/init')
+}
 import { AppModule } from '@/app.module'
 import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
@@ -38,8 +42,6 @@ async function bootstrap() {
 
   const port = staticConfig.port
   await app.listen(port)
-
-  console.log(`Listening on port ${port}...`)
 }
 
 function getNestParams(): NestApplicationOptions {

@@ -6,7 +6,6 @@ import { IndexerModule } from '@/indexer/indexer.module'
 import { IntentModule } from '@/intent/intent.module'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
-import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
 
 @Module({
   imports: [
@@ -17,7 +16,7 @@ import { IntentProcessor } from '@/intent-processor/processors/intent.processor'
     IntentModule,
     IntentProcessorQueue.init(),
   ],
-  providers: [IntentProcessorService, IntentProcessor],
+  providers: [IntentProcessorService],
   exports: [],
 })
 export class IntentProcessorModule {}
