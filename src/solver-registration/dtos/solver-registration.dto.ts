@@ -25,15 +25,30 @@ export class SolverRegistrationDTO {
   @ApiProperty()
   quotesUrl: string
 
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional()
+  reverseQuotesUrl?: string
+
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
   quotesV2Url: string
 
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  reverseQuotesV2Url?: string
+
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
   receiveSignedIntentUrl: string
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional()
+  receiveSignedIntentV2Url?: string
 
   @IsOptional()
   @IsString()

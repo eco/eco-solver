@@ -30,7 +30,7 @@ import { IntentExecutionType } from '@/quote/enums/intent-execution-type.enum'
 import { QuoteRepository } from '@/quote/quote.repository'
 import { TransactionTargetData } from '@/intent/utils-intent.service'
 import { UpdateQuoteParams } from '@/quote/interfaces/update-quote-params.interface'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { GaslessIntentRequestDTO } from '@/quote/dto/gasless-intent-request.dto'
 import { ModuleRef } from '@nestjs/core'
 import { isInsufficient } from '../fee/utils'
@@ -58,7 +58,7 @@ export class QuoteService implements OnModuleInit {
 
   private quotesConfig: QuotesConfig
   private gasEstimationsConfig: GasEstimationsConfig
-  private intentInitiationService: IntentInitiationService
+  private intentInitiationService: IntentInitiationV2Service
 
   constructor(
     private readonly quoteRepository: QuoteRepository,
@@ -73,7 +73,7 @@ export class QuoteService implements OnModuleInit {
   onModuleInit() {
     this.quotesConfig = this.ecoConfigService.getQuotesConfig()
     this.gasEstimationsConfig = this.ecoConfigService.getGasEstimationsConfig()
-    this.intentInitiationService = this.moduleRef.get(IntentInitiationService, {
+    this.intentInitiationService = this.moduleRef.get(IntentInitiationV2Service, {
       strict: false,
     })
   }

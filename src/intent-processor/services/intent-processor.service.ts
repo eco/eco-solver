@@ -11,7 +11,7 @@ import {
   TransactionRequest,
   Transport,
 } from 'viem'
-import { InboxAbi, IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { InboxAbi } from '@eco-foundation/routes-ts'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { HyperlaneConfig, SendBatchConfig, WithdrawsConfig } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -33,8 +33,9 @@ import {
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
 import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { getChainConfig } from '@/eco-configs/utils'
-import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
+import { PortalHashUtils } from '@/common/utils/portal'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -114,11 +115,10 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     })[]
     const regularWithdrawals = batchWithdrawals
       .filter((w) => !isGaslessIntent(w))
-      .map((w) => ({
-        ...w,
-        intent: getWithdrawData(w.intent as IndexerIntent),
-        source: Number((w as BatchWithdraws).intent.source),
-      }))
+      .map((item) => {
+        const w = item as BatchWithdraws
+        return { ...getWithdrawData(w.intent), intentSourceAddr: item.intentSourceAddr }
+      })
 
     // Get all gasless intent hashes
     const gaslessIntentHashes = gaslessWithdrawals.map((g) => g.intent.intentHash)
@@ -144,10 +144,15 @@ export class IntentProcessorService implements OnApplicationBootstrap {
           )
           return null
         }
+
+        const intent = IntentDataModel.toIntentV2(fullIntent.intent)
+        const { routeHash } = PortalHashUtils.getIntentHash(intent)
+
         return {
-          source: Number(fullIntent.intent.route.source),
-          intent: IntentDataModel.toChainIntent(fullIntent.intent),
-          claimant: gaslessWithdrawal.claimant,
+          source: BigInt(fullIntent.intent.route.source),
+          destination: BigInt(fullIntent.intent.route.destination),
+          routeHash,
+          reward: intent.reward,
           intentSourceAddr: gaslessWithdrawal.intentSourceAddr,
         }
       })
@@ -175,9 +180,8 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     for (const sourceChainId in batchWithdrawalsPerSource) {
       const withdrawalsForChain = batchWithdrawalsPerSource[sourceChainId]
-      const batchWithdrawalsData = withdrawalsForChain.map((w) => w.intent)
 
-      const chunkWithdrawals = _.chunk(batchWithdrawalsData, this.config.withdrawals.chunkSize)
+      const chunkWithdrawals = _.chunk(withdrawalsForChain, this.config.withdrawals.chunkSize)
       const chunkWithdrawalsWithAddr = _.chunk(
         withdrawalsForChain,
         this.config.withdrawals.chunkSize,
@@ -191,7 +195,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
           jobsData.push({
             chainId: parseInt(sourceChainId),
             intentSourceAddr,
-            intents: chunk,
+            withdrawals: chunk,
           })
         }
       })
@@ -292,7 +296,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
   }
 
   async executeWithdrawals(data: ExecuteWithdrawsJobData) {
-    const { intents, intentSourceAddr, chainId } = data
+    const { withdrawals, intentSourceAddr, chainId } = data
 
     this.logger.debug(
       EcoLogMessage.fromDefault({
@@ -300,7 +304,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         properties: {
           chainId: data.chainId,
           intentSourceAddr: data.intentSourceAddr,
-          routeHash: data.intents,
+          routeHash: withdrawals,
         },
       }),
     )
@@ -308,10 +312,14 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const walletClient = await this.walletClientDefaultSignerService.getClient(chainId)
     const publicClient = await this.walletClientDefaultSignerService.getPublicClient(chainId)
 
+    const destinations = withdrawals.map((w) => w.destination)
+    const routeHashes = withdrawals.map((w) => w.routeHash)
+    const rewards = withdrawals.map((w) => w.reward)
+
     const txHash = await walletClient.writeContract({
-      abi: IntentSourceAbi,
+      abi: portalAbi,
       address: intentSourceAddr,
-      args: [intents],
+      args: [destinations, routeHashes, rewards],
       functionName: 'batchWithdraw',
     })
 
@@ -392,6 +400,17 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     return intentSource.inbox
   }
 
+  private getChainIdForIntentSource(intentSourceAddr: Hex): number {
+    const intentSources = this.ecoConfigService.getIntentSources()
+    const intentSource = intentSources.find((source) => source.sourceAddress === intentSourceAddr)
+
+    if (!intentSource) {
+      throw new Error(`Intent source not found for address: ${intentSourceAddr}`)
+    }
+
+    return intentSource.chainID
+  }
+
   private getInbox() {
     const intentSources = this.ecoConfigService.getIntentSources()
     const uniqInbox = _.uniq(_.map(intentSources, 'inbox'))
@@ -466,8 +485,13 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     const { HyperProver: hyperProverAddr } = getChainConfig(Number(publicClient.chain.id))
 
     const messageData = encodeAbiParameters(
-      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
-      [pad(prover), metadata, aggregationHook],
+      [
+        {
+          type: 'tuple',
+          components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
+        },
+      ],
+      [[pad(prover), metadata, aggregationHook]],
     )
 
     const data = encodeFunctionData({

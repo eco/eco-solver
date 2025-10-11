@@ -15,7 +15,7 @@ export class QuoteRouteCallDataModel implements CallDataInterface {
     return {
       target: this.target,
       data: this.data,
-      value: this.value,
+      value: BigInt(this.value.toString()),
     }
   }
 }

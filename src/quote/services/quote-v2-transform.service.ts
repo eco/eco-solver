@@ -1,7 +1,10 @@
-import { decodeFunctionData, erc20Abi, Hex } from 'viem'
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cacheable } from '@/decorators/cacheable.decorator'
+import { decodeFunctionData, encodeFunctionData, erc20Abi, Hex, isAddressEqual } from 'viem'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
+import { PortalHashUtils } from '@/common/utils/portal'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
@@ -9,12 +12,16 @@ import { QuoteV2ContractsDTO } from '@/quote/dto/v2/quote-v2-contracts.dto'
 import { QuoteV2FeeDTO } from '@/quote/dto/v2/quote-v2-fee.dto'
 import { QuoteV2QuoteResponseDTO } from '@/quote/dto/v2/quote-v2-quote-response.dto'
 import { QuoteV2ResponseDTO } from '@/quote/dto/v2/quote-v2-response.dto'
+import { randomBytes } from 'crypto'
 
 @Injectable()
 export class QuoteV2TransformService {
   private logger = new Logger(QuoteV2TransformService.name)
 
-  constructor(private readonly ecoConfigService: EcoConfigService) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: EcoConfigService,
+  ) {}
 
   /**
    * Transforms the current quote structure to V2 format
@@ -25,7 +32,7 @@ export class QuoteV2TransformService {
   async transformToV2(
     quoteData: QuoteDataDTO,
     quoteIntent: QuoteIntentDataDTO,
-  ): Promise<QuoteV2ResponseDTO | null> {
+  ): Promise<QuoteV2ResponseDTO> {
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: 'Transforming quote to V2 format',
@@ -36,34 +43,27 @@ export class QuoteV2TransformService {
       }),
     )
 
-    // Take the first valid quote entry
-    const quoteEntry = quoteData.quoteEntries[0]
-    if (!quoteEntry) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'No quote entries found to transform',
-          properties: { quoteID: quoteIntent.quoteID },
-        }),
-      )
-      return null
-    }
-
     try {
-      const quoteResponse = await this.buildQuoteResponse(quoteEntry, quoteIntent)
+      const quoteResponses: QuoteV2QuoteResponseDTO[] = []
       const contracts = await this.getContractAddresses(quoteIntent)
 
+      for (const quoteEntry of quoteData.quoteEntries) {
+        const quoteV2QuoteResponse = await this.buildQuoteResponse(quoteEntry, quoteIntent)
+        quoteResponses.push(quoteV2QuoteResponse)
+      }
+
       return {
-        quoteResponse,
+        quoteResponses,
         contracts,
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Error transforming quote to V2',
           properties: {
             quoteID: quoteIntent.quoteID,
-            error: error.message,
           },
+          error,
         }),
       )
       throw error
@@ -96,7 +96,37 @@ export class QuoteV2TransformService {
     const fees = await this.buildFees(quoteEntry, quoteIntent)
 
     // Convert expiry time to UNIX seconds
-    const deadline = parseInt(quoteEntry.expiryTime)
+    const deadline = quoteIntent.reward.deadline
+
+    // Build the complete route structure needed for encoding
+    // The route from quoteIntent needs additional fields for the Portal contract
+    const salt = ('0x' + randomBytes(32).toString('hex')) as Hex
+    const completeRoute = {
+      salt, // Random 32-byte salt
+      deadline: BigInt(deadline), // Use the quote deadline
+      portal: quoteIntent.route.inbox, // The inbox is the portal on destination chain
+      nativeAmount: 0n, // Default to 0 for quotes
+      tokens: [
+        {
+          token: quoteIntent.route.tokens[0].token,
+          amount: BigInt(destinationAmount),
+        },
+      ],
+      calls: [
+        {
+          target: quoteIntent.route.calls[0].target,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [recipient, BigInt(destinationAmount)],
+          }),
+          value: 0n,
+        },
+      ],
+    }
+
+    // Build and encode the route using PortalHashUtils
+    const encodedRoute = PortalHashUtils.getEncodedRoute(completeRoute)
 
     return {
       intentExecutionType: quoteEntry.intentExecutionType,
@@ -110,8 +140,9 @@ export class QuoteV2TransformService {
       refundRecipient,
       recipient,
       fees,
-      deadline,
+      deadline: Number(deadline),
       estimatedFulfillTimeSec: quoteEntry.estimatedFulfillTimeSec,
+      encodedRoute,
     }
   }
 
@@ -127,9 +158,9 @@ export class QuoteV2TransformService {
       if (decoded.functionName === 'transferFrom') return decoded.args[1]
     } catch (error) {
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withError({
           message: 'Could not extract recipient from call data',
-          properties: { error: error.message },
+          error,
         }),
       )
     }
@@ -176,25 +207,38 @@ export class QuoteV2TransformService {
     return fees
   }
 
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
   private async getTokenInfo(
     tokenAddress: Hex,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _chainId: number,
+    chainId: number,
   ): Promise<{ address: Hex; decimals: number; symbol: string }> {
-    // In a real implementation, this would fetch token info from chain or config
-    // For now, returning placeholder data
-    return {
-      address: tokenAddress,
-      decimals: 18, // Default to 18 decimals
-      symbol: 'TOKEN', // Placeholder symbol
+    const chainConfig = this.configService.getChain(chainId)
+    const stables = (chainConfig as any)?.stables as
+      | Record<string, { address: Hex; decimals?: number } | Hex>
+      | undefined
+
+    if (stables) {
+      for (const [symbol, value] of Object.entries(stables)) {
+        const address = (typeof value === 'string' ? value : value?.address) as Hex
+        if (address && isAddressEqual(address, tokenAddress)) {
+          const decimals =
+            typeof value === 'object' && typeof (value as any)?.decimals === 'number'
+              ? (value as any).decimals
+              : 6
+          return { address, decimals, symbol }
+        }
+      }
     }
+
+    throw new Error('Token Config not found')
   }
 
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
   private async getNativeTokenInfo(
     chainId: number,
   ): Promise<{ address: Hex; decimals: number; symbol: string }> {
     // Get native token info based on chain
-    const chainConfig = this.ecoConfigService.getChain(chainId)
+    const chainConfig = this.configService.getChain(chainId)
 
     return {
       address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Hex, // Standard native token address
@@ -203,13 +247,14 @@ export class QuoteV2TransformService {
     }
   }
 
+  @Cacheable({ ttl: 60 * 60 * 24 * 30 * 1000 }) // 30 days
   private async getContractAddresses(
     quoteIntent: QuoteIntentDataDTO,
   ): Promise<QuoteV2ContractsDTO> {
     const sourceChain = Number(quoteIntent.route.source)
 
     // Get intent source contract for source chain
-    const sourceConfig = this.ecoConfigService.getIntentSource(sourceChain)
+    const sourceConfig = this.configService.getIntentSource(sourceChain)
     const intentSource =
       sourceConfig?.sourceAddress || ('0x0000000000000000000000000000000000000000' as Hex)
 
