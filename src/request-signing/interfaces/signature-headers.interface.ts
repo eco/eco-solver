@@ -1,5 +1,9 @@
+export const SIGNATURE_HEADER = 'x-beam-sig'
+export const SIGNATURE_ADDRESS_HEADER = 'x-beam-sig-address'
+export const SIGNATURE_EXPIRE_HEADER = 'x-beam-sig-expire'
+
 export interface SignatureHeaders {
-  'x-beam-sig': string
-  'x-beam-sig-address': string
-  'x-beam-sig-expire': number
+  [SIGNATURE_HEADER]: string
+  [SIGNATURE_ADDRESS_HEADER]: string
+  [SIGNATURE_EXPIRE_HEADER]: number
 }

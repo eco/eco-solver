@@ -3,6 +3,11 @@ const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@/request-signing/typed-data'
 import { Injectable } from '@nestjs/common'
 import { LocalAccount } from 'viem'
+import {
+  SIGNATURE_HEADER,
+  SIGNATURE_ADDRESS_HEADER,
+  SIGNATURE_EXPIRE_HEADER,
+} from '@/request-signing/interfaces/signature-headers.interface'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface'
 
@@ -31,9 +36,9 @@ export class SignatureGenerator {
     const { signature } = await this.signPayload(walletAccount, payload, expiryTime)
 
     return {
-      'x-beam-sig': signature,
-      'x-beam-sig-expire': expiryTime,
-      'x-beam-sig-address': walletAccount.address,
+      [SIGNATURE_HEADER]: signature,
+      [SIGNATURE_ADDRESS_HEADER]: walletAccount.address,
+      [SIGNATURE_EXPIRE_HEADER]: expiryTime,
     }
   }
 }
