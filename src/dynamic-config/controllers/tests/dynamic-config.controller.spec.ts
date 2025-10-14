@@ -102,8 +102,6 @@ describe('ConfigurationController', () => {
     mockRequest.get.mockReturnValue('Mozilla/5.0')
   })
 
-
-
   describe('getAllConfigurations', () => {
     it('should return paginated configurations', async () => {
       const query: ConfigurationQueryDTO = {
