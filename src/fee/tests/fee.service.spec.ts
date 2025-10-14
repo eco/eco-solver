@@ -9,7 +9,7 @@ import { NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
-import { Hex } from 'viem'
+import { Hex, getAddress } from 'viem'
 import * as _ from 'lodash'
 import { EcoAnalyticsService } from '@/analytics'
 
@@ -91,6 +91,13 @@ describe('FeeService', () => {
         tranche: {
           unitFee: 5_000n,
           unitSize: 30_000_000n,
+        },
+      },
+      nonSwapToken: {
+        baseFee: 20_000n,
+        tranche: {
+          unitFee: 15_000n,
+          unitSize: 100_000_000n,
         },
       },
     },
@@ -185,6 +192,13 @@ describe('FeeService', () => {
             },
           },
           native: {
+            baseFee: 5n,
+            tranche: {
+              unitFee: 6n,
+              unitSize: 7n,
+            },
+          },
+          nonSwapToken: {
             baseFee: 5n,
             tranche: {
               unitFee: 6n,
@@ -372,6 +386,525 @@ describe('FeeService', () => {
           native: 0n,
         })
       })
+    })
+  })
+
+  describe('Route override precedence', () => {
+    it('applies exact-match override over whitelist/solver/default', () => {
+      const overrideFee: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 99n, tranche: { unitFee: 7n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 999n, tranche: { unitFee: 77n, unitSize: 100n } },
+        },
+      }
+
+      const intent = {
+        route: { source: 10n, destination: 11n },
+        reward: {
+          creator: '0xabc',
+          tokens: [{ token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', amount: 1n }],
+        },
+      } as any
+
+      feeService['intentConfigs'] = {
+        defaultFee,
+        routeFeeOverrides: [
+          {
+            sourceChainId: 10,
+            destinationChainId: 11,
+            sourceToken: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Hex,
+            destinationToken: '0x1111111111111111111111111111111111111111' as Hex,
+            fee: overrideFee,
+          },
+        ],
+      } as any
+
+      feeService['whitelist'] = {}
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 11n) return { fee: defaultFee, targets: {} } as any
+        return { targets: {} } as any
+      })
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [getAddress('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')],
+        dstToken: getAddress('0x1111111111111111111111111111111111111111'),
+      })
+
+      const out = feeService.getFeeConfig({ intent })
+      expect(out.constants.token.baseFee).toBe(overrideFee.constants.token.baseFee)
+    })
+  })
+
+  describe('nonSwapGroups selects nonSwapToken constants', () => {
+    it('uses nonSwapToken constants when both sides share a tag', () => {
+      const feeWithNonSwap: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 10n, tranche: { unitFee: 1n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 111n, tranche: { unitFee: 5n, unitSize: 100n } },
+        },
+      }
+
+      const srcToken = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+      const dstToken = '0x1111111111111111111111111111111111111111'
+
+      feeService['intentConfigs'] = { defaultFee: feeWithNonSwap } as any
+      feeService['whitelist'] = {}
+
+      const intent = {
+        route: {
+          source: 10n,
+          destination: 11n,
+          calls: [{ target: dstToken }],
+        },
+        reward: {
+          creator: '0xabc',
+          tokens: [{ token: srcToken, amount: 200n }],
+        },
+      } as any
+
+      // Tag both sides with same nonSwapGroups identifier
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 10n)
+          return {
+            targets: {
+              [getAddress(srcToken)]: { nonSwapGroups: ['USDC'] },
+            },
+          } as any
+        return {
+          fee: feeWithNonSwap,
+          targets: {
+            [getAddress(dstToken)]: { nonSwapGroups: ['USDC'] },
+          },
+        } as any
+      })
+
+      const tuple = {
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [getAddress(srcToken)],
+        dstToken: getAddress(dstToken),
+      }
+
+      const isNonSwapSpy = jest.spyOn(feeService as any, 'isNonSwapRoute').mockReturnValue(true)
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue(tuple)
+
+      // Ask computation should use nonSwapToken constants
+      const ask = feeService.getAsk({ token: 200n, native: 0n }, intent)
+      const unitSize = 100n
+      const expectedUnits = (200n + unitSize - 1n) / unitSize
+      expect(ask.token).toBe(200n + 111n + expectedUnits * 5n)
+      isNonSwapSpy.mockRestore()
+    })
+  })
+
+  describe('additional use-cases for overrides and nonSwapGroups', () => {
+    it('matches override when multiple source tokens are present (uses any matching source)', () => {
+      const overrideFee: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 77n, tranche: { unitFee: 7n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 777n, tranche: { unitFee: 70n, unitSize: 100n } },
+        },
+      }
+
+      const tokenA = getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+      const tokenB = getAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+      const dstToken = getAddress('0x1111111111111111111111111111111111111111')
+
+      const intent = {
+        route: { source: 10n, destination: 11n },
+        reward: {
+          creator: '0xabc',
+          tokens: [
+            { token: tokenA, amount: 1n },
+            { token: tokenB, amount: 1n },
+          ],
+        },
+      } as any
+
+      feeService['intentConfigs'] = {
+        defaultFee,
+        routeFeeOverrides: [
+          {
+            sourceChainId: 10,
+            destinationChainId: 11,
+            sourceToken: tokenB as Hex,
+            destinationToken: dstToken as Hex,
+            fee: overrideFee,
+          },
+        ],
+      } as any
+
+      feeService['whitelist'] = {}
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 11n) return { fee: defaultFee, targets: {} } as any
+        return { targets: {} } as any
+      })
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [tokenA, tokenB],
+        dstToken,
+      })
+
+      const out = feeService.getFeeConfig({ intent })
+      expect(out.constants.token.baseFee).toBe(overrideFee.constants.token.baseFee)
+    })
+
+    it('override matching is case-insensitive for addresses', () => {
+      const overrideFee: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 66n, tranche: { unitFee: 6n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 666n, tranche: { unitFee: 60n, unitSize: 100n } },
+        },
+      }
+
+      const intent = {
+        route: { source: 10n, destination: 11n },
+        reward: {
+          creator: '0xabc',
+          tokens: [{ token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', amount: 1n }],
+        },
+      } as any
+
+      feeService['intentConfigs'] = {
+        defaultFee,
+        routeFeeOverrides: [
+          {
+            sourceChainId: 10,
+            destinationChainId: 11,
+            sourceToken: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex,
+            destinationToken: '0x1111111111111111111111111111111111111111' as Hex,
+            fee: overrideFee,
+          },
+        ],
+      } as any
+
+      feeService['whitelist'] = {}
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 11n) return { fee: defaultFee, targets: {} } as any
+        return { targets: {} } as any
+      })
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
+        dstToken: getAddress('0x1111111111111111111111111111111111111111'),
+      })
+
+      const out = feeService.getFeeConfig({ intent })
+      expect(out.constants.token.baseFee).toBe(overrideFee.constants.token.baseFee)
+    })
+
+    it('override supports native→token and token→native using zero address', () => {
+      const overrideFee: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 55n, tranche: { unitFee: 5n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 555n, tranche: { unitFee: 50n, unitSize: 100n } },
+        },
+      }
+
+      const zero = '0x0000000000000000000000000000000000000000'
+      feeService['intentConfigs'] = {
+        defaultFee,
+        routeFeeOverrides: [
+          {
+            sourceChainId: 10,
+            destinationChainId: 11,
+            sourceToken: zero as Hex,
+            destinationToken: '0x1111111111111111111111111111111111111111' as Hex,
+            fee: overrideFee,
+          },
+          {
+            sourceChainId: 10,
+            destinationChainId: 11,
+            sourceToken: '0x2222222222222222222222222222222222222222' as Hex,
+            destinationToken: zero as Hex,
+            fee: overrideFee,
+          },
+        ],
+      } as any
+
+      feeService['whitelist'] = {}
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 11n) return { fee: defaultFee, targets: {} } as any
+        return { targets: {} } as any
+      })
+
+      // Native → token
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [zero],
+        dstToken: '0x1111111111111111111111111111111111111111',
+      })
+      expect(
+        feeService.getFeeConfig({ intent: { route: {}, reward: { creator: '0x1' } } as any }),
+      ).toEqual(
+        expect.objectContaining({
+          constants: expect.objectContaining({ token: expect.objectContaining({ baseFee: 55n }) }),
+        }),
+      )
+
+      // Token → native
+      ;(feeService as any).extractRouteTuple.mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: ['0x2222222222222222222222222222222222222222'],
+        dstToken: zero,
+      })
+      expect(
+        feeService.getFeeConfig({ intent: { route: {}, reward: { creator: '0x1' } } as any }),
+      ).toEqual(
+        expect.objectContaining({
+          constants: expect.objectContaining({ token: expect.objectContaining({ baseFee: 55n }) }),
+        }),
+      )
+    })
+
+    it('nonSwapGroups false when tags are missing or disjoint', () => {
+      const feeWithNonSwap: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 10n, tranche: { unitFee: 1n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 999n, tranche: { unitFee: 9n, unitSize: 100n } },
+        },
+      }
+
+      feeService['intentConfigs'] = { defaultFee: feeWithNonSwap } as any
+      feeService['whitelist'] = {}
+
+      jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(feeWithNonSwap)
+
+      // Missing dst tag
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 10n)
+          return {
+            targets: { '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa': { nonSwapGroups: ['USDC'] } },
+          } as any
+        return {
+          fee: feeWithNonSwap,
+          targets: { '0x1111111111111111111111111111111111111111': {} },
+        } as any
+      })
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')],
+        dstToken: getAddress('0x1111111111111111111111111111111111111111'),
+      })
+      const ask1 = feeService.getAsk({ token: 200n, native: 0n }, {
+        route: {},
+        reward: { creator: '0x0' },
+      } as any)
+      const units1 = 200n / 100n
+      expect(ask1.token).toBe(200n + 10n + units1 * 1n)
+
+      // Disjoint tags
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 10n)
+          return {
+            targets: { '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa': { nonSwapGroups: ['USDC'] } },
+          } as any
+        return {
+          fee: feeWithNonSwap,
+          targets: { '0x1111111111111111111111111111111111111111': { nonSwapGroups: ['DAI'] } },
+        } as any
+      })
+      const ask2 = feeService.getAsk({ token: 200n, native: 0n }, {
+        route: {},
+        reward: { creator: '0x0' },
+      } as any)
+      const units2 = 200n / 100n
+      expect(ask2.token).toBe(200n + 10n + units2 * 1n)
+    })
+
+    it('logs selection when tuple is available; returns early when tuple is undefined', () => {
+      feeService['intentConfigs'] = { defaultFee } as any
+      feeService['whitelist'] = {}
+      feeService['getAskRouteDestinationSolver'] = jest.fn().mockReturnValue({ fee: defaultFee })
+
+      // Tuple available
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: ['0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+        dstToken: getAddress('0x1111111111111111111111111111111111111111'),
+      })
+      feeService.getFeeConfig({ intent: { route: {}, reward: { creator: '0x1' } } as any })
+      expect(mockLogLog).toHaveBeenCalled()
+
+      // Tuple undefined: should not throw and should return some fee
+      ;(feeService as any).extractRouteTuple.mockReturnValue(undefined)
+      const out = feeService.getFeeConfig({
+        intent: { route: {}, reward: { creator: '0x1' } } as any,
+      })
+      expect(out).toBeTruthy()
+    })
+
+    it('override wins over whitelist when both are present', () => {
+      const overrideFee: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 1234n, tranche: { unitFee: 1n, unitSize: 100n } },
+          native: { baseFee: 0n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 1234n, tranche: { unitFee: 1n, unitSize: 100n } },
+        },
+      }
+
+      const sourceToken = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+      const destinationToken = '0x1111111111111111111111111111111111111111'
+
+      const intent = {
+        route: { source: 10n, destination: 11n },
+        reward: { creator: '0xcreator', tokens: [{ token: sourceToken, amount: 1n }] },
+      } as any
+
+      feeService['intentConfigs'] = {
+        defaultFee,
+        routeFeeOverrides: [
+          {
+            sourceChainId: 10,
+            destinationChainId: 11,
+            sourceToken: sourceToken as Hex,
+            destinationToken: destinationToken as Hex,
+            fee: overrideFee,
+          },
+        ],
+      } as any
+
+      // Whitelist should be merged first, then overridden by route override
+      feeService['whitelist'] = {
+        '0xcreator': {
+          default: {
+            limit: { tokenBase6: 2n, nativeBase18: 2n },
+            algorithm: 'linear',
+            constants: {
+              token: { baseFee: 2n, tranche: { unitFee: 2n, unitSize: 100n } },
+              native: { baseFee: 2n, tranche: { unitFee: 2n, unitSize: 1n } },
+              nonSwapToken: { baseFee: 2n, tranche: { unitFee: 2n, unitSize: 100n } },
+            },
+          } as any,
+        },
+      } as any
+
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 11n) return { fee: defaultFee, targets: {} } as any
+        return { targets: {} } as any
+      })
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [getAddress(sourceToken)],
+        dstToken: getAddress(destinationToken),
+      })
+
+      const out = feeService.getFeeConfig({ intent })
+      expect(out.constants.token.baseFee).toBe(overrideFee.constants.token.baseFee)
+    })
+
+    it('falls back to solver fee when no whitelist and no override', () => {
+      const solverFee: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 5n, nativeBase18: 5n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 9n, tranche: { unitFee: 1n, unitSize: 100n } },
+          native: { baseFee: 7n, tranche: { unitFee: 1n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 11n, tranche: { unitFee: 1n, unitSize: 100n } },
+        },
+      }
+      feeService['intentConfigs'] = { defaultFee } as any
+      feeService['whitelist'] = {}
+      jest.spyOn(ecoConfigService, 'getSolver').mockReturnValue({ fee: solverFee } as any)
+
+      const out = feeService.getFeeConfig({
+        intent: { route: {}, reward: { creator: '0x1' } } as any,
+      })
+      expect(out.constants.token.baseFee).toBe(solverFee.constants.token.baseFee)
+    })
+
+    it('nonSwap route uses nonSwapToken for tokens but always uses native constants for native', () => {
+      const cfg: FeeConfigType<'linear'> = {
+        limit: { tokenBase6: 1n, nativeBase18: 1n },
+        algorithm: 'linear',
+        constants: {
+          token: { baseFee: 10n, tranche: { unitFee: 1n, unitSize: 100n } },
+          native: { baseFee: 222n, tranche: { unitFee: 0n, unitSize: 1n } },
+          nonSwapToken: { baseFee: 111n, tranche: { unitFee: 5n, unitSize: 100n } },
+        },
+      }
+
+      const srcToken = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+      const dstToken = '0x1111111111111111111111111111111111111111'
+
+      feeService['intentConfigs'] = { defaultFee: cfg } as any
+      feeService['whitelist'] = {}
+
+      jest.spyOn(feeService, 'getFeeConfig').mockReturnValue(cfg)
+      jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
+        if (chainId === 10n)
+          return {
+            targets: {
+              [getAddress(srcToken)]: { nonSwapGroups: ['USDC'] },
+            },
+          } as any
+        return {
+          fee: cfg,
+          targets: {
+            [getAddress(dstToken)]: { nonSwapGroups: ['USDC'] },
+          },
+        } as any
+      })
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [getAddress(srcToken)],
+        dstToken: getAddress(dstToken),
+      })
+
+      const isNonSwapSpy = jest.spyOn(feeService as any, 'isNonSwapRoute').mockReturnValue(true)
+      jest.spyOn(feeService as any, 'extractRouteTuple').mockReturnValue({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [getAddress(srcToken)],
+        dstToken: getAddress(dstToken),
+      })
+
+      const ask = feeService.getAsk({ token: 200n, native: 300n }, {
+        route: {
+          source: 10n,
+          destination: 11n,
+          calls: [{ target: dstToken }],
+        },
+        reward: { creator: '0x0', tokens: [{ token: srcToken, amount: 0n }] },
+      } as any)
+      // token uses nonSwapToken config
+      const tokenUnitSize = 100n
+      const tokenUnits = (200n + tokenUnitSize - 1n) / tokenUnitSize
+      expect(ask.token).toBe(200n + 111n + tokenUnits * 5n)
+      // native uses native config even if route is nonSwap
+      const nativeUnitSize = 1n
+      const nativeUnits = (300n + nativeUnitSize - 1n) / nativeUnitSize
+      expect(ask.native).toBe(300n + 222n + nativeUnits * 0n)
+      isNonSwapSpy.mockRestore()
     })
   })
 

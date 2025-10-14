@@ -452,6 +452,13 @@ describe('ValidationService', () => {
               unitSize: 30_000_000n,
             },
           },
+          nonSwapToken: {
+            baseFee: 20_000n,
+            tranche: {
+              unitFee: 15_000n,
+              unitSize: 100_000_000n,
+            },
+          },
         },
       }
       it('should return false if feeService does', async () => {
