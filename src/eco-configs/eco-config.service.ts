@@ -209,6 +209,11 @@ export class EcoConfigService {
     return this.get('intentConfigs')
   }
 
+  // Returns global per-route fee overrides
+  getRouteFeeOverrides() {
+    return this.get('routeFeeOverrides') as EcoConfigType['routeFeeOverrides']
+  }
+
   // Returns the quote configs
   getQuotesConfig(): EcoConfigType['quotesConfig'] {
     return this.get('quotesConfig')

@@ -152,7 +152,7 @@ export class FeeService implements OnModuleInit {
       }
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: 'Fee selection',
+          message: 'Fee Config',
           properties: {
             feeSource,
             isNonSwap,
@@ -161,6 +161,7 @@ export class FeeService implements OnModuleInit {
             dstChainId: tuple?.dstChainId,
             srcTokens: tuple?.srcTokens,
             dstToken: tuple?.dstToken,
+            feeConfig,
           },
         }),
       )
@@ -216,6 +217,13 @@ export class FeeService implements OnModuleInit {
       default:
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
     }
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'Fee Calculation',
+        properties: { feeConfig, fee },
+      }),
+    )
+
     return fee
   }
 
@@ -315,12 +323,12 @@ export class FeeService implements OnModuleInit {
     if (!srcSolver || !dstSolver) return false
 
     const dstCfg = dstSolver.targets[getAddress(dstToken)]
-    const dstTags: string[] = (dstCfg as any)?.nonSwapGroups || []
+    const dstTags: string[] = dstCfg?.nonSwapGroups || []
     if (!dstTags || dstTags.length === 0) return false
 
     for (const s of srcTokens) {
       const srcCfg = srcSolver.targets[getAddress(s)]
-      const srcTags: string[] = (srcCfg as any)?.nonSwapGroups || []
+      const srcTags: string[] = srcCfg?.nonSwapGroups || []
       if (!srcTags || srcTags.length === 0) continue
       if (srcTags.some((t) => dstTags.includes(t))) return true
     }
@@ -331,7 +339,7 @@ export class FeeService implements OnModuleInit {
    * Find exact per-route override.
    */
   private findRouteOverride(tuple: RouteTuple): RouteFeeOverride | undefined {
-    const overrides = this.intentConfigs.routeFeeOverrides || undefined
+    const overrides = this.ecoConfigService.getRouteFeeOverrides() || undefined
     if (!overrides || overrides.length === 0) return undefined
     const { srcChainId, dstChainId, srcTokens, dstToken } = tuple
     if (srcTokens.length === 0 || !dstToken) return undefined

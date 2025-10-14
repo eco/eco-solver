@@ -105,8 +105,10 @@ intentConfigs: {
       nonSwapToken: { baseFee: 20_000n, tranche: { unitFee: 15_000n, unitSize: 100_000_000n } },
     },
   },
-  // Optional per-route overrides
-  routeFeeOverrides: [
+}
+
+// Optional per-route overrides at the root level
+routeFeeOverrides: [
     // {
     //   sourceChainId: 10,
     //   destinationChainId: 11,
@@ -114,8 +116,7 @@ intentConfigs: {
     //   destinationToken: '0x...',
     //   fee: { /* FeeConfigType */ },
     // },
-  ],
-}
+],
 ```
 
 2. Whitelist (loaded via AWS Secrets):

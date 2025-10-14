@@ -409,9 +409,10 @@ describe('FeeService', () => {
         },
       } as any
 
-      feeService['intentConfigs'] = {
-        defaultFee,
-        routeFeeOverrides: [
+      feeService['intentConfigs'] = { defaultFee } as any
+      ;(ecoConfigService.getRouteFeeOverrides as any) = jest
+        .spyOn(ecoConfigService, 'getRouteFeeOverrides')
+        .mockReturnValue([
           {
             sourceChainId: 10,
             destinationChainId: 11,
@@ -419,8 +420,7 @@ describe('FeeService', () => {
             destinationToken: '0x1111111111111111111111111111111111111111' as Hex,
             fee: overrideFee,
           },
-        ],
-      } as any
+        ])
 
       feeService['whitelist'] = {}
       jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
@@ -531,9 +531,10 @@ describe('FeeService', () => {
         },
       } as any
 
-      feeService['intentConfigs'] = {
-        defaultFee,
-        routeFeeOverrides: [
+      feeService['intentConfigs'] = { defaultFee } as any
+      ;(ecoConfigService.getRouteFeeOverrides as any) = jest
+        .spyOn(ecoConfigService, 'getRouteFeeOverrides')
+        .mockReturnValue([
           {
             sourceChainId: 10,
             destinationChainId: 11,
@@ -541,8 +542,7 @@ describe('FeeService', () => {
             destinationToken: dstToken as Hex,
             fee: overrideFee,
           },
-        ],
-      } as any
+        ])
 
       feeService['whitelist'] = {}
       jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
@@ -579,9 +579,10 @@ describe('FeeService', () => {
         },
       } as any
 
-      feeService['intentConfigs'] = {
-        defaultFee,
-        routeFeeOverrides: [
+      feeService['intentConfigs'] = { defaultFee } as any
+      ;(ecoConfigService.getRouteFeeOverrides as any) = jest
+        .spyOn(ecoConfigService, 'getRouteFeeOverrides')
+        .mockReturnValue([
           {
             sourceChainId: 10,
             destinationChainId: 11,
@@ -589,8 +590,7 @@ describe('FeeService', () => {
             destinationToken: '0x1111111111111111111111111111111111111111' as Hex,
             fee: overrideFee,
           },
-        ],
-      } as any
+        ])
 
       feeService['whitelist'] = {}
       jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
@@ -620,9 +620,10 @@ describe('FeeService', () => {
       }
 
       const zero = '0x0000000000000000000000000000000000000000'
-      feeService['intentConfigs'] = {
-        defaultFee,
-        routeFeeOverrides: [
+      feeService['intentConfigs'] = { defaultFee } as any
+      ;(ecoConfigService.getRouteFeeOverrides as any) = jest
+        .spyOn(ecoConfigService, 'getRouteFeeOverrides')
+        .mockReturnValue([
           {
             sourceChainId: 10,
             destinationChainId: 11,
@@ -637,8 +638,7 @@ describe('FeeService', () => {
             destinationToken: zero as Hex,
             fee: overrideFee,
           },
-        ],
-      } as any
+        ])
 
       feeService['whitelist'] = {}
       jest.spyOn(ecoConfigService, 'getSolver').mockImplementation((chainId: any) => {
@@ -778,9 +778,10 @@ describe('FeeService', () => {
         reward: { creator: '0xcreator', tokens: [{ token: sourceToken, amount: 1n }] },
       } as any
 
-      feeService['intentConfigs'] = {
-        defaultFee,
-        routeFeeOverrides: [
+      feeService['intentConfigs'] = { defaultFee } as any
+      ;(ecoConfigService.getRouteFeeOverrides as any) = jest
+        .spyOn(ecoConfigService, 'getRouteFeeOverrides')
+        .mockReturnValue([
           {
             sourceChainId: 10,
             destinationChainId: 11,
@@ -788,8 +789,7 @@ describe('FeeService', () => {
             destinationToken: destinationToken as Hex,
             fee: overrideFee,
           },
-        ],
-      } as any
+        ])
 
       // Whitelist should be merged first, then overridden by route override
       feeService['whitelist'] = {
