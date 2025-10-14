@@ -9,7 +9,7 @@ import { NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { QuoteError } from '@/quote/errors'
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
-import { Hex, getAddress } from 'viem'
+import { Hex, getAddress, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { EcoAnalyticsService } from '@/analytics'
 
@@ -908,6 +908,118 @@ describe('FeeService', () => {
     })
   })
 
+  describe('extractRouteTuple', () => {
+    beforeEach(() => {
+      feeService['intentConfigs'] = { defaultFee } as any
+      feeService['whitelist'] = {}
+    })
+
+    it('picks first ERC-20 transfer target when approve precedes transfer', () => {
+      // First functional call is non-transfer (e.g., approve), second is transfer
+      const tokenA = getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+      const tokenB = getAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+
+      const quote = {
+        route: {
+          source: 10n,
+          destination: 11n,
+          // functional calls (value 0n, non-empty data)
+          calls: [
+            { target: tokenA as Hex, selector: '0x1234' as Hex, data: '0x1234' as Hex, value: 0n },
+            { target: tokenB as Hex, selector: '0x1234' as Hex, data: '0x1234' as Hex, value: 0n },
+          ],
+        },
+        reward: {
+          creator: '0xcreator',
+          tokens: [{ token: tokenA, amount: 1n }],
+        },
+      } as any
+
+      jest
+        .spyOn(ecoConfigService, 'getSolver')
+        .mockReturnValue({ fee: defaultFee, targets: {} } as any)
+      // make first isERC20Target false, second true (transfer)
+      mockGetTransactionTargetData.mockReturnValue({} as any)
+      mockIsERC20Target.mockReset()
+      mockIsERC20Target.mockImplementationOnce(() => false).mockImplementationOnce(() => true)
+
+      const tuple = (feeService as any).extractRouteTuple(quote)
+      expect(tuple).toEqual({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [tokenA],
+        dstToken: tokenB,
+      })
+    })
+
+    it('falls back to native (zero address) when only native calls are present', () => {
+      const quote = {
+        route: {
+          source: 10n,
+          destination: 11n,
+          // native-only calls (empty data, value > 0)
+          calls: [
+            {
+              target: '0x1111111111111111111111111111111111111111' as Hex,
+              selector: '0x0' as Hex,
+              data: '0x' as Hex,
+              value: 50n,
+            },
+          ],
+        },
+        reward: {
+          creator: '0xcreator',
+          tokens: [],
+          nativeValue: 1n,
+        },
+      } as any
+
+      jest
+        .spyOn(ecoConfigService, 'getSolver')
+        .mockReturnValue({ fee: defaultFee, targets: {} } as any)
+      mockGetTransactionTargetData.mockReturnValue({} as any)
+      mockIsERC20Target.mockReset()
+      mockIsERC20Target.mockImplementation(() => false)
+
+      const tuple = (feeService as any).extractRouteTuple(quote)
+      expect(tuple).toEqual({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [zeroAddress],
+        dstToken: zeroAddress,
+      })
+    })
+
+    it('falls back to route.tokens[0] when no transfers and no native', () => {
+      const tokenOut = getAddress('0x1111111111111111111111111111111111111111')
+      const tokenIn = getAddress('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
+      const quote = {
+        route: {
+          source: 10n,
+          destination: 11n,
+          calls: [],
+          tokens: [{ token: tokenOut, amount: 1n }],
+        },
+        reward: {
+          creator: '0xcreator',
+          tokens: [{ token: tokenIn, amount: 2n }],
+          nativeValue: 0n,
+        },
+      } as any
+
+      jest
+        .spyOn(ecoConfigService, 'getSolver')
+        .mockReturnValue({ fee: defaultFee, targets: {} } as any)
+      const tuple = (feeService as any).extractRouteTuple(quote)
+      expect(tuple).toEqual({
+        srcChainId: 10,
+        dstChainId: 11,
+        srcTokens: [tokenIn],
+        dstToken: tokenOut,
+      })
+    })
+  })
+
   describe('on isRouteFeasible', () => {
     let quote: any
 
@@ -1420,6 +1532,10 @@ describe('FeeService', () => {
     })
 
     describe('on route calls mapping', () => {
+      beforeEach(() => {
+        mockGetTransactionTargetData.mockClear()
+        mockIsERC20Target.mockClear()
+      })
       let callBalances: any
       const transferAmount = 1_000_000_000n
       const txTargetData = {
