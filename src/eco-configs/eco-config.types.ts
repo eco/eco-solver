@@ -26,6 +26,8 @@ export type EcoConfigType = {
   quotesConfig: QuotesConfig
   solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
+  // Global per-route fee overrides
+  routeFeeOverrides?: RouteFeeOverride[]
   fulfillmentEstimate: FulfillmentEstimateConfig
   rpcs: RpcConfigType
   cache: CacheModuleOptions
@@ -167,8 +169,6 @@ export type IntentConfig = {
   // Gas overhead is the intent creation gas cost for the source chain
   // This is the default gas overhead
   defaultGasOverhead: number
-  // Optional per-route fee overrides
-  routeFeeOverrides?: RouteFeeOverride[]
 }
 
 /**
