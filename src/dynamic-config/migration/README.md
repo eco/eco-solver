@@ -37,13 +37,13 @@ Main service for migrating configurations from AWS Secrets Manager to MongoDB.
 - Provides rollback capabilities
 - Comprehensive error handling and logging
 
-### ConfigurationValidationService
+### DynamicConfigValidationService
 
 Service for validating configuration schemas and values.
 
 **Features:**
 
-- Schema validation using Joi
+- Schema validation using Zod
 - Type validation
 - Business rule validation
 - Security issue detection
@@ -120,7 +120,7 @@ import { DynamicConfigValidationService } from './dynamic-config-validation.serv
 // Inject services via NestJS DI
 constructor(
   private readonly migrationService: AwsToMongoDbMigrationService,
-  private readonly validationService: ConfigurationValidationService,
+  private readonly validationService: DynamicConfigValidationService,
 ) {}
 
 // Run migration
