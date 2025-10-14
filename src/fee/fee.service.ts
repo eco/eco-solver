@@ -111,12 +111,52 @@ export class FeeService implements OnModuleInit {
       }
 
       const isNonSwap = this.isNonSwapRoute(tuple)
+      // annotate how dstToken was selected to aid debugging
+      let dstTokenSource: 'transfer' | 'native' | 'routeTokens' | 'unknown' = 'unknown'
+      try {
+        const routeCalls = Array.isArray(intent.route?.calls)
+          ? (intent.route.calls as CallDataInterface[])
+          : ([] as CallDataInterface[])
+        const functionalCalls = getFunctionCalls(routeCalls)
+        const solver = this.getAskRouteDestinationSolver(intent.route)
+        for (const call of functionalCalls) {
+          const ttd = getTransactionTargetData(solver, call)
+          const isTransfer = isERC20Target(ttd, getERC20Selector('transfer'))
+          const isSameTarget = getAddress(call.target) === tuple.dstToken
+          if (isTransfer && isSameTarget) {
+            dstTokenSource = 'transfer'
+            break
+          }
+        }
+      } catch (_err) {
+        // ignore; infer source via fallbacks below
+      }
+      if (dstTokenSource === 'unknown') {
+        if (tuple.dstToken === zeroAddress) {
+          try {
+            const routeCalls = Array.isArray(intent.route?.calls)
+              ? (intent.route.calls as CallDataInterface[])
+              : ([] as CallDataInterface[])
+            if (getNativeCalls(routeCalls).length > 0) dstTokenSource = 'native'
+          } catch (_err) {
+            // ignore
+          }
+        } else if (intent.route.tokens?.[0]?.token) {
+          try {
+            if (getAddress(intent.route.tokens[0].token) === tuple.dstToken)
+              dstTokenSource = 'routeTokens'
+          } catch (_err) {
+            // ignore; keep unknown
+          }
+        }
+      }
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: 'Fee selection',
           properties: {
             feeSource,
             isNonSwap,
+            dstTokenSource,
             srcChainId: tuple?.srcChainId,
             dstChainId: tuple?.dstChainId,
             srcTokens: tuple?.srcTokens,
@@ -187,12 +227,35 @@ export class FeeService implements OnModuleInit {
       const srcChainId = Number(quote.route.source)
       const dstChainId = Number(quote.route.destination)
 
-      // Determine destination token: first ERC20 transfer target if present, else zero for native-only
-      const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])
-      let dstToken: Hex | undefined = functionTargets[0] as Hex | undefined
+      // Determine destination token by inspecting functional calls for the first ERC-20 transfer
+      let dstToken: Hex | undefined
+      const functionalCalls = getFunctionCalls(quote.route.calls as CallDataInterface[])
+      try {
+        const solver = this.getAskRouteDestinationSolver(quote.route)
+        for (const call of functionalCalls) {
+          const ttd = getTransactionTargetData(solver, call)
+          const isTransfer = isERC20Target(ttd, getERC20Selector('transfer'))
+          if (isTransfer) {
+            dstToken = getAddress(call.target)
+            break
+          }
+        }
+      } catch (_err) {
+        // ignore; fallbacks below handle missing dstToken resolution
+      }
+
+      // Fallbacks: native-only → zero; else route.tokens[0]; else leave undefined
       if (!dstToken) {
         const nativeCalls = getNativeCalls(quote.route.calls as CallDataInterface[])
-        if (nativeCalls.length > 0) dstToken = zeroAddress
+        if (nativeCalls.length > 0) {
+          dstToken = zeroAddress
+        } else if (quote.route.tokens && quote.route.tokens.length > 0) {
+          try {
+            dstToken = getAddress(quote.route.tokens[0].token)
+          } catch (_err) {
+            // ignore; will return undefined below if still unresolved
+          }
+        }
       }
 
       const srcTokens: Hex[] = []
@@ -206,11 +269,13 @@ export class FeeService implements OnModuleInit {
         srcTokens.push(zeroAddress)
       }
 
+      if (!dstToken) return undefined
+
       return {
         srcChainId,
         dstChainId,
         srcTokens,
-        dstToken: dstToken ? getAddress(dstToken) : zeroAddress,
+        dstToken,
       }
     } catch {
       return undefined
