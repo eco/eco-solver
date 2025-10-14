@@ -6,6 +6,7 @@ import {
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
 } from '@/dynamic-config/interfaces/configuration-repository.interface'
+import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto'
 import { DynamicConfigAuditService } from '@/dynamic-config/services/dynamic-config-audit.service'
 import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository'
 import { DynamicConfigSanitizerService } from '@/dynamic-config/services/dynamic-config-sanitizer.service'
@@ -14,6 +15,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
 import { Injectable, Logger, OnModuleInit, Inject, OnModuleDestroy } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
+import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
 
 export interface ConfigurationChangeEvent {
   key: string
@@ -22,8 +24,8 @@ export interface ConfigurationChangeEvent {
   newValue?: any
   userId?: string
   userAgent?: string
-  ipAddress?: string
   timestamp: Date
+  source?: 'api' | 'change-stream' | 'migration' | 'external'
 }
 
 export interface CachedConfiguration {
@@ -143,6 +145,32 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get all configurations with filtering and pagination
    */
+  async getAllQuery(query: ConfigurationQueryDTO): Promise<PaginatedResult<CachedConfiguration>> {
+    // Build filter from query parameters
+    const filter: ConfigurationFilter = {}
+    if (query.type) filter.type = query.type
+    if (query.isRequired !== undefined) filter.isRequired = query.isRequired
+    if (query.isSecret !== undefined) filter.isSecret = query.isSecret
+    if (query.lastModifiedBy) filter.lastModifiedBy = query.lastModifiedBy
+    if (query.createdAfter) filter.createdAfter = new Date(query.createdAfter)
+    if (query.createdBefore) filter.createdBefore = new Date(query.createdBefore)
+    if (query.updatedAfter) filter.updatedAfter = new Date(query.updatedAfter)
+    if (query.updatedBefore) filter.updatedBefore = new Date(query.updatedBefore)
+
+    // Build pagination options
+    const pagination = {
+      page: query.page || 1,
+      limit: query.limit || 50,
+      sortBy: query.sortBy || 'key',
+      sortOrder: query.sortOrder || SortOrder.DESC,
+    }
+
+    return await this.getAll(filter, pagination)
+  }
+
+  /**
+   * Get all configurations with filtering and pagination
+   */
   async getAll(
     filter?: ConfigurationFilter,
     pagination?: PaginationOptions,
@@ -165,7 +193,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     data: CreateConfigurationDTO,
     userId?: string,
     userAgent?: string,
-    ipAddress?: string,
   ): Promise<ConfigurationDocument> {
     this.logger.log(`Creating configuration: ${data.key}`)
 
@@ -211,6 +238,16 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     // Update cache
     this.updateCacheEntry(config)
 
+    // Create audit log directly for API calls
+    await this.auditService.createAuditLog({
+      configKey: data.key,
+      operation: 'CREATE',
+      newValue: data.value,
+      userId: userId || 'unknown',
+      userAgent,
+      timestamp: new Date(),
+    })
+
     // Emit change event
     this.emitConfigurationChange({
       key: data.key,
@@ -218,8 +255,8 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       newValue: data.value,
       userId,
       userAgent,
-      ipAddress,
       timestamp: new Date(),
+      source: 'api',
     })
 
     this.logger.log(`Configuration created successfully: ${data.key}`)
@@ -234,7 +271,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     data: UpdateConfigurationDTO,
     userId?: string,
     userAgent?: string,
-    ipAddress?: string,
   ): Promise<ConfigurationDocument | null> {
     this.logger.log(`Updating configuration: ${key}`)
 
@@ -276,6 +312,17 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       // Update cache
       this.updateCacheEntry(updatedConfig)
 
+      // Create audit log directly for API calls
+      await this.auditService.createAuditLog({
+        configKey: key,
+        operation: 'UPDATE',
+        oldValue,
+        newValue: data.value,
+        userId: userId || 'unknown',
+        userAgent,
+        timestamp: new Date(),
+      })
+
       // Emit change event
       this.emitConfigurationChange({
         key,
@@ -284,8 +331,8 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
         newValue: data.value,
         userId,
         userAgent,
-        ipAddress,
         timestamp: new Date(),
+        source: 'api',
       })
 
       this.logger.log(`Configuration updated successfully: ${key}`)
@@ -299,12 +346,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   /**
    * Delete a configuration with user context
    */
-  async delete(
-    key: string,
-    userId?: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<boolean> {
+  async delete(key: string, userId?: string, userAgent?: string): Promise<boolean> {
     this.logger.log(`Deleting configuration: ${key}`)
 
     // Get old value for audit
@@ -322,6 +364,16 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       // Remove from cache
       this.configCache.delete(key)
 
+      // Create audit log directly for API calls
+      await this.auditService.createAuditLog({
+        configKey: key,
+        operation: 'DELETE',
+        oldValue,
+        userId: userId || 'unknown',
+        userAgent,
+        timestamp: new Date(),
+      })
+
       // Emit change event
       this.emitConfigurationChange({
         key,
@@ -329,8 +381,8 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
         oldValue,
         userId,
         userAgent,
-        ipAddress,
         timestamp: new Date(),
+        source: 'api',
       })
 
       this.logger.log(`Configuration deleted successfully: ${key}`)
@@ -345,9 +397,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    * Check if a configuration exists
    */
   async exists(key: string): Promise<boolean> {
-    if (this.cacheInitialized && this.configCache.has(key)) {
-      return true
-    }
+    // Always check database for existence to avoid stale cache issues
     return await this.configRepository.exists(key)
   }
 
@@ -551,7 +601,14 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   @OnEvent('configuration.changed')
   private async handleConfigurationChanged(event: ConfigurationChangeEvent): Promise<void> {
     try {
-      await this.auditService.handleConfigurationChange(event)
+      // Skip audit for all change stream events - only API calls create audit logs
+      if (event.source === 'change-stream') {
+        this.logger.debug(`Skipping audit for change stream event: ${event.key}`)
+        return
+      }
+
+      // This should never be reached since we only emit 'api' and 'change-stream' events
+      this.logger.warn(`Unexpected event source: ${event.source} for key: ${event.key}`)
     } catch (error) {
       this.logger.error('Failed to handle configuration change event:', error)
     }
@@ -681,6 +738,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
         oldValue,
         timestamp: new Date(),
         userId: 'change-stream', // Indicates this came from change stream
+        source: 'change-stream', // Mark as external change for audit
       }
 
       this.logger.debug(`Change stream detected: ${key} - ${event.operation}`)

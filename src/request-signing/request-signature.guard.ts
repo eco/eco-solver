@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
@@ -9,9 +10,16 @@ import { SignatureVerificationService } from '@/request-signing/signature-verifi
 export class RequestSignatureGuard implements CanActivate {
   private readonly logger = new EcoLogger(RequestSignatureGuard.name)
 
-  constructor(private readonly signatureVerificationService: SignatureVerificationService) {}
+  constructor(
+    private readonly ecoConfigService: EcoConfigService,
+    private readonly signatureVerificationService: SignatureVerificationService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (!this.ecoConfigService.isRequestSignatureValidationEnabled()) {
+      return true
+    }
+
     const request = context.switchToHttp().getRequest()
     const requestHeaders = new RequestHeaders(request.headers)
 

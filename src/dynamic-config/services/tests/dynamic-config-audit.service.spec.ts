@@ -18,7 +18,6 @@ describe('DynamicConfigAuditService', () => {
     newValue: 'test-value',
     userId: 'user123',
     userAgent: 'Mozilla/5.0',
-    ipAddress: '192.168.1.1',
     timestamp: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -66,7 +65,6 @@ describe('DynamicConfigAuditService', () => {
       newValue: 'test-value',
       userId: 'user123',
       userAgent: 'Mozilla/5.0',
-      ipAddress: '192.168.1.1',
       timestamp: new Date(),
     }
 
@@ -247,7 +245,6 @@ describe('DynamicConfigAuditService', () => {
         newValue: 'new-value',
         userId: 'user123',
         userAgent: 'Mozilla/5.0',
-        ipAddress: '192.168.1.1',
         timestamp: new Date(),
       }
 
@@ -262,7 +259,6 @@ describe('DynamicConfigAuditService', () => {
         newValue: event.newValue,
         userId: event.userId,
         userAgent: event.userAgent,
-        ipAddress: event.ipAddress,
         timestamp: event.timestamp,
       })
     })

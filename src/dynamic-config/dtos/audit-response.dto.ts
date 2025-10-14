@@ -1,4 +1,4 @@
-export type AuditOperation = 'CREATE' | 'UPDATE' | 'DELETE'
+import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum'
 
 export class ConfigurationAuditResponseDTO {
   configKey: string
@@ -7,7 +7,6 @@ export class ConfigurationAuditResponseDTO {
   newValue?: any
   userId: string
   userAgent?: string
-  ipAddress?: string
   timestamp: Date
 }
 
@@ -25,7 +24,6 @@ export class AuditLogResponseDTO {
   newValue?: any
   userId: string
   userAgent?: string
-  ipAddress?: string
   timestamp: Date
   createdAt: Date
   updatedAt: Date

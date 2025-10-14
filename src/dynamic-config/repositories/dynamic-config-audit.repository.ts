@@ -13,7 +13,6 @@ export interface AuditLogEntry {
   newValue?: any
   userId: string
   userAgent?: string
-  ipAddress?: string
   timestamp: Date
 }
 
@@ -54,7 +53,6 @@ export class DynamicConfigAuditRepository {
         newValue: entry.newValue,
         userId: entry.userId,
         userAgent: entry.userAgent,
-        ipAddress: entry.ipAddress,
         timestamp: entry.timestamp,
       })
 

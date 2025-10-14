@@ -1,11 +1,11 @@
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { IsEnum, IsBoolean, IsOptional, IsString } from 'class-validator'
-import { ConfigurationType } from '@/dynamic-config/dtos/create-configuration.dto'
 
 export class UpdateConfigurationDTO {
   @IsOptional()
   value?: any
 
-  @IsEnum(['string', 'number', 'boolean', 'object', 'array'])
+  @IsEnum(ConfigurationType)
   @IsOptional()
   type?: ConfigurationType
 

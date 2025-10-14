@@ -62,16 +62,18 @@ export class SignatureVerificationService {
 
       return { response: recoveredAddress }
     } catch (ex) {
+      const errorMessage = EcoError.getErrorMessage(ex)
+
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `verifyTypedData: error`,
           properties: {
-            error: EcoError.getErrorMessage(ex),
+            error: errorMessage,
           },
         }),
       )
 
-      return { error: EcoError.TypedDataVerificationFailed }
+      return { error: EcoError.TypedDataVerificationFailed(errorMessage) }
     }
   }
 }

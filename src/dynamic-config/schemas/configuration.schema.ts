@@ -1,3 +1,4 @@
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { Document, Schema as MongooseSchema } from 'mongoose'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 
@@ -25,10 +26,10 @@ export class Configuration {
 
   @Prop({
     required: true,
-    enum: ['string', 'number', 'boolean', 'object', 'array'],
     type: String,
+    enum: Object.values(ConfigurationType),
   })
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  type: ConfigurationType
 
   @Prop({
     default: false,

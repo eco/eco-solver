@@ -1,5 +1,6 @@
-import { AuditOperation } from '@/dynamic-config/dtos/audit-response.dto'
+import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum'
 import { IsOptional, IsNumber, IsString, IsEnum, Min, Max, IsDateString } from 'class-validator'
+import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
 import { Type } from 'class-transformer'
 
 export class AuditQueryDTO {
@@ -21,7 +22,7 @@ export class AuditQueryDTO {
   userId?: string
 
   @IsOptional()
-  @IsEnum(['CREATE', 'UPDATE', 'DELETE'])
+  @IsEnum(AuditOperation)
   operation?: AuditOperation
 
   @IsOptional()
@@ -38,5 +39,6 @@ export class AuditQueryDTO {
 
   @IsOptional()
   @IsEnum(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc' = 'desc'
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC
 }

@@ -183,6 +183,10 @@ export class EcoConfigService implements OnModuleInit {
     return this.ecoConfig.get<T>(key)
   }
 
+  isRequestSignatureValidationEnabled(): boolean {
+    return this.get<boolean>('requestSignatureValidationEnabled')
+  }
+
   /**
    * Get configuration value with MongoDB override support
    * This method first checks MongoDB configurations, then falls back to static configs

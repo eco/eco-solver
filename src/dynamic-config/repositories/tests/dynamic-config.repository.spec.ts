@@ -41,6 +41,7 @@ describe('DynamicConfigRepository', () => {
       findOneAndUpdate: jest.fn(),
       deleteOne: jest.fn(),
       countDocuments: jest.fn(),
+      exists: jest.fn(),
       aggregate: jest.fn(),
       deleteMany: jest.fn(),
       collection: {
@@ -393,21 +394,20 @@ describe('DynamicConfigRepository', () => {
 
   describe('exists', () => {
     it('should return true when configuration exists', async () => {
-      const mockExec = jest.fn().mockResolvedValue(1)
-      model.countDocuments.mockReturnValue({ exec: mockExec } as any)
+      model.exists.mockResolvedValue({ _id: 'mock-id' } as any)
 
       const result = await repository.exists('test.key')
 
-      expect(model.countDocuments).toHaveBeenCalledWith({ key: 'test.key' })
+      expect(model.exists).toHaveBeenCalledWith({ key: 'test.key' })
       expect(result).toBe(true)
     })
 
     it('should return false when configuration does not exist', async () => {
-      const mockExec = jest.fn().mockResolvedValue(0)
-      model.countDocuments.mockReturnValue({ exec: mockExec } as any)
+      model.exists.mockResolvedValue(null)
 
       const result = await repository.exists('nonexistent.key')
 
+      expect(model.exists).toHaveBeenCalledWith({ key: 'nonexistent.key' })
       expect(result).toBe(false)
     })
   })

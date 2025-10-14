@@ -127,7 +127,6 @@ export class DynamicConfigAuditService {
         newValue: event.newValue,
         userId: event.userId || 'system',
         userAgent: event.userAgent,
-        ipAddress: event.ipAddress,
         timestamp: event.timestamp,
       })
     } catch (error) {
@@ -152,7 +151,6 @@ export class DynamicConfigAuditService {
           newValue: (log as any).getMaskedNewValue?.() || this.maskSensitiveValue(log.newValue),
           userId: log.userId,
           userAgent: log.userAgent,
-          ipAddress: log.ipAddress,
           timestamp: log.timestamp,
         })),
         null,

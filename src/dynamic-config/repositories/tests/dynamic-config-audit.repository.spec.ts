@@ -22,7 +22,6 @@ describe('DynamicConfigAuditRepository', () => {
     newValue: 'test-value',
     userId: 'user123',
     userAgent: 'Mozilla/5.0',
-    ipAddress: '192.168.1.1',
     timestamp: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -35,7 +34,6 @@ describe('DynamicConfigAuditRepository', () => {
     newValue: 'test-value',
     userId: 'user123',
     userAgent: 'Mozilla/5.0',
-    ipAddress: '192.168.1.1',
     timestamp: new Date(),
   }
 
@@ -90,7 +88,6 @@ describe('DynamicConfigAuditRepository', () => {
         newValue: mockAuditEntry.newValue,
         userId: mockAuditEntry.userId,
         userAgent: mockAuditEntry.userAgent,
-        ipAddress: mockAuditEntry.ipAddress,
         timestamp: mockAuditEntry.timestamp,
       })
       expect(mockSave).toHaveBeenCalled()

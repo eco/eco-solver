@@ -1,6 +1,5 @@
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger'
 import { AuditQueryDTO } from '@/dynamic-config/dtos/audit-query.dto'
-import { ConfigurationFilter } from '@/dynamic-config/interfaces/configuration-repository.interface'
 import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto'
 import {
   Controller,
@@ -67,27 +66,7 @@ export class DynamicConfigController {
   ): Promise<PaginatedConfigurationResponseDTO> {
     try {
       this.logger.log('Getting all configurations with filters:', query)
-
-      // Build filter from query parameters
-      const filter: ConfigurationFilter = {}
-      if (query.type) filter.type = query.type
-      if (query.isRequired !== undefined) filter.isRequired = query.isRequired
-      if (query.isSecret !== undefined) filter.isSecret = query.isSecret
-      if (query.lastModifiedBy) filter.lastModifiedBy = query.lastModifiedBy
-      if (query.createdAfter) filter.createdAfter = new Date(query.createdAfter)
-      if (query.createdBefore) filter.createdBefore = new Date(query.createdBefore)
-      if (query.updatedAfter) filter.updatedAfter = new Date(query.updatedAfter)
-      if (query.updatedBefore) filter.updatedBefore = new Date(query.updatedBefore)
-
-      // Build pagination options
-      const pagination = {
-        page: query.page || 1,
-        limit: query.limit || 50,
-        sortBy: query.sortBy || 'key',
-        sortOrder: query.sortOrder || 'asc',
-      }
-
-      const result = await this.configurationService.getAll(filter, pagination)
+      const result = await this.configurationService.getAllQuery(query)
 
       // Transform to response DTOs
       const responseData = result.data.map((config) => this.toResponseDTO(config))
@@ -213,13 +192,12 @@ export class DynamicConfigController {
       }
 
       // Extract user context
-      const { userId, userAgent, ipAddress } = this.getUserContext(request)
+      const { userId, userAgent } = this.getUserContext(request)
 
       const config = await this.configurationService.create(
         createConfigurationDTO,
         userId,
         userAgent,
-        ipAddress,
       )
 
       return this.toResponseDTO({
@@ -290,15 +268,9 @@ export class DynamicConfigController {
       this.logger.log(`Updating configuration: ${key}`)
 
       // Extract user context
-      const { userId, userAgent, ipAddress } = this.getUserContext(request)
+      const { userId, userAgent } = this.getUserContext(request)
 
-      const config = await this.configurationService.update(
-        key,
-        updateDTO,
-        userId,
-        userAgent,
-        ipAddress,
-      )
+      const config = await this.configurationService.update(key, updateDTO, userId, userAgent)
 
       if (!config) {
         throw new HttpException(`Configuration not found: ${key}`, HttpStatus.NOT_FOUND)
@@ -370,9 +342,9 @@ export class DynamicConfigController {
       this.logger.log(`Deleting configuration: ${key}`)
 
       // Extract user context
-      const { userId, userAgent, ipAddress } = this.getUserContext(request)
+      const { userId, userAgent } = this.getUserContext(request)
 
-      const deleted = await this.configurationService.delete(key, userId, userAgent, ipAddress)
+      const deleted = await this.configurationService.delete(key, userId, userAgent)
 
       if (!deleted) {
         throw new HttpException(`Configuration not found: ${key}`, HttpStatus.NOT_FOUND)
@@ -488,14 +460,13 @@ export class DynamicConfigController {
    */
   private toAuditResponseDTO(auditLog: any): AuditLogResponseDTO {
     return {
-      id: auditLog._id || auditLog.id,
+      id: auditLog._id?.toString() || auditLog.id?.toString() || 'unknown',
       configKey: auditLog.configKey,
       operation: auditLog.operation,
       oldValue: (auditLog as any).getMaskedOldValue?.() || auditLog.oldValue,
       newValue: (auditLog as any).getMaskedNewValue?.() || auditLog.newValue,
       userId: auditLog.userId,
       userAgent: auditLog.userAgent,
-      ipAddress: auditLog.ipAddress,
       timestamp: auditLog.timestamp,
       createdAt: auditLog.createdAt,
       updatedAt: auditLog.updatedAt,
@@ -511,19 +482,6 @@ export class DynamicConfigController {
     return {
       userId: address,
       userAgent: requestHeaders.getHeader('User-Agent'),
-      ipAddress: this.extractIpAddress(request),
     }
-  }
-
-  /**
-   * Extract IP address from request
-   */
-  private extractIpAddress(request: Request): string {
-    return (
-      request.ip ||
-      request.socket?.remoteAddress ||
-      // (request as any).socket?.remoteAddress ||
-      'unknown'
-    )
   }
 }

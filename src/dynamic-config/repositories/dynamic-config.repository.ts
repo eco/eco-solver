@@ -293,13 +293,8 @@ export class DynamicConfigRepository implements IConfigurationRepository {
   }
 
   async exists(key: string): Promise<boolean> {
-    try {
-      const count = await this.configurationModel.countDocuments({ key }).exec()
-      return count > 0
-    } catch (error) {
-      this.logger.error(`Failed to check if configuration exists ${key}:`, error)
-      throw error
-    }
+    const res = await this.configurationModel.exists({ key })
+    return Boolean(res)
   }
 
   async count(filter?: ConfigurationFilter): Promise<number> {

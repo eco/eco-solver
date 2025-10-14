@@ -1,5 +1,6 @@
-import { ConfigurationType } from '@/dynamic-config/dtos/create-configuration.dto'
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { IsOptional, IsNumber, IsString, IsEnum, Min, Max } from 'class-validator'
+import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
 import { Transform, Type } from 'class-transformer'
 
 export class ConfigurationQueryDTO {
@@ -21,7 +22,7 @@ export class ConfigurationQueryDTO {
   search?: string
 
   @IsOptional()
-  @IsEnum(['string', 'number', 'boolean', 'object', 'array'])
+  @IsEnum(ConfigurationType)
   type?: ConfigurationType
 
   @IsOptional()
@@ -37,8 +38,8 @@ export class ConfigurationQueryDTO {
   sortBy?: string = 'key'
 
   @IsOptional()
-  @IsEnum(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc' = 'asc'
+  @IsEnum(SortOrder)
+  sortOrder?: SortOrder = SortOrder.DESC
 
   @IsOptional()
   @IsString()

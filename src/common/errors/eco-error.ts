@@ -158,9 +158,12 @@ export class EcoError extends Error {
   static SolverRegistrationError = new EcoError()
 
   // Signature Validations
-  static TypedDataVerificationFailed = new EcoError()
-  static SignatureExpired = new EcoError()
-  static InvalidSignature = new EcoError()
+  static TypedDataVerificationFailed(errorMessage: string) {
+    return new EcoError(`TypedData Verification Failed: ${errorMessage}`)
+  }
+
+  static SignatureExpired = new EcoError('SignatureExpired')
+  static InvalidSignature = new EcoError('InvalidSignature')
 
   // Quote Service
   static NegativeGasOverhead(gasOverhead: number) {

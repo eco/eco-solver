@@ -1,6 +1,5 @@
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { IsString, IsNotEmpty, IsEnum, IsBoolean, IsOptional } from 'class-validator'
-
-export type ConfigurationType = 'string' | 'number' | 'boolean' | 'object' | 'array'
 
 export class CreateConfigurationDTO {
   @IsString()
@@ -10,7 +9,7 @@ export class CreateConfigurationDTO {
   @IsNotEmpty()
   value: any
 
-  @IsEnum(['string', 'number', 'boolean', 'object', 'array'])
+  @IsEnum(ConfigurationType)
   type: ConfigurationType
 
   @IsBoolean()

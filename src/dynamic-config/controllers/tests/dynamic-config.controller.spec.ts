@@ -1,5 +1,6 @@
 import { AuditQueryDTO } from '@/dynamic-config/dtos/audit-query.dto'
 import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto'
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { CreateConfigurationDTO } from '@/dynamic-config/dtos/create-configuration.dto'
 import { DynamicConfigController } from '@/dynamic-config/controllers/dynamic-config.controller'
 import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service'
@@ -25,15 +26,13 @@ describe('ConfigurationController', () => {
       [SIGNATURE_EXPIRE_HEADER]: '1234567890',
     },
     get: jest.fn(),
-    ip: '192.168.1.100',
-    socket: { remoteAddress: '192.168.1.100' },
   } as any
 
   const mockConfigDocument = {
     _id: 'mock-config-id',
     key: 'test.key',
     value: 'test-value',
-    type: 'string' as const,
+    type: ConfigurationType.STRING,
     isRequired: false,
     isSecret: false,
     description: 'Test configuration',
@@ -48,7 +47,6 @@ describe('ConfigurationController', () => {
     newValue: 'test-value',
     userId: 'test-user-id',
     userAgent: 'Mozilla/5.0',
-    ipAddress: '192.168.1.100',
     timestamp: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -58,6 +56,7 @@ describe('ConfigurationController', () => {
 
   beforeEach(async () => {
     const mockService = {
+      getAllQuery: jest.fn(),
       getAll: jest.fn(),
       get: jest.fn(),
       create: jest.fn(),
@@ -89,27 +88,28 @@ describe('ConfigurationController', () => {
         },
       ],
     })
-    .overrideGuard(RequestSignatureGuard)
-    .useValue(mockRequestSignatureGuard)
-    .compile()
+      .overrideGuard(RequestSignatureGuard)
+      .useValue(mockRequestSignatureGuard)
+      .compile()
 
     controller = module.get<DynamicConfigController>(DynamicConfigController)
     service = module.get(DynamicConfigService)
+
+    // Reset all mocks to ensure clean state
+    jest.clearAllMocks()
 
     // Setup default mock returns
     mockRequest.get.mockReturnValue('Mozilla/5.0')
   })
 
-  afterEach(() => {
-    jest.clearAllMocks()
-  })
+
 
   describe('getAllConfigurations', () => {
     it('should return paginated configurations', async () => {
       const query: ConfigurationQueryDTO = {
         page: 1,
         limit: 10,
-        type: 'string',
+        type: ConfigurationType.STRING,
       }
 
       const mockResult = {
@@ -117,7 +117,7 @@ describe('ConfigurationController', () => {
           {
             key: 'test.key',
             value: 'test-value',
-            type: 'string' as const,
+            type: ConfigurationType.STRING,
             isRequired: false,
             isSecret: false,
             description: 'Test config',
@@ -134,20 +134,17 @@ describe('ConfigurationController', () => {
         },
       }
 
-      service.getAll.mockResolvedValue(mockResult)
+      service.getAllQuery.mockResolvedValue(mockResult)
 
       const result = await controller.getAllConfigurations(query)
 
-      expect(service.getAll).toHaveBeenCalledWith(
-        { type: 'string' },
-        { page: 1, limit: 10, sortBy: 'key', sortOrder: 'asc' },
-      )
+      expect(service.getAllQuery).toHaveBeenCalledWith(query)
       expect(result.data).toHaveLength(1)
       expect(result.pagination).toEqual(mockResult.pagination)
     })
 
     it('should handle service errors', async () => {
-      service.getAll.mockRejectedValue(new Error('Database error'))
+      service.getAllQuery.mockRejectedValue(new Error('Database error'))
 
       await expect(controller.getAllConfigurations({})).rejects.toThrow(HttpException)
     })
@@ -193,7 +190,7 @@ describe('ConfigurationController', () => {
     const createDTO: CreateConfigurationDTO = {
       key: 'new.key',
       value: 'new-value',
-      type: 'string',
+      type: ConfigurationType.STRING,
       description: 'New configuration',
     }
 
@@ -208,7 +205,6 @@ describe('ConfigurationController', () => {
         createDTO,
         '0x1234567890123456789012345678901234567890',
         'Mozilla/5.0',
-        '192.168.1.100',
       )
       expect(result.key).toBe(mockConfigDocument.key)
     })
@@ -261,7 +257,6 @@ describe('ConfigurationController', () => {
         updateDTO,
         '0x1234567890123456789012345678901234567890',
         'Mozilla/5.0',
-        '192.168.1.100',
       )
       expect(result.key).toBe('test.key')
       expect(result.value).toBe('updated-value')
@@ -306,7 +301,6 @@ describe('ConfigurationController', () => {
         'test.key',
         '0x1234567890123456789012345678901234567890',
         'Mozilla/5.0',
-        '192.168.1.100',
       )
       expect(result.message).toBe('Configuration deleted successfully: test.key')
     })
@@ -380,20 +374,6 @@ describe('ConfigurationController', () => {
         const userContext = (controller as any).getUserContext(mockRequest)
         expect(userContext.userId).toBe('0x1234567890123456789012345678901234567890')
         expect(userContext.userAgent).toBe('Mozilla/5.0')
-        expect(userContext.ipAddress).toBe('192.168.1.100')
-      })
-    })
-
-    describe('extractIpAddress', () => {
-      it('should extract IP address from request', () => {
-        const ipAddress = (controller as any).extractIpAddress(mockRequest)
-        expect(ipAddress).toBe('192.168.1.100')
-      })
-
-      it('should return unknown for request without IP', () => {
-        const requestWithoutIp = {} as any
-        const ipAddress = (controller as any).extractIpAddress(requestWithoutIp)
-        expect(ipAddress).toBe('unknown')
       })
     })
 
@@ -403,7 +383,7 @@ describe('ConfigurationController', () => {
           _id: 'test-id',
           key: 'test.key',
           value: 'test-value',
-          type: 'string',
+          type: ConfigurationType.STRING,
           isRequired: false,
           isSecret: false,
           description: 'Test config',

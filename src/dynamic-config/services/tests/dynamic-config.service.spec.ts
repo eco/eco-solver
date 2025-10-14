@@ -57,6 +57,7 @@ describe('DynamicConfigService', () => {
     }
 
     const mockAuditService = {
+      createAuditLog: jest.fn(),
       handleConfigurationChange: jest.fn(),
       getConfigurationHistory: jest.fn(),
       getUserActivity: jest.fn(),
@@ -196,7 +197,7 @@ describe('DynamicConfigService', () => {
       })
       repository.create.mockResolvedValue(mockConfigDocument)
 
-      const result = await service.create(createDTO, 'user123', 'Mozilla/5.0', '192.168.1.1')
+      const result = await service.create(createDTO, 'user123', 'Mozilla/5.0')
 
       expect(validator.validateConfiguration).toHaveBeenCalledWith(createDTO.key, createDTO.value)
       expect(repository.create).toHaveBeenCalledWith(createDTO)
@@ -208,7 +209,6 @@ describe('DynamicConfigService', () => {
           newValue: createDTO.value,
           userId: 'user123',
           userAgent: 'Mozilla/5.0',
-          ipAddress: '192.168.1.1',
         }),
       )
       expect(result).toEqual(mockConfigDocument)
@@ -756,6 +756,7 @@ describe('DynamicConfigService', () => {
           operation: 'INSERT',
           newValue: 'new-value',
           oldValue: undefined,
+          source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
         })
@@ -783,6 +784,7 @@ describe('DynamicConfigService', () => {
           operation: 'UPDATE',
           newValue: 'updated-value',
           oldValue: 'old-value',
+          source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
         })
@@ -807,6 +809,7 @@ describe('DynamicConfigService', () => {
           operation: 'DELETE',
           newValue: undefined,
           oldValue: 'deleted-value',
+          source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
         })
@@ -1107,6 +1110,7 @@ describe('DynamicConfigService', () => {
           operation: 'UPDATE',
           newValue: 'synchronized-value',
           oldValue: 'old-value',
+          source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
         })

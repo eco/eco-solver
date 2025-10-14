@@ -1,3 +1,4 @@
+import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum'
 import { Document, Schema as MongooseSchema } from 'mongoose'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 
@@ -18,10 +19,10 @@ export class ConfigurationAudit {
 
   @Prop({
     required: true,
-    enum: ['CREATE', 'UPDATE', 'DELETE'],
     type: String,
+    enum: Object.values(AuditOperation),
   })
-  operation: 'CREATE' | 'UPDATE' | 'DELETE'
+  operation: AuditOperation
 
   @Prop({
     type: MongooseSchema.Types.Mixed,
@@ -45,12 +46,6 @@ export class ConfigurationAudit {
     trim: true,
   })
   userAgent?: string
-
-  @Prop({
-    type: String,
-    trim: true,
-  })
-  ipAddress?: string
 
   @Prop({
     default: Date.now,
