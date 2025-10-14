@@ -6,6 +6,14 @@ import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
 import { IntentSource } from '@/eco-configs/eco-config.types'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from './events.constants'
 import { GenericOperationLogger } from '@/common/logging/loggers'
+import {
+  extractIntentModelSummary,
+  extractSolverSummary,
+  extractReceiptSummary,
+  extractFulfillmentSummary,
+  extractIntentSummary,
+  extractErrorSummary,
+} from '@/analytics/model-extractors'
 
 /**
  * Centralized analytics service for the eco-solver application.
@@ -24,7 +32,10 @@ export class EcoAnalyticsService {
    */
   private safeTrack(eventName: string, data: Record<string, any>): void {
     try {
-      const maybePromise = this.analytics.trackEvent(eventName, data)
+      // Sanitize data to ensure large models/receipts/errors are reduced before analytics
+      const sanitized = this.sanitizeForAnalytics(data)
+
+      const maybePromise = this.analytics.trackEvent(eventName, sanitized)
       Promise.resolve(maybePromise).catch((error) => {
         this.logger.warn(
           {
@@ -53,6 +64,110 @@ export class EcoAnalyticsService {
         },
       )
     }
+  }
+
+  /**
+   * Replace known large objects with compact summaries using model-extractors.
+   * This is defensive and non-exhaustive — it targets common risky keys.
+   */
+  private sanitizeForAnalytics(input: any): any {
+    if (!input || typeof input !== 'object') return input
+
+    const clone = Array.isArray(input) ? [...input] : { ...input }
+
+    // Helper to sanitize a single value
+    const sanitizeValue = (val: any): any => {
+      if (!val) return val
+
+      // Intent model (full Mongoose model) -> extract summary
+      if (val?.intent || val?.status || val?.receipt) {
+        try {
+          return extractIntentModelSummary(val)
+        } catch (e) {
+          return { _extracted: true }
+        }
+      }
+
+      // Solver configs
+      if (val?.chainID || val?.inboxAddress || val?.targets) {
+        try {
+          return extractSolverSummary(val)
+        } catch (e) {
+          return { _extracted: true }
+        }
+      }
+
+      // Receipt objects
+      if (val?.transactionHash || val?.blockHash || val?.logs) {
+        try {
+          return extractReceiptSummary(val)
+        } catch (e) {
+          return { _extracted: true }
+        }
+      }
+
+      // Fulfillment objects
+      if (val?.fulfillmentHash || val?.transactionHash || val?.intentHash) {
+        try {
+          return extractFulfillmentSummary(val)
+        } catch (e) {
+          return { _extracted: true }
+        }
+      }
+
+      // Intent objects passed directly
+      if (val?.hash || val?.route) {
+        try {
+          return extractIntentSummary(val)
+        } catch (e) {
+          return { _extracted: true }
+        }
+      }
+
+      // Error objects
+      if (val instanceof Error || val?.message) {
+        try {
+          return extractErrorSummary(val)
+        } catch (e) {
+          return { _extracted: true }
+        }
+      }
+
+      // Arrays -> sanitize each element
+      if (Array.isArray(val)) return val.map((v) => sanitizeValue(v))
+
+      // For generic objects, shallow-sanitize known keys
+      if (typeof val === 'object') {
+        const out: any = {}
+        for (const [k, v] of Object.entries(val)) {
+          if (k === 'model' || k === 'intent' || k === 'intentModel' || k === 'intent_model') {
+            out[k] = sanitizeValue(v)
+          } else if (k === 'solver' || k === 'solvers') {
+            out[k] = sanitizeValue(v)
+          } else if (k === 'receipt' || k === 'txReceipt') {
+            out[k] = sanitizeValue(v)
+          } else if (k === 'error' || k === 'err') {
+            out[k] = sanitizeValue(v)
+          } else {
+            // keep small primitives as-is; for nested objects, keep as-is to avoid heavy recursion
+            out[k] = v
+          }
+        }
+        return out
+      }
+
+      return val
+    }
+
+    // If top-level is array
+    if (Array.isArray(clone)) return clone.map((v) => sanitizeValue(v))
+
+    // Sanitize top-level keys
+    for (const [key, value] of Object.entries(clone)) {
+      clone[key] = sanitizeValue(value)
+    }
+
+    return clone
   }
 
   /**

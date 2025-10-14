@@ -67,6 +67,9 @@ import {
   LIQUIDITY_MANAGER_FLOW_NAME,
 } from '@/liquidity-manager/constants/queue.constants'
 
+// Re-export constants for use in tests and other modules
+export { LIQUIDITY_MANAGER_QUEUE_NAME, LIQUIDITY_MANAGER_FLOW_NAME }
+
 export class LiquidityManagerQueue {
   public static readonly prefix = '{liquidity-manager}'
   public static readonly queueName = LIQUIDITY_MANAGER_QUEUE_NAME

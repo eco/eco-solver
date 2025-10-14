@@ -6,6 +6,9 @@ import { LogContext, LogOperation } from '@/common/logging'
 
 import { CHECK_BALANCES_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 
+// Re-export constant for use in tests and other modules
+export { CHECK_BALANCES_QUEUE_NAME }
+
 export class CheckBalancesQueue {
   public static readonly prefix = '{check-balances}'
   public static readonly queueName = CHECK_BALANCES_QUEUE_NAME

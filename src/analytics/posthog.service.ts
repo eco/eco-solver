@@ -3,6 +3,7 @@ import { PostHog } from 'posthog-node'
 import { AnalyticsService, AnalyticsConfig } from '@/analytics/analytics.interface'
 import { AnalyticsError, AnalyticsMessages, AnalyticsLogger } from '@/analytics/errors'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
+import { estimateObjectSize } from '@/analytics/model-extractors'
 
 /**
  * PostHog analytics service implementation for backend event tracking
@@ -141,6 +142,9 @@ export class PosthogService implements AnalyticsService, OnModuleDestroy {
    * Captures events with metadata and automatic timestamp addition.
    * Handles errors gracefully while maintaining event delivery guarantees.
    *
+   * IMPORTANT: This method includes OOM prevention by checking object size
+   * BEFORE expensive serialization operations.
+   *
    * @param distinctId - Unique identifier for the event source
    * @param event - Event name (should follow naming conventions)
    * @param properties - Event metadata and context
@@ -152,8 +156,68 @@ export class PosthogService implements AnalyticsService, OnModuleDestroy {
     properties?: Record<string, any>,
   ): Promise<void> {
     try {
+      // CRITICAL OOM PREVENTION: Check size BEFORE expensive serialization
+      // This prevents allocating memory for 100KB+ objects that will be rejected anyway
+      let processedProperties = properties
+
+      if (properties) {
+        try {
+          // Estimate object size (throws if > 10000 properties)
+          const estimatedSize = estimateObjectSize(properties, 10000)
+
+          // Warn if object is large (> 1000 properties = ~50KB typical)
+          if (estimatedSize > 1000) {
+            this.logger.warn(
+              `Event ${event} has large properties (${estimatedSize} properties). ` +
+                `Consider using model extractors to reduce size and prevent OOM.`,
+            )
+          }
+        } catch (error) {
+          // Object is too large - truncate to prevent OOM
+          this.logger.error(
+            `Event ${event} properties exceed size limit. Truncating to prevent OOM crash. ` +
+              `Use extractIntentModelSummary/extractSolverSummary from model-extractors.ts`,
+          )
+
+          processedProperties = {
+            _truncated: true,
+            _reason: 'size_limit_exceeded_before_serialization',
+            _original_event: event,
+            _property_keys: Object.keys(properties).join(', '),
+            _error: error instanceof Error ? error.message : String(error),
+          }
+        }
+      }
+
       // Convert BigInt values to strings to prevent serialization errors
-      const serializedProperties = properties ? convertBigIntsToStrings(properties) : {}
+      // This is still needed but now operates on smaller objects
+      const serializedProperties = processedProperties
+        ? convertBigIntsToStrings(processedProperties)
+        : {}
+
+      // Final size check after serialization (defense in depth)
+      const approximateSize = JSON.stringify(serializedProperties).length
+      const MAX_PROPERTY_SIZE = 50000 // 50KB uncompressed as safety margin
+
+      if (approximateSize > MAX_PROPERTY_SIZE) {
+        this.logger.warn(
+          `Event ${event} serialized properties exceed ${MAX_PROPERTY_SIZE} bytes ` +
+            `(actual: ${approximateSize} bytes). Using minimal payload.`,
+        )
+
+        // Use minimal payload instead of full object
+        this.client.capture({
+          distinctId,
+          event,
+          properties: {
+            _truncated: true,
+            _reason: 'size_limit_exceeded_after_serialization',
+            _size_bytes: approximateSize,
+            timestamp: new Date(),
+          },
+        })
+        return
+      }
 
       // Send event to PostHog with enhanced metadata
       this.client.capture({
