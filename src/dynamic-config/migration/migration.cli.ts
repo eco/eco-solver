@@ -17,11 +17,19 @@ class MigrationCLI {
   private logger = new Logger(MigrationCLI.name)
 
   private async createApp() {
-    const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
-      logger: ['error', 'warn', 'log'],
-    })
+    try {
+      this.logger.log('Creating NestJS application context...')
+      const app = await NestFactory.createApplicationContext(MigrationModule.forRoot(), {
+        logger: ['error', 'warn', 'log'],
+      })
 
-    return app
+      this.logger.log('Application context created successfully')
+      return app
+    } catch (error) {
+      this.logger.error(`Failed to create application context: ${error.message}`)
+      this.logger.error(`Stack trace: ${error.stack}`)
+      throw error
+    }
   }
 
   async run() {
@@ -37,17 +45,34 @@ class MigrationCLI {
       .description('Migrate AWS configurations to MongoDB')
       .option('--dry-run', 'Run migration without making changes', false)
       .option('--overwrite', 'Overwrite existing configurations', false)
-      .option('--include-secrets', 'Include secret configurations', true)
-      .option('--exclude-secrets', 'Exclude secret configurations', false)
+
       .option('--key-prefix <prefix>', 'Add prefix to all configuration keys', '')
       .option('--user-id <userId>', 'User ID for audit logging', 'migration-cli')
+      .option(
+        '--keys <keys>',
+        'Comma-separated list of top-level keys to migrate (e.g., "database,redis,server")',
+      )
+      .option(
+        '--keys-file <file>',
+        'File containing list of top-level keys to migrate (one per line)',
+      )
+      .option('--migrate-all', 'Explicitly migrate all configurations (default behavior)', false)
       .action(async (options) => {
+        // Validate key filtering options
+        const hasKeyFilter = options.keys || options.keysFile
+        if (hasKeyFilter && options.migrateAll) {
+          this.logger.error('Cannot use --migrate-all with --keys or --keys-file options')
+          process.exit(1)
+        }
+
         await this.executeMigration({
           dryRun: options.dryRun,
           overwriteExisting: options.overwrite,
-          includeSecrets: !options.excludeSecrets,
           keyPrefix: options.keyPrefix,
           userId: options.userId,
+          keys: options.keys,
+          keysFile: options.keysFile,
+          migrateAll: options.migrateAll,
         })
       })
 
@@ -90,7 +115,6 @@ class MigrationCLI {
 
     try {
       const app = await this.createApp()
-
       const migrationService = app.get(AwsToMongoDbMigrationService)
       const result = await migrationService.migrateFromAws(options)
 

@@ -24,9 +24,11 @@ export interface MigrationResult {
 export interface MigrationOptions {
   dryRun?: boolean
   overwriteExisting?: boolean
-  includeSecrets?: boolean
   keyPrefix?: string
   userId?: string
+  keys?: string // Comma-separated list of top-level keys
+  keysFile?: string // Path to file containing keys
+  migrateAll?: boolean // Explicit flag to migrate all keys
 }
 
 /**
@@ -48,9 +50,11 @@ export class AwsToMongoDbMigrationService {
     const {
       dryRun = false,
       overwriteExisting = false,
-      includeSecrets = true,
       keyPrefix = '',
       userId = 'migration-script',
+      keys,
+      keysFile,
+      migrateAll = false,
     } = options
 
     this.logger.log(
@@ -74,12 +78,20 @@ export class AwsToMongoDbMigrationService {
 
     try {
       // Get AWS configurations
-      const awsConfigurations = await this.extractAwsConfigurations()
+      const allAwsConfigurations = await this.extractAwsConfigurations()
+
+      // Filter configurations by specified keys
+      const awsConfigurations = await this.filterConfigurationsByKeys(allAwsConfigurations, {
+        keys,
+        keysFile,
+        migrateAll,
+      })
+
       result.summary.totalConfigurations = Object.keys(awsConfigurations).length
 
       this.logger.log(
         EcoLogMessage.fromDefault({
-          message: `Found ${result.summary.totalConfigurations} AWS configurations to migrate`,
+          message: `Found ${Object.keys(allAwsConfigurations).length} total AWS configurations, ${result.summary.totalConfigurations} selected for migration`,
         }),
       )
 
@@ -106,17 +118,6 @@ export class AwsToMongoDbMigrationService {
             }
           } else {
             result.summary.newConfigurations++
-          }
-
-          // Skip secrets if not included
-          if (!includeSecrets && this.isSecretConfiguration(key, value)) {
-            result.skippedCount++
-            this.logger.debug(
-              EcoLogMessage.fromDefault({
-                message: `Skipping secret configuration: ${fullKey}`,
-              }),
-            )
-            continue
           }
 
           // Create configuration DTO
@@ -225,6 +226,70 @@ export class AwsToMongoDbMigrationService {
     }
 
     return allConfigurations
+  }
+
+  /**
+   * Filter configurations by specified keys
+   */
+  private async filterConfigurationsByKeys(
+    configurations: Record<string, any>,
+    options: { keys?: string; keysFile?: string; migrateAll?: boolean },
+  ): Promise<Record<string, any>> {
+    const { keys, keysFile, migrateAll } = options
+
+    // If migrate-all is explicitly set or no filtering options provided, return all
+    if (migrateAll || (!keys && !keysFile)) {
+      return configurations
+    }
+
+    let allowedKeys: string[] = []
+
+    // Parse keys from command line
+    if (keys) {
+      allowedKeys = keys
+        .split(',')
+        .map((key) => key.trim())
+        .filter((key) => key.length > 0)
+    }
+
+    // Parse keys from file
+    if (keysFile) {
+      try {
+        const fs = await import('fs/promises')
+        const fileContent = await fs.readFile(keysFile, 'utf-8')
+        const fileKeys = fileContent
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0 && !line.startsWith('#')) // Allow comments
+        allowedKeys = [...allowedKeys, ...fileKeys]
+      } catch (error) {
+        this.logger.error(`Failed to read keys file ${keysFile}: ${error.message}`)
+        throw new Error(`Cannot read keys file: ${keysFile}`)
+      }
+    }
+
+    // Remove duplicates
+    allowedKeys = [...new Set(allowedKeys)]
+
+    if (allowedKeys.length === 0) {
+      this.logger.warn('No keys specified for migration, nothing to migrate')
+      return {}
+    }
+
+    this.logger.log(`Filtering configurations for keys: ${allowedKeys.join(', ')}`)
+
+    // Filter configurations by top-level keys
+    const filteredConfigurations: Record<string, any> = {}
+
+    for (const allowedKey of allowedKeys) {
+      if (configurations[allowedKey] !== undefined) {
+        filteredConfigurations[allowedKey] = configurations[allowedKey]
+      } else {
+        this.logger.warn(`No configuration found for key: ${allowedKey}`)
+      }
+    }
+
+    return filteredConfigurations
   }
 
   /**

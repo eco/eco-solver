@@ -28,11 +28,19 @@ describe('AwsToMongoDbMigrationService', () => {
   ]
 
   const mockAwsSecrets = {
-    'database.uri': 'mongodb://localhost:27017',
-    'database.dbName': 'test-db',
-    'server.url': 'https://api.example.com',
-    'redis.host': 'localhost',
-    'api.key': 'secret-api-key',
+    'database': {
+      uri: 'mongodb://localhost:27017',
+      dbName: 'test-db'
+    },
+    'server': {
+      url: 'https://api.example.com'
+    },
+    'redis': {
+      host: 'localhost'
+    },
+    'api': {
+      key: 'secret-api-key'
+    }
   }
 
   const mockExistingConfigs = [
@@ -114,7 +122,6 @@ describe('AwsToMongoDbMigrationService', () => {
       const options: MigrationOptions = {
         dryRun: false,
         overwriteExisting: false,
-        includeSecrets: true,
         userId: 'test-user',
       }
 
@@ -133,7 +140,6 @@ describe('AwsToMongoDbMigrationService', () => {
       const options: MigrationOptions = {
         dryRun: true,
         overwriteExisting: false,
-        includeSecrets: true,
         userId: 'test-user',
       }
 
@@ -149,9 +155,9 @@ describe('AwsToMongoDbMigrationService', () => {
       configurationService.getAll.mockResolvedValue({
         data: [
           {
-            key: 'database.uri',
-            value: 'existing-uri',
-            type: 'string' as const,
+            key: 'database',
+            value: { uri: 'existing-uri', dbName: 'existing-db' },
+            type: 'object' as const,
             isRequired: true,
             isSecret: false,
             lastModified: new Date(),
@@ -170,7 +176,6 @@ describe('AwsToMongoDbMigrationService', () => {
       const options: MigrationOptions = {
         dryRun: false,
         overwriteExisting: false,
-        includeSecrets: true,
         userId: 'test-user',
       }
 
@@ -187,9 +192,9 @@ describe('AwsToMongoDbMigrationService', () => {
       configurationService.getAll.mockResolvedValue({
         data: [
           {
-            key: 'database.uri',
-            value: 'existing-uri',
-            type: 'string' as const,
+            key: 'database',
+            value: { uri: 'existing-uri', dbName: 'existing-db' },
+            type: 'object' as const,
             isRequired: true,
             isSecret: false,
             lastModified: new Date(),
@@ -208,7 +213,6 @@ describe('AwsToMongoDbMigrationService', () => {
       const options: MigrationOptions = {
         dryRun: false,
         overwriteExisting: true,
-        includeSecrets: true,
         userId: 'test-user',
       }
 
@@ -219,32 +223,16 @@ describe('AwsToMongoDbMigrationService', () => {
 
       expect(result.migratedCount).toBe(Object.keys(mockAwsSecrets).length)
       expect(configurationService.update).toHaveBeenCalledWith(
-        'database.uri',
-        { value: 'mongodb://localhost:27017' },
+        'database',
+        { value: { uri: 'mongodb://localhost:27017', dbName: 'test-db' } },
         'test-user',
       )
-    })
-
-    it('should exclude secrets when includeSecrets is false', async () => {
-      const options: MigrationOptions = {
-        dryRun: false,
-        overwriteExisting: false,
-        includeSecrets: false,
-        userId: 'test-user',
-      }
-
-      const result = await service.migrateFromAws(options)
-
-      // Should skip 'api.key' as it's detected as a secret
-      expect(result.skippedCount).toBeGreaterThan(0)
-      expect(result.migratedCount).toBeLessThan(Object.keys(mockAwsSecrets).length)
     })
 
     it('should add key prefix when specified', async () => {
       const options: MigrationOptions = {
         dryRun: false,
         overwriteExisting: false,
-        includeSecrets: true,
         keyPrefix: 'aws',
         userId: 'test-user',
       }
@@ -255,7 +243,7 @@ describe('AwsToMongoDbMigrationService', () => {
 
       expect(configurationService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          key: 'aws.database.uri',
+          key: 'aws.database',
         }),
         'test-user',
       )
@@ -269,7 +257,6 @@ describe('AwsToMongoDbMigrationService', () => {
       const options: MigrationOptions = {
         dryRun: false,
         overwriteExisting: false,
-        includeSecrets: true,
         userId: 'test-user',
       }
 
@@ -286,7 +273,6 @@ describe('AwsToMongoDbMigrationService', () => {
       const options: MigrationOptions = {
         dryRun: false,
         overwriteExisting: false,
-        includeSecrets: true,
         userId: 'test-user',
       }
 
@@ -295,6 +281,71 @@ describe('AwsToMongoDbMigrationService', () => {
       expect(result.success).toBe(false)
       expect(result.errorCount).toBe(Object.keys(mockAwsSecrets).length)
       expect(result.errors).toHaveLength(Object.keys(mockAwsSecrets).length)
+    })
+
+    it('should filter configurations by specified keys', async () => {
+      const options: MigrationOptions = {
+        dryRun: false,
+        overwriteExisting: false,
+        userId: 'test-user',
+        keys: 'database,redis', // Only migrate database and redis configs
+      }
+
+      configurationService.create.mockResolvedValue({} as any)
+
+      const result = await service.migrateFromAws(options)
+
+      expect(result.success).toBe(true)
+      // Should only migrate 2 top-level keys (database, redis) instead of all 4 configs
+      expect(result.migratedCount).toBe(2)
+      expect(result.errorCount).toBe(0)
+      expect(result.summary.totalConfigurations).toBe(2)
+
+      // Verify the correct configurations were created
+      expect(configurationService.create).toHaveBeenCalledTimes(2)
+
+      // Check that database config was created with nested structure
+      expect(configurationService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'database',
+          value: expect.objectContaining({
+            uri: 'mongodb://localhost:27017',
+            dbName: 'test-db'
+          }),
+          type: 'object'
+        }),
+        'test-user'
+      )
+
+      // Check that redis config was created
+      expect(configurationService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'redis',
+          value: expect.objectContaining({
+            host: 'localhost'
+          }),
+          type: 'object'
+        }),
+        'test-user'
+      )
+    })
+
+    it('should migrate all configurations when migrate-all flag is used', async () => {
+      const options: MigrationOptions = {
+        dryRun: false,
+        overwriteExisting: false,
+        userId: 'test-user',
+        migrateAll: true,
+      }
+
+      configurationService.create.mockResolvedValue({} as any)
+
+      const result = await service.migrateFromAws(options)
+
+      expect(result.success).toBe(true)
+      // Should migrate all 4 top-level configurations
+      expect(result.migratedCount).toBe(Object.keys(mockAwsSecrets).length)
+      expect(configurationService.create).toHaveBeenCalledTimes(Object.keys(mockAwsSecrets).length)
     })
   })
 
@@ -319,15 +370,15 @@ describe('AwsToMongoDbMigrationService', () => {
       })
 
       ecoConfigService.getMongoConfigurations.mockReturnValue({
-        'database.uri': 'mongodb://localhost:27017',
-        // Missing other keys
+        'database': { uri: 'mongodb://localhost:27017' },
+        // Missing other top-level keys (server, redis, api)
       })
 
       const result = await service.validateMigration()
 
       expect(result.valid).toBe(false)
       expect(result.missingKeys.length).toBeGreaterThan(0)
-      expect(result.missingKeys).toContain('database.dbName')
+      expect(result.missingKeys).toContain('server')
     })
 
     it('should detect mismatched values', async () => {
@@ -337,15 +388,19 @@ describe('AwsToMongoDbMigrationService', () => {
 
       ecoConfigService.getMongoConfigurations.mockReturnValue({
         ...mockAwsSecrets,
-        'database.uri': 'mongodb://different-host:27017', // Different value
+        'database': {
+          ...mockAwsSecrets.database,
+          uri: 'mongodb://different-host:27017' // Different value
+        }
       })
 
       const result = await service.validateMigration()
 
       expect(result.valid).toBe(false)
       expect(result.mismatchedValues.length).toBeGreaterThan(0)
-      expect(result.mismatchedValues[0].key).toBe('database.uri')
+      expect(result.mismatchedValues[0].key).toBe('database')
     })
+
   })
 
   describe('createRollbackPlan', () => {

@@ -68,19 +68,24 @@ Command-line interface for running migrations and validations.
 
 ```bash
 # Migrate all AWS configurations to MongoDB
-npm run migrate-config migrate
+npm run migrate-config migrate --migrate-all
+
+# Migrate specific top-level keys only
+npm run migrate-config migrate --keys "database,redis,server"
+
+# Migrate keys from a file
+npm run migrate-config migrate --keys-file production-keys.txt
 
 # Dry run (preview changes without applying)
-npm run migrate-config migrate --dry-run
+npm run migrate-config migrate --dry-run --keys "database,redis"
 
 # Overwrite existing configurations
-npm run migrate-config migrate --overwrite
+npm run migrate-config migrate --overwrite --keys "database"
 
-# Exclude secret configurations
-npm run migrate-config migrate --exclude-secrets
+
 
 # Add prefix to all configuration keys
-npm run migrate-config migrate --key-prefix "aws"
+npm run migrate-config migrate --key-prefix "aws" --migrate-all
 ```
 
 #### Validation
@@ -102,14 +107,108 @@ npm run migrate-config rollback
 
 ### Migration Options
 
-| Option                  | Description                           | Default           |
-| ----------------------- | ------------------------------------- | ----------------- |
-| `--dry-run`             | Preview changes without applying them | `false`           |
-| `--overwrite`           | Overwrite existing configurations     | `false`           |
-| `--include-secrets`     | Include secret configurations         | `true`            |
-| `--exclude-secrets`     | Exclude secret configurations         | `false`           |
-| `--key-prefix <prefix>` | Add prefix to configuration keys      | `""`              |
-| `--user-id <userId>`    | User ID for audit logging             | `"migration-cli"` |
+| Option                  | Description                                            | Default           |
+| ----------------------- | ------------------------------------------------------ | ----------------- |
+| `--keys <keys>`         | Comma-separated list of top-level keys to migrate      | `undefined`       |
+| `--keys-file <file>`    | File containing list of keys to migrate (one per line) | `undefined`       |
+| `--migrate-all`         | Explicitly migrate all configurations                  | `false`           |
+| `--dry-run`             | Preview changes without applying them                  | `false`           |
+| `--overwrite`           | Overwrite existing configurations                      | `false`           |
+
+| `--key-prefix <prefix>` | Add prefix to configuration keys                       | `""`              |
+| `--user-id <userId>`    | User ID for audit logging                              | `"migration-cli"` |
+
+### Key Filtering
+
+By default, the migration will process **no configurations** unless you explicitly specify which ones to migrate. This prevents accidental migration of all configurations.
+
+#### Specifying Keys to Migrate
+
+**Command Line:**
+
+```bash
+# Migrate specific top-level configuration groups
+npm run migrate-config migrate --keys "database,redis,server,auth"
+```
+
+**Keys File:**
+
+```bash
+# Create a file with keys to migrate
+cat > production-keys.txt << EOF
+# Core infrastructure
+database
+redis
+server
+
+# Authentication and security
+auth
+jwt
+oauth
+
+# Feature toggles
+feature-flags
+experiments
+
+# External services
+payment-gateway
+notification-service
+EOF
+
+# Use the file
+npm run migrate-config migrate --keys-file production-keys.txt
+```
+
+**Migrate All (Explicit):**
+
+```bash
+# Explicitly migrate all available configurations
+npm run migrate-config migrate --migrate-all
+```
+
+#### How Key Filtering Works
+
+The migration system groups AWS configurations by their **top-level key** (the part before the first dot) and creates a single MongoDB document for each group.
+
+**Example:**
+If AWS has these configurations:
+
+```
+database.connection.uri = "mongodb://localhost:27017"
+database.pool.size = 10
+database.timeout = 5000
+redis.host = "localhost"
+redis.port = 6379
+server.port = 3000
+internal.debug = true
+```
+
+And you specify `--keys "database,redis"`, the migration will create:
+
+```javascript
+// MongoDB document 1
+{
+  key: "database",
+  value: {
+    connection: { uri: "mongodb://localhost:27017" },
+    pool: { size: 10 },
+    timeout: 5000
+  },
+  type: "object"
+}
+
+// MongoDB document 2
+{
+  key: "redis",
+  value: {
+    host: "localhost",
+    port: 6379
+  },
+  type: "object"
+}
+
+// server.port and internal.debug are NOT migrated
+```
 
 ### Programmatic Usage
 
@@ -127,7 +226,6 @@ constructor(
 const result = await this.migrationService.migrateFromAws({
   dryRun: false,
   overwriteExisting: true,
-  includeSecrets: true,
   userId: 'admin-user',
 })
 

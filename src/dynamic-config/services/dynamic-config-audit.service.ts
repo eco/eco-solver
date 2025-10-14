@@ -6,13 +6,16 @@ import {
   AuditStatistics,
 } from '@/dynamic-config/repositories/dynamic-config-audit.repository'
 import { ConfigurationChangeEvent } from '@/dynamic-config/services/dynamic-config.service'
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 
 @Injectable()
 export class DynamicConfigAuditService {
   private readonly logger = new Logger(DynamicConfigAuditService.name)
 
-  constructor(private readonly auditRepository: DynamicConfigAuditRepository) {}
+  constructor(
+    @Inject(DynamicConfigAuditRepository)
+    private readonly auditRepository: DynamicConfigAuditRepository,
+  ) {}
 
   /**
    * Create an audit log entry
