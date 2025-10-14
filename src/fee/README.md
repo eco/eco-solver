@@ -27,9 +27,9 @@ For each intent, we derive a route tuple used for overrides and classification:
   - Addresses from `reward.tokens[]` (normalized to checksum via `getAddress`)
   - If no token rewards but `reward.nativeValue > 0n`, uses the zero address
 - `dstToken`:
-  - First ERC-20 transfer target found in `route.calls` (transfer-first policy)
-  - If no ERC-20 transfers but native calls exist, uses the zero address
-  - If neither transfers nor native calls exist, but `route.tokens[0]` is provided, uses that token
+  - Prefer `route.tokens[0].token` when present (explicit output token)
+  - Else first ERC-20 transfer target found in `route.calls` (as fallback)
+  - Else if only native calls exist, use the zero address
 
 If the tuple cannot be derived, fee computation falls back to the selected base fee without overrides or classification. The selection log includes a `dstTokenSource` field that indicates which fallback was used (`transfer | native | routeTokens | unknown`).
 

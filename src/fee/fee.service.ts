@@ -229,24 +229,44 @@ export class FeeService implements OnModuleInit {
 
       // Determine destination token by inspecting functional calls for the first ERC-20 transfer
       let dstToken: Hex | undefined
-      const functionalCalls = getFunctionCalls(quote.route.calls as CallDataInterface[])
-      try {
-        const solver = this.getAskRouteDestinationSolver(quote.route)
-        for (const call of functionalCalls) {
-          const ttd = getTransactionTargetData(solver, call)
-          const isTransfer = isERC20Target(ttd, getERC20Selector('transfer'))
-          if (isTransfer) {
-            dstToken = getAddress(call.target)
-            break
-          }
+
+      // Priority 1: route.tokens[0] (explicit output token)
+      if (quote.route.tokens && quote.route.tokens.length > 0) {
+        try {
+          dstToken = getAddress(quote.route.tokens[0].token)
+        } catch (_err) {
+          // ignore and fall back to calls/native
         }
-      } catch (_err) {
-        // ignore; fallbacks below handle missing dstToken resolution
+      }
+
+      // Priority 2: first ERC-20 transfer target in calls (transfer-first policy as fallback)
+      if (!dstToken) {
+        try {
+          const routeCalls = Array.isArray(quote.route?.calls)
+            ? (quote.route.calls as CallDataInterface[])
+            : ([] as CallDataInterface[])
+          const functionalCalls = getFunctionCalls(routeCalls)
+          if (functionalCalls.length > 0) {
+            const solver = this.getAskRouteDestinationSolver(quote.route)
+            for (const call of functionalCalls) {
+              const ttd = getTransactionTargetData(solver, call)
+              const isTransfer = isERC20Target(ttd, getERC20Selector('transfer'))
+              if (isTransfer) {
+                dstToken = getAddress(call.target)
+                break
+              }
+            }
+          }
+        } catch (_err) {
+          // ignore; fallbacks below handle missing dstToken resolution
+        }
       }
 
       // Fallbacks: native-only → zero; else route.tokens[0]; else leave undefined
       if (!dstToken) {
-        const nativeCalls = getNativeCalls(quote.route.calls as CallDataInterface[])
+        const nativeCalls = Array.isArray(quote.route?.calls)
+          ? getNativeCalls(quote.route.calls as CallDataInterface[])
+          : []
         if (nativeCalls.length > 0) {
           dstToken = zeroAddress
         } else if (quote.route.tokens && quote.route.tokens.length > 0) {
