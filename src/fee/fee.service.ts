@@ -7,6 +7,7 @@ import {
   FeeConfigType,
   IntentConfig,
   WhitelistFeeRecord,
+  RouteFeeOverride,
 } from '@/eco-configs/eco-config.types'
 import { CalculateTokensType, NormalizedCall, NormalizedToken, NormalizedTotal } from '@/fee/types'
 import { isInsufficient, normalizeBalance, normalizeSum } from '@/fee/utils'
@@ -32,6 +33,12 @@ import { EcoAnalyticsService } from '@/analytics'
  */
 export const BASE_DECIMALS: number = 6
 
+type RouteTuple = {
+  srcChainId: number
+  dstChainId: number
+  srcTokens: Hex[]
+  dstToken: Hex
+}
 @Injectable()
 export class FeeService implements OnModuleInit {
   private logger = new Logger(FeeService.name)
@@ -67,9 +74,13 @@ export class FeeService implements OnModuleInit {
   }): FeeConfigType {
     const { intent, defaultFeeArg } = args || {}
     let feeConfig = defaultFeeArg || this.intentConfigs.defaultFee
+    let feeSource: 'override' | 'whitelist' | 'solver' | 'default' = defaultFeeArg
+      ? 'solver'
+      : 'default'
 
     if (intent) {
       feeConfig = defaultFeeArg || this.getRouteDestinationSolverFee(intent.route)
+      feeSource = 'solver'
       const specialFee = this.whitelist[intent.reward.creator]
 
       if (specialFee) {
@@ -78,9 +89,42 @@ export class FeeService implements OnModuleInit {
         // merges left to right with the rightmost object taking precedence. In this
         // case that is the user and chain specific fee
         feeConfig = _.merge({}, feeConfig, specialFee.default, chainFee)
+        feeSource = 'whitelist'
       }
-    }
 
+      const tuple = this.extractRouteTuple(intent)
+      if (!tuple) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: 'No tuple found for intent',
+            properties: {
+              intent,
+            },
+          }),
+        )
+        return feeConfig
+      }
+      const override = this.findRouteOverride(tuple)
+      if (override) {
+        feeConfig = _.merge({}, feeConfig, override.fee)
+        feeSource = 'override'
+      }
+
+      const isNonSwap = this.isNonSwapRoute(tuple)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Fee selection',
+          properties: {
+            feeSource,
+            isNonSwap,
+            srcChainId: tuple?.srcChainId,
+            dstChainId: tuple?.dstChainId,
+            srcTokens: tuple?.srcTokens,
+            dstToken: tuple?.dstToken,
+          },
+        }),
+      )
+    }
     return feeConfig
   }
 
@@ -102,14 +146,17 @@ export class FeeService implements OnModuleInit {
     }
 
     const feeConfig = this.getFeeConfig({ intent, defaultFeeArg: solverFee })
+    const tuple = this.extractRouteTuple(intent)
+    const isNonSwap = this.isNonSwapRoute(tuple)
 
     switch (feeConfig.algorithm) {
       // the default
       // 0.02 cents + $0.015 per 100$
       // 20_000n + (totalFulfill * 15_000n) / 100_000_000n
       case 'linear':
-        const tokenConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).token
-        const nativeConfig = (feeConfig.constants as FeeAlgorithmConfig<'linear'>).native
+        const linearConstants = feeConfig.constants as FeeAlgorithmConfig<'linear'>
+        const tokenConfig = isNonSwap ? linearConstants.nonSwapToken : linearConstants.token
+        const nativeConfig = linearConstants.native
         if (normalizedTotal.token !== 0n) {
           const unitSize = BigInt(tokenConfig.tranche.unitSize)
           const units =
@@ -130,6 +177,98 @@ export class FeeService implements OnModuleInit {
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
     }
     return fee
+  }
+
+  /**
+   * Extract source/destination tuple for override/classification logic.
+   */
+  private extractRouteTuple(quote: QuoteIntentDataInterface): RouteTuple | undefined {
+    try {
+      const srcChainId = Number(quote.route.source)
+      const dstChainId = Number(quote.route.destination)
+
+      // Determine destination token: first ERC20 transfer target if present, else zero for native-only
+      const functionTargets = getFunctionTargets(quote.route.calls as CallDataInterface[])
+      let dstToken: Hex | undefined = functionTargets[0] as Hex | undefined
+      if (!dstToken) {
+        const nativeCalls = getNativeCalls(quote.route.calls as CallDataInterface[])
+        if (nativeCalls.length > 0) dstToken = zeroAddress
+      }
+
+      const srcTokens: Hex[] = []
+      if (quote.reward.tokens && quote.reward.tokens.length > 0) {
+        for (const r of quote.reward.tokens) {
+          try {
+            srcTokens.push(getAddress(r.token))
+          } catch {}
+        }
+      } else if (quote.reward.nativeValue && quote.reward.nativeValue > 0n) {
+        srcTokens.push(zeroAddress)
+      }
+
+      return {
+        srcChainId,
+        dstChainId,
+        srcTokens,
+        dstToken: dstToken ? getAddress(dstToken) : zeroAddress,
+      }
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * True if any source token and destination token share a nonSwapGroups tag across solvers.
+   */
+  private isNonSwapRoute(tuple?: RouteTuple): boolean {
+    if (!tuple) return false
+    const { srcChainId, dstChainId, srcTokens, dstToken } = tuple
+    if (srcTokens.length === 0 || !dstToken) return false
+
+    const srcSolver = this.ecoConfigService.getSolver(BigInt(srcChainId))
+    const dstSolver = this.ecoConfigService.getSolver(BigInt(dstChainId))
+    if (!srcSolver || !dstSolver) return false
+
+    const dstCfg = dstSolver.targets[getAddress(dstToken)]
+    const dstTags: string[] = (dstCfg as any)?.nonSwapGroups || []
+    if (!dstTags || dstTags.length === 0) return false
+
+    for (const s of srcTokens) {
+      const srcCfg = srcSolver.targets[getAddress(s)]
+      const srcTags: string[] = (srcCfg as any)?.nonSwapGroups || []
+      if (!srcTags || srcTags.length === 0) continue
+      if (srcTags.some((t) => dstTags.includes(t))) return true
+    }
+    return false
+  }
+
+  /**
+   * Find exact per-route override.
+   */
+  private findRouteOverride(tuple: RouteTuple): RouteFeeOverride | undefined {
+    const overrides = this.intentConfigs.routeFeeOverrides || undefined
+    if (!overrides || overrides.length === 0) return undefined
+    const { srcChainId, dstChainId, srcTokens, dstToken } = tuple
+    if (srcTokens.length === 0 || !dstToken) return undefined
+
+    const dstAddr = getAddress(dstToken)
+    for (const s of srcTokens) {
+      const srcAddr = getAddress(s)
+      const match = overrides.find((o) => {
+        try {
+          return (
+            Number(o.sourceChainId) === srcChainId &&
+            Number(o.destinationChainId) === dstChainId &&
+            getAddress(o.sourceToken) === srcAddr &&
+            getAddress(o.destinationToken) === dstAddr
+          )
+        } catch {
+          return false
+        }
+      })
+      if (match) return match
+    }
+    return undefined
   }
 
   /**
