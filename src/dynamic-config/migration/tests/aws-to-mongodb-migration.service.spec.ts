@@ -28,19 +28,19 @@ describe('AwsToMongoDbMigrationService', () => {
   ]
 
   const mockAwsSecrets = {
-    'database': {
+    database: {
       uri: 'mongodb://localhost:27017',
-      dbName: 'test-db'
+      dbName: 'test-db',
     },
-    'server': {
-      url: 'https://api.example.com'
+    server: {
+      url: 'https://api.example.com',
     },
-    'redis': {
-      host: 'localhost'
+    redis: {
+      host: 'localhost',
     },
-    'api': {
-      key: 'secret-api-key'
-    }
+    api: {
+      key: 'secret-api-key',
+    },
   }
 
   const mockExistingConfigs = [
@@ -310,11 +310,11 @@ describe('AwsToMongoDbMigrationService', () => {
           key: 'database',
           value: expect.objectContaining({
             uri: 'mongodb://localhost:27017',
-            dbName: 'test-db'
+            dbName: 'test-db',
           }),
-          type: 'object'
+          type: 'object',
         }),
-        'test-user'
+        'test-user',
       )
 
       // Check that redis config was created
@@ -322,11 +322,11 @@ describe('AwsToMongoDbMigrationService', () => {
         expect.objectContaining({
           key: 'redis',
           value: expect.objectContaining({
-            host: 'localhost'
+            host: 'localhost',
           }),
-          type: 'object'
+          type: 'object',
         }),
-        'test-user'
+        'test-user',
       )
     })
 
@@ -370,7 +370,7 @@ describe('AwsToMongoDbMigrationService', () => {
       })
 
       ecoConfigService.getMongoConfigurations.mockReturnValue({
-        'database': { uri: 'mongodb://localhost:27017' },
+        database: { uri: 'mongodb://localhost:27017' },
         // Missing other top-level keys (server, redis, api)
       })
 
@@ -388,10 +388,10 @@ describe('AwsToMongoDbMigrationService', () => {
 
       ecoConfigService.getMongoConfigurations.mockReturnValue({
         ...mockAwsSecrets,
-        'database': {
+        database: {
           ...mockAwsSecrets.database,
-          uri: 'mongodb://different-host:27017' // Different value
-        }
+          uri: 'mongodb://different-host:27017', // Different value
+        },
       })
 
       const result = await service.validateMigration()
@@ -400,7 +400,6 @@ describe('AwsToMongoDbMigrationService', () => {
       expect(result.mismatchedValues.length).toBeGreaterThan(0)
       expect(result.mismatchedValues[0].key).toBe('database')
     })
-
   })
 
   describe('createRollbackPlan', () => {

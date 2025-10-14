@@ -107,16 +107,16 @@ npm run migrate-config rollback
 
 ### Migration Options
 
-| Option                  | Description                                            | Default           |
-| ----------------------- | ------------------------------------------------------ | ----------------- |
-| `--keys <keys>`         | Comma-separated list of top-level keys to migrate      | `undefined`       |
-| `--keys-file <file>`    | File containing list of keys to migrate (one per line) | `undefined`       |
-| `--migrate-all`         | Explicitly migrate all configurations                  | `false`           |
-| `--dry-run`             | Preview changes without applying them                  | `false`           |
-| `--overwrite`           | Overwrite existing configurations                      | `false`           |
+| Option               | Description                                            | Default     |
+| -------------------- | ------------------------------------------------------ | ----------- |
+| `--keys <keys>`      | Comma-separated list of top-level keys to migrate      | `undefined` |
+| `--keys-file <file>` | File containing list of keys to migrate (one per line) | `undefined` |
+| `--migrate-all`      | Explicitly migrate all configurations                  | `false`     |
+| `--dry-run`          | Preview changes without applying them                  | `false`     |
+| `--overwrite`        | Overwrite existing configurations                      | `false`     |
 
-| `--key-prefix <prefix>` | Add prefix to configuration keys                       | `""`              |
-| `--user-id <userId>`    | User ID for audit logging                              | `"migration-cli"` |
+| `--key-prefix <prefix>` | Add prefix to configuration keys | `""` |
+| `--user-id <userId>` | User ID for audit logging | `"migration-cli"` |
 
 ### Key Filtering
 
