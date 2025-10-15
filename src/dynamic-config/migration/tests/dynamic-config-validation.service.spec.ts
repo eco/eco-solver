@@ -43,16 +43,6 @@ describe('DynamicConfigValidationService', () => {
       lastModified: new Date(),
     },
     {
-      key: 'api',
-      value: {
-        secret: 'production-secret-key-123',
-      },
-      type: 'object' as const,
-      isRequired: false,
-      isSecret: true,
-      lastModified: new Date(),
-    },
-    {
       key: 'eth',
       value: {
         privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
@@ -107,6 +97,42 @@ describe('DynamicConfigValidationService', () => {
       expect(result.summary.totalConfigurations).toBe(mockConfigurations.length)
       expect(result.summary.validConfigurations).toBeGreaterThan(0)
       expect(result.errors).toEqual([])
+    })
+
+    it('should return an error for a config value that is missing a schema', async () => {
+      const testConfigs = [
+        ...mockConfigurations,
+        {
+          key: 'api',
+          value: {
+            secret: 'production-secret-key-123',
+          },
+          type: 'object' as const,
+          isRequired: false,
+          isSecret: true,
+          lastModified: new Date(),
+        },
+      ]
+
+      configurationService.getAll.mockResolvedValue({
+        data: testConfigs,
+        pagination: {
+          page: 1,
+          limit: 50,
+          total: testConfigs.length,
+          totalPages: 1,
+          hasNext: false,
+          hasPrev: false,
+        },
+      })
+
+      const result = await service.validateAllConfigurations()
+
+      expect(result.valid).toBe(false)
+      expect(result.summary.totalConfigurations).toBe(testConfigs.length)
+      expect(result.summary.validConfigurations).toBeGreaterThan(0)
+      expect(result.errors[0].type).toBe('SCHEMA_VIOLATION')
+      expect(result.errors[0].message).toBe(`Missing schema for api`)
     })
 
     it('should handle validation errors gracefully', async () => {

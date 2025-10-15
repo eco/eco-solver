@@ -4,6 +4,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Injectable, Inject, Logger } from '@nestjs/common'
 import { z } from 'zod'
+import { EcoResponse } from '@/common/eco-response'
 
 export interface AllConfigsValidationResult {
   valid: boolean
@@ -132,18 +133,10 @@ export class DynamicConfigValidationService {
 
     try {
       // Get the schema for this configuration key
-      const schema = this.getConfigurationSchema(key)
+      const { error } = this.validateAgainstSchema(key, value)
 
-      if (schema) {
-        const result = schema.safeParse(value)
-        if (!result.success) {
-          errors.push({
-            key,
-            type: 'SCHEMA_VIOLATION',
-            message: `Schema validation failed: ${result.error?.message || 'Unknown validation error'}`,
-            actualValue: value,
-          })
-        }
+      if (error) {
+        errors.push(error)
       }
 
       // Security warnings
@@ -153,15 +146,46 @@ export class DynamicConfigValidationService {
       // Performance warnings
       const performanceWarnings = this.checkPerformanceIssues(key, value)
       warnings.push(...performanceWarnings)
-    } catch (error) {
+    } catch (ex) {
       errors.push({
         key,
         type: 'SCHEMA_VIOLATION',
-        message: `Validation error: ${error.message}`,
+        message: `Validation error: ${ex.message}`,
       })
     }
 
     return { errors, warnings }
+  }
+
+  private validateAgainstSchema(key: string, value: any): EcoResponse<void> {
+    // Get the schema for this configuration key
+    const schema = this.getConfigurationSchema(key)
+
+    if (!schema) {
+      return {
+        error: {
+          key,
+          type: 'SCHEMA_VIOLATION',
+          message: `Missing schema for ${key}`,
+          actualValue: value,
+        },
+      }
+    }
+
+    const result = schema.safeParse(value)
+
+    if (!result.success) {
+      return {
+        error: {
+          key,
+          type: 'SCHEMA_VIOLATION',
+          message: `Schema validation failed: ${result.error?.message || 'Unknown validation error'}`,
+          actualValue: value,
+        },
+      }
+    }
+
+    return {}
   }
 
   /**
