@@ -135,6 +135,7 @@ export class QuotesService {
     return {
       quoteResponses: [
         {
+          intentExecutionType: 'SELF_PUBLISH',
           sourceChainID: sourceChainId,
           destinationChainID: destinationChainId,
           sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),
