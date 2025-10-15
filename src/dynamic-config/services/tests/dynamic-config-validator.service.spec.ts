@@ -14,7 +14,6 @@ describe('DynamicConfigValidatorService', () => {
   })
 
   describe('getSchema', () => {
-
     it('should return null for unregistered schema', () => {
       const retrieved = service.getSchema('nonexistent.key')
       expect(retrieved).toBeUndefined()
@@ -237,7 +236,6 @@ describe('DynamicConfigValidatorService', () => {
   })
 
   describe('Validate Schemas', () => {
-
     it('should validate common schema patterns', async () => {
       // Test port validation
       const validPort = await service.validateConfiguration('port', 3000)

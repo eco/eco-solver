@@ -14,7 +14,7 @@ describe('DynamicConfigValidationService', () => {
       value: {
         uri: 'mongodb://localhost:27017/test',
         dbName: 'test-db',
-        auth: { enabled: true }
+        auth: { enabled: true },
       },
       type: 'object' as const,
       isRequired: true,
@@ -25,7 +25,7 @@ describe('DynamicConfigValidationService', () => {
       key: 'server',
       value: {
         url: 'https://api.example.com',
-        port: 3000
+        port: 3000,
       },
       type: 'object' as const,
       isRequired: true,
@@ -35,7 +35,7 @@ describe('DynamicConfigValidationService', () => {
     {
       key: 'redis',
       value: {
-        connection: { host: 'localhost', port: 6379 }
+        connection: { host: 'localhost', port: 6379 },
       },
       type: 'object' as const,
       isRequired: true,
@@ -45,7 +45,7 @@ describe('DynamicConfigValidationService', () => {
     {
       key: 'api',
       value: {
-        secret: 'production-secret-key-123'
+        secret: 'production-secret-key-123',
       },
       type: 'object' as const,
       isRequired: false,
@@ -55,13 +55,13 @@ describe('DynamicConfigValidationService', () => {
     {
       key: 'eth',
       value: {
-        privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+        privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       },
       type: 'object' as const,
       isRequired: false,
       isSecret: true,
       lastModified: new Date(),
-    }
+    },
   ]
 
   beforeEach(async () => {
@@ -123,10 +123,10 @@ describe('DynamicConfigValidationService', () => {
 
   describe('validateSingleConfiguration', () => {
     it('should validate a valid configuration', async () => {
-      const result = await service.validateSingleConfiguration(
-        'database',
-        { uri: 'mongodb://localhost:27017/test', dbName: 'test-db' },
-      )
+      const result = await service.validateSingleConfiguration('database', {
+        uri: 'mongodb://localhost:27017/test',
+        dbName: 'test-db',
+      })
 
       expect(result.errors).toEqual([])
     })
@@ -151,7 +151,10 @@ describe('DynamicConfigValidationService', () => {
 
     it('should detect security warnings for insecure URLs', async () => {
       // The service checks for 'url' or 'uri' in the key name and string values
-      const result = await service.validateSingleConfiguration('server-url', 'http://api.example.com')
+      const result = await service.validateSingleConfiguration(
+        'server-url',
+        'http://api.example.com',
+      )
 
       expect(result.warnings.length).toBeGreaterThan(0)
       expect(result.warnings[0].type).toBe('SECURITY')
@@ -180,8 +183,8 @@ describe('DynamicConfigValidationService', () => {
   describe('compareWithAws', () => {
     it('should detect identical configurations', async () => {
       const configs = {
-        'database': { uri: 'mongodb://localhost:27017' },
-        'server': { url: 'https://api.example.com' },
+        database: { uri: 'mongodb://localhost:27017' },
+        server: { url: 'https://api.example.com' },
       }
 
       ecoConfigService.get.mockReturnValue(configs)
@@ -195,11 +198,11 @@ describe('DynamicConfigValidationService', () => {
 
     it('should detect missing configurations in MongoDB', async () => {
       const awsConfigs = {
-        'database': { uri: 'mongodb://localhost:27017' },
-        'server': { url: 'https://api.example.com' },
+        database: { uri: 'mongodb://localhost:27017' },
+        server: { url: 'https://api.example.com' },
       }
       const mongoConfigs = {
-        'database': { uri: 'mongodb://localhost:27017' },
+        database: { uri: 'mongodb://localhost:27017' },
         // Missing server
       }
 
@@ -216,11 +219,11 @@ describe('DynamicConfigValidationService', () => {
 
     it('should detect missing configurations in AWS', async () => {
       const awsConfigs = {
-        'database': { uri: 'mongodb://localhost:27017' },
+        database: { uri: 'mongodb://localhost:27017' },
       }
       const mongoConfigs = {
-        'database': { uri: 'mongodb://localhost:27017' },
-        'server': { url: 'https://api.example.com' },
+        database: { uri: 'mongodb://localhost:27017' },
+        server: { url: 'https://api.example.com' },
       }
 
       ecoConfigService.get.mockReturnValue(awsConfigs)
@@ -236,12 +239,12 @@ describe('DynamicConfigValidationService', () => {
 
     it('should detect value mismatches', async () => {
       const awsConfigs = {
-        'database': { uri: 'mongodb://localhost:27017' },
-        'server': { url: 'https://api.example.com' },
+        database: { uri: 'mongodb://localhost:27017' },
+        server: { url: 'https://api.example.com' },
       }
       const mongoConfigs = {
-        'database': { uri: 'mongodb://different-host:27017' },
-        'server': { url: 'https://api.example.com' },
+        database: { uri: 'mongodb://different-host:27017' },
+        server: { url: 'https://api.example.com' },
       }
 
       ecoConfigService.get.mockReturnValue(awsConfigs)
