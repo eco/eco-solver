@@ -2,7 +2,7 @@ import { ConfigurationSchemas } from '@/dynamic-config/schemas/configuration-sch
 import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Logger, Inject } from '@nestjs/common'
+import { Injectable, Inject, Logger } from '@nestjs/common'
 import { z } from 'zod'
 
 export interface AllConfigsValidationResult {
@@ -146,32 +146,6 @@ export class DynamicConfigValidationService {
         }
       }
 
-      // Type validation
-      const expectedType = this.getExpectedType(key)
-      const actualType = this.getActualType(value)
-
-      if (expectedType && expectedType !== actualType) {
-        errors.push({
-          key,
-          type: 'INVALID_TYPE',
-          message: `Type mismatch for configuration ${key}`,
-          expectedType,
-          actualType,
-          actualValue: value,
-        })
-      }
-
-      // Value validation
-      const valueValidation = this.validateConfigurationValue(key, value)
-      if (!valueValidation.valid) {
-        errors.push({
-          key,
-          type: 'INVALID_VALUE',
-          message: valueValidation.message || 'Invalid configuration value',
-          actualValue: value,
-        })
-      }
-
       // Security warnings
       const securityWarnings = this.checkSecurityIssues(key, value)
       warnings.push(...securityWarnings)
@@ -221,74 +195,6 @@ export class DynamicConfigValidationService {
    */
   private getConfigurationSchema(key: string): z.ZodSchema | null {
     return ConfigurationSchemas.getSchema(key)
-  }
-
-  /**
-   * Get the expected type for a configuration key
-   */
-  private getExpectedType(key: string): string | null {
-    const typeMap: Record<string, string> = {
-      port: 'number',
-      'database.auth.enabled': 'boolean',
-      'rpcs.config.webSockets': 'boolean',
-      aws: 'array',
-      solvers: 'object',
-      intentSources: 'array',
-      'redis.connection': 'object',
-    }
-
-    return typeMap[key] || null
-  }
-
-  /**
-   * Get the actual type of a value
-   */
-  private getActualType(value: any): string {
-    if (Array.isArray(value)) return 'array'
-    if (value === null) return 'null'
-    return typeof value
-  }
-
-  /**
-   * Validate configuration value based on business rules
-   */
-  private validateConfigurationValue(
-    key: string,
-    value: any,
-  ): { valid: boolean; message?: string } {
-    // Port validation
-    if (key === 'port' || key.includes('port')) {
-      if (typeof value !== 'number' || value < 1 || value > 65535) {
-        return { valid: false, message: 'Port must be a number between 1 and 65535' }
-      }
-    }
-
-    // URL validation
-    if (key.includes('url') || key.includes('uri')) {
-      if (typeof value === 'string') {
-        try {
-          new URL(value)
-        } catch {
-          return { valid: false, message: 'Invalid URL format' }
-        }
-      }
-    }
-
-    // Ethereum address validation
-    if (key.includes('Address') || key.includes('address')) {
-      if (typeof value === 'string' && !value.match(/^0x[a-fA-F0-9]{40}$/)) {
-        return { valid: false, message: 'Invalid Ethereum address format' }
-      }
-    }
-
-    // Private key validation
-    if (key.includes('privateKey') || key.includes('PrivateKey')) {
-      if (typeof value === 'string' && !value.match(/^0x[a-fA-F0-9]{64}$/)) {
-        return { valid: false, message: 'Invalid private key format' }
-      }
-    }
-
-    return { valid: true }
   }
 
   /**

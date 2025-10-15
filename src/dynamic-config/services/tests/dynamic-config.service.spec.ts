@@ -51,7 +51,6 @@ describe('DynamicConfigService', () => {
     }
 
     const mockValidator = {
-      registerCommonSchemas: jest.fn(),
       validateConfiguration: jest.fn(),
       validateValue: jest.fn(),
     }
@@ -110,7 +109,6 @@ describe('DynamicConfigService', () => {
 
       await service.onModuleInit()
 
-      expect(validator.registerCommonSchemas).toHaveBeenCalled()
       expect(repository.findAll).toHaveBeenCalled()
     })
 

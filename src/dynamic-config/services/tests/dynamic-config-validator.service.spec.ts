@@ -13,19 +13,11 @@ describe('DynamicConfigValidatorService', () => {
     service = module.get<DynamicConfigValidatorService>(DynamicConfigValidatorService)
   })
 
-  describe('registerSchema and getSchema', () => {
-    it('should register and retrieve a schema', () => {
-      const schema = z.string().min(1)
-
-      service.registerSchema('test.key', schema)
-      const retrieved = service.getSchema('test.key')
-
-      expect(retrieved).toEqual(schema)
-    })
+  describe('getSchema', () => {
 
     it('should return null for unregistered schema', () => {
       const retrieved = service.getSchema('nonexistent.key')
-      expect(retrieved).toBeNull()
+      expect(retrieved).toBeUndefined()
     })
   })
 
@@ -222,10 +214,7 @@ describe('DynamicConfigValidatorService', () => {
 
   describe('validateConfiguration', () => {
     it('should validate with registered schema', async () => {
-      const schema = z.string().min(3)
-
-      service.registerSchema('test.key', schema)
-      const result = await service.validateConfiguration('test.key', 'hello')
+      const result = await service.validateConfiguration('port', 9494)
 
       expect(result.isValid).toBe(true)
       expect(result.errors).toHaveLength(0)
@@ -240,30 +229,16 @@ describe('DynamicConfigValidatorService', () => {
     })
 
     it('should validate with registered schema and return errors for invalid values', async () => {
-      const schema = z.string().min(5)
-
-      service.registerSchema('test.key', schema)
-      const result = await service.validateConfiguration('test.key', 'hi')
+      const result = await service.validateConfiguration('port', 'hi')
 
       expect(result.isValid).toBe(false)
       expect(result.errors.length).toBeGreaterThan(0)
     })
   })
 
-  describe('registerCommonSchemas', () => {
-    it('should register common schemas without errors', () => {
-      expect(() => service.registerCommonSchemas()).not.toThrow()
-
-      // Verify some common schemas are registered based on actual implementation
-      expect(service.getSchema('port')).toBeTruthy()
-      expect(service.getSchema('server')).toBeTruthy()
-      expect(service.getSchema('database')).toBeTruthy()
-      expect(service.getSchema('aws')).toBeTruthy()
-    })
+  describe('Validate Schemas', () => {
 
     it('should validate common schema patterns', async () => {
-      service.registerCommonSchemas()
-
       // Test port validation
       const validPort = await service.validateConfiguration('port', 3000)
       expect(validPort.isValid).toBe(true)

@@ -65,32 +65,9 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     this.logger.log('Initializing ConfigurationService...')
 
-    // Debug: Check if all required dependencies are properly injected
-    const dependencies = {
-      configRepository: !!this.configRepository,
-      eventEmitter: !!this.eventEmitter, // Optional
-      validator: !!this.validator,
-      auditService: !!this.auditService,
-      sanitizer: !!this.sanitizer,
-    }
-
-    this.logger.log('Constructor dependencies status:', dependencies)
-
-    // Only check required dependencies (eventEmitter is optional)
-    const requiredDeps = ['configRepository', 'validator', 'auditService', 'sanitizer']
-    const missingDeps = requiredDeps.filter((dep) => !dependencies[dep])
-
-    if (missingDeps.length > 0) {
-      this.logger.error(`Missing required dependencies: ${missingDeps.join(', ')}`)
-      throw new Error(`Dependency injection failed for: ${missingDeps.join(', ')}`)
-    }
-
     if (!this.eventEmitter) {
       this.logger.warn('EventEmitter2 not available - configuration change events will be skipped')
     }
-
-    // Register common schemas
-    this.validator.registerCommonSchemas()
 
     await this.loadConfigurationsIntoCache()
 

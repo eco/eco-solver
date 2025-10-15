@@ -46,35 +46,4 @@ import { RequestSigningModule } from '@/request-signing/request-signing.module'
     DynamicConfigSanitizerService,
   ],
 })
-export class DynamicConfigModule {
-  static forRoot() {
-    return {
-      module: DynamicConfigModule,
-      imports: [
-        MongooseModule.forFeature([
-          { name: Configuration.name, schema: ConfigurationSchema },
-          { name: ConfigurationAudit.name, schema: ConfigurationAuditSchema },
-        ]),
-        EventEmitterModule.forRoot(),
-        RequestSigningModule,
-      ],
-      providers: [
-        DynamicConfigRepository,
-        DynamicConfigAuditRepository,
-        DynamicConfigValidatorService,
-        DynamicConfigAuditService,
-        DynamicConfigSanitizerService,
-        DynamicConfigService,
-      ],
-      exports: [
-        MongooseModule,
-        DynamicConfigRepository,
-        DynamicConfigAuditRepository,
-        DynamicConfigService,
-        DynamicConfigValidatorService,
-        DynamicConfigAuditService,
-        DynamicConfigSanitizerService,
-      ],
-    }
-  }
-}
+export class DynamicConfigModule {}

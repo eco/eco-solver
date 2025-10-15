@@ -14,18 +14,10 @@ export class DynamicConfigValidatorService {
   private readonly schemas = new Map<string, z.ZodSchema>()
 
   /**
-   * Register a configuration schema for validation
-   */
-  registerSchema(key: string, schema: z.ZodSchema): void {
-    this.schemas.set(key, schema)
-    this.logger.debug(`Registered schema for configuration key: ${key}`)
-  }
-
-  /**
    * Get registered schema for a configuration key
    */
   getSchema(key: string): z.ZodSchema | null {
-    return this.schemas.get(key) || null
+    return ConfigurationSchemas.getSchema(key)
   }
 
   /**
@@ -64,20 +56,5 @@ export class DynamicConfigValidatorService {
         warnings: [],
       }
     }
-  }
-
-  /**
-   * Register common configuration schemas using centralized schema definitions
-   */
-  registerCommonSchemas(): void {
-    const schemas = ConfigurationSchemas.getAllSchemas()
-
-    for (const [key, schema] of Object.entries(schemas)) {
-      this.registerSchema(key, schema)
-    }
-
-    this.logger.log(
-      `Registered ${Object.keys(schemas).length} configuration schemas from centralized definitions`,
-    )
   }
 }
