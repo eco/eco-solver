@@ -210,8 +210,8 @@ export class EcoConfigService {
   }
 
   // Returns global per-route fee overrides
-  getRouteFeeOverrides() {
-    return this.get('routeFeeOverrides') as EcoConfigType['routeFeeOverrides']
+  getRouteFeeOverrides(): EcoConfigType['routeFeeOverrides'] {
+    return this.ecoConfig.has('routeFeeOverrides') ? this.get('routeFeeOverrides') : []
   }
 
   // Returns the quote configs
