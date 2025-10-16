@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
+import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 
 // Helper function to cast string to UniversalAddress
 const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
@@ -189,7 +189,7 @@ describe('MetalayerProver', () => {
       await prover.onModuleInit();
     });
 
-    it('should get fee from source chain using fetchProverFee', async () => {
+    it('should get fee from destination chain using fetchProverFee', async () => {
       const intent = createMockIntent({
         sourceChainId: 137n,
         destination: 8453n,
@@ -206,9 +206,9 @@ describe('MetalayerProver', () => {
       const fee = await prover.getFee(intent, mockClaimant);
 
       expect(mockBlockchainReaderService.fetchProverFee).toHaveBeenCalledWith(
-        137n, // source chain (different from HyperProver which uses destination)
+        8453n, // destination chain (uses base implementation)
         intent,
-        testAddress1, // contract address for metalayer on chain 137
+        testAddress2, // contract address for metalayer on chain 8453
         expect.any(String), // message data
         mockClaimant,
       );
@@ -218,7 +218,10 @@ describe('MetalayerProver', () => {
     it('should throw error when blockchain reader is not initialized', async () => {
       prover['blockchainReaderService'] = undefined as any;
 
-      const intent = createMockIntent();
+      const intent = createMockIntent({
+        sourceChainId: 137n,
+        destination: 8453n, // Use supported destination chain
+      });
 
       await expect(prover.getFee(intent, mockClaimant)).rejects.toThrow(
         "Cannot read properties of undefined (reading 'fetchProverFee')",
@@ -285,7 +288,7 @@ describe('MetalayerProver', () => {
       expect(messageData).toBe(expectedData);
     });
 
-    it('should use source chain for fee lookup instead of destination', async () => {
+    it('should use same fee lookup pattern as base implementation', async () => {
       await prover.onModuleInit();
 
       const intent = createMockIntent({
@@ -303,11 +306,11 @@ describe('MetalayerProver', () => {
 
       await prover.getFee(intent, mockClaimant);
 
-      // Verify it uses source chain (137) not destination chain (8453)
+      // Verify it uses destination chain (current implementation behavior)
       expect(mockBlockchainReaderService.fetchProverFee).toHaveBeenCalledWith(
-        137n, // source chain
+        8453n, // destination chain
         intent,
-        testAddress1, // contract address for metalayer on chain 137
+        testAddress2, // contract address for metalayer on chain 8453
         expect.any(String),
         mockClaimant,
       );

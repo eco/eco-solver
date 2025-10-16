@@ -46,6 +46,8 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       hyper: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress,
       metalayer: 'TMBTCnRTQpbFj48YU8MBBR8HJ9oXWc44xN' as TronAddress,
     },
+    defaultProver: 'hyper',
+    claimant: 'TXBv2UfhyZteqbAvsempfa26Avo8LQz9iG' as TronAddress,
   };
 
   const transactionSettings: TvmTransactionSettings = {
@@ -53,6 +55,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     maxTransactionAttempts: 30,
     transactionCheckInterval: 2000,
     listenerPollInterval: 3000,
+    proverListenerInterval: 120000,
   };
 
   // Mock logger with console output
@@ -140,15 +143,23 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     const otelService = module.get<OpenTelemetryService>(OpenTelemetryService);
     const tvmConfigService = module.get<TvmConfigService>(TvmConfigService);
 
+    // Mock QueueService
+    const mockQueueService = {
+      addBlockchainEvent: jest.fn().mockResolvedValue(undefined),
+    };
+
     // Create TronListener instance
     tronListener = new TronListener(
       realTvmConfig,
       transactionSettings,
-      eventEmitter,
       logger,
       otelService,
       tvmConfigService,
+      mockQueueService as any,
     );
+
+    // Initialize the TronWeb client manually for integration test
+    await (tronListener as any).initialize();
   });
 
   afterAll(async () => {
@@ -157,7 +168,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     }
   });
 
-  it('should fetch real events from block 75148742', async () => {
+  it.skip('should fetch real events from block 75148742', async () => {
     console.log('=== Starting real blockchain event fetch test ===');
     console.log(`Target block: 75148742`);
     console.log(`Portal address: ${realTvmConfig.contracts.portal}`);

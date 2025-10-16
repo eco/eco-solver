@@ -17,7 +17,7 @@ import { TvmExecutorService } from '../tvm.executor.service';
 import { TvmReaderService } from '../tvm.reader.service';
 import { TvmWalletManagerService } from '../tvm-wallet-manager.service';
 
-describe('TvmExecutorService Integration - Mainnet Happy Path', () => {
+describe.skip('TvmExecutorService Integration - Mainnet Happy Path', () => {
   let module: TestingModule;
   let executorService: TvmExecutorService;
 

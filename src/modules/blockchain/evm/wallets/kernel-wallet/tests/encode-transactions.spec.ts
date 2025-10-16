@@ -1,18 +1,25 @@
-import { Address, encodeAbiParameters, encodeFunctionData, Hex } from 'viem';
+import type { Address, Hex } from 'viem';
 
 import { EvmCall } from '@/common/interfaces/evm-wallet.interface';
 
 import { encodeKernelExecuteCallData } from '../utils/encode-transactions';
 
+// Mock viem functions
+const mockEncodeAbiParameters = jest.fn();
+const mockEncodeFunctionData = jest.fn();
+const mockEncodePacked = jest.fn();
+const mockToBytes = jest.fn();
+const mockToHex = jest.fn();
+const mockConcatHex = jest.fn();
+
 jest.mock('viem', () => ({
-  encodeAbiParameters: jest.fn(),
-  encodeFunctionData: jest.fn(),
-  encodePacked: jest
-    .fn()
-    .mockReturnValue('0x0000000000000000000000000000000000000000000000000000000000000000'),
-  toBytes: jest.fn().mockImplementation((value) => value),
-  toHex: jest.fn().mockImplementation((value) => value),
-  concatHex: jest.fn().mockImplementation((values) => values.join('')),
+  ...jest.requireActual('viem'),
+  encodeAbiParameters: (...args: any[]) => mockEncodeAbiParameters(...args),
+  encodeFunctionData: (...args: any[]) => mockEncodeFunctionData(...args),
+  encodePacked: (...args: any[]) => mockEncodePacked(...args),
+  toBytes: (...args: any[]) => mockToBytes(...args),
+  toHex: (...args: any[]) => mockToHex(...args),
+  concatHex: (...args: any[]) => mockConcatHex(...args),
 }));
 
 describe('encode-transactions', () => {
@@ -42,8 +49,14 @@ describe('encode-transactions', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedFunctionData');
-    (encodeAbiParameters as jest.Mock).mockReturnValue('0xEncodedParameters');
+    mockEncodeFunctionData.mockReturnValue('0xEncodedFunctionData');
+    mockEncodeAbiParameters.mockReturnValue('0xEncodedParameters');
+    mockEncodePacked.mockReturnValue(
+      '0x0000000000000000000000000000000000000000000000000000000000000000',
+    );
+    mockToBytes.mockImplementation((value) => value);
+    mockToHex.mockImplementation((value) => value);
+    mockConcatHex.mockImplementation((values) => values.join(''));
   });
 
   describe('encodeKernelExecuteCallData', () => {
@@ -51,7 +64,7 @@ describe('encode-transactions', () => {
       const result = encodeKernelExecuteCallData([mockSingleCall]);
 
       // Should use 'execute' function for single call
-      expect(encodeFunctionData).toHaveBeenCalledWith({
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.arrayContaining([
           expect.objectContaining({
             name: 'execute',
@@ -72,7 +85,7 @@ describe('encode-transactions', () => {
       const result = encodeKernelExecuteCallData(mockMultipleCalls);
 
       // First encode the execution array
-      expect(encodeAbiParameters).toHaveBeenCalledWith(
+      expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
         [
           {
             name: 'executionBatch',
@@ -94,7 +107,7 @@ describe('encode-transactions', () => {
       );
 
       // Then encode the execute function with mode selector
-      expect(encodeFunctionData).toHaveBeenCalledWith({
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.arrayContaining([
           expect.objectContaining({
             name: 'execute',
@@ -126,7 +139,7 @@ describe('encode-transactions', () => {
 
       encodeKernelExecuteCallData(callsWithZeroValues);
 
-      expect(encodeFunctionData).toHaveBeenCalledWith({
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.any(Array),
         functionName: 'execute',
         args: [
@@ -147,7 +160,7 @@ describe('encode-transactions', () => {
 
       encodeKernelExecuteCallData(callsWithEmptyData);
 
-      expect(encodeFunctionData).toHaveBeenCalledWith({
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.any(Array),
         functionName: 'execute',
         args: [
@@ -158,15 +171,13 @@ describe('encode-transactions', () => {
     });
   });
 
-  // Remove the encodeCallDataForKernel tests since it doesn't exist
-
   describe('mode selector encoding', () => {
     it('should use correct mode selector for batch calls', () => {
       encodeKernelExecuteCallData(mockMultipleCalls);
 
       // Check that mode selector is constructed correctly
-      const modeSelectorCall = (encodeFunctionData as jest.Mock).mock.calls.find(
-        (call) => call[0].functionName === 'execute' && call[0].args.length === 2,
+      const modeSelectorCall = mockEncodeFunctionData.mock.calls.find(
+        (call: any) => call[0].functionName === 'execute' && call[0].args.length === 2,
       );
 
       expect(modeSelectorCall).toBeDefined();
@@ -180,7 +191,7 @@ describe('encode-transactions', () => {
   describe('error handling', () => {
     it('should propagate encoding errors', () => {
       const error = new Error('Encoding failed');
-      (encodeFunctionData as jest.Mock).mockImplementation(() => {
+      mockEncodeFunctionData.mockImplementation(() => {
         throw error;
       });
 

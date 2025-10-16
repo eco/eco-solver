@@ -6,7 +6,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { KernelWalletConfig } from '@/config/schemas';
 import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
-import { KernelWallet } from '@/modules/blockchain/evm/wallets';
+import { KernelWallet } from '@/modules/blockchain/evm/wallets/kernel-wallet/kernel-wallet';
 import { kmsToAccount } from '@/modules/blockchain/evm/wallets/kernel-wallet/kms/kms-account';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';

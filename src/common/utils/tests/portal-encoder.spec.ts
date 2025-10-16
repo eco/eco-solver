@@ -80,21 +80,25 @@ describe('PortalEncoder', () => {
   });
 
   describe('encode', () => {
-    it('should return a Buffer for EVM encoding', () => {
+    it('should return a hex string for EVM encoding', () => {
       const result = PortalEncoder.encode(sampleRoute, ChainType.EVM);
-      expect(result).toBeInstanceOf(Buffer);
-      expect(result.length).toBeGreaterThan(0);
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBeGreaterThan(2); // More than just '0x'
     });
 
-    it('should return a Buffer for TVM encoding', () => {
-      // TVM encoding might fail due to address format issues, but should still attempt encoding
-      expect(() => PortalEncoder.encode(sampleRoute, ChainType.TVM)).toThrow(); // Expected to throw due to address conversion issues
+    it('should return a hex string for TVM encoding', () => {
+      const result = PortalEncoder.encode(sampleRoute, ChainType.TVM);
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBeGreaterThan(2); // More than just '0x'
     });
 
-    it('should return a Buffer for reward encoding', () => {
+    it('should return a hex string for reward encoding', () => {
       const result = PortalEncoder.encode(sampleReward, ChainType.EVM);
-      expect(result).toBeInstanceOf(Buffer);
-      expect(result.length).toBeGreaterThan(0);
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBeGreaterThan(2); // More than just '0x'
     });
 
     it('should throw error for unsupported chain type', () => {
@@ -110,8 +114,9 @@ describe('PortalEncoder', () => {
       };
 
       const result = PortalEncoder.encode(routeWithoutTokens, ChainType.EVM);
-      expect(result).toBeInstanceOf(Buffer);
-      expect(result.length).toBeGreaterThan(0);
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBeGreaterThan(2); // More than just '0x'
     });
 
     it('should handle route data with empty calls array', () => {
@@ -121,8 +126,9 @@ describe('PortalEncoder', () => {
       };
 
       const result = PortalEncoder.encode(routeWithoutCalls, ChainType.EVM);
-      expect(result).toBeInstanceOf(Buffer);
-      expect(result.length).toBeGreaterThan(0);
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBeGreaterThan(2); // More than just '0x'
     });
 
     it('should handle reward data with empty tokens array', () => {
@@ -132,8 +138,9 @@ describe('PortalEncoder', () => {
       };
 
       const result = PortalEncoder.encode(rewardWithoutTokens, ChainType.EVM);
-      expect(result).toBeInstanceOf(Buffer);
-      expect(result.length).toBeGreaterThan(0);
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBeGreaterThan(2); // More than just '0x'
     });
   });
 
@@ -214,13 +221,16 @@ describe('PortalEncoder', () => {
       // Test EVM encoding works
       expect(() => {
         const encoded = PortalEncoder.encode(sampleRoute, ChainType.EVM);
-        expect(encoded).toBeInstanceOf(Buffer);
+        expect(typeof encoded).toBe('string');
+        expect(encoded).toMatch(/^0x[0-9a-fA-F]+$/);
       }).not.toThrow();
 
-      // Test TVM encoding throws due to address format (expected behavior)
+      // Test TVM encoding works
       expect(() => {
-        PortalEncoder.encode(sampleRoute, ChainType.TVM);
-      }).toThrow();
+        const encoded = PortalEncoder.encode(sampleRoute, ChainType.TVM);
+        expect(typeof encoded).toBe('string');
+        expect(encoded).toMatch(/^0x[0-9a-fA-F]+$/);
+      }).not.toThrow();
     });
 
     it('should maintain data integrity for bigint values', () => {

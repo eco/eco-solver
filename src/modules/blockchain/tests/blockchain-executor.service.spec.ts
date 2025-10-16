@@ -282,7 +282,7 @@ describe('BlockchainExecutorService', () => {
     it('should handle failed execution', async () => {
       evmExecutor.fulfill.mockResolvedValue({ success: false, error: 'Execution failed' });
 
-      await service.executeIntent(mockIntent);
+      await expect(service.executeIntent(mockIntent)).rejects.toThrow('Execution failed');
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, undefined);
       expect(intentsService.updateStatus).toHaveBeenCalledWith(
@@ -294,7 +294,7 @@ describe('BlockchainExecutorService', () => {
     it('should handle execution errors', async () => {
       evmExecutor.fulfill.mockRejectedValue(new Error('Network error'));
 
-      await service.executeIntent(mockIntent);
+      await expect(service.executeIntent(mockIntent)).rejects.toThrow('Network error');
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, undefined);
       expect(intentsService.updateStatus).toHaveBeenCalledWith(
@@ -308,7 +308,9 @@ describe('BlockchainExecutorService', () => {
         destination: 999n,
       });
 
-      await service.executeIntent(unsupportedIntent);
+      await expect(service.executeIntent(unsupportedIntent)).rejects.toThrow(
+        'No executor for chain 999',
+      );
 
       expect(intentsService.updateStatus).toHaveBeenCalledWith(
         unsupportedIntent.intentHash,

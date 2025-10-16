@@ -1,7 +1,8 @@
 import { Test } from '@nestjs/testing';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
+import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { StandardFeeValidation } from '../standard-fee.validation';
@@ -12,14 +13,14 @@ const toUniversalAddress = (address: string): UniversalAddress => address as Uni
 
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;
-  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
+  let feeResolverService: jest.Mocked<FeeResolverService>;
 
   beforeEach(async () => {
-    const mockBlockchainConfigService = {
-      getFeeLogic: jest.fn(),
+    const mockFeeResolverService = {
+      resolveFee: jest.fn(),
     };
 
-    const mockFulfillmentConfigService = {
+    const mockTokenConfigService = {
       normalize: jest.fn((chainId: any, tokens: any) => {
         // Simulate normalization from 6 to 18 decimals (multiply by 10^12)
         return tokens.map((token: any) => ({ ...token, amount: token.amount * 10n ** 12n }));
@@ -45,12 +46,12 @@ describe('StandardFeeValidation', () => {
       providers: [
         StandardFeeValidation,
         {
-          provide: BlockchainConfigService,
-          useValue: mockBlockchainConfigService,
+          provide: FeeResolverService,
+          useValue: mockFeeResolverService,
         },
         {
-          provide: FulfillmentConfigService,
-          useValue: mockFulfillmentConfigService,
+          provide: TokenConfigService,
+          useValue: mockTokenConfigService,
         },
         {
           provide: OpenTelemetryService,
@@ -60,7 +61,7 @@ describe('StandardFeeValidation', () => {
     }).compile();
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);
-    blockchainConfigService = module.get(BlockchainConfigService);
+    feeResolverService = module.get(FeeResolverService);
   });
 
   describe('validate', () => {
@@ -79,7 +80,7 @@ describe('StandardFeeValidation', () => {
     };
 
     beforeEach(() => {
-      blockchainConfigService.getFeeLogic.mockReturnValue(mockFeeLogic);
+      feeResolverService.resolveFee.mockReturnValue(mockFeeLogic);
     });
 
     describe('fee calculation', () => {
@@ -103,7 +104,7 @@ describe('StandardFeeValidation', () => {
         expect(result).toBe(true);
       });
 
-      it('should calculate percentage fee from route tokens only', async () => {
+      it('should throw error when route has multiple tokens', async () => {
         const intentWithMultipleValues = createMockIntent({
           reward: {
             ...mockIntent.reward,
@@ -135,15 +136,10 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        // Route tokens value: 0.2 + 0.1 = 0.3 USDC (normalized to 18 decimals: 300000000000000000)
-        // Base fee: 0.01 USDC (normalized: 10000000000000000)
-        // Percentage fee: 1% of 0.3 USDC = 0.003 USDC (normalized: 3000000000000000)
-        // Total fee: 0.013 USDC (normalized: 13000000000000000)
-        // Reward tokens: 0.5 USDC (normalized: 500000000000000000) > Total fee
-
-        const result = await validation.validate(intentWithMultipleValues, mockContext);
-
-        expect(result).toBe(true);
+        // Standard fee validation only supports single token routes
+        await expect(validation.validate(intentWithMultipleValues, mockContext)).rejects.toThrow(
+          'Standard fee validation only supports single token routes, but found 2 tokens',
+        );
       });
 
       it('should handle percentage fee calculation with precision', async () => {
@@ -339,7 +335,7 @@ describe('StandardFeeValidation', () => {
 
     describe('different fee configurations', () => {
       it('should handle zero base fee', async () => {
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 2, // 2% = 200 bps
@@ -387,7 +383,7 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle zero percentage fee', async () => {
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0.05, // 0.05 USDC normalized to 18 decimals
             scalarBps: 0,
@@ -424,7 +420,7 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle both zero fees with tokens present', async () => {
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 0,
@@ -457,7 +453,7 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle high percentage fees', async () => {
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 50, // 50% = 5000 bps
@@ -531,7 +527,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 10, // 10 USDC normalized to 18 decimals
             scalarBps: 1, // 1% = 100 bps
@@ -573,7 +569,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 0,
@@ -597,7 +593,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 0,
@@ -639,7 +635,7 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        blockchainConfigService.getFeeLogic.mockReturnValue({
+        feeResolverService.resolveFee.mockReturnValue({
           tokens: {
             flatFee: 0.01, // 0.01 USDC normalized
             scalarBps: 1, // 1% = 100 bps
@@ -693,7 +689,7 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized) base fee
           scalarBps: 0.01, // 0.01 * 10000 = 100 / 10000 = 0.01 = 1 bps
@@ -753,7 +749,7 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0,
           scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
@@ -813,7 +809,7 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0.002,
           scalarBps: 0,
@@ -875,7 +871,7 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0.0015,
           scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
@@ -887,7 +883,7 @@ describe('StandardFeeValidation', () => {
 
       // Reset mocks to ensure validate uses fresh calls
       jest.clearAllMocks();
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0.0015,
           scalarBps: 0.0005,
@@ -935,7 +931,7 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized)
           scalarBps: 0.01, // 1 bps = 0.01%
@@ -945,7 +941,6 @@ describe('StandardFeeValidation', () => {
       const result = await validation.validate(intent, mockContext);
 
       expect(result).toBe(true);
-      expect(blockchainConfigService.getFeeLogic).toHaveBeenCalledWith(BigInt(10));
     });
 
     it('should throw error when reward does not cover the fee using calculateFee', async () => {
@@ -974,7 +969,7 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      blockchainConfigService.getFeeLogic.mockReturnValue({
+      feeResolverService.resolveFee.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized)
           scalarBps: 1, // 100 bps = 1%

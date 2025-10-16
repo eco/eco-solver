@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { EVMController } from '@/modules/blockchain/evm/evm.controller';
 import { BasicWalletModule } from '@/modules/blockchain/evm/wallets/basic-wallet';
-import { KernelWalletModule } from '@/modules/blockchain/evm/wallets/kernel-wallet';
+import { KernelWalletModule } from '@/modules/blockchain/evm/wallets/kernel-wallet/kernel-wallet.module';
 import { ConfigModule } from '@/modules/config/config.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';

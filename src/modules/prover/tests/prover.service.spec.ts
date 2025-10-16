@@ -10,6 +10,7 @@ import { ProverService } from '../prover.service';
 import { DummyProver } from '../provers/dummy.prover';
 import { HyperProver } from '../provers/hyper.prover';
 import { MetalayerProver } from '../provers/metalayer.prover';
+import { PolymerProver } from '../provers/polymer.prover';
 
 // Helper function to cast string to UniversalAddress
 const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;
@@ -17,6 +18,7 @@ const toUniversalAddress = (address: string): UniversalAddress => address as Uni
 describe('ProverService', () => {
   let service: ProverService;
   let mockHyperProver: jest.Mocked<HyperProver>;
+  let mockPolymerProver: jest.Mocked<PolymerProver>;
   let mockMetalayerProver: jest.Mocked<MetalayerProver>;
   let mockDummyProver: jest.Mocked<DummyProver>;
   let mockLogger: jest.Mocked<SystemLoggerService>;
@@ -64,6 +66,14 @@ describe('ProverService', () => {
       getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
     } as unknown as jest.Mocked<MetalayerProver>;
 
+    mockPolymerProver = {
+      type: ProverType.POLYMER,
+      onModuleInit: jest.fn(),
+      getContractAddress: jest.fn().mockReturnValue(undefined),
+      isSupported: jest.fn().mockReturnValue(false),
+      getDeadlineBuffer: jest.fn().mockReturnValue(3600n), // 1 hour
+    } as unknown as jest.Mocked<PolymerProver>;
+
     mockDummyProver = {
       type: ProverType.DUMMY,
       onModuleInit: jest.fn(),
@@ -99,6 +109,10 @@ describe('ProverService', () => {
         {
           provide: HyperProver,
           useValue: mockHyperProver,
+        },
+        {
+          provide: PolymerProver,
+          useValue: mockPolymerProver,
         },
         {
           provide: MetalayerProver,
@@ -168,6 +182,13 @@ describe('ProverService', () => {
           calls: [],
           tokens: [],
         },
+        reward: {
+          prover: mockHyperAddress, // Must match the prover address for chain 1
+          creator: toUniversalAddress(padTo32Bytes('0x4444444444444444444444444444444444444444')),
+          deadline: BigInt(Date.now() + 86400000),
+          nativeAmount: 0n,
+          tokens: [],
+        },
       });
 
       const result = await service.validateIntentRoute(intent);
@@ -187,6 +208,13 @@ describe('ProverService', () => {
           portal: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
           nativeAmount: 0n,
           calls: [],
+          tokens: [],
+        },
+        reward: {
+          prover: mockMetalayerAddress, // Must match the prover address for chain 137
+          creator: toUniversalAddress(padTo32Bytes('0x4444444444444444444444444444444444444444')),
+          deadline: BigInt(Date.now() + 86400000),
+          nativeAmount: 0n,
           tokens: [],
         },
       });
@@ -246,7 +274,7 @@ describe('ProverService', () => {
 
       expect(result).toEqual({
         isValid: false,
-        reason: 'No prover found for this route',
+        reason: 'Intent prover is not allowed',
       });
     });
 
@@ -279,6 +307,13 @@ describe('ProverService', () => {
           portal: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
           nativeAmount: 0n,
           calls: [],
+          tokens: [],
+        },
+        reward: {
+          prover: mockMetalayerAddress, // Use metalayer prover address for chain 1
+          creator: toUniversalAddress(padTo32Bytes('0x4444444444444444444444444444444444444444')),
+          deadline: BigInt(Date.now() + 86400000),
+          nativeAmount: 0n,
           tokens: [],
         },
       });
@@ -321,42 +356,6 @@ describe('ProverService', () => {
       // Note: For UniversalAddress, we test with the same address (case sensitive for branded types)
       const prover = service.getProver(1, mockHyperAddress);
       expect(prover).toBe(mockHyperProver);
-    });
-  });
-
-  describe('getMaxDeadlineBuffer', () => {
-    beforeEach(() => {
-      service.onModuleInit();
-    });
-
-    it('should return maximum deadline buffer from provers that support the route', () => {
-      const buffer = service.getMaxDeadlineBuffer(1, 10);
-
-      // HyperProver supports both chains and has 300n buffer
-      expect(buffer).toBe(300n);
-    });
-
-    it('should return maximum buffer when multiple provers support the route', () => {
-      // Setup both provers to support the same route
-      mockHyperProver.isSupported.mockImplementation((chainId) => chainId === 1 || chainId === 137);
-      mockMetalayerProver.isSupported.mockImplementation(
-        (chainId) => chainId === 1 || chainId === 137,
-      );
-
-      // Re-initialize to pick up changes
-      service.onModuleInit();
-
-      const buffer = service.getMaxDeadlineBuffer(1, 137);
-
-      // MetalayerProver has larger buffer (600n vs 300n)
-      expect(buffer).toBe(600n);
-    });
-
-    it('should return default buffer when no prover supports the route', () => {
-      const buffer = service.getMaxDeadlineBuffer(999, 888);
-
-      // Default buffer is 300n (5 minutes)
-      expect(buffer).toBe(300n);
     });
   });
 });

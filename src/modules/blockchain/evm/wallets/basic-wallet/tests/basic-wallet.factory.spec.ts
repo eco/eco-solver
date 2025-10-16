@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Chain, createPublicClient, createWalletClient, Transport } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import type { Chain, Transport } from 'viem';
 
 import { EvmConfigService } from '@/modules/config/services';
 
@@ -9,14 +8,21 @@ import { EvmTransportService } from '../../../services/evm-transport.service';
 import { BasicWallet } from '../basic-wallet';
 import { BasicWalletFactory } from '../basic-wallet.factory';
 
+// Mock viem functions
+const mockCreatePublicClient = jest.fn();
+const mockCreateWalletClient = jest.fn();
+const mockPrivateKeyToAccount = jest.fn();
+
 jest.mock('viem', () => ({
-  createPublicClient: jest.fn(),
-  createWalletClient: jest.fn(),
+  ...jest.requireActual('viem'),
+  createPublicClient: (...args: any[]) => mockCreatePublicClient(...args),
+  createWalletClient: (...args: any[]) => mockCreateWalletClient(...args),
   http: jest.fn(),
 }));
 
 jest.mock('viem/accounts', () => ({
-  privateKeyToAccount: jest.fn(),
+  ...jest.requireActual('viem/accounts'),
+  privateKeyToAccount: (...args: any[]) => mockPrivateKeyToAccount(...args),
 }));
 
 jest.mock('../basic-wallet');
@@ -58,10 +64,10 @@ describe('BasicWalletFactory', () => {
 
     factory = module.get<BasicWalletFactory>(BasicWalletFactory);
 
-    // Mock viem functions
-    (privateKeyToAccount as jest.Mock).mockReturnValue(mockAccount);
-    (createPublicClient as jest.Mock).mockReturnValue(mockPublicClient);
-    (createWalletClient as jest.Mock).mockReturnValue(mockWalletClient);
+    // Setup mock implementations
+    mockPrivateKeyToAccount.mockReturnValue(mockAccount);
+    mockCreatePublicClient.mockReturnValue(mockPublicClient);
+    mockCreateWalletClient.mockReturnValue(mockWalletClient);
     (BasicWallet as jest.Mock).mockImplementation((publicClient, walletClient) => ({
       publicClient,
       walletClient,
@@ -93,15 +99,15 @@ describe('BasicWalletFactory', () => {
       expect(transportService.getViemChain).toHaveBeenCalledWith(chainId);
 
       // Verify account was created from private key
-      expect(privateKeyToAccount).toHaveBeenCalledWith(mockPrivateKey);
+      expect(mockPrivateKeyToAccount).toHaveBeenCalledWith(mockPrivateKey);
 
       // Verify clients were created
-      expect(createPublicClient).toHaveBeenCalledWith({
+      expect(mockCreatePublicClient).toHaveBeenCalledWith({
         chain: mockChain,
         transport: mockTransport,
       });
 
-      expect(createWalletClient).toHaveBeenCalledWith({
+      expect(mockCreateWalletClient).toHaveBeenCalledWith({
         account: mockAccount,
         chain: mockChain,
         transport: mockTransport,
@@ -121,7 +127,7 @@ describe('BasicWalletFactory', () => {
 
       expect(transportService.getTransport).toHaveBeenCalledWith(chainId);
       expect(transportService.getViemChain).toHaveBeenCalledWith(chainId);
-      expect(createPublicClient).toHaveBeenCalledWith({
+      expect(mockCreatePublicClient).toHaveBeenCalledWith({
         chain: optimismChain,
         transport: mockTransport,
       });
@@ -144,7 +150,7 @@ describe('BasicWalletFactory', () => {
 
     it('should handle account creation errors', async () => {
       const error = new Error('Invalid private key');
-      (privateKeyToAccount as jest.Mock).mockImplementation(() => {
+      mockPrivateKeyToAccount.mockImplementation(() => {
         throw error;
       });
 
@@ -165,7 +171,7 @@ describe('BasicWalletFactory', () => {
 
       await factory.createWallet(1);
 
-      expect(privateKeyToAccount).toHaveBeenCalledWith(customPrivateKey);
+      expect(mockPrivateKeyToAccount).toHaveBeenCalledWith(customPrivateKey);
     });
   });
 });

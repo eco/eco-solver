@@ -46,7 +46,8 @@ describe('Schema Transformer', () => {
         'evm',
         'network',
         '10',
-        'rpcUrls',
+        'rpc',
+        'urls',
         '0',
       ]);
     });

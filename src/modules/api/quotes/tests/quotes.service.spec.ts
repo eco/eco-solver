@@ -148,32 +148,35 @@ describe('QuotesService', () => {
       const result = await service.getQuote(mockQuoteRequest);
 
       expect(result).toEqual({
-        quoteResponse: {
-          sourceChainID: 1,
-          destinationChainID: 10,
-          sourceToken: '0x1234567890123456789012345678901234567890',
-          destinationToken: '0x1234567890123456789012345678901234567890',
-          sourceAmount: '5000000000000000000',
-          destinationAmount: '4998995000000000000',
-          funder: '0x1234567890123456789012345678901234567890',
-          refundRecipient: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          fees: [
-            {
-              name: 'Eco Protocol Fee',
-              description: 'Protocol fee for fulfilling intent on chain 10',
-              token: {
-                address: '0x1234567890123456789012345678901234567890',
-                decimals: 18,
-                symbol: 'TEST',
+        quoteResponses: [
+          {
+            intentExecutionType: 'SELF_PUBLISH',
+            sourceChainID: 1,
+            destinationChainID: 10,
+            sourceToken: '0x1234567890123456789012345678901234567890',
+            destinationToken: '0x1234567890123456789012345678901234567890',
+            sourceAmount: '5000000000000000000',
+            destinationAmount: '4998995000000000000',
+            funder: '0x1234567890123456789012345678901234567890',
+            refundRecipient: '0x1234567890123456789012345678901234567890',
+            recipient: '0x1234567890123456789012345678901234567890',
+            fees: [
+              {
+                name: 'Eco Protocol Fee',
+                description: 'Protocol fee for fulfilling intent on chain 10',
+                token: {
+                  address: '0x1234567890123456789012345678901234567890',
+                  decimals: 18,
+                  symbol: 'TEST',
+                },
+                amount: '1005000000000000',
               },
-              amount: '1005000000000000',
-            },
-          ],
-          deadline: expect.any(Number),
-          estimatedFulfillTimeSec: 30,
-          encodedRoute: expect.any(String),
-        },
+            ],
+            deadline: expect.any(Number),
+            estimatedFulfillTimeSec: 30,
+            encodedRoute: expect.any(String),
+          },
+        ],
         contracts: {
           sourcePortal: '0x1234567890123456789012345678901234567890',
           destinationPortal: '0x1234567890123456789012345678901234567890',
