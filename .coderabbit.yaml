@@ -7,15 +7,7 @@ language: "en-US"
 early_access: false
 
 # Configure tone and style
-tone_instructions: |
-  Focus on code quality, security, and best practices for blockchain applications.
-  Pay special attention to:
-  - Security vulnerabilities in smart contract interactions
-  - Proper error handling in async operations
-  - BigInt usage and numeric precision
-  - Multi-chain compatibility
-  - Queue processing reliability
-  - Type safety and TypeScript best practices
+tone_instructions: "Focus on blockchain security, BigInt precision, multi-chain compatibility, queue reliability, async error handling, and TypeScript type safety."
 
 reviews:
   profile: "assertive"
