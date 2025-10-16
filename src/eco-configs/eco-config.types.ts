@@ -26,6 +26,8 @@ export type EcoConfigType = {
   quotesConfig: QuotesConfig
   solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
+  // Global per-route fee overrides
+  routeFeeOverrides?: RouteFeeOverride[]
   fulfillmentEstimate: FulfillmentEstimateConfig
   rpcs: RpcConfigType
   cache: CacheModuleOptions
@@ -333,11 +335,13 @@ export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
   ? {
       token: FeeAlgoLinear
       native: FeeAlgoLinear
+      nonSwapToken: FeeAlgoLinear
     }
   : T extends 'quadratic'
     ? {
         token: FeeAlgoQuadratic
         native: FeeAlgoQuadratic
+        nonSwapToken: FeeAlgoQuadratic
       }
     : never
 
@@ -352,6 +356,8 @@ export interface TargetContract {
   selectors: string[]
   minBalance: number
   targetBalance: number
+  // Tags used to indicate cross-chain sameness for fee selection
+  nonSwapGroups?: string[]
 }
 
 /**
@@ -585,4 +591,12 @@ export interface WatchConfig {
   recoveryBackoffBaseMs: number
   recoveryBackoffMaxMs: number
   recoveryStabilityWindowMs: number
+}
+
+export interface RouteFeeOverride {
+  sourceChainId: number
+  destinationChainId: number
+  sourceToken: Hex // zeroAddress represents native
+  destinationToken: Hex // zeroAddress represents native
+  fee: FeeConfigType
 }
