@@ -23,6 +23,34 @@ export abstract class BaseStructuredLogger extends EcoLogger {
   public logStructured(structure: DatadogLogStructure, level: LogLevel = 'info'): void {
     let processedStructure = structure
 
+    // EMERGENCY SIZE CHECK: Prevent OOM by catching extreme cases before processing
+    // This is a last-resort check - normal validation should catch issues earlier
+    const EMERGENCY_SIZE_LIMIT = 500 * 1024 // 500KB hard limit
+    try {
+      const rawSize = this.safeStringify(structure).length
+      if (rawSize > EMERGENCY_SIZE_LIMIT) {
+        // Log a warning about the oversized log instead of the original
+        super.warn({
+          message: `CRITICAL: Attempted to log oversized structure (${rawSize} bytes > ${EMERGENCY_SIZE_LIMIT} bytes limit)`,
+          context: this.context,
+          level: level,
+          timestamp: new Date().toISOString(),
+          _emergency_truncation: true,
+          _original_size_bytes: rawSize,
+          _structure_keys: Object.keys(structure).join(', '),
+        })
+        return // Skip logging the original oversized structure
+      }
+    } catch (error) {
+      // If even stringifying fails, log a minimal error
+      super.error({
+        message: 'CRITICAL: Failed to check log size - structure may be circular or too complex',
+        context: this.context,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return
+    }
+
     // Enrich with APM correlation context if enabled
     processedStructure = this.enrichWithAPM(processedStructure)
 

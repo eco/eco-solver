@@ -95,12 +95,14 @@ export class FeeService implements OnModuleInit {
       const tuple = this.extractRouteTuple(intent)
       if (!tuple) {
         this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'No tuple found for intent',
-            properties: {
-              intent,
-            },
-          }),
+          {
+            operationType: 'fee_configuration',
+            status: 'warning',
+          },
+          'No tuple found for intent',
+          {
+            intent,
+          },
         )
         return feeConfig
       }
@@ -151,19 +153,21 @@ export class FeeService implements OnModuleInit {
         }
       }
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Fee Config',
-          properties: {
-            feeSource,
-            isNonSwap,
-            dstTokenSource,
-            srcChainId: tuple?.srcChainId,
-            dstChainId: tuple?.dstChainId,
-            srcTokens: tuple?.srcTokens,
-            dstToken: tuple?.dstToken,
-            feeConfig,
-          },
-        }),
+        {
+          operationType: 'fee_configuration',
+          status: 'completed',
+        },
+        'Fee Config',
+        {
+          feeSource,
+          isNonSwap,
+          dstTokenSource,
+          srcChainId: tuple?.srcChainId,
+          dstChainId: tuple?.dstChainId,
+          srcTokens: tuple?.srcTokens,
+          dstToken: tuple?.dstToken,
+          feeConfig,
+        },
       )
     }
     return feeConfig
@@ -218,10 +222,12 @@ export class FeeService implements OnModuleInit {
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
     }
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Fee Calculation',
-        properties: { feeConfig, fee },
-      }),
+      {
+        operationType: 'fee_calculation',
+        status: 'completed',
+      },
+      'Fee Calculation',
+      { feeConfig, fee },
     )
 
     return fee
@@ -509,7 +515,7 @@ export class FeeService implements OnModuleInit {
 
       this.logger.error(
         {
-          operationType: 'infrastructure_operation',
+          operationType: 'token_calculation',
           status: 'failed',
         },
         error!.message,
@@ -735,7 +741,7 @@ export class FeeService implements OnModuleInit {
           const err = QuoteError.NonERC20TargetInCalls()
           this.logger.error(
             {
-              operationType: 'infrastructure_operation',
+              operationType: 'call_validation',
               status: 'failed',
             },
             err.message,
@@ -774,7 +780,7 @@ export class FeeService implements OnModuleInit {
 
           this.logger.error(
             {
-              operationType: 'infrastructure_operation',
+              operationType: 'liquidity_check',
               status: 'failed',
             },
             'Solver lacks sufficient liquidity for transfer',

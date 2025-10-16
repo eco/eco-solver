@@ -121,8 +121,22 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             createIntent.logIndex,
           )
 
-          // Log the processed intent for debugging
-          this.logger.debug({ createIntent })
+          // Log the processed intent for debugging - with safe truncation for large hex data
+          // Note: Using debug with truncated data to prevent OOM from logging massive objects
+          this.logger.debug({
+            message: 'Intent created event processed',
+            intentHash: createIntent.args?.hash,
+            txHash: createIntent.transactionHash,
+            blockNum: createIntent.blockNumber,
+            logIdx: createIntent.logIndex,
+            chain: source.chainID,
+            network: source.network,
+            // Truncate large hex data to prevent memory issues
+            dataPreview: createIntent.data
+              ? `${createIntent.data.substring(0, 100)}...`
+              : undefined,
+            dataLen: createIntent.data?.length,
+          })
 
           // Intent job creation context automatically captured by parent operation decorator
 
