@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# CodeRabbit Configuration for Solver V2
+# Configures automated code reviews for PRs targeting the v2 branch
+
+language: "en-US"
+early_access: false
+
+# Configure tone and style
+tone_instructions: "Focus on blockchain security, BigInt precision, multi-chain compatibility, queue reliability, async error handling, and TypeScript type safety."
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: true
+  review_status: true
+  collapse_walkthrough: false
+
+  auto_review:
+    enabled: true
+    # Configure to review PRs targeting the v2 branch
+    base_branches:
+      - "v2"
+    drafts: false
+
+  # Path-based configuration
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/.pnpm-store/**"
+    - "!**/pnpm-lock.yaml"
+    - "!**/package-lock.json"
+    - "!**/yarn.lock"
+    - "!**/*.md"
+    - "!**/.env*"
+    - "!**/coverage/**"
+
+  path_instructions:
+    - path: "src/**/*.ts"
+      instructions: |
+        Review TypeScript code for:
+        - Type safety and proper use of generics
+        - Dependency injection patterns
+        - Error handling and logging
+        - OpenTelemetry tracing implementation
+        - BigInt usage for blockchain values
+
+    - path: "src/modules/blockchain/**/*.ts"
+      instructions: |
+        Pay special attention to:
+        - Multi-chain compatibility
+        - Address validation and normalization
+        - Transaction signing and execution
+        - Nonce management
+        - Gas estimation
+        - RPC error handling
+
+    - path: "src/modules/fulfillment/**/*.ts"
+      instructions: |
+        Review fulfillment logic for:
+        - Strategy pattern implementation
+        - Validation framework usage
+        - Intent deduplication
+        - Queue integration
+        - Fee calculation accuracy
+
+    - path: "**/*.spec.ts"
+      instructions: |
+        Review test files for:
+        - Test coverage of edge cases
+        - Proper mocking of dependencies
+        - Use of test helpers
+        - Async operation handling
+
+    - path: "src/config/**/*.ts"
+      instructions: |
+        Verify configuration code:
+        - Zod schema validation
+        - Environment variable mapping
+        - Default values appropriateness
+        - Type inference correctness
+
+  tools:
+    biome:
+      enabled: true
+
+    eslint:
+      enabled: true
+
+    markdownlint:
+      enabled: false
+
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"
+  issues:
+    scope: "auto"
