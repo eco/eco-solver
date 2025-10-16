@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 
 import { AnchorProvider, BN, Program, setProvider } from '@coral-xyz/anchor';
 import * as api from '@opentelemetry/api';
-import { createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
   AccountMeta,
   ComputeBudgetProgram,
@@ -566,7 +570,7 @@ export class SvmExecutorService extends BaseChainExecutor {
   ): Promise<PublicKey> {
     const [ata] = PublicKey.findProgramAddressSync(
       [owner.toBuffer(), tokenProgram.toBuffer(), mint.toBuffer()],
-      new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'), // Associated Token Program
+      ASSOCIATED_TOKEN_PROGRAM_ID,
     );
     return ata;
   }

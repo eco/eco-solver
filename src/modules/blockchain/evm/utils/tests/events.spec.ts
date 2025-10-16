@@ -1,41 +1,8 @@
-// Mock the dependencies
-import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
+// Mock dependencies
+import { encodeAbiParameters, encodeEventTopics, getAbiItem } from 'viem';
 
-jest.mock('viem', () => ({
-  getAbiItem: jest.fn(() => ({
-    inputs: [
-      {
-        components: [{}, {}],
-      },
-    ],
-  })),
-  decodeEventLog: jest.fn((params) => {
-    if (params.eventName === 'IntentPublished') {
-      return {
-        eventName: 'IntentPublished',
-        args: {
-          intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001',
-          destination: 1n,
-          route: '0x0000000000000000000000000000000000000000000000000000000000000000',
-          creator: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-          prover: '0x1234567890123456789012345678901234567890',
-          rewardDeadline: 1738899900n,
-          rewardNativeAmount: 1000000000000000000n,
-          rewardTokens: [],
-        },
-      };
-    } else if (params.eventName === 'IntentFulfilled') {
-      return {
-        eventName: 'IntentFulfilled',
-        args: {
-          intentHash: params.topics[1],
-          claimant: params.topics[2],
-        },
-      };
-    }
-    return {};
-  }),
-}));
+import { portalAbi } from '@/common/abis/portal.abi';
+import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 
 jest.mock('@/common/utils/address-normalizer', () => ({
   AddressNormalizer: {
@@ -54,7 +21,7 @@ jest.mock('@/common/utils/chain-type-detector', () => ({
 
 jest.mock('@/common/utils/portal-encoder', () => ({
   PortalEncoder: {
-    decodeFromChain: jest.fn(() => ({
+    decode: jest.fn(() => ({
       salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
       deadline: 1234567890n,
       portal: 'normalized_portal',
@@ -68,23 +35,39 @@ jest.mock('@/common/utils/portal-encoder', () => ({
 describe('Event Parsing', () => {
   describe('parseIntentPublish', () => {
     it('should parse IntentPublished event correctly', () => {
-      const mockLog: any = {
-        topics: [
-          '0x0000000000000000000000000000000000000000000000000000000000000000', // event signature
-          '0x0000000000000000000000000000000000000000000000000000000000000001', // intentHash (indexed)
-          '0x000000000000000000000000f39Fd6e51aad88F6F4ce6aB8827279cffFb92266', // creator (indexed)
-          '0x0000000000000000000000001234567890123456789012345678901234567890', // prover (indexed)
+      // Get the event ABI item
+      const eventAbi = getAbiItem({ abi: portalAbi, name: 'IntentPublished' });
+
+      // Create proper event topics using viem
+      const topics = encodeEventTopics({
+        abi: [eventAbi],
+        eventName: 'IntentPublished',
+        args: {
+          intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001',
+          creator: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          prover: '0x1234567890123456789012345678901234567890',
+        },
+      });
+
+      // Encode event data properly using encodeAbiParameters
+      const data = encodeAbiParameters(
+        [
+          { type: 'uint64', name: 'destination' },
+          { type: 'bytes', name: 'route' },
+          { type: 'uint64', name: 'rewardDeadline' },
+          { type: 'uint256', name: 'rewardNativeAmount' },
+          {
+            type: 'tuple[]',
+            name: 'rewardTokens',
+            components: [{ type: 'address' }, { type: 'uint256' }],
+          },
         ],
-        data:
-          '0x' +
-          '0000000000000000000000000000000000000000000000000000000000000001' + // destination
-          '00000000000000000000000000000000000000000000000000000000000000e0' + // route offset
-          '000000000000000000000000000000000000000000000000000000006789abcd' + // rewardDeadline
-          '0000000000000000000000000000000000000000000000000de0b6b3a7640000' + // rewardNativeAmount (1 ETH)
-          '0000000000000000000000000000000000000000000000000000000000000140' + // rewardTokens offset
-          '0000000000000000000000000000000000000000000000000000000000000020' + // route length
-          '0000000000000000000000000000000000000000000000000000000000000000' + // route data
-          '0000000000000000000000000000000000000000000000000000000000000000', // rewardTokens (empty array)
+        [1n, '0x00', 1738899900n, 1000000000000000000n, []],
+      );
+
+      const mockLog: any = {
+        topics,
+        data,
         transactionHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
         blockNumber: 100n,
       };
@@ -107,12 +90,21 @@ describe('Event Parsing', () => {
 
   describe('parseIntentFulfilled', () => {
     it('should parse IntentFulfilled event correctly', () => {
+      // Get the event ABI item
+      const eventAbi = getAbiItem({ abi: portalAbi, name: 'IntentFulfilled' });
+
+      // Create proper event topics using viem
+      const topics = encodeEventTopics({
+        abi: [eventAbi],
+        eventName: 'IntentFulfilled',
+        args: {
+          intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001',
+          claimant: '0x0000000000000000000000000000000000000000000000000000000000000002',
+        },
+      });
+
       const mockLog: any = {
-        topics: [
-          '0x0000000000000000000000000000000000000000000000000000000000000000', // event signature
-          '0x0000000000000000000000000000000000000000000000000000000000000001', // intentHash (indexed)
-          '0x0000000000000000000000000000000000000000000000000000000000000002', // claimant (indexed)
-        ],
+        topics,
         data: '0x',
         transactionHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
         blockNumber: 100n,
@@ -134,12 +126,21 @@ describe('Event Parsing', () => {
     });
 
     it('should handle IntentFulfilled event without block number', () => {
+      // Get the event ABI item
+      const eventAbi = getAbiItem({ abi: portalAbi, name: 'IntentFulfilled' });
+
+      // Create proper event topics using viem
+      const topics = encodeEventTopics({
+        abi: [eventAbi],
+        eventName: 'IntentFulfilled',
+        args: {
+          intentHash: '0xabcdef0000000000000000000000000000000000000000000000000000000001',
+          claimant: '0xfedcba0000000000000000000000000000000000000000000000000000000002',
+        },
+      });
+
       const mockLog: any = {
-        topics: [
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-          '0xabcdef0000000000000000000000000000000000000000000000000000000001',
-          '0xfedcba0000000000000000000000000000000000000000000000000000000002',
-        ],
+        topics,
         data: '0x',
         transactionHash: '0xabcdef1234567890',
       };

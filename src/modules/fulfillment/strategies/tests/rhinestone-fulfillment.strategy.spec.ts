@@ -30,6 +30,17 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
         return fn(span);
       }),
     },
+    withSpan: jest.fn().mockImplementation(async (name, fn) => {
+      const span = {
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      };
+      return fn(span);
+    }),
   })),
 }));
 
@@ -45,6 +56,7 @@ import {
   ProverSupportValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
+  RouteEnabledValidation,
   RouteTokenValidation,
   StandardFeeValidation,
 } from '@/modules/fulfillment/validations';
@@ -69,6 +81,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
   let expirationValidation: jest.Mocked<ExpirationValidation>;
   let chainSupportValidation: jest.Mocked<ChainSupportValidation>;
+  let routeEnabledValidation: jest.Mocked<RouteEnabledValidation>;
   let proverSupportValidation: jest.Mocked<ProverSupportValidation>;
   let executorBalanceValidation: jest.Mocked<ExecutorBalanceValidation>;
   let standardFeeValidation: jest.Mocked<StandardFeeValidation>;
@@ -97,6 +110,17 @@ describe('RhinestoneFulfillmentStrategy', () => {
           return fn(span);
         }),
       },
+      withSpan: jest.fn().mockImplementation(async (name, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
     };
 
     // Create mock validations
@@ -114,6 +138,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
     expirationValidation = createMockValidation('ExpirationValidation') as any;
     chainSupportValidation = createMockValidation('ChainSupportValidation') as any;
+    routeEnabledValidation = createMockValidation('RouteEnabledValidation') as any;
     proverSupportValidation = createMockValidation('ProverSupportValidation') as any;
     executorBalanceValidation = createMockValidation('ExecutorBalanceValidation') as any;
     standardFeeValidation = createMockValidation('StandardFeeValidation') as any;
@@ -166,6 +191,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
           useValue: chainSupportValidation,
         },
         {
+          provide: RouteEnabledValidation,
+          useValue: routeEnabledValidation,
+        },
+        {
           provide: ProverSupportValidation,
           useValue: proverSupportValidation,
         },
@@ -197,7 +226,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     it('should have the correct validations in order WITHOUT RouteCallsValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(9); // One less than standard strategy
+      expect(validations).toHaveLength(10); // One less than standard strategy (which has 11)
       expect(validations[0]).toBe(intentFundedValidation);
       expect(validations[1]).toBe(duplicateRewardTokensValidation);
       expect(validations[2]).toBe(routeTokenValidation);
@@ -205,9 +234,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(validations[3]).toBe(routeAmountLimitValidation);
       expect(validations[4]).toBe(expirationValidation);
       expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(standardFeeValidation);
+      expect(validations[6]).toBe(routeEnabledValidation);
+      expect(validations[7]).toBe(proverSupportValidation);
+      expect(validations[8]).toBe(executorBalanceValidation);
+      expect(validations[9]).toBe(standardFeeValidation);
     });
 
     it('should exclude RouteCallsValidation from validations', () => {
@@ -336,6 +366,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
         mockIntent,
         expect.objectContaining({ strategy }),
       );
+      expect(routeEnabledValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
       expect(proverSupportValidation.validate).toHaveBeenCalledWith(
         mockIntent,
         expect.objectContaining({ strategy }),
@@ -356,6 +390,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
         routeAmountLimitValidation,
         expirationValidation,
         chainSupportValidation,
+        routeEnabledValidation,
         proverSupportValidation,
         executorBalanceValidation,
         standardFeeValidation,
@@ -557,7 +592,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(9); // One less than standard
+      expect(validations).toHaveLength(10); // One less than standard (which has 11)
       expect(Object.isFrozen(validations)).toBe(true);
     });
 
@@ -579,9 +614,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(validations[3]).toBe(routeAmountLimitValidation);
       expect(validations[4]).toBe(expirationValidation);
       expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(proverSupportValidation);
-      expect(validations[7]).toBe(executorBalanceValidation);
-      expect(validations[8]).toBe(standardFeeValidation);
+      expect(validations[6]).toBe(routeEnabledValidation);
+      expect(validations[7]).toBe(proverSupportValidation);
+      expect(validations[8]).toBe(executorBalanceValidation);
+      expect(validations[9]).toBe(standardFeeValidation);
     });
   });
 });

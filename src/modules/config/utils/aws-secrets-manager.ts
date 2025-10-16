@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 
 import {
   GetSecretValueCommand,
@@ -10,9 +10,8 @@ import * as yaml from 'js-yaml';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { AwsConfig } from '@/config/schemas';
 
-@Injectable()
-export class AwsSecretsService {
-  private readonly logger = new Logger(AwsSecretsService.name);
+export class AwsSecretsManager {
+  private readonly logger = new Logger(AwsSecretsManager.name);
   private secretsCache: Record<string, any> = {};
 
   async getSecrets(awsConfig: AwsConfig): Promise<Record<string, any>> {

@@ -1,13 +1,8 @@
-import { Address, Chain, encodeFunctionData, Hex } from 'viem';
+import { Address, Chain, Hex } from 'viem';
 
 import { EvmCall, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 
 import { BasicWallet } from '../basic-wallet';
-
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  encodeFunctionData: jest.fn(),
-}));
 
 describe('BasicWallet', () => {
   let wallet: BasicWallet;
@@ -50,8 +45,6 @@ describe('BasicWallet', () => {
     };
 
     wallet = new BasicWallet(mockPublicClient, mockWalletClient);
-
-    (encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedData');
   });
 
   afterEach(() => {
@@ -279,9 +272,16 @@ describe('BasicWallet', () => {
       it('should handle single transaction', async () => {
         const result = await wallet.writeContracts([mockParams[0]]);
 
-        // Should still use multicall for consistency
+        // Single transaction uses sequential path (keepSender defaults to false, but length === 1 triggers sequential)
         expect(result).toEqual([mockTxHash]);
-        expect(mockWalletClient.writeContract).toHaveBeenCalledTimes(1);
+        expect(mockWalletClient.sendTransaction).toHaveBeenCalledTimes(1);
+        expect(mockWalletClient.sendTransaction).toHaveBeenCalledWith(
+          expect.objectContaining({
+            to: mockParams[0].to,
+            data: mockParams[0].data,
+            value: mockParams[0].value,
+          }),
+        );
       });
     });
   });

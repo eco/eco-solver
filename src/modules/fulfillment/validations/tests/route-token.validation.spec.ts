@@ -163,7 +163,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(false); // Second token
 
         await expect(validation.validate(intentWithUnsupportedToken, mockContext)).rejects.toThrow(
-          'Token 0x0000000000000000000000006666666666666666666666666666666666666666 is not supported on chain 10',
+          'Token 0x6666666666666666666666666666666666666666 is not supported on chain 10',
         );
       });
 
@@ -264,7 +264,7 @@ describe('RouteTokenValidation', () => {
           .mockReturnValueOnce(false); // Second reward token
 
         await expect(validation.validate(intentWithUnsupportedReward, mockContext)).rejects.toThrow(
-          'Reward token 0x0000000000000000000000007777777777777777777777777777777777777777 is not supported on chain 8453',
+          'Reward token 0x7777777777777777777777777777777777777777 is not supported on chain 8453',
         );
       });
     });
@@ -316,13 +316,13 @@ describe('RouteTokenValidation', () => {
         tokenConfigService.isTokenSupported.mockReturnValue(false);
 
         await expect(validation.validate(intentWithTokens, mockContext)).rejects.toThrow(
-          'Token 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607 is not supported on chain 10',
+          'Token 0x7F5c764cBc14f9669B88837ca1490cCa17c31607 is not supported on chain 10',
         );
       });
     });
 
     describe('complex scenarios', () => {
-      it('should validate intent with multiple calls, route tokens, and reward tokens', async () => {
+      it('should throw error when intent has multiple route calls', async () => {
         const complexIntent = createMockIntent({
           reward: {
             ...mockIntent.reward,
@@ -350,6 +350,46 @@ describe('RouteTokenValidation', () => {
                   '0x0000000000000000000000006666666666666666666666666666666666666666',
                 ),
                 data: '0xa9059cbb' as `0x${string}`,
+                value: BigInt(0),
+              },
+            ],
+            tokens: [
+              {
+                token: toUniversalAddress(
+                  '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+                ),
+                amount: BigInt(1000),
+              },
+            ],
+          },
+        });
+
+        await expect(validation.validate(complexIntent, mockContext)).rejects.toThrow(
+          'Only one route call is allowed',
+        );
+      });
+
+      it('should validate intent with single call, route tokens, and reward tokens', async () => {
+        const complexIntent = createMockIntent({
+          reward: {
+            ...mockIntent.reward,
+            tokens: [
+              {
+                token: toUniversalAddress(
+                  '0x000000000000000000000000A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                ),
+                amount: BigInt(100),
+              },
+            ],
+          },
+          route: {
+            ...mockIntent.route,
+            calls: [
+              {
+                target: toUniversalAddress(
+                  '0x0000000000000000000000005555555555555555555555555555555555555555',
+                ),
+                data: '0x095ea7b3' as `0x${string}`,
                 value: BigInt(0),
               },
             ],

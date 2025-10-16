@@ -7,7 +7,6 @@ import Redis from 'ioredis';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { Hex } from 'viem';
 
-import { AppModule } from '@/app.module';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 
 // Helper function to cast string to UniversalAddress
@@ -50,6 +49,8 @@ describe.skip('SubmitIntent Integration Test', () => {
     }
 
     try {
+      // Dynamic import to avoid loading AppModule when test is skipped
+      const { AppModule } = await import('@/app.module');
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
       })
@@ -71,7 +72,7 @@ describe.skip('SubmitIntent Integration Test', () => {
 
       fulfillmentService = app.get<FulfillmentService>(FulfillmentService);
       console.log('Application initialized successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to initialize application:', error.message);
       throw error;
     }

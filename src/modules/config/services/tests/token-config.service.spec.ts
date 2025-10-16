@@ -77,7 +77,7 @@ describe('TokenConfigService', () => {
       // Use a proper 32-byte Solana-like address
       const address =
         '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as UniversalAddress;
-      const result = service.isTokenSupported('solana-mainnet', address);
+      const result = service.isTokenSupported(1399811149, address); // Solana mainnet
 
       expect(result).toBe(true);
     });
@@ -182,7 +182,7 @@ describe('TokenConfigService', () => {
         symbol: 'SOL',
       });
 
-      const result = service.getTokenConfig('solana-mainnet', address);
+      const result = service.getTokenConfig(1399811149, address); // Solana mainnet
 
       expect(result).toEqual({
         address: address,
@@ -275,7 +275,7 @@ describe('TokenConfigService', () => {
     });
 
     it('should return empty array for SVM (no restrictions)', () => {
-      const result = service.getSupportedTokens('solana-mainnet');
+      const result = service.getSupportedTokens(1399811149); // Solana mainnet
 
       expect(result).toEqual([]);
     });

@@ -3,7 +3,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { type Hex } from 'viem';
 
-import { AppModule } from '@/app.module';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 
 // Helper function to cast string to UniversalAddress
@@ -15,7 +14,6 @@ jest.setTimeout(30000);
 
 // Skip this test by default unless INTEGRATION_TESTS environment variable is set
 const shouldRunIntegrationTests = process.env.INTEGRATION_TESTS === 'true';
-
 const describeIntegration = shouldRunIntegrationTests ? describe : describe.skip;
 
 describeIntegration('Standard Fulfillment Flow Integration', () => {
@@ -29,6 +27,8 @@ describeIntegration('Standard Fulfillment Flow Integration', () => {
     console.log('Redis should be on: localhost:6379');
 
     try {
+      // Dynamic import to avoid loading AppModule when test is skipped
+      const { AppModule } = await import('@/app.module');
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
       }).compile();
@@ -38,7 +38,7 @@ describeIntegration('Standard Fulfillment Flow Integration', () => {
 
       fulfillmentService = app.get<FulfillmentService>(FulfillmentService);
       console.log('Application initialized successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error(
         'Failed to initialize application. Make sure MongoDB and Redis are running:',
         error.message,

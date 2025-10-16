@@ -102,6 +102,12 @@ export class ChainListener extends BaseChainListener {
           await this.handleIntentPublishedEvent(log, evmConfig, portalAddress);
         }
       },
+      onError: (error) => {
+        this.logger.error(
+          `Error in IntentPublished watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          toError(error),
+        );
+      },
     });
 
     // Store unsubscribe function
@@ -115,6 +121,12 @@ export class ChainListener extends BaseChainListener {
         for (const log of logs) {
           await this.handleIntentFulfilledEvent(log, evmConfig, portalAddress);
         }
+      },
+      onError: (error) => {
+        this.logger.error(
+          `Error in IntentFulfilled watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          toError(error),
+        );
       },
     });
 
@@ -144,6 +156,12 @@ export class ChainListener extends BaseChainListener {
             await this.handleIntentProvenEvent(log, evmConfig, proverType, proverAddress);
           }
         },
+        onError: (error) => {
+          this.logger.error(
+            `Error in IntentProven watcher for chain ${evmConfig.chainId}, prover ${proverType} at ${proverAddress}: ${getErrorMessage(error)}`,
+            toError(error),
+          );
+        },
         strict: true,
       });
 
@@ -158,6 +176,12 @@ export class ChainListener extends BaseChainListener {
         for (const log of logs) {
           await this.handleIntentWithdrawnEvent(log, evmConfig, portalAddress);
         }
+      },
+      onError: (error) => {
+        this.logger.error(
+          `Error in IntentWithdrawn watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          toError(error),
+        );
       },
     });
 

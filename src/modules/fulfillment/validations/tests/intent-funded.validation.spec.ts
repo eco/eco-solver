@@ -1,12 +1,25 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
+// Mock the blockchain reader service module before any imports
+jest.mock('@/modules/blockchain/blockchain-reader.service', () => ({
+  BlockchainReaderService: jest.fn().mockImplementation(() => ({
+    isIntentFunded: jest.fn(),
+  })),
+}));
+
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+
 import { IntentFundedValidation } from '../intent-funded.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
+
+// Helper function to create UniversalAddress from string
+function toUniversalAddress(address: string): UniversalAddress {
+  return address as UniversalAddress;
+}
 
 describe('IntentFundedValidation', () => {
   let validation: IntentFundedValidation;
@@ -40,6 +53,7 @@ describe('IntentFundedValidation', () => {
         }),
       },
     };
+
     const module = await Test.createTestingModule({
       providers: [
         IntentFundedValidation,

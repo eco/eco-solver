@@ -45,6 +45,7 @@ import {
   ProverSupportValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
+  RouteEnabledValidation,
   RouteTokenValidation,
   StandardFeeValidation,
 } from '@/modules/fulfillment/validations';
@@ -70,6 +71,7 @@ describe('StandardFulfillmentStrategy', () => {
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
   let expirationValidation: jest.Mocked<ExpirationValidation>;
   let chainSupportValidation: jest.Mocked<ChainSupportValidation>;
+  let routeEnabledValidation: jest.Mocked<RouteEnabledValidation>;
   let proverSupportValidation: jest.Mocked<ProverSupportValidation>;
   let executorBalanceValidation: jest.Mocked<ExecutorBalanceValidation>;
   let standardFeeValidation: jest.Mocked<StandardFeeValidation>;
@@ -115,6 +117,7 @@ describe('StandardFulfillmentStrategy', () => {
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
     expirationValidation = createMockValidation('ExpirationValidation') as any;
     chainSupportValidation = createMockValidation('ChainSupportValidation') as any;
+    routeEnabledValidation = createMockValidation('RouteEnabledValidation') as any;
     proverSupportValidation = createMockValidation('ProverSupportValidation') as any;
     executorBalanceValidation = createMockValidation('ExecutorBalanceValidation') as any;
     standardFeeValidation = createMockValidation('StandardFeeValidation') as any;
@@ -167,6 +170,10 @@ describe('StandardFulfillmentStrategy', () => {
           useValue: chainSupportValidation,
         },
         {
+          provide: RouteEnabledValidation,
+          useValue: routeEnabledValidation,
+        },
+        {
           provide: ProverSupportValidation,
           useValue: proverSupportValidation,
         },
@@ -198,7 +205,7 @@ describe('StandardFulfillmentStrategy', () => {
 
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(10);
+      expect(validations).toHaveLength(11);
       expect(validations[0]).toBe(intentFundedValidation);
       expect(validations[1]).toBe(duplicateRewardTokensValidation);
       expect(validations[2]).toBe(routeTokenValidation);
@@ -206,9 +213,10 @@ describe('StandardFulfillmentStrategy', () => {
       expect(validations[4]).toBe(routeAmountLimitValidation);
       expect(validations[5]).toBe(expirationValidation);
       expect(validations[6]).toBe(chainSupportValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(standardFeeValidation);
+      expect(validations[7]).toBe(routeEnabledValidation);
+      expect(validations[8]).toBe(proverSupportValidation);
+      expect(validations[9]).toBe(executorBalanceValidation);
+      expect(validations[10]).toBe(standardFeeValidation);
     });
 
     it('should have immutable validations array', () => {
@@ -278,6 +286,10 @@ describe('StandardFulfillmentStrategy', () => {
         mockIntent,
         expect.objectContaining({ strategy }),
       );
+      expect(routeEnabledValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
       expect(proverSupportValidation.validate).toHaveBeenCalledWith(
         mockIntent,
         expect.objectContaining({ strategy }),
@@ -299,6 +311,7 @@ describe('StandardFulfillmentStrategy', () => {
         routeAmountLimitValidation,
         expirationValidation,
         chainSupportValidation,
+        routeEnabledValidation,
         proverSupportValidation,
         executorBalanceValidation,
         standardFeeValidation,
@@ -326,6 +339,7 @@ describe('StandardFulfillmentStrategy', () => {
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
       expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
       expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(routeEnabledValidation.validate).toHaveBeenCalledTimes(1);
       expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
       expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
       expect(standardFeeValidation.validate).toHaveBeenCalledTimes(1);
@@ -416,7 +430,7 @@ describe('StandardFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(10);
+      expect(validations).toHaveLength(11);
       expect(Object.isFrozen(validations)).toBe(true);
     });
   });

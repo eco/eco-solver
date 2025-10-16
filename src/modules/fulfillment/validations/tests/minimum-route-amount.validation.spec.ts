@@ -1,20 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { MinimumRouteAmountValidation } from '../minimum-route-amount.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
 
+// Helper function to create UniversalAddress from string
+function toUniversalAddress(address: string): UniversalAddress {
+  return address as UniversalAddress;
+}
+
 describe('MinimumRouteAmountValidation', () => {
   let validation: MinimumRouteAmountValidation;
-  let mockFulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
+  let mockTokenConfigService: jest.Mocked<TokenConfigService>;
 
   beforeEach(async () => {
-    mockFulfillmentConfigService = {
+    mockTokenConfigService = {
       normalize: jest.fn(),
-      getToken: jest.fn(),
+      getTokenConfig: jest.fn(),
     } as any;
 
     const mockOtelService = {
@@ -37,8 +42,8 @@ describe('MinimumRouteAmountValidation', () => {
       providers: [
         MinimumRouteAmountValidation,
         {
-          provide: FulfillmentConfigService,
-          useValue: mockFulfillmentConfigService,
+          provide: TokenConfigService,
+          useValue: mockTokenConfigService,
         },
         {
           provide: OpenTelemetryService,
@@ -69,7 +74,7 @@ describe('MinimumRouteAmountValidation', () => {
       });
 
       // Mock normalize to return the same tokens with normalized amounts
-      mockFulfillmentConfigService.normalize.mockReturnValue([
+      mockTokenConfigService.normalize.mockReturnValue([
         {
           token: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
@@ -79,12 +84,13 @@ describe('MinimumRouteAmountValidation', () => {
         }, // 2 ETH normalized
       ]);
 
-      // Mock getToken to return object format with min
-      mockFulfillmentConfigService.getToken.mockReturnValue({
+      // Mock getTokenConfig to return object format with min
+      mockTokenConfigService.getTokenConfig.mockReturnValue({
         address: toUniversalAddress(
           '0x0000000000000000000000001234567890123456789012345678901234567890',
         ),
         decimals: 18,
+        symbol: 'ETH',
         limit: { min: 1, max: 1000 }, // Min is 1 ETH
       });
 
@@ -92,11 +98,11 @@ describe('MinimumRouteAmountValidation', () => {
       const result = await validation.validate(intent, context);
 
       expect(result).toBe(true);
-      expect(mockFulfillmentConfigService.normalize).toHaveBeenCalledWith(
+      expect(mockTokenConfigService.normalize).toHaveBeenCalledWith(
         intent.destination,
         intent.route.tokens,
       );
-      expect(mockFulfillmentConfigService.getToken).toHaveBeenCalledWith(
+      expect(mockTokenConfigService.getTokenConfig).toHaveBeenCalledWith(
         intent.destination,
         '0x0000000000000000000000001234567890123456789012345678901234567890',
       );
@@ -120,7 +126,7 @@ describe('MinimumRouteAmountValidation', () => {
       });
 
       // Mock normalize to return normalized amount
-      mockFulfillmentConfigService.normalize.mockReturnValue([
+      mockTokenConfigService.normalize.mockReturnValue([
         {
           token: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
@@ -131,11 +137,12 @@ describe('MinimumRouteAmountValidation', () => {
       ]);
 
       // Mock getToken to return no limit (no minimum)
-      mockFulfillmentConfigService.getToken.mockReturnValue({
+      mockTokenConfigService.getTokenConfig.mockReturnValue({
         address: toUniversalAddress(
           '0x0000000000000000000000001234567890123456789012345678901234567890',
         ),
         decimals: 18,
+        symbol: 'ETH',
         // No limit property means no minimum/maximum
       });
 
@@ -163,7 +170,7 @@ describe('MinimumRouteAmountValidation', () => {
       });
 
       // Mock normalize to return normalized amount
-      mockFulfillmentConfigService.normalize.mockReturnValue([
+      mockTokenConfigService.normalize.mockReturnValue([
         {
           token: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
@@ -174,18 +181,19 @@ describe('MinimumRouteAmountValidation', () => {
       ]);
 
       // Mock getToken to return object format with min
-      mockFulfillmentConfigService.getToken.mockReturnValue({
+      mockTokenConfigService.getTokenConfig.mockReturnValue({
         address: toUniversalAddress(
           '0x0000000000000000000000001234567890123456789012345678901234567890',
         ),
         decimals: 18,
+        symbol: 'ETH',
         limit: { min: 1, max: 1000 }, // Min is 1 ETH
       });
 
       const context = createMockValidationContext();
 
       await expect(validation.validate(intent, context)).rejects.toThrow(
-        'Total route value 500000000000000000 is below minimum amount 1000000000000000000 for destination chain 42',
+        'Total route value 0.5 is below minimum amount 1 for destination chain 42',
       );
     });
 
@@ -213,7 +221,7 @@ describe('MinimumRouteAmountValidation', () => {
       });
 
       // Mock normalize to return normalized amounts
-      mockFulfillmentConfigService.normalize.mockReturnValue([
+      mockTokenConfigService.normalize.mockReturnValue([
         {
           token: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
@@ -231,12 +239,13 @@ describe('MinimumRouteAmountValidation', () => {
       ]);
 
       // Mock getToken to return different minimums
-      mockFulfillmentConfigService.getToken
+      mockTokenConfigService.getTokenConfig
         .mockReturnValueOnce({
           address: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
           ),
           decimals: 6,
+          symbol: 'USDC',
           limit: { min: 1000, max: 10000 }, // Min is 1000
         })
         .mockReturnValueOnce({
@@ -244,13 +253,14 @@ describe('MinimumRouteAmountValidation', () => {
             '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
           ),
           decimals: 6,
+          symbol: 'USDT',
           limit: { min: 2000, max: 10000 }, // Min is 2000 (larger)
         });
 
       const context = createMockValidationContext();
 
       await expect(validation.validate(intent, context)).rejects.toThrow(
-        'Total route value 700000000000000000000 is below minimum amount 1000000000000000000000 for destination chain 137',
+        'Total route value 700 is below minimum amount 1000 for destination chain 137',
       );
     });
 
@@ -278,7 +288,7 @@ describe('MinimumRouteAmountValidation', () => {
       });
 
       // Mock normalize to return normalized amounts
-      mockFulfillmentConfigService.normalize.mockReturnValue([
+      mockTokenConfigService.normalize.mockReturnValue([
         {
           token: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
@@ -296,12 +306,13 @@ describe('MinimumRouteAmountValidation', () => {
       ]);
 
       // Mock getToken to return minimum for each token
-      mockFulfillmentConfigService.getToken
+      mockTokenConfigService.getTokenConfig
         .mockReturnValueOnce({
           address: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
           ),
           decimals: 18,
+          symbol: 'ETH',
           limit: { min: 0.5, max: 1000 }, // Min is 0.5 ETH
         })
         .mockReturnValueOnce({
@@ -309,6 +320,7 @@ describe('MinimumRouteAmountValidation', () => {
             '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
           ),
           decimals: 18,
+          symbol: 'WETH',
           limit: { min: 0.3, max: 1000 }, // Min is 0.3 ETH
         });
 
@@ -336,7 +348,7 @@ describe('MinimumRouteAmountValidation', () => {
       });
 
       // Mock normalize to return small amount
-      mockFulfillmentConfigService.normalize.mockReturnValue([
+      mockTokenConfigService.normalize.mockReturnValue([
         {
           token: toUniversalAddress(
             '0x0000000000000000000000001234567890123456789012345678901234567890',
@@ -347,11 +359,12 @@ describe('MinimumRouteAmountValidation', () => {
       ]);
 
       // Mock getToken to return no limit
-      mockFulfillmentConfigService.getToken.mockReturnValue({
+      mockTokenConfigService.getTokenConfig.mockReturnValue({
         address: toUniversalAddress(
           '0x0000000000000000000000001234567890123456789012345678901234567890',
         ),
         decimals: 18,
+        symbol: 'ETH',
         // No limit property
       });
 

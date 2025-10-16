@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';
 import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
 import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
-import { AwsSecretsService } from '@/modules/config/services/aws-secrets.service';
+import { AwsSecretsManager } from '@/modules/config/utils/aws-secrets-manager';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
 
 let cachedConfig: Config;
@@ -33,7 +33,7 @@ export const configurationFactory = async () => {
   const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);
 
   if (useAwsSecrets) {
-    const awsSecretsService = new AwsSecretsService();
+    const awsSecretsService = new AwsSecretsManager();
 
     const awsConfig = AwsSchema.parse(mergedConfig.aws);
 

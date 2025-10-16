@@ -20,7 +20,7 @@ import {
   toSvmRouteForCoder,
 } from '@/modules/blockchain/svm/utils/instruments';
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
-import { TvmUtils } from '@/modules/blockchain/tvm/services';
+import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 
 import { EVMRewardAbiItem, EVMRouteAbiItem } from '../abis/portal.abi';
 import { Intent } from '../interfaces/intent.interface';

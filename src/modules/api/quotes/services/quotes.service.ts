@@ -133,34 +133,37 @@ export class QuotesService {
 
     // Build the response
     return {
-      quoteResponse: {
-        sourceChainID: sourceChainId,
-        destinationChainID: destinationChainId,
-        sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),
-        destinationToken: AddressNormalizer.denormalize(destinationToken, destinationChainType),
-        sourceAmount: sourceAmount.toString(),
-        destinationAmount: destinationAmount.toString(),
-        funder: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
-        refundRecipient: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
-        recipient: request.quoteRequest.recipient,
-        fees: quoteResult.fees
-          ? [
-              {
-                name: 'Eco Protocol Fee' as const,
-                description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
-                token: {
-                  address: request.quoteRequest.sourceToken,
-                  decimals: rewardTokenConfig.decimals,
-                  symbol: rewardTokenConfig.symbol,
+      quoteResponses: [
+        {
+          intentExecutionType: 'SELF_PUBLISH',
+          sourceChainID: sourceChainId,
+          destinationChainID: destinationChainId,
+          sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),
+          destinationToken: AddressNormalizer.denormalize(destinationToken, destinationChainType),
+          sourceAmount: sourceAmount.toString(),
+          destinationAmount: destinationAmount.toString(),
+          funder: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
+          refundRecipient: AddressNormalizer.denormalize(intent.reward.creator, sourceChainType),
+          recipient: request.quoteRequest.recipient,
+          fees: quoteResult.fees
+            ? [
+                {
+                  name: 'Eco Protocol Fee' as const,
+                  description: `Protocol fee for fulfilling intent on chain ${destinationChainId}`,
+                  token: {
+                    address: request.quoteRequest.sourceToken,
+                    decimals: rewardTokenConfig.decimals,
+                    symbol: rewardTokenConfig.symbol,
+                  },
+                  amount: totalFee.toString(),
                 },
-                amount: totalFee.toString(),
-              },
-            ]
-          : [],
-        deadline: Number(intent.reward.deadline),
-        estimatedFulfillTimeSec: 30, // Default estimate can be made configurable
-        encodedRoute,
-      },
+              ]
+            : [],
+          deadline: Number(intent.reward.deadline),
+          estimatedFulfillTimeSec: 30, // Default estimate can be made configurable
+          encodedRoute,
+        },
+      ],
       contracts: {
         sourcePortal: AddressNormalizer.denormalize(sourcePortalAddressUA, sourceChainType),
         destinationPortal: AddressNormalizer.denormalize(intent.route.portal, destinationChainType),

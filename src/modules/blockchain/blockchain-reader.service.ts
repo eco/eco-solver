@@ -70,7 +70,7 @@ export class BlockchainReaderService {
    * @param address The address to check
    * @returns The balance in native token
    */
-  getBalance(chainId: number, address: UniversalAddress): Promise<bigint> {
+  async getBalance(chainId: number, address: UniversalAddress): Promise<bigint> {
     return this.getReaderForChain(chainId).getBalance(address, chainId);
   }
 
