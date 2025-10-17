@@ -131,21 +131,9 @@ export class FeeResolverService {
    * @returns The resolved fee configuration for native transfers
    */
   resolveNativeFee(chainId: ChainIdentifier): FeeSchemaType | undefined {
-    // For native transfers, check route override (chain+token agnostic not supported by scope), then network/default
+    // Native transfers do not use route-level token overrides; resolve via network/default hierarchy only
     const span = api.trace.getActiveSpan();
     span?.setAttributes({ 'fee.kind': 'native', 'fee.destinationChainId': String(chainId) });
-    const overrides =
-      (this.fulfillmentConfigService as any).routeFeeOverrides ??
-      (this.fulfillmentConfigService.fulfillmentConfig as any)?.routeFeeOverrides;
-    if (overrides && overrides.length) {
-      const match = (overrides as RouteFeeOverride[]).find(
-        (o: RouteFeeOverride) => String(o.destinationChainId) === String(chainId) && !!o.fee.native,
-      );
-      if (match?.fee.native) {
-        span?.setAttributes({ 'fee.source': 'routeOverride' });
-        return match.fee.native;
-      }
-    }
     return this.resolveFee(chainId).native;
   }
 
@@ -181,8 +169,8 @@ export class FeeResolverService {
     sourceTokenAddress?: UniversalAddress,
   ): RouteFeeOverride | undefined {
     const overrides =
-      (this.fulfillmentConfigService as any).routeFeeOverrides ??
-      (this.fulfillmentConfigService.fulfillmentConfig as any)?.routeFeeOverrides;
+      this.fulfillmentConfigService.routeFeeOverrides ??
+      this.fulfillmentConfigService.fulfillmentConfig.routeFeeOverrides;
     if (!overrides?.length) return undefined;
     if (!destinationChainId || !destinationTokenAddress || !sourceChainId || !sourceTokenAddress) {
       return undefined;
