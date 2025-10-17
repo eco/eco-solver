@@ -168,9 +168,7 @@ export class FeeResolverService {
     sourceChainId?: ChainIdentifier,
     sourceTokenAddress?: UniversalAddress,
   ): RouteFeeOverride | undefined {
-    const overrides =
-      this.fulfillmentConfigService.routeFeeOverrides ??
-      this.fulfillmentConfigService.fulfillmentConfig.routeFeeOverrides;
+    const overrides = this.fulfillmentConfigService.routeFeeOverrides;
     if (!overrides?.length) return undefined;
     if (!destinationChainId || !destinationTokenAddress || !sourceChainId || !sourceTokenAddress) {
       return undefined;

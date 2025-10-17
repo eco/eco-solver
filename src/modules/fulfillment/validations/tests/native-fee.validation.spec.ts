@@ -14,7 +14,7 @@ describe('NativeFeeValidation', () => {
     const mockFeeResolver = {
       resolveNativeFee: jest.fn().mockReturnValue({
         flatFee: 20000000000000000, // 0.02 ETH
-        scalarBps: 1.5, // 150 bps = 1.5%
+        scalarBps: 150, // 150 bps = 1.5%
       }),
     };
 
@@ -165,7 +165,7 @@ describe('NativeFeeValidation', () => {
                 useValue: {
                   resolveNativeFee: jest
                     .fn()
-                    .mockReturnValue({ flatFee: 50000000000000000, scalarBps: 2.5 }),
+                    .mockReturnValue({ flatFee: 50000000000000000, scalarBps: 250 }),
                 },
               },
             ],
@@ -415,7 +415,7 @@ describe('NativeFeeValidation', () => {
                 useValue: {
                   resolveNativeFee: jest
                     .fn()
-                    .mockReturnValue({ flatFee: 1000000000000, scalarBps: 0.1 }),
+                    .mockReturnValue({ flatFee: 1000000000000, scalarBps: 10 }),
                 },
               },
             ],
@@ -460,7 +460,7 @@ describe('NativeFeeValidation', () => {
               {
                 provide: FeeResolverService,
                 useValue: {
-                  resolveNativeFee: jest.fn().mockReturnValue({ flatFee: 0, scalarBps: 3.33 }),
+                  resolveNativeFee: jest.fn().mockReturnValue({ flatFee: 0, scalarBps: 333 }),
                 },
               },
             ],

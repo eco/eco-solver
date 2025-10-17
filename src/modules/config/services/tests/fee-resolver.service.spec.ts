@@ -647,6 +647,19 @@ describe('FeeResolverService', () => {
         })),
         configurable: true,
       });
+      // And expose the dedicated getter used by the resolver
+      Object.defineProperty(fulfillmentConfigService, 'routeFeeOverrides', {
+        get: jest.fn(() => [
+          {
+            sourceChainId: sourceChainId,
+            destinationChainId: destinationChainId,
+            sourceToken: srcToken,
+            destinationToken: dstToken,
+            fee: tokenFee,
+          },
+        ]),
+        configurable: true,
+      });
     });
 
     it('should take precedence over token/network/default for tokens path', () => {
