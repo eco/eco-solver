@@ -53,11 +53,18 @@ export class TvmReaderService extends BaseChainReader {
       }
     }
 
+    const tokens = this.tvmConfigService.getSupportedTokens(chainId);
+
     return {
       chainId,
       chainName: getChainName(chainId, ChainType.TVM),
       chainType: 'TVM',
       wallets,
+      tokens: tokens.map((token) => ({
+        address: token.address,
+        decimals: token.decimals,
+        symbol: token.symbol,
+      })),
     };
   }
 

@@ -64,11 +64,18 @@ export class SvmReaderService extends BaseChainReader {
       }
     }
 
+    const tokens = this.solanaConfigService.getSupportedTokens();
+
     return {
       chainId,
       chainName: getChainName(chainId, ChainType.SVM),
       chainType: 'SVM',
       wallets,
+      tokens: tokens.map((token) => ({
+        address: token.address,
+        decimals: token.decimals,
+        symbol: token.symbol,
+      })),
     };
   }
 
