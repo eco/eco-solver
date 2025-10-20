@@ -13,6 +13,7 @@ Analyze cross-chain transaction logs from the eco-solver system and provide comp
 This skill analyzes JSON log files from the eco-solver system. It automatically detects the log type and adapts analysis:
 
 **Supported Log Types:**
+
 - **Quote Only** - Just quote generation and validation
 - **Full Lifecycle** - Complete flow from quote to fulfillment
 - **Fulfillment Only** - Intent processing and fulfillment without quote
@@ -24,6 +25,7 @@ The skill extracts key metrics, identifies performance bottlenecks, and provides
 ## When to Use This Skill
 
 Use this skill when:
+
 - Analyzing production transaction logs
 - Investigating performance issues or slow transactions
 - Comparing transaction performance over time
@@ -36,6 +38,7 @@ Use this skill when:
 ### Step 1: Get the Log File Path
 
 If the user hasn't provided a log file path, ask:
+
 ```
 Please provide the path to the transaction log file (JSON format)
 ```
@@ -55,6 +58,7 @@ The script outputs structured JSON containing all extracted metrics.
 Organize your analysis into these sections:
 
 #### 1. Executive Summary
+
 - Log type (quote_only, full_lifecycle, fulfillment_only)
 - Total duration (in seconds and human-readable format)
 - **Effective processing time** (excluding user wait between quote and transaction)
@@ -65,6 +69,7 @@ Organize your analysis into these sections:
 - Key outcome status
 
 **Example (Full Lifecycle):**
+
 ```
 📊 Executive Summary
 - Log Type: Full Lifecycle
@@ -77,6 +82,7 @@ Organize your analysis into these sections:
 ```
 
 **Example (Quote Only):**
+
 ```
 📊 Executive Summary
 - Log Type: Quote Only
@@ -90,36 +96,40 @@ Organize your analysis into these sections:
 
 Present in a table format:
 
-| Metric | Value |
-|--------|-------|
-| User Sends (Source Chain) | Amount + Token |
-| User Receives (Destination Chain) | Amount + Token |
-| Solver Fee | Amount + Percentage |
-| Gas Overhead Estimate | Gas units |
-| Source Token Address | Address |
-| Destination Token Address | Address |
+| Metric                            | Value               |
+| --------------------------------- | ------------------- |
+| User Sends (Source Chain)         | Amount + Token      |
+| User Receives (Destination Chain) | Amount + Token      |
+| Solver Fee                        | Amount + Percentage |
+| Gas Overhead Estimate             | Gas units           |
+| Source Token Address              | Address             |
+| Destination Token Address         | Address             |
 
 #### 3. Performance Breakdown
 
 For each major phase, show duration and status:
 
 **Phase 1: Quote Generation** (target: <1s)
+
 - Total duration
 - Sub-operations (validation, balance checks, fee calculation)
 - Status: ✅ Optimized / ⚠️ Concern / 🔴 Critical
 
 **Phase 2: Blockchain Confirmation** (network-dependent)
+
 - Wait time for on-chain confirmation
 - Block number and transaction hash
 - Status indicator
 
 **Phase 3: Intent Processing**
+
 - Intent detection time
 - Feasibility check duration (often the bottleneck)
 - Token mapping operations
 - Status indicator
 
 **Phase 4: Fulfillment**
+
 - Wallet fulfillment time
 - Transaction construction time
 - Status indicator
@@ -139,6 +149,7 @@ Longest Operations:
 ```
 
 Use these indicators:
+
 - ✅ Optimized: <1s or within expected range
 - ⚠️ Concern: Needs attention (5-10s)
 - 🔴 Critical: Major bottleneck (>10s)
@@ -146,6 +157,7 @@ Use these indicators:
 #### 5. Validation Results
 
 List all validation checks with pass/fail status:
+
 - ✅ Supported native transfers
 - ✅ Supported prover
 - ✅ Supported targets
@@ -173,19 +185,23 @@ List all validation checks with pass/fail status:
 Rank by impact (High/Medium/Low):
 
 **HIGH IMPACT**: Operations that could save >10 seconds
+
 - Current duration → target duration
 - Estimated time savings
 - Percentage improvement
 
 **MEDIUM IMPACT**: Operations that could save 2-10 seconds
+
 - Specific recommendations
 - Implementation considerations
 
 **LOW IMPACT**: Operations that could save <2 seconds
+
 - Minor optimizations
 - Nice-to-have improvements
 
 **Calculate Potential Total Time Reduction:**
+
 ```
 Current: 169.78s → Optimized: ~120s (30% improvement)
 ```
@@ -200,6 +216,7 @@ Current: 169.78s → Optimized: ~120s (30% improvement)
 #### 10. Key Data Science Metrics
 
 Summary statistics:
+
 - Latency distribution by phase (percentages)
 - Operation counts by type
 - Success/failure rates
@@ -210,6 +227,7 @@ Summary statistics:
 Use these benchmarks for interpretation:
 
 ### Timing Benchmarks
+
 - ✅ Quote generation <1s = Excellent
 - ⚠️ Feasibility check >10s = Needs optimization
 - ✅ Blockchain wait 20-30s = Normal (network constraint)
@@ -218,12 +236,14 @@ Use these benchmarks for interpretation:
 - 🔴 Total time >5 min = Poor UX
 
 ### Fee Benchmarks
+
 - ✅ 2-3% = Excellent
 - ✅ 3-5% = Competitive
 - ⚠️ 5-7% = High but acceptable
 - 🔴 >7% = Uncompetitive
 
 ### Reliability Benchmarks
+
 - ✅ Zero retries = Robust validation upfront
 - ✅ All validations pass first attempt = Well designed system
 - ⚠️ 1-2 retries = Minor issues
@@ -244,11 +264,13 @@ Use these benchmarks for interpretation:
 ### Example 1: Analyzing a Production Log
 
 **User Request:**
+
 ```
 Analyze the transaction logs in logs/prod-tx-2025-10-20.json
 ```
 
 **Your Response:**
+
 1. Run the analysis script on the provided file
 2. Extract all metrics from the JSON output
 3. Present findings in the structured format above
@@ -258,11 +280,13 @@ Analyze the transaction logs in logs/prod-tx-2025-10-20.json
 ### Example 2: Comparing Two Transactions
 
 **User Request:**
+
 ```
 Compare these two transaction logs and tell me which performed better
 ```
 
 **Your Response:**
+
 1. Analyze both log files
 2. Create a side-by-side comparison table
 3. Highlight key differences in timing and fees
@@ -271,11 +295,13 @@ Compare these two transaction logs and tell me which performed better
 ### Example 3: Investigating a Slow Transaction
 
 **User Request:**
+
 ```
 Why was this transaction so slow? logs/slow-tx.json
 ```
 
 **Your Response:**
+
 1. Run the analysis focusing on bottlenecks
 2. Identify the specific operations that took longest
 3. Compare to benchmarks to identify anomalies
@@ -308,21 +334,27 @@ This skill includes:
 Try analyzing the included examples:
 
 **Quote Generation Only:**
+
 ```bash
 python3 .claude/skills/transaction-analyzer/analyze.py \
   .claude/skills/transaction-analyzer/examples/example-quote.json
 ```
+
 Demonstrates:
+
 - 0.613 second quote generation
 - All validations passing in <100ms
 - Optimal performance benchmark
 
 **Intent Fulfillment:**
+
 ```bash
 python3 .claude/skills/transaction-analyzer/analyze.py \
   .claude/skills/transaction-analyzer/examples/example-base-to-optimism-usdc-transfer.json
 ```
+
 Demonstrates:
+
 - 24.1 second total duration
 - 15.9 second feasibility check bottleneck (66% of time)
 - 1.78 second fulfillment (excellent)

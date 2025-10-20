@@ -52,6 +52,7 @@ python3 .claude/skills/transaction-analyzer/analyze.py \
 ```
 
 Expected output:
+
 - ✅ Total Events: 186
 - ✅ Duration: 169.78s
 - ✅ Phases Analyzed: 32
@@ -104,6 +105,7 @@ Analyzes cross-chain transaction logs to provide:
 ## Support
 
 For issues or questions:
+
 1. Check the documentation files
 2. Try the example to verify functionality
 3. Review the SKILL.md for usage instructions

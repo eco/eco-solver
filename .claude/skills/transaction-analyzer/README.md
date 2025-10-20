@@ -7,6 +7,7 @@ A Claude Code skill for analyzing cross-chain transaction logs from the eco-solv
 This skill analyzes JSON log files from the eco-solver system and automatically detects which part of the transaction lifecycle is present:
 
 **Supported Log Types:**
+
 - **Quote Only** - Just quote generation and validation (typical: ~0.6s)
 - **Fulfillment Only** - Intent processing and fulfillment from on-chain detection (typical: 15-30s)
 - **Full Lifecycle** - Complete flow including user wait time between quote and on-chain transaction
@@ -26,11 +27,13 @@ The analyzer automatically detects the log type and adapts its analysis accordin
 ### In Claude Code
 
 Simply invoke the skill:
+
 ```
 /skill transaction-analyzer
 ```
 
 Or reference it in conversation:
+
 ```
 Analyze the transaction logs in logs/transaction-123.json
 ```
@@ -50,18 +53,21 @@ This outputs a JSON structure with all extracted metrics.
 ## What It Analyzes
 
 ### 1. Executive Summary
+
 - Total duration (seconds)
 - Transaction amounts and chains
 - Fee percentage
 - Success rate
 
 ### 2. Transaction Economics
+
 - Source and destination amounts
 - Token addresses
 - Solver fees (amount and percentage)
 - Gas overhead estimates
 
 ### 3. Performance Breakdown
+
 - Quote generation time
 - Blockchain confirmation wait
 - Intent processing duration
@@ -69,35 +75,42 @@ This outputs a JSON structure with all extracted metrics.
 - Fulfillment execution time
 
 ### 4. Bottleneck Analysis
+
 - Identifies longest operations
 - Calculates percentage of total time
 - Provides status indicators (✅/⚠️/🔴)
 - Ranks optimization opportunities
 
 ### 5. Validation Results
+
 - All validation checks performed
 - Pass/fail status for each
 - Balance sufficiency
 - Chain compatibility
 
 ### 6. Chain Activity
+
 - Number of balance queries
 - Chains involved (with IDs)
 - Transaction and intent hashes
 - Block numbers
 
 ### 7. Error Analysis
+
 - Failed operations
 - Retry attempts
 - Success rates on critical path
 
 ### 8. Optimization Recommendations
+
 Ranked by impact:
+
 - High impact: Major bottlenecks (>10s savings potential)
 - Medium impact: Incremental improvements (2-10s savings)
 - Low impact: Minor optimizations (<2s savings)
 
 ### 9. Business Insights
+
 - Fee competitiveness vs market
 - User experience assessment
 - System reliability indicators
@@ -108,6 +121,7 @@ Ranked by impact:
 The skill uses these benchmarks for interpretation:
 
 ### Timing
+
 - ✅ Quote generation <1s = Excellent
 - ⚠️ Feasibility check >10s = Needs optimization
 - ✅ Blockchain wait 20-30s = Normal (network constraint)
@@ -115,12 +129,14 @@ The skill uses these benchmarks for interpretation:
 - 🔴 Total time >5 min = Poor UX
 
 ### Fees
+
 - ✅ 2-3% = Excellent
 - ✅ 3-5% = Competitive
 - ⚠️ 5-7% = High but acceptable
 - 🔴 >7% = Uncompetitive
 
 ### Reliability
+
 - ✅ Zero retries = Robust validation
 - ✅ All validations pass = Well designed
 - ⚠️ 1-2 retries = Minor issues
@@ -181,6 +197,7 @@ python3 .claude/skills/transaction-analyzer/analyze.py \
 ```
 
 This example shows a 0.78 USDC transfer from Base to Optimism with:
+
 - 4% fee (0.03 USDC)
 - 169.78 second total duration
 - 18.58 second feasibility check bottleneck
@@ -191,6 +208,7 @@ This example shows a 0.78 USDC transfer from Base to Optimism with:
 This skill is automatically available in Claude Code when placed in `.claude/skills/`.
 
 To use it:
+
 1. Ensure the directory structure is intact
 2. Make sure `analyze.py` is executable (`chmod +x analyze.py`)
 3. Invoke via `/skill transaction-analyzer` or natural language
@@ -198,6 +216,7 @@ To use it:
 ## Customization
 
 You can customize the analysis by:
+
 - Modifying `prompt.md` to change output format or focus areas
 - Extending `analyze.py` to extract additional metrics
 - Adjusting benchmarks in `prompt.md` for your specific use case

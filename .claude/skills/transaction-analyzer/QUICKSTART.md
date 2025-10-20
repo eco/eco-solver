@@ -17,6 +17,7 @@ or
 ```
 
 Claude will automatically:
+
 1. Ask for the log file path (if not provided)
 2. Run the analysis
 3. Present comprehensive findings with metrics and recommendations
@@ -66,6 +67,7 @@ Your log file should be **newline-delimited JSON** (NDJSON) where each line cont
 ```
 
 Key fields used:
+
 - `time`: Unix timestamp in milliseconds
 - `message`: Event description
 - `operation.type`: Operation type (quote_generation, intent_fulfillment, etc.)
@@ -76,11 +78,13 @@ Key fields used:
 ## Common Use Cases
 
 ### After a Production Transaction
+
 ```
 Analyze production-logs/transaction-2025-10-20-abc123.json
 ```
 
 ### Comparing Performance
+
 ```
 Compare these two transaction logs:
 1. .claude/skills/transaction-analyzer/example-base-to-optimism-usdc-transfer.json
@@ -88,11 +92,13 @@ Compare these two transaction logs:
 ```
 
 ### Finding Bottlenecks
+
 ```
 What are the main bottlenecks in transaction-xyz.json?
 ```
 
 ### Optimization Review
+
 ```
 Analyze transaction-before-optimization.json and suggest improvements
 ```
@@ -108,6 +114,7 @@ Analyze transaction-before-optimization.json and suggest improvements
 ## Next Steps
 
 After analysis:
+
 1. Review the bottleneck analysis
 2. Focus on HIGH impact optimizations first
 3. Compare before/after logs to measure improvements
