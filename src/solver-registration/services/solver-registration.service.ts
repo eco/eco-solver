@@ -282,7 +282,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   }
 
   private getServerEndpoint(...parts: string[]): string {
-    return this.joinUrl(this.serverConfig.url, ...parts)
+    // return this.joinUrl(this.serverConfig.url, ...parts)
+    return this.joinUrl('https://cool-actively-mayfly.ngrok-free.app', ...parts)
   }
 
   private joinUrl(...parts: string[]) {
