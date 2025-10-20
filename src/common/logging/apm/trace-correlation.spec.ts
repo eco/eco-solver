@@ -22,6 +22,8 @@ describe('TraceCorrelation', () => {
 
   beforeEach(() => {
     originalEnv = { ...process.env }
+    // Ensure NODE_ENV is set to 'test' for consistent test behavior
+    process.env.NODE_ENV = 'test'
     // Reset mocks
     jest.clearAllMocks()
   })

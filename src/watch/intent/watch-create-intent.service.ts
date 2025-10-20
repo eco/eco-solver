@@ -129,7 +129,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             txHash: createIntent.transactionHash,
             blockNum: createIntent.blockNumber,
             logIdx: createIntent.logIndex,
-            chain: source.chainID,
+            chain: String(source.chainID),
             network: source.network,
             // Truncate large hex data to prevent memory issues
             dataPreview: createIntent.data

@@ -592,13 +592,13 @@ describe('LiquidityManagerService', () => {
     it('should return swap quotes if possible', async () => {
       const mockDeficitToken = {
         config: { chainId: 1 },
-        analysis: { diff: 100, balance: { current: 50 }, targetSlippage: { min: 150 } },
+        analysis: { diff: 100, balance: { current: 50n }, targetSlippage: { min: 150n } },
       }
       const mockSurplusTokens = [{ config: { chainId: 1 }, analysis: { diff: 200 } }]
 
       jest
         .spyOn(liquidityProviderService, 'getQuote')
-        .mockResolvedValue([{ amountOut: 100 }] as any)
+        .mockResolvedValue([{ amountOut: 100n }] as any)
 
       const result = await liquidityManagerService.getOptimizedRebalancing(
         zeroAddress,

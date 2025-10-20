@@ -165,19 +165,28 @@ describe('WatchIntentService', () => {
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
     })
     it('should convert all bigints to strings', async () => {
-      expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
-        expect.objectContaining(serialize(log)),
+      // The logger now logs individual fields instead of a createIntent object
+      // to prevent OOM issues with large hex data
+      const loggedData = mockLogDebug.mock.calls[0][0]
+      expect(loggedData).toEqual(
+        expect.objectContaining({
+          message: 'Intent created event processed',
+          intentHash: log.args.hash,
+          logIdx: log.logIndex,
+        }),
       )
+      // Verify that BigInt values are NOT present (should be converted or handled)
+      expect(typeof loggedData.chain).not.toBe('bigint')
     })
 
     it('should should attach source chainID and network', async () => {
-      expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
-        expect.objectContaining(
-          serialize({
-            sourceChainID: s.chainID,
-            sourceNetwork: s.network,
-          }),
-        ),
+      // The logger now logs individual fields, including chain and network
+      const loggedData = mockLogDebug.mock.calls[0][0]
+      expect(loggedData).toEqual(
+        expect.objectContaining({
+          chain: String(s.chainID),
+          network: s.network,
+        }),
       )
     })
 
