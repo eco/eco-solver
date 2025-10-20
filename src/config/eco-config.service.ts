@@ -165,7 +165,7 @@ export class EcoConfigService {
 
     this.logger.log(
       EcoLogMessage.fromDefault({
-        message: `${EcoConfigService.name}.onModuleInit`,
+        message: `${EcoConfigService.name}.connectDynamicConfig`,
         properties: {
           isMongoConfigurationEnabled: this.isMongoConfigurationEnabled(),
           haveEventEmitter: Boolean(this.isEventEmitterEnabled()),
