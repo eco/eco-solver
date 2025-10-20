@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 
-import { configurationFactory } from '@/config/configuration-factory';
+import { EcoConfigService } from '@/config/eco-config.service';
 import {
   AppConfigService,
   AwsConfigService,
@@ -49,7 +49,7 @@ const configProviders = [
   imports: [
     NestConfigModule.forRoot({
       isGlobal: false,
-      load: [configurationFactory],
+      load: [EcoConfigService.loadConfig.bind(EcoConfigService)],
     }),
   ],
   providers: [ConfigService, ...configProviders],
