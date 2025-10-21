@@ -41,6 +41,59 @@ const HyperlaneSchema = z.object({
 });
 
 /**
+ * Token auth configuration for HashiCorp Vault
+ */
+const VaultTokenAuthSchema = z.object({
+  type: z.literal('token'),
+  token: z.string(),
+});
+
+/**
+ * Kubernetes auth configuration for HashiCorp Vault
+ */
+const VaultKubernetesAuthSchema = z.object({
+  type: z.literal('kubernetes'),
+  role: z.string(),
+  jwt: z.string().optional(), // Optional: reads from service account if not provided
+});
+
+/**
+ * Union of Vault authentication methods
+ */
+const VaultAuthSchema = z.union([VaultTokenAuthSchema, VaultKubernetesAuthSchema]);
+
+/**
+ * Basic wallet configuration with private key
+ */
+const BasicWalletTypeConfigSchema = z.object({
+  type: z.literal('basic'),
+  secretKey: z.string(), // base58 encoded private key
+});
+
+/**
+ * Vault wallet configuration using HashiCorp Vault Transit Secrets Engine
+ */
+const VaultWalletTypeConfigSchema = z.object({
+  type: z.literal('vault'),
+  endpoint: z.string().url(),
+  transitPath: z.string().default('transit'),
+  keyName: z.string(),
+  auth: VaultAuthSchema,
+});
+
+/**
+ * Discriminated union of wallet configurations
+ */
+const BasicWalletConfigSchema = z.union([BasicWalletTypeConfigSchema, VaultWalletTypeConfigSchema]);
+
+/**
+ * Wallets configuration schema
+ */
+const WalletsSchema = z.object({
+  basic: BasicWalletConfigSchema,
+});
+
+/**
  * Solana configuration schema
  */
 export const SolanaSchema = z.object({
@@ -50,7 +103,7 @@ export const SolanaSchema = z.object({
     .string()
     .regex(/^wss?:/)
     .optional(),
-  secretKey: z.string(), // alias for privateKey
+  wallets: WalletsSchema,
   portalProgramId: SvmAddressSchema,
   provers: z.record(z.enum(ProverTypeValues), SvmAddressSchema),
   defaultProver: z.enum(ProverTypeValues),
@@ -62,3 +115,4 @@ export const SolanaSchema = z.object({
 });
 
 export type SolanaConfig = z.infer<typeof SolanaSchema>;
+export type VaultAuthConfig = z.infer<typeof VaultAuthSchema>;
