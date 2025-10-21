@@ -3,7 +3,7 @@ import {
   MigrationOptions,
 } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { Test, TestingModule } from '@nestjs/testing';
 
 // Mock AWS SDK
@@ -72,7 +72,7 @@ describe('AwsToMongoDbMigrationService', () => {
         hasPrev: false,
       },
     });
-    EcoConfigService.getMongoConfigurations = () => {
+    ConfigFactory.getMongoConfigurations = () => {
       return {};
     };
   });
@@ -83,7 +83,7 @@ describe('AwsToMongoDbMigrationService', () => {
 
   describe('migrateFromAws', () => {
     beforeEach(() => {
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
     });
@@ -286,11 +286,11 @@ describe('AwsToMongoDbMigrationService', () => {
 
   describe('validateMigration', () => {
     it('should validate successful migration', async () => {
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
 
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return mockAwsSecrets;
       };
 
@@ -302,11 +302,11 @@ describe('AwsToMongoDbMigrationService', () => {
     });
 
     it('should detect missing keys', async () => {
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
 
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return {
           database: { uri: 'mongodb://localhost:27017' },
           // Missing other top-level keys (server, redis, api)
@@ -321,11 +321,11 @@ describe('AwsToMongoDbMigrationService', () => {
     });
 
     it('should detect mismatched values', async () => {
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
 
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return {
           ...mockAwsSecrets,
           mongodb: {
@@ -345,7 +345,7 @@ describe('AwsToMongoDbMigrationService', () => {
 
   describe('createRollbackPlan', () => {
     it('should create rollback plan for migrated configurations', async () => {
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
 
@@ -370,7 +370,7 @@ describe('AwsToMongoDbMigrationService', () => {
         },
       });
 
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return mockAwsSecrets;
       };
 

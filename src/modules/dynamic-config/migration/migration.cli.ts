@@ -4,7 +4,7 @@ import {
 } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
 import { Command } from 'commander';
 import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { EcoError } from '@/errors/eco-error';
 import { Logger } from '@nestjs/common';
 import { MigrationModule } from '@/modules/dynamic-config/migration/migration.module';
@@ -24,7 +24,7 @@ class MigrationCLI {
       });
 
       this.logger.log('Application context created successfully');
-      await EcoConfigService.loadConfig();
+      await ConfigFactory.loadConfig();
       return app;
     } catch (ex) {
       EcoError.logErrorWithStack(ex, `Failed to create application context`, this.logger);
@@ -205,7 +205,7 @@ class MigrationCLI {
       const app = await this.createApp();
 
       try {
-        const sources = EcoConfigService.getConfigurationSources();
+        const sources = ConfigFactory.getConfigurationSources();
 
         this.logger.log('\n=== Configuration Status ===');
         this.logger.log(`External configs: ${sources.external ? 'Available' : 'Not available'}`);
@@ -213,7 +213,7 @@ class MigrationCLI {
         this.logger.log(`MongoDB configs: ${sources.mongodb ? 'Available' : 'Not available'}`);
         this.logger.log(`MongoDB config count: ${sources.mongoConfigCount}`);
         this.logger.log(
-          `MongoDB integration: ${EcoConfigService.isMongoConfigurationEnabled() ? 'Enabled' : 'Disabled'}`,
+          `MongoDB integration: ${ConfigFactory.isMongoConfigurationEnabled() ? 'Enabled' : 'Disabled'}`,
         );
       } catch (configError) {
         const errorMessage =

@@ -1,7 +1,7 @@
 import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { CreateConfigurationDTO } from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { EcoError } from '@/errors/eco-error';
 import { EcoLogger } from '@/common/logging/eco-logger';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
@@ -181,7 +181,7 @@ export class AwsToMongoDbMigrationService {
     let allConfigurations: Record<string, any> = {};
 
     try {
-      allConfigurations = EcoConfigService.getAWSConfigValues();
+      allConfigurations = ConfigFactory.getAWSConfigValues();
     } catch (ex) {
       EcoError.logError(ex, `extractAwsConfigurations: exception`, this.logger);
       // throw ex
@@ -346,7 +346,7 @@ export class AwsToMongoDbMigrationService {
     );
 
     const awsConfigurations = await this.extractAwsConfigurations();
-    const mongoConfigurations = EcoConfigService.getMongoConfigurations();
+    const mongoConfigurations = ConfigFactory.getMongoConfigurations();
 
     const missingKeys: string[] = [];
     const mismatchedValues: Array<{ key: string; awsValue: any; mongoValue: any }> = [];

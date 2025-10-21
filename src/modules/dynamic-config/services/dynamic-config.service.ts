@@ -14,7 +14,7 @@ import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dyn
 import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
 import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
 import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { EcoError } from '@/errors/eco-error';
 import { EcoLogger } from '@/common/logging/eco-logger';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
@@ -90,7 +90,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log('ConfigurationService initialized successfully');
-    await EcoConfigService.connectDynamicConfig();
+    await ConfigFactory.connectDynamicConfig();
   }
 
   /**
