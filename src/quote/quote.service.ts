@@ -741,6 +741,9 @@ export class QuoteService implements OnModuleInit {
       }
     }
 
+    const estimatedFulfillTimeSec = this.fulfillmentEstimateService.getEstimatedFulfillTime(intent)
+    const gasOverhead = this.getGasOverhead(intent)
+
     return {
       response: {
         routeTokens,
@@ -748,6 +751,8 @@ export class QuoteService implements OnModuleInit {
         rewardTokens: intent.reward.tokens,
         rewardNative: totalAvailableAfterFeeNative,
         expiryTime: this.getQuoteExpiryTime(),
+        estimatedFulfillTimeSec,
+        gasOverhead,
       } as QuoteDataEntryDTO,
     }
   }
