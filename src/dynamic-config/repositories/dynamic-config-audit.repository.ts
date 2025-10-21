@@ -2,7 +2,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import {
   ConfigurationAudit,
   ConfigurationAuditDocument,
-} from '@/dynamic-config/schemas/configuration-audit.schema';
+} from '@/modules/dynamic-config/schemas/configuration-audit.schema';
 import { EcoError } from '@/errors/eco-error';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -201,6 +201,33 @@ export class DynamicConfigAuditRepository {
       return await this.auditModel.find(query).sort({ timestamp: -1 }).exec();
     } catch (ex) {
       EcoError.logError(ex, `findWithFilter: Failed to find audit logs with filter`, this.logger);
+      throw ex;
+    }
+  }
+
+  /**
+   * Find audit logs with filtering and pagination
+   */
+  async findWithFilterPaginated(
+    filter: AuditFilter,
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
+    try {
+      const query = this.buildQuery(filter);
+
+      const [logs, total] = await Promise.all([
+        this.auditModel.find(query).sort({ timestamp: -1 }).skip(offset).limit(limit).exec(),
+        this.auditModel.countDocuments(query).exec(),
+      ]);
+
+      return { logs, total };
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `findWithFilterPaginated: Failed to find audit logs with filter and pagination`,
+        this.logger,
+      );
       throw ex;
     }
   }

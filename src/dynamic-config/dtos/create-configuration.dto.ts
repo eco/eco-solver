@@ -1,4 +1,4 @@
-import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateConfigurationDTO {

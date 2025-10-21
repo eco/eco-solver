@@ -1,5 +1,6 @@
-import { CreateConfigurationDTO } from '@/dynamic-config/interfaces/configuration-repository.interface';
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
+import { CreateConfigurationDTO } from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { EcoConfigService } from '@/config/eco-config.service';
 import { EcoError } from '@/errors/eco-error';
 import { EcoLogger } from '@/common/logging/eco-logger';
@@ -25,7 +26,6 @@ export interface MigrationResult {
 export interface MigrationOptions {
   dryRun?: boolean;
   overwriteExisting?: boolean;
-  keyPrefix?: string;
   userId?: string;
   keys?: string; // Comma-separated list of top-level keys
   keysFile?: string; // Path to file containing keys
@@ -50,7 +50,6 @@ export class AwsToMongoDbMigrationService {
     const {
       dryRun = false,
       overwriteExisting = false,
-      keyPrefix = '',
       userId = 'migration-script',
       keys,
       keysFile,
@@ -100,7 +99,7 @@ export class AwsToMongoDbMigrationService {
 
       // Process each configuration
       for (const [key, value] of Object.entries(awsConfigurations)) {
-        const fullKey = keyPrefix ? `${keyPrefix}.${key}` : key;
+        const fullKey = key;
 
         try {
           // Check if configuration already exists
@@ -201,8 +200,15 @@ export class AwsToMongoDbMigrationService {
     const { keys, keysFile, migrateAll } = options;
 
     // If migrate-all is explicitly set or no filtering options provided, return all
-    if (migrateAll || (!keys && !keysFile)) {
+    if (migrateAll) {
       return configurations;
+    }
+
+    if (!keys && !keysFile) {
+      this.logger.warn(
+        'No keys specified. Use --migrate-all to migrate everything or provide --keys/--keys-file.',
+      );
+      return {};
     }
 
     let allowedKeys: string[] = [];
@@ -294,18 +300,18 @@ export class AwsToMongoDbMigrationService {
    */
   private inferConfigurationType(value: any): 'string' | 'number' | 'boolean' | 'object' | 'array' {
     if (Array.isArray(value)) {
-      return 'array';
+      return ConfigurationType.ARRAY;
     }
     if (value !== null && typeof value === 'object') {
-      return 'object';
+      return ConfigurationType.OBJECT;
     }
     if (typeof value === 'boolean') {
-      return 'boolean';
+      return ConfigurationType.BOOLEAN;
     }
     if (typeof value === 'number') {
-      return 'number';
+      return ConfigurationType.NUMBER;
     }
-    return 'string';
+    return ConfigurationType.STRING;
   }
 
   /**

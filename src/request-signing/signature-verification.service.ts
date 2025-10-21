@@ -17,10 +17,10 @@ export class SignatureVerificationService {
     expiryTime: string | number,
     claimedAddress: string,
   ): Promise<EcoResponse<string>> {
-    const now = Date.now();
-    const expiry = typeof expiryTime === 'string' ? parseInt(expiryTime, 10) : expiryTime;
+    const nowMs = Date.now();
+    const expiryTimeNumMs = this.getExpiryTime(expiryTime);
 
-    if (isNaN(expiry) || expiry < now) {
+    if (isNaN(expiryTimeNumMs) || expiryTimeNumMs < nowMs) {
       return { error: EcoError.SignatureExpired };
     }
 
@@ -48,6 +48,9 @@ export class SignatureVerificationService {
   ): Promise<EcoResponse<string>> {
     try {
       const canonicalPayload = canonicalize(payload);
+      if (typeof canonicalPayload !== 'string') {
+        throw new Error('Failed to canonicalize payload for signing');
+      }
 
       const recoveredAddress = await recoverTypedDataAddress({
         domain: DOMAIN,
@@ -55,7 +58,7 @@ export class SignatureVerificationService {
         primaryType: 'Registration',
         message: {
           payload: canonicalPayload,
-          expiryTime,
+          expiryTime: this.getExpiryTime(expiryTime),
         },
         signature,
       });
@@ -75,5 +78,12 @@ export class SignatureVerificationService {
 
       return { error: EcoError.TypedDataVerificationFailed(errorMessage) };
     }
+  }
+
+  getExpiryTime(expiryTime: string | number): number {
+    const parsed = typeof expiryTime === 'string' ? parseInt(expiryTime, 10) : expiryTime;
+    const expiryMs = Number.isFinite(parsed) ? parsed : NaN;
+
+    return expiryMs;
   }
 }

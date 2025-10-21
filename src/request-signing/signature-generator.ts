@@ -19,6 +19,10 @@ export class SignatureGenerator {
     expiryTime: number,
   ): Promise<SignedMessage> {
     const canonicalPayload = canonicalize(payload);
+    if (typeof canonicalPayload !== 'string') {
+      throw new Error('Failed to canonicalize payload for signing');
+    }
+
     const signature = await walletAccount.signTypedData({
       domain: DOMAIN,
       types: TYPES,

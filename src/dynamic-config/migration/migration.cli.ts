@@ -1,13 +1,13 @@
 import {
   AwsToMongoDbMigrationService,
   MigrationOptions,
-} from '@/dynamic-config/migration/aws-to-mongodb-migration.service';
+} from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
 import { Command } from 'commander';
-import { DynamicConfigValidationService } from '@/dynamic-config/migration/dynamic-config-validation.service';
+import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
 import { EcoConfigService } from '@/config/eco-config.service';
 import { EcoError } from '@/errors/eco-error';
 import { Logger } from '@nestjs/common';
-import { MigrationModule } from '@/dynamic-config/migration/migration.module';
+import { MigrationModule } from '@/modules/dynamic-config/migration/migration.module';
 import { NestFactory } from '@nestjs/core';
 
 /**
@@ -68,7 +68,6 @@ class MigrationCLI {
         await this.executeMigration({
           dryRun: options.dryRun,
           overwriteExisting: options.overwrite,
-          keyPrefix: options.keyPrefix,
           userId: options.userId,
           keys: options.keys,
           keysFile: options.keysFile,

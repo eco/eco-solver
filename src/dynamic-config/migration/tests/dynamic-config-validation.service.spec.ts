@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
-import { DynamicConfigValidationService } from '@/dynamic-config/migration/dynamic-config-validation.service';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
+import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
 import { EcoConfigService } from '@/config/eco-config.service';
 import { Test, TestingModule } from '@nestjs/testing';
 

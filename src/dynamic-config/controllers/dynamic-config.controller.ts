@@ -17,21 +17,21 @@ import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   AuditLogResponseDTO,
   PaginatedAuditResponseDTO,
-} from '@/dynamic-config/dtos/audit-response.dto';
-import { AuditQueryDTO } from '@/dynamic-config/dtos/audit-query.dto';
-import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto';
+} from '@/modules/dynamic-config/dtos/audit-response.dto';
+import { AuditQueryDTO } from '@/modules/dynamic-config/dtos/audit-query.dto';
+import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
 import {
   ConfigurationResponseDTO,
   PaginatedConfigurationResponseDTO,
-} from '@/dynamic-config/dtos/configuration-response.dto';
-import { CreateConfigurationDTO } from '@/dynamic-config/dtos/create-configuration.dto';
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
+} from '@/modules/dynamic-config/dtos/configuration-response.dto';
+import { CreateConfigurationDTO } from '@/modules/dynamic-config/dtos/create-configuration.dto';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { EcoError } from '@/errors/eco-error';
 import { Request } from 'express';
 import { RequestHeaders } from '@/request-signing/request-headers';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
-import { UpdateConfigurationDTO } from '@/dynamic-config/dtos/update-configuration.dto';
+import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
 
 @ApiTags('Configuration')
 @Controller('api/v1/configuration')
@@ -142,7 +142,7 @@ export class DynamicConfigController {
       }
 
       // Get the full configuration document for response
-      const configDoc = await this.configurationService['configRepository'].findByKey(key);
+      const configDoc = await this.configurationService.findByKey(key);
       if (!configDoc) {
         throw new HttpException(`Configuration not found: ${key}`, HttpStatus.NOT_FOUND);
       }
@@ -472,13 +472,12 @@ export class DynamicConfigController {
       const auditLogs = await this.configurationService.getAuditHistory(key, limit, offset);
 
       // Transform to response DTOs
-      const responseData = auditLogs.map((log) => this.toAuditResponseDTO(log));
+      const responseData = auditLogs.logs.map((log) => this.toAuditResponseDTO(log));
 
       // Get total count for the specific configuration
       // Note: This is a simplified approach. In a real implementation, you might want
       // to add a count method to the audit service for better performance
-      const allLogs = await this.configurationService.getAuditHistory(key, 1000, 0);
-      const total = allLogs.length;
+      const total = await this.configurationService.getAuditHistoryCountForKey(key);
 
       return {
         data: responseData,
@@ -499,7 +498,7 @@ export class DynamicConfigController {
    */
   private toResponseDTO(config: any): ConfigurationResponseDTO {
     return {
-      id: config._id || 'generated-id',
+      id: config._id?.toString?.(),
       key: config.key,
       value: config.value,
       type: config.type,

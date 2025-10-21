@@ -1,4 +1,4 @@
-import { DynamicConfigValidatorService } from '@/dynamic-config/services/dynamic-config-validator.service';
+import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { z } from 'zod';
 

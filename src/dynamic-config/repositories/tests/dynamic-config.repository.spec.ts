@@ -3,12 +3,12 @@ import {
   ConfigurationFilter,
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
-} from '@/dynamic-config/interfaces/configuration-repository.interface';
+} from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
 import {
   Configuration,
   ConfigurationDocument,
-} from '@/dynamic-config/schemas/configuration.schema';
-import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository';
+} from '@/modules/dynamic-config/schemas/configuration.schema';
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
 import { getModelToken } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -177,7 +177,13 @@ describe('DynamicConfigRepository', () => {
 
       model.countDocuments.mockReturnValue({ exec: mockCountExec } as any);
 
-      const result = await repository.findAll(undefined, { page: 1, limit: 10 });
+      const result = await repository.findAllWithFilteringAndPagination(
+        {},
+        {
+          page: 1,
+          limit: 10,
+        },
+      );
 
       expect(result.data).toEqual(mockConfigs);
       expect(result.pagination).toEqual({
@@ -212,7 +218,7 @@ describe('DynamicConfigRepository', () => {
 
       model.countDocuments.mockReturnValue({ exec: mockCountExec } as any);
 
-      await repository.findAll(filter);
+      await repository.findAllWithFilteringAndPagination(filter);
 
       expect(model.find).toHaveBeenCalledWith({
         key: { $in: ['test.key1', 'test.key2'] },

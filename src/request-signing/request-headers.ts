@@ -51,7 +51,9 @@ export class RequestHeaders {
   }
 
   getExpire(): number {
-    return this.getHeader(SIGNATURE_EXPIRE_HEADER) as number;
+    const raw = this.getHeader(SIGNATURE_EXPIRE_HEADER);
+    const n = typeof raw === 'string' ? Number(raw) : raw;
+    return Number.isFinite(n) ? (n as number) : NaN;
   }
 
   private getHeader(name: string): any {

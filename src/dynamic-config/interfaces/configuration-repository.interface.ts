@@ -1,4 +1,5 @@
-import { ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema';
+import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
+import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
 
 export interface CreateConfigurationDTO {
   key: string;
@@ -54,7 +55,7 @@ export interface PaginationOptions {
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: SortOrder;
 }
 
 export interface PaginatedResult<T> {
@@ -73,8 +74,8 @@ export interface IConfigurationRepository {
   // Basic CRUD operations
   create(data: CreateConfigurationDTO): Promise<ConfigurationDocument>;
   findByKey(key: string): Promise<ConfigurationDocument | null>;
-  findAll(
-    filter?: ConfigurationFilter,
+  findAllWithFilteringAndPagination(
+    filter: ConfigurationFilter,
     pagination?: PaginationOptions,
   ): Promise<PaginatedResult<ConfigurationDocument>>;
   update(key: string, data: UpdateConfigurationDTO): Promise<ConfigurationDocument | null>;

@@ -1,8 +1,8 @@
 import {
   AwsToMongoDbMigrationService,
   MigrationOptions,
-} from '@/dynamic-config/migration/aws-to-mongodb-migration.service';
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
+} from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { EcoConfigService } from '@/config/eco-config.service';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -12,22 +12,9 @@ jest.mock('@aws-sdk/client-secrets-manager');
 describe('AwsToMongoDbMigrationService', () => {
   let service: AwsToMongoDbMigrationService;
   let configurationService: jest.Mocked<DynamicConfigService>;
-  // let ecoConfigService: jest.Mocked<EcoConfigService>
-  // let mockSecretsManager: jest.Mocked<SecretsManager>
-
-  // const mockAwsCredentials = [
-  //   {
-  //     region: 'us-east-1',
-  //     secretID: 'test-secret-1',
-  //   },
-  //   {
-  //     region: 'us-west-2',
-  //     secretID: 'test-secret-2',
-  //   },
-  // ]
 
   const mockAwsSecrets = {
-    database: {
+    mongodb: {
       uri: 'mongodb://localhost:27017',
       dbName: 'test-db',
     },
@@ -61,17 +48,6 @@ describe('AwsToMongoDbMigrationService', () => {
       delete: jest.fn(),
     };
 
-    // const mockEcoConfigService = {
-    //   getAwsConfigs: jest.fn(),
-    //   getMongoConfigurations: jest.fn(),
-    //   get: jest.fn(),
-    // }
-
-    // mockSecretsManager = {
-    //   getSecretValue: jest.fn(),
-    // } as any
-    // ;(SecretsManager as jest.Mock).mockImplementation(() => mockSecretsManager)
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AwsToMongoDbMigrationService,
@@ -79,19 +55,13 @@ describe('AwsToMongoDbMigrationService', () => {
           provide: DynamicConfigService,
           useValue: mockConfigurationService,
         },
-        // {
-        //   provide: EcoConfigService,
-        //   useValue: mockEcoConfigService,
-        // },
       ],
     }).compile();
 
     service = module.get<AwsToMongoDbMigrationService>(AwsToMongoDbMigrationService);
     configurationService = module.get(DynamicConfigService);
-    // ecoConfigService = module.get(EcoConfigService)
 
     // Setup default mocks
-    // ecoConfigService.getAwsConfigs.mockReturnValue(mockAwsCredentials)
     configurationService.getAll.mockResolvedValue({
       data: mockExistingConfigs,
       pagination: {
@@ -106,7 +76,6 @@ describe('AwsToMongoDbMigrationService', () => {
     EcoConfigService.getMongoConfigurations = () => {
       return {};
     };
-    // ecoConfigService.getMongoConfigurations.mockReturnValue({})
   });
 
   afterEach(() => {
@@ -118,10 +87,6 @@ describe('AwsToMongoDbMigrationService', () => {
       EcoConfigService.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
-
-      // ;(mockSecretsManager.getSecretValue as jest.Mock).mockResolvedValue({
-      //   SecretString: JSON.stringify(mockAwsSecrets),
-      // })
     });
 
     it('should successfully migrate AWS configurations to MongoDB', async () => {
@@ -129,6 +94,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       };
 
       configurationService.create.mockResolvedValue({} as any);
@@ -147,6 +113,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: true,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       };
 
       const result = await service.migrateFromAws(options);
@@ -161,7 +128,7 @@ describe('AwsToMongoDbMigrationService', () => {
       configurationService.getAll.mockResolvedValue({
         data: [
           {
-            key: 'database',
+            key: 'mongodb',
             value: { uri: 'existing-uri', dbName: 'existing-db' },
             type: 'object' as const,
             isRequired: true,
@@ -183,6 +150,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       };
 
       const result = await service.migrateFromAws(options);
@@ -198,7 +166,7 @@ describe('AwsToMongoDbMigrationService', () => {
       configurationService.getAll.mockResolvedValue({
         data: [
           {
-            key: 'database',
+            key: 'mongodb',
             value: { uri: 'existing-uri', dbName: 'existing-db' },
             type: 'object' as const,
             isRequired: true,
@@ -220,6 +188,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: true,
         userId: 'test-user',
+        migrateAll: true,
       };
 
       configurationService.update.mockResolvedValue({} as any);
@@ -229,28 +198,8 @@ describe('AwsToMongoDbMigrationService', () => {
 
       expect(result.migratedCount).toBe(Object.keys(mockAwsSecrets).length);
       expect(configurationService.update).toHaveBeenCalledWith(
-        'database',
+        'mongodb',
         { value: { uri: 'mongodb://localhost:27017', dbName: 'test-db' } },
-        'test-user',
-      );
-    });
-
-    it('should add key prefix when specified', async () => {
-      const options: MigrationOptions = {
-        dryRun: false,
-        overwriteExisting: false,
-        keyPrefix: 'aws',
-        userId: 'test-user',
-      };
-
-      configurationService.create.mockResolvedValue({} as any);
-
-      await service.migrateFromAws(options);
-
-      expect(configurationService.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          key: 'aws.database',
-        }),
         'test-user',
       );
     });
@@ -262,6 +211,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       };
 
       const result = await service.migrateFromAws(options);
@@ -276,7 +226,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
-        keys: 'database,redis', // Only migrate database and redis configs
+        keys: 'mongodb,redis', // Only migrate mongodb and redis configs
       };
 
       configurationService.create.mockResolvedValue({} as any);
@@ -295,7 +245,7 @@ describe('AwsToMongoDbMigrationService', () => {
       // Check that database config was created with nested structure
       expect(configurationService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          key: 'database',
+          key: 'mongodb',
           value: expect.objectContaining({
             uri: 'mongodb://localhost:27017',
             dbName: 'test-db',
@@ -339,14 +289,10 @@ describe('AwsToMongoDbMigrationService', () => {
 
   describe('validateMigration', () => {
     it('should validate successful migration', async () => {
-      // ;(mockSecretsManager.getSecretValue as jest.Mock).mockResolvedValue({
-      //   SecretString: JSON.stringify(mockAwsSecrets),
-      // })
       EcoConfigService.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
 
-      // ecoConfigService.getMongoConfigurations.mockReturnValue(mockAwsSecrets)
       EcoConfigService.getMongoConfigurations = () => {
         return mockAwsSecrets;
       };
@@ -359,17 +305,9 @@ describe('AwsToMongoDbMigrationService', () => {
     });
 
     it('should detect missing keys', async () => {
-      // ;(mockSecretsManager.getSecretValue as jest.Mock).mockResolvedValue({
-      //   SecretString: JSON.stringify(mockAwsSecrets),
-      // })
       EcoConfigService.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
-
-      // ecoConfigService.getMongoConfigurations.mockReturnValue({
-      //   database: { uri: 'mongodb://localhost:27017' },
-      //   // Missing other top-level keys (server, redis, api)
-      // })
 
       EcoConfigService.getMongoConfigurations = () => {
         return {
@@ -386,25 +324,14 @@ describe('AwsToMongoDbMigrationService', () => {
     });
 
     it('should detect mismatched values', async () => {
-      // ;(mockSecretsManager.getSecretValue as jest.Mock).mockResolvedValue({
-      //   SecretString: JSON.stringify(mockAwsSecrets),
-      // })
       EcoConfigService.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
 
-      // ecoConfigService.getMongoConfigurations.mockReturnValue({
-      //   ...mockAwsSecrets,
-      //   database: {
-      //     ...mockAwsSecrets.database,
-      //     uri: 'mongodb://different-host:27017', // Different value
-      //   },
-      // })
-
       EcoConfigService.getMongoConfigurations = () => {
         return {
           ...mockAwsSecrets,
-          database: {
+          mongodb: {
             ...mockAwsSecrets.database,
             uri: 'mongodb://different-host:27017', // Different value
           },
@@ -415,15 +342,12 @@ describe('AwsToMongoDbMigrationService', () => {
 
       expect(result.valid).toBe(false);
       expect(result.mismatchedValues.length).toBeGreaterThan(0);
-      expect(result.mismatchedValues[0].key).toBe('database');
+      expect(result.mismatchedValues[0].key).toBe('mongodb');
     });
   });
 
   describe('createRollbackPlan', () => {
     it('should create rollback plan for migrated configurations', async () => {
-      // ;(mockSecretsManager.getSecretValue as jest.Mock).mockResolvedValue({
-      //   SecretString: JSON.stringify(mockAwsSecrets),
-      // })
       EcoConfigService.getAWSConfigValues = () => {
         return mockAwsSecrets;
       };
@@ -449,8 +373,6 @@ describe('AwsToMongoDbMigrationService', () => {
           hasPrev: false,
         },
       });
-
-      // ecoConfigService.getMongoConfigurations.mockReturnValue(mockAwsSecrets)
 
       EcoConfigService.getMongoConfigurations = () => {
         return mockAwsSecrets;
