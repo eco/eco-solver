@@ -28,7 +28,6 @@ describe('DynamicConfigService', () => {
     value: 'test-value',
     type: 'string',
     isRequired: false,
-    isSecret: false,
     description: 'Test config',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -156,15 +155,6 @@ describe('DynamicConfigService', () => {
 
       expect(result).toBeNull()
     })
-
-    it('should mask secret values', async () => {
-      const secretConfig = { ...mockConfigDocument, isSecret: true }
-      repository.findByKey.mockResolvedValue(secretConfig)
-
-      const result = await service.get('secret.key')
-
-      expect(result).toBe('***MASKED***')
-    })
   })
 
   describe('getWithDefault', () => {
@@ -272,35 +262,6 @@ describe('DynamicConfigService', () => {
       )
     })
 
-    it('should auto-detect sensitive values', async () => {
-      const sensitiveDTO = {
-        key: 'api.secret',
-        value: 'sk_test_1234567890abcdef',
-        type: 'string' as const,
-      }
-
-      sanitizer.detectSensitiveValue.mockReturnValue(true)
-      sanitizer.validateConfigurationKey.mockReturnValue({ isValid: true })
-      validator.validateConfiguration.mockResolvedValue({
-        isValid: true,
-        errors: [],
-        warnings: [],
-      })
-      repository.create.mockResolvedValue(mockConfigDocument)
-
-      await service.create(sensitiveDTO)
-
-      expect(sanitizer.detectSensitiveValue).toHaveBeenCalledWith(
-        sensitiveDTO.key,
-        sensitiveDTO.value,
-      )
-      expect(repository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isSecret: true,
-        }),
-      )
-    })
-
     it('should reject invalid configuration keys', async () => {
       const invalidDTO = {
         key: 'invalid key with spaces',
@@ -399,34 +360,6 @@ describe('DynamicConfigService', () => {
         }),
       )
     })
-
-    it('should auto-detect sensitive values in updates', async () => {
-      const sensitiveUpdateDTO = {
-        value: 'new-secret-token-12345',
-      }
-
-      sanitizer.detectSensitiveValue.mockReturnValue(true)
-      validator.validateConfiguration.mockResolvedValue({
-        isValid: true,
-        errors: [],
-        warnings: [],
-      })
-      repository.findByKey.mockResolvedValue(mockConfigDocument)
-      repository.update.mockResolvedValue({ ...mockConfigDocument, ...sensitiveUpdateDTO })
-
-      await service.update('test.key', sensitiveUpdateDTO)
-
-      expect(sanitizer.detectSensitiveValue).toHaveBeenCalledWith(
-        'test.key',
-        sensitiveUpdateDTO.value,
-      )
-      expect(repository.update).toHaveBeenCalledWith(
-        'test.key',
-        expect.objectContaining({
-          isSecret: true,
-        }),
-      )
-    })
   })
 
   describe('delete', () => {
@@ -487,15 +420,6 @@ describe('DynamicConfigService', () => {
       expect(result).toHaveLength(1)
     })
 
-    it('should get secret configurations', async () => {
-      repository.findSecrets.mockResolvedValue([mockConfigDocument])
-
-      const result = await service.getSecrets()
-
-      expect(repository.findSecrets).toHaveBeenCalled()
-      expect(result).toHaveLength(1)
-    })
-
     it('should find missing required configurations', async () => {
       repository.findMissingRequired.mockResolvedValue(['missing.key'])
 
@@ -510,7 +434,6 @@ describe('DynamicConfigService', () => {
         total: 10,
         byType: { string: 5, number: 3, boolean: 2 },
         required: 3,
-        secrets: 2,
         lastModified: new Date(),
       }
       repository.getStatistics.mockResolvedValue(dbStats)

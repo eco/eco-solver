@@ -6,7 +6,6 @@ export interface CreateConfigurationDTO {
   value: any;
   type: 'string' | 'number' | 'boolean' | 'object' | 'array';
   isRequired?: boolean;
-  isSecret?: boolean;
   description?: string;
   lastModifiedBy?: string;
 }
@@ -15,7 +14,6 @@ export interface UpdateConfigurationDTO {
   value?: any;
   type?: 'string' | 'number' | 'boolean' | 'object' | 'array';
   isRequired?: boolean;
-  isSecret?: boolean;
   description?: string;
   lastModifiedBy?: string;
 }
@@ -24,7 +22,6 @@ export interface ConfigurationFilter {
   keys?: string[];
   type?: 'string' | 'number' | 'boolean' | 'object' | 'array';
   isRequired?: boolean;
-  isSecret?: boolean;
   lastModifiedBy?: string;
   createdAfter?: Date;
   createdBefore?: Date;
@@ -96,7 +93,6 @@ export interface IConfigurationRepository {
 
   // Specialized queries
   findRequired(): Promise<ConfigurationDocument[]>;
-  findSecrets(): Promise<ConfigurationDocument[]>;
   findByType(
     type: 'string' | 'number' | 'boolean' | 'object' | 'array',
   ): Promise<ConfigurationDocument[]>;
@@ -112,7 +108,6 @@ export interface IConfigurationRepository {
     total: number;
     byType: Record<string, number>;
     required: number;
-    secrets: number;
     lastModified: Date | null;
   }>;
 }

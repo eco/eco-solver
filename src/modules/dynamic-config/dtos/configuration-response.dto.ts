@@ -6,7 +6,6 @@ export class ConfigurationResponseDTO {
   value: any;
   type: ConfigurationType;
   isRequired: boolean;
-  isSecret: boolean;
   description?: string;
   lastModifiedBy?: string;
   createdAt: Date;

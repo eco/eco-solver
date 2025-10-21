@@ -16,10 +16,6 @@ export class CreateConfigurationDTO {
   @IsOptional()
   isRequired?: boolean = false;
 
-  @IsBoolean()
-  @IsOptional()
-  isSecret?: boolean = false;
-
   @IsString()
   @IsOptional()
   description?: string;

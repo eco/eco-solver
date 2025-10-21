@@ -177,9 +177,6 @@ export class DynamicConfigAuditService {
    * Mask sensitive values for security
    */
   private maskSensitiveValue(value: any): any {
-    if (value && typeof value === 'object' && value.isSecret) {
-      return '***MASKED***';
-    }
     return value;
   }
 }

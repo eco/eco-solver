@@ -17,7 +17,6 @@ describe('DynamicConfigValidationService', () => {
       },
       type: 'object' as const,
       isRequired: true,
-      isSecret: false,
       lastModified: new Date(),
     },
     {
@@ -27,7 +26,6 @@ describe('DynamicConfigValidationService', () => {
       },
       type: 'object' as const,
       isRequired: true,
-      isSecret: false,
       lastModified: new Date(),
     },
   ];
@@ -87,7 +85,6 @@ describe('DynamicConfigValidationService', () => {
           },
           type: 'object' as const,
           isRequired: false,
-          isSecret: true,
           lastModified: new Date(),
         },
       ];

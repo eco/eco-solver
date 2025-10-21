@@ -14,10 +14,6 @@ export class UpdateConfigurationDTO {
   @IsOptional()
   isRequired?: boolean;
 
-  @IsBoolean()
-  @IsOptional()
-  isSecret?: boolean;
-
   @IsString()
   @IsOptional()
   description?: string;
