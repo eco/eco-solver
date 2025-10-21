@@ -1,4 +1,5 @@
 export default {
+  port: 3000,
   aws: [
     {
       region: 'us-east-2',
@@ -97,7 +98,14 @@ export default {
     intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
   },
 
-  gaslessIntentdAppIDs: ['token-pair-validation', 'matrix-test', 'test', 'sdk-demo'],
+  gaslessIntentdAppIDs: [
+    'portal',
+    'token-pair-validation',
+    'matrix-test',
+    'test',
+    'sdk-demo',
+    'eco-checkout-spa',
+  ],
 
   intentConfigs: {
     defaultFee: {
@@ -124,7 +132,7 @@ export default {
       },
     },
     proofs: {
-      hyperlane_duration_seconds: 3600,
+      hyperlane_duration_seconds: 1200,
       metalayer_duration_seconds: 7200,
     },
     intentFundedRetries: 3,
@@ -306,6 +314,143 @@ export default {
 
   squid: {
     baseUrl: 'https://v2.api.squidrouter.com',
+  },
+
+  everclear: {
+    baseUrl: 'https://api.everclear.org',
+  },
+
+  usdt0: {
+    // Default mainnet LayerZero Scan base URL
+    scanApiBaseUrl: 'https://scan.layerzero-api.com/v1',
+    chains: [
+      {
+        chainId: 1,
+        eid: 30101,
+        type: 'adapter',
+        contract: '0x6C96dE32CEa08842dcc4058c14d3aaAD7Fa41dee',
+        decimals: 6,
+        underlyingToken: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+      },
+      {
+        chainId: 42161, // Arbitrum One
+        eid: 30110,
+        type: 'oft',
+        contract: '0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92',
+        token: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+        decimals: 6,
+      },
+      {
+        chainId: 137, // Polygon PoS
+        eid: 30109,
+        type: 'oft',
+        contract: '0x6BA10300f0DC58B7a1e4c0e41f5daBb7D7829e13',
+        token: '0xC2132D05D31c914a87C6611C10748AEb04B58e8F',
+        decimals: 6,
+      },
+      {
+        chainId: 57073, // Ink
+        eid: 30339,
+        type: 'oft',
+        contract: '0x1cB6De532588fCA4a21B7209DE7C456AF8434A65',
+        token: '0x0200C29006150606B650577BBE7B6248F58470c1',
+        decimals: 6,
+      },
+      {
+        chainId: 10, // Optimism
+        eid: 30111,
+        type: 'oft',
+        contract: '0xF03b4d9AC1D5d1E7c4cEf54C2A313b9fe051A0aD',
+        token: '0x01bFF41798a0BcF287b996046Ca68b395DbC1071',
+        decimals: 6,
+      },
+      {
+        chainId: 130, // Unichain
+        eid: 30320,
+        type: 'oft',
+        contract: '0xc07bE8994D035631c36fb4a89C918CeFB2f03EC3',
+        token: '0x9151434b16b9763660705744891fA906F660EcC5',
+        decimals: 6,
+      },
+      {
+        chainId: 9745, // Plasma
+        eid: 30383,
+        type: 'oft',
+        contract: '0x02ca37966753bDdDf11216B73B16C1dE756A7CF9',
+        token: '0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb',
+        decimals: 6,
+      },
+    ],
+  },
+
+  gateway: {
+    apiUrl: 'https://gateway-api.circle.com',
+    chains: [
+      {
+        chainId: 1,
+        domain: 0,
+        usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 8453, // Base
+        domain: 6,
+        usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 10, // Optimism
+        domain: 2,
+        usdc: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 42161, // Arbitrum
+        domain: 3,
+        usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 137, // Polygon PoS
+        domain: 7,
+        usdc: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+      {
+        chainId: 130, // Unichain
+        domain: 10,
+        usdc: '0x078D782b760474a361dDA0AF3839290b0EF57AD6',
+        wallet: '0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE',
+        minter: '0x2222222d7164433c4C09B0b0D809a9b52C04C205',
+      },
+    ],
+    fees: {
+      // Default promotional percentage: 0.5 bps
+      percent: { numerator: 5, denominator: 100_000 },
+      // Per-domain base fees in USDC base-6, from Circle docs
+      base6ByDomain: {
+        0: 2_000_000, // Ethereum
+        1: 20_000, // Avalanche
+        2: 1_500, // OP
+        3: 10_000, // Arbitrum
+        6: 10_000, // Base
+        7: 1_500, // Polygon PoS
+        10: 1_000, // Unichain
+      },
+      // Conservative fallback = Ethereum base fee
+      fallbackBase6: 2_000_000,
+    },
+  },
+
+  watch: {
+    recoveryBackoffBaseMs: 1_000,
+    recoveryBackoffMaxMs: 30_000,
+    recoveryStabilityWindowMs: 60_000,
   },
   rhinestone: {
     websocket: {

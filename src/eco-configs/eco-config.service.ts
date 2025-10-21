@@ -16,7 +16,7 @@ import { Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
 import { getChainConfig } from './utils'
-import { EcoChains } from '@eco-foundation/chains'
+import { EcoChain, EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
 import { TransportConfig } from '@/common/chains/transport'
 
@@ -209,6 +209,11 @@ export class EcoConfigService {
     return this.get('intentConfigs')
   }
 
+  // Returns global per-route fee overrides
+  getRouteFeeOverrides(): EcoConfigType['routeFeeOverrides'] {
+    return this.ecoConfig.has('routeFeeOverrides') ? this.get('routeFeeOverrides') : []
+  }
+
   // Returns the quote configs
   getQuotesConfig(): EcoConfigType['quotesConfig'] {
     return this.get('quotesConfig')
@@ -252,6 +257,15 @@ export class EcoConfigService {
   // Returns the liquidity manager config
   getLiquidityManager(): EcoConfigType['liquidityManager'] {
     return this.get('liquidityManager')
+  }
+
+  /**
+   * Returns Liquidity Manager max quote slippage as basis points string
+   */
+  getLiquidityManagerMaxQuoteSlippageBps(): string {
+    const slippage = this.getLiquidityManager().maxQuoteSlippage
+    const bps = Math.round(slippage * 10_000)
+    return bps.toString()
   }
 
   getWhitelist(): EcoConfigType['whitelist'] {
@@ -298,12 +312,32 @@ export class EcoConfigService {
     return this.get('squid')
   }
 
+  getEverclear(): EcoConfigType['everclear'] {
+    return this.get('everclear')
+  }
+
+  getGatewayConfig(): EcoConfigType['gateway'] {
+    return this.get('gateway')
+  }
+
+  getUSDT0(): EcoConfigType['usdt0'] {
+    return this.get('usdt0')
+  }
+
+  getWatch(): EcoConfigType['watch'] {
+    return this.get('watch')
+  }
+
   // Returns the liquidity manager config
   getChainRpcs(): Record<number, string[]> {
     const entries = ChainsSupported.map(
       (chain) => [chain.id, this.getRpcUrls(chain).rpcUrls] as const,
     )
     return Object.fromEntries(entries)
+  }
+
+  getChain(chainID: number): EcoChain {
+    return this.ecoChains.getChain(chainID)
   }
 
   getCustomRPCUrl(chainID: string) {
@@ -317,33 +351,35 @@ export class EcoConfigService {
    * @returns The RPC URL string for the specified chain
    */
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
-    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
+    const { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    const rpcChain = this.ecoChains.getChain(chain.id)
-    const custom = rpcChain.rpcUrls.custom
-    const def = rpcChain.rpcUrls.default
-
+    const rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, {
+      isWebSocketEnabled,
+      preferredProviders: ['alchemy', 'infura'],
+    })
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    let rpcs: string[] = []
-    if (isWebSocketEnabled) {
-      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
-    } else {
-      rpcs = [...(custom?.http || def?.http || [])]
+    const rpcs: string[] = []
+    if (customRpcUrls) {
+      // Prioritize custom RPC URLs if they exist
+      if (isWebSocketEnabled && customRpcUrls.webSocket?.length) {
+        rpcs.push(...customRpcUrls.webSocket)
+      }
+      if (customRpcUrls.http?.length) {
+        rpcs.push(...customRpcUrls.http)
+      }
     }
-
-    const config: TransportConfig['config'] = customRpcUrls?.config
-
-    if (customRpcUrls?.http) {
-      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
-      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
-    }
+    // Fallback to default RPC URLs
+    rpcs.push(...rpcUrls)
 
     if (!rpcs.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
+    return {
+      rpcUrls: [...new Set(rpcs)], // Ensure unique URLs
+      config: customRpcUrls?.config,
+    }
   }
 
   /**

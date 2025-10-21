@@ -1,23 +1,27 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { CCTPV2StrategyContext } from '../types/types'
+import { deserialize, Serialize } from '@/common/utils/serialize'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { ExecuteCCTPV2MintJobData, ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPV2StrategyContext } from '../types/types'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
-import { ExecuteCCTPV2MintJobManager } from './execute-cctpv2-mint.job'
-import { deserialize, Serialize } from '@/common/utils/serialize'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
-export interface CheckCCTPV2AttestationJobData {
+export interface CheckCCTPV2AttestationJobData extends LiquidityManagerQueueDataType {
   sourceDomain: number
   destinationChainId: number
   transactionHash: Hex
   context: Serialize<CCTPV2StrategyContext>
-  id?: string
-  [key: string]: unknown
 }
 
 export type CheckCCTPV2AttestationJob = LiquidityManagerJob<
@@ -28,6 +32,9 @@ export type CheckCCTPV2AttestationJob = LiquidityManagerJob<
 >
 
 export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager<CheckCCTPV2AttestationJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   static async start(
     queue: Queue,
     data: CheckCCTPV2AttestationJobData,
@@ -35,9 +42,9 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
   ): Promise<void> {
     try {
       await queue.add(LiquidityManagerJobName.CHECK_CCTPV2_ATTESTATION, data, {
-        removeOnComplete: true,
-        delay,
-        attempts: 3,
+        removeOnFail: false,
+        delay: delay ?? 10_000,
+        attempts: 10,
         backoff: {
           type: 'exponential',
           delay: 10_000,
@@ -56,19 +63,39 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
     job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPV2AttestationJob['returnvalue']> {
-    const { transactionHash, sourceDomain } = job.data
-    return processor.cctpv2ProviderService.fetchV2Attestation(
+    const { transactionHash, sourceDomain, destinationChainId, id } = job.data
+    const result = await processor.cctpv2ProviderService.fetchV2Attestation(
       transactionHash,
       sourceDomain,
-      job.data.id,
+      id,
     )
+
+    if (result.status === 'pending') {
+      const deserializedContext = deserialize(job.data.context)
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'CCTPV2: Attestation pending...',
+          id,
+          properties: {
+            ...result,
+            transactionHash,
+            destinationChainId,
+            transferType: deserializedContext.transferType,
+          },
+        }),
+      )
+
+      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 10_000
+      await this.delay(job, delay)
+    }
+
+    return result
   }
 
   async onComplete(
     job: CheckCCTPV2AttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
-    const deserializedContext = deserialize(job.data.context)
     if (job.returnvalue.status === 'complete') {
       processor.logger.debug(
         EcoLogMessage.withId({
@@ -77,39 +104,59 @@ export class CheckCCTPV2AttestationJobManager extends LiquidityManagerJobManager
           properties: job.returnvalue,
         }),
       )
-      await ExecuteCCTPV2MintJobManager.start(processor.queue, {
+
+      const executeCCTPV2MintJobData: ExecuteCCTPV2MintJobData = {
+        groupID: job.data.groupID,
+        rebalanceJobID: job.data.rebalanceJobID,
         destinationChainId: job.data.destinationChainId,
         context: job.data.context,
         id: job.data.id,
         messageBody: job.returnvalue.messageBody,
         attestation: job.returnvalue.attestation,
         messageHash: job.data.transactionHash,
-      })
+      }
+
+      await ExecuteCCTPV2MintJobManager.start(processor.queue, executeCCTPV2MintJobData)
     } else {
-      processor.logger.debug(
+      processor.logger.error(
         EcoLogMessage.withId({
-          message: 'CCTPV2: Attestation pending...',
+          message:
+            'CCTPV2: CheckCCTPV2AttestationJob: it should not happen, attestation is not complete',
           id: job.data.id,
           properties: {
-            ...job.returnvalue,
-            transactionHash: job.data.transactionHash,
-            destinationChainId: job.data.destinationChainId,
-            transferType: deserializedContext.transferType,
+            returnvalue: job.returnvalue,
+            data: job.data,
           },
         }),
       )
-      // Fast polling for "fast" transfers, slower for "standard"
-      const delay = deserializedContext.transferType === 'fast' ? 3_000 : 30_000
-      await CheckCCTPV2AttestationJobManager.start(processor.queue, job.data, delay)
     }
   }
 
-  onFailed(job: CheckCCTPV2AttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(
+    job: CheckCCTPV2AttestationJob,
+    processor: LiquidityManagerProcessor,
+    error: unknown,
+  ) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPV2: CheckCCTPV2AttestationJob: FINAL FAILURE'
+      : 'CCTPV2: CheckCCTPV2AttestationJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTPV2: CheckCCTPV2AttestationJob Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
-        properties: { error: (error as any)?.message ?? error, data: job.data },
+        error: error as any,
+        properties: {
+          data: job.data,
+        },
       }),
     )
   }

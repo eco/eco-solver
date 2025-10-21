@@ -1,6 +1,7 @@
 export default {
   server: {
-    url: 'https://solver.staging.bend.eco',
+    // url: process.env.SERVICE_URL || 'https://solver.staging.bend.eco',
+    url: 'https://solver-blue.staging.eco.com',
   },
 
   aws: [
@@ -25,7 +26,9 @@ export default {
 
   solverRegistrationConfig: {
     apiOptions: {
-      baseUrl: 'https://quotes-preprod.eco.com',
+      baseUrl: 'https://quotes-blue.staging.eco.com',
+      // baseUrl: process.env.REGISTRATION_URL || 'https://quotes-preprod.eco.com',
+      // baseUrl: 'https://quotes-bg.staging.eco.com',
     },
   },
 }

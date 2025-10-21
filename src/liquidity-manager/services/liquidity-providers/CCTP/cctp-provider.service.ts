@@ -15,17 +15,20 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { CCTPTokenMessengerABI } from '@/contracts/CCTPTokenMessenger'
 import { CCTPConfig } from '@/eco-configs/eco-config.types'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CCTPMessageTransmitterABI } from '@/contracts/CCTPMessageTransmitter'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
 
 @Injectable()
 export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
@@ -36,9 +39,10 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly walletClientService: LmTxGatedWalletClientService,
     private readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly rebalanceRepository: RebalanceRepository,
 
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
@@ -68,11 +72,11 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     const amountOut = parseUnits(swapAmount.toString(), tokenOut.balance.decimals)
 
     return {
-      amountIn: amountIn,
-      amountOut: amountOut,
+      amountIn,
+      amountOut,
       slippage: 0,
-      tokenIn: tokenIn,
-      tokenOut: tokenOut,
+      tokenIn,
+      tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
       id,
@@ -85,6 +89,8 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
         message: 'CCTPProviderService: executing quote',
         id: quote.id,
         properties: {
+          groupID: quote.groupID,
+          rebalanceJobID: quote.rebalanceJobID,
           tokenIn: quote.tokenIn.config.address,
           chainIn: quote.tokenIn.config.chainId,
           tokenOut: quote.tokenOut.config.address,
@@ -96,18 +102,31 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
       }),
     )
 
-    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
-    const txHash = await this._execute(walletAddress, quote)
-    const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
-    const messageBody = this.getMessageBytes(txReceipt)
-    const messageHash = this.getMessageHash(messageBody)
+    try {
+      const client = await this.kernelAccountClientService.getClient(quote.tokenIn.config.chainId)
+      const txHash = await this._execute(walletAddress, quote)
+      const txReceipt = await client.waitForTransactionReceipt({ hash: txHash })
+      const messageBody = this.getMessageBytes(txReceipt)
+      const messageHash = this.getMessageHash(messageBody)
 
-    await this.liquidityManagerQueue.startCCTPAttestationCheck({
-      destinationChainId: quote.tokenOut.chainId,
-      messageHash,
-      messageBody,
-      id: quote.id,
-    })
+      const checkCCTPAttestationJobData: CheckCCTPAttestationJobData = {
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+        destinationChainId: quote.tokenOut.chainId,
+        messageHash,
+        messageBody,
+        id: quote.id,
+      }
+
+      await this.liquidityManagerQueue.startCCTPAttestationCheck(checkCCTPAttestationJobData)
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
+    }
   }
 
   /**
@@ -234,19 +253,60 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return config
   }
 
-  async fetchAttestation(messageHash: Hex) {
+  async fetchAttestation(messageHash: Hex, id?: string) {
     const url = new URL(`/v1/attestations/${messageHash}`, this.config.apiUrl)
-    const response = await fetch(url)
-    const data:
-      | { status: 'pending' }
-      | { error: string }
-      | { status: 'complete'; attestation: Hex } = await response.json()
 
-    if ('error' in data) {
-      throw new Error(data.error)
+    // Apply timeout to fetch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10_000)
+    let response: Response
+    try {
+      response = await fetch(url, { signal: controller.signal } as any)
+    } catch (error) {
+      // Treat timeouts as pending to allow polling
+      if ((error as any)?.name === 'AbortError') {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'CCTP: Attestation request timed out, treating as pending',
+            id,
+            properties: { messageHash },
+          }),
+        )
+        return { status: 'pending' }
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
     }
 
-    return data
+    // If API has not indexed the message yet, it may return 404 or an error string.
+    if (!response.ok) {
+      if (response.status === 404) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTP: Treating "${response.statusText}" as pending`,
+            id,
+            properties: {
+              messageHash,
+            },
+          }),
+        )
+        return { status: 'pending' }
+      }
+      throw new Error(`CCTP attestation API request failed with status ${response.statusText}`)
+    }
+
+    // Parse successful response
+    const data = await response.json()
+    if (data.attestation && data.attestation !== 'PENDING' && data.status === 'complete') {
+      return {
+        status: 'complete',
+        attestation: data.attestation as Hex,
+      }
+    }
+
+    // attestation not complete or attestation is PENDING
+    return { status: 'pending' }
   }
 
   private getMessageHash(messageBytes: Hex) {
@@ -262,20 +322,48 @@ export class CCTPProviderService implements IRebalanceProvider<'CCTP'> {
     return messageSentEvent.args.message
   }
 
-  async receiveMessage(chainId: number, messageBytes: Hex, attestation: Hex) {
+  /**
+   * Receive message from CCTP. It does not wait for the transaction receipt.
+   * @param chainId Chain ID
+   * @param messageBytes Message bytes
+   * @param attestation Attestation
+   * @param id Job ID
+   * @returns Transaction hash
+   */
+  async receiveMessage(
+    chainId: number,
+    messageBytes: Hex,
+    attestation: Hex,
+    id?: string,
+  ): Promise<Hex> {
     const cctpChainConfig = this.getChainConfig(chainId)
     const walletClient = await this.walletClientService.getClient(chainId)
-    const publicClient = await this.walletClientService.getPublicClient(chainId)
 
-    const txHash = await walletClient.writeContract({
+    this.logger.debug(
+      EcoLogMessage.withId({
+        message: 'CCTP: receiveMessage: submitting',
+        id,
+        properties: {
+          chainId,
+          messageTransmitter: cctpChainConfig.messageTransmitter,
+          sender: (walletClient as any).account?.address,
+          attestation,
+          messageBytes,
+        },
+      }),
+    )
+
+    return await walletClient.writeContract({
       abi: CCTPMessageTransmitterABI,
       address: cctpChainConfig.messageTransmitter,
       functionName: 'receiveMessage',
       args: [messageBytes, attestation],
     })
+  }
 
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
-    return txHash
+  async getTxReceipt(chainId: number, txHash: Hex) {
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+    return publicClient.waitForTransactionReceipt({ hash: txHash })
   }
 
   private isSupportedToken(chainId: number, token: Hex) {

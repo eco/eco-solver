@@ -3,18 +3,21 @@ import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { CCTPV2StrategyContext, RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { InjectQueue } from '@nestjs/bullmq'
 import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckCCTPV2AttestationJobData } from '@/liquidity-manager/jobs/check-cctpv2-attestation.job'
 import { CCTPV2Config } from '@/eco-configs/eco-config.types'
 import { CCTPV2TokenMessengerABI } from '@/contracts/CCTPV2TokenMessenger'
 import { CCTPV2MessageTransmitterABI } from '@/contracts/CCTPV2MessageTransmitter'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
@@ -27,8 +30,9 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly walletClientService: WalletClientDefaultSignerService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly walletClientService: LmTxGatedWalletClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
@@ -173,19 +177,32 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         properties: { quote, walletAddress },
       }),
     )
-    const txHash = await this._execute(walletAddress, quote)
+    try {
+      const txHash = await this._execute(walletAddress, quote)
 
-    const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
+      const sourceDomain = this.getV2ChainConfig(quote.tokenIn.chainId).domain
 
-    await this.liquidityManagerQueue.startCCTPV2AttestationCheck({
-      destinationChainId: quote.tokenOut.chainId,
-      transactionHash: txHash,
-      sourceDomain: sourceDomain,
-      context: serialize(quote.context),
-      id: quote.id,
-    })
+      const checkCCTPV2AttestationJobData: CheckCCTPV2AttestationJobData = {
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+        destinationChainId: quote.tokenOut.chainId,
+        transactionHash: txHash,
+        sourceDomain: sourceDomain,
+        context: serialize(quote.context),
+        id: quote.id,
+      }
 
-    return txHash
+      await this.liquidityManagerQueue.startCCTPV2AttestationCheck(checkCCTPV2AttestationJobData)
+
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
+    }
   }
 
   private async _execute(walletAddress: string, quote: RebalanceQuote<'CCTPV2'>): Promise<Hex> {
@@ -247,68 +264,103 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
         },
       }),
     )
+
+    const url = new URL(`${this.config.apiUrl}/v2/messages/${sourceDomain}`)
+    url.searchParams.append('transactionHash', transactionHash)
+
+    // Apply timeout to fetch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10_000)
+    let response: Response
     try {
-      const url = new URL(`${this.config.apiUrl}/v2/messages/${sourceDomain}`)
-      url.searchParams.append('transactionHash', transactionHash)
-
-      const response = await fetch(url.toString())
-
-      if (!response.ok) {
-        const errorBody = await response.text()
-        throw new Error(`API request failed with status ${response.status}: ${errorBody}`)
+      response = await fetch(url.toString(), { signal: controller.signal } as any)
+    } catch (error) {
+      if ((error as any)?.name === 'AbortError') {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTPV2: Attestation request timed out, treating as pending`,
+            id: quoteId,
+            properties: { transactionHash, sourceDomain },
+          }),
+        )
+        return { status: 'pending' }
       }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
-      const data = await response.json()
+    // Handle non-OK responses
+    if (!response.ok) {
+      // 404 means message not yet indexed - treat as pending
+      if (response.status === 404) {
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: `CCTPV2: Message not found (404), treating as pending`,
+            id: quoteId,
+            properties: { transactionHash, sourceDomain },
+          }),
+        )
+        return { status: 'pending' }
+      }
+      throw new Error(
+        `CCTPV2 API request failed with status ${response.status}: ${response.statusText}`,
+      )
+    }
 
-      if (data?.messages && data.messages.length > 0) {
-        const message = data.messages[0]
-        // The API may return a message object with an attestation string of "PENDING"
-        if (
-          message.attestation &&
-          message.attestation !== 'PENDING' &&
-          message.status === 'complete'
-        ) {
-          return {
-            status: 'complete',
-            messageBody: message.message,
-            attestation: message.attestation,
-          }
+    // Parse successful response
+    const data = await response.json()
+
+    if (data?.messages && data.messages.length > 0) {
+      const message = data.messages[0]
+      // The API may return a message object with an attestation string of "PENDING"
+      if (
+        message.attestation &&
+        message.attestation !== 'PENDING' &&
+        message.status === 'complete'
+      ) {
+        return {
+          status: 'complete',
+          messageBody: message.message,
+          attestation: message.attestation,
         }
       }
-
-      return { status: 'pending' }
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          message: `Failed to fetch CCTP V2 attestation for tx ${transactionHash} on domain ${sourceDomain}`,
-          id: quoteId,
-        }),
-      )
-      // If there's an error, we assume it's still pending so the job can be retried.
-      return { status: 'pending' }
     }
+
+    // No messages or attestation is PENDING
+    return { status: 'pending' }
   }
 
+  /**
+   * Receive message from CCTP V2. It does not wait for the transaction receipt.
+   * @param destinationChainId Destination chain ID
+   * @param messageBody Message body
+   * @param attestation Attestation
+   * @param quoteId Quote ID
+   * @returns Transaction hash
+   */
   async receiveV2Message(
     destinationChainId: number,
     messageBody: Hex,
     attestation: Hex,
     quoteId?: string,
   ): Promise<Hex> {
+    const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
+    const walletClient = await this.walletClientService.getClient(destinationChainId)
+
     this.logger.debug(
       EcoLogMessage.withId({
-        message: `CCTPV2: Receiving message on chain ${destinationChainId}`,
+        message: 'CCTPV2: receiveV2Message: submitting',
         id: quoteId,
         properties: {
-          messageLength: messageBody.length,
-          attestationLength: attestation.length,
+          chainId: destinationChainId,
+          messageTransmitter: v2ChainConfig.messageTransmitter,
+          sender: (walletClient as any).account?.address,
+          attestation,
+          messageBody,
         },
       }),
     )
-    const v2ChainConfig = this.getV2ChainConfig(destinationChainId)
-    const walletClient = await this.walletClientService.getClient(destinationChainId)
-    const publicClient = await this.walletClientService.getPublicClient(destinationChainId)
 
     const txHash = await walletClient.writeContract({
       abi: CCTPV2MessageTransmitterABI,
@@ -316,9 +368,12 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       functionName: 'receiveMessage',
       args: [messageBody, attestation],
     })
-
-    await publicClient.waitForTransactionReceipt({ hash: txHash })
     return txHash
+  }
+
+  async getTxReceipt(chainId: number, txHash: Hex) {
+    const publicClient = await this.walletClientService.getPublicClient(chainId)
+    return publicClient.waitForTransactionReceipt({ hash: txHash })
   }
 
   private async fetchV2FeeOptions(

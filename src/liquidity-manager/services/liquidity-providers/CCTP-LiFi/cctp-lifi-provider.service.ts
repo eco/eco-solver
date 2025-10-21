@@ -23,6 +23,9 @@ import { CCTPLiFiValidator } from './utils/validation'
 import { CCTPLiFiConfig } from '@/eco-configs/eco-config.types'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -38,6 +41,7 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
     private readonly ecoAnalytics: EcoAnalyticsService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {
     this.liquidityManagerQueue = new LiquidityManagerQueue(queue)
     this.config = this.ecoConfigService.getCCTPLiFiConfig()
@@ -202,10 +206,13 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       )
 
       // Step 3: Always queue CCTP attestation check since CCTP is async
-      await this.liquidityManagerQueue.startCCTPAttestationCheck({
+      const checkCCTPAttestationJobData: CheckCCTPAttestationJobData = {
         destinationChainId: quote.tokenOut.chainId,
         messageHash: cctpResult.messageHash,
         messageBody: cctpResult.messageBody,
+        groupID: quote.groupID!,
+        rebalanceJobID: quote.rebalanceJobID!,
+
         // Add CCTPLiFi context if destination swap is needed
         cctpLiFiContext:
           steps.includes('destinationSwap') && destinationSwapQuote
@@ -220,11 +227,14 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
               }
             : undefined,
         id: quote.id,
-      })
+      }
+
+      await this.liquidityManagerQueue.startCCTPAttestationCheck(checkCCTPAttestationJobData)
       this.logger.debug(
         EcoLogMessage.withId({
           message: 'CCTPLiFi: CCTP attestation check queued',
           id: quote.id,
+          properties: { checkCCTPAttestationJobData },
         }),
       )
 
@@ -275,6 +285,11 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
           properties: { id: quote.id, quote, walletAddress },
         }),
       )
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
       throw error
     }
   }

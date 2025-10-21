@@ -1,16 +1,18 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { adaptKernelWallet } from './wallet-adapter'
 import { Chain, Client, extractChain, parseUnits, Transport } from 'viem'
+import { ChainsSupported } from '@/common/chains/supported'
+import { convertViemChainToRelayChain, createClient, getClient } from '@reservoir0x/relay-sdk'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { convertViemChainToRelayChain, createClient, getClient } from '@reservoir0x/relay-sdk'
-import { ChainsSupported } from '@/common/chains/supported'
-import { adaptKernelWallet } from './wallet-adapter'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { SmartAccount } from 'viem/account-abstraction'
+import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
 export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
@@ -18,7 +20,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientV2Service,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientV2Service,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
   async onModuleInit() {
@@ -39,6 +42,7 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
     tokenIn: TokenData,
     tokenOut: TokenData,
     swapAmount: number,
+    id?: string,
   ): Promise<RebalanceQuote<'Relay'>> {
     try {
       const client: KernelAccountClient<Transport, Chain, SmartAccount, Client> =
@@ -60,6 +64,9 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
         tradeType: 'EXACT_INPUT',
         user: walletAddress,
         recipient: walletAddress,
+        options: {
+          slippageTolerance: this.ecoConfigService.getLiquidityManagerMaxQuoteSlippageBps(),
+        },
       })
 
       // Calculate amount out and slippage
@@ -67,6 +74,13 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       const amountOut = relayQuote.details?.currencyOut?.minimumAmount
 
       if (!relayQuote.details || !amountIn || !amountOut) {
+        this.logger.error(
+          EcoLogMessage.withId({
+            id,
+            message: 'RelayProviderService: quote details not found',
+            properties: { relayQuote, id },
+          }),
+        )
         throw EcoError.RebalancingRouteNotFound()
       }
 
@@ -83,7 +97,8 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       }
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
+          id,
           message: 'Failed to get Relay quote',
           error,
           properties: {
@@ -107,16 +122,11 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       }
 
       this.logger.debug(
-        EcoLogMessage.fromDefault({
+        EcoLogMessage.withId({
+          id: quote.id,
           message: 'RelayProviderService: executing quote',
           properties: {
-            tokenIn: quote.tokenIn.config.address,
-            chainIn: quote.tokenIn.chainId,
-            tokenOut: quote.tokenOut.config.address,
-            chainOut: quote.tokenOut.chainId,
-            amountIn: quote.amountIn.toString(),
-            amountOut: quote.amountOut.toString(),
-            slippage: quote.slippage,
+            quote,
           },
         }),
       )
@@ -127,30 +137,43 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
       )
 
       // Execute the quote
-      return await getClient()?.actions.execute({
+      const res = await getClient()?.actions.execute({
         quote: quote.context,
         wallet: adaptedWallet,
         onProgress: (data) => {
           this.logger.debug(
-            EcoLogMessage.fromDefault({
+            EcoLogMessage.withId({
+              id: quote.id,
               message: 'Relay execution progress',
               properties: { data },
             }),
           )
         },
       })
+
+      this.logger.debug(
+        EcoLogMessage.withId({
+          id: quote.id,
+          message: 'Relay execution result',
+          properties: { res },
+        }),
+      )
+
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
+      return res
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.withError({
+        EcoLogMessage.withErrorAndId({
+          id: quote.id,
           message: 'Failed to execute Relay quote',
           error,
           properties: {
-            tokenIn: `${quote.tokenIn.config.address} (${quote.tokenIn.chainId})`,
-            tokenOut: `${quote.tokenOut.config.address} (${quote.tokenOut.chainId})`,
-            amount: quote.amountIn.toString(),
+            quote,
           },
         }),
       )
+
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.FAILED)
       throw error
     }
   }

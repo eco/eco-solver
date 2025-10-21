@@ -16,21 +16,29 @@ import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { WarpRouteProviderService } from '@/liquidity-manager/services/liquidity-providers/Hyperlane/warp-route-provider.service'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { SquidProviderService } from '@/liquidity-manager/services/liquidity-providers/Squid/squid-provider.service'
+import { EverclearProviderService } from '@/liquidity-manager/services/liquidity-providers/Everclear/everclear-provider.service'
 
 // Types & Models
 import { TokenData, Strategy, RebalanceRequest } from '@/liquidity-manager/types/types'
 import { TokenConfig } from '@/balance/types'
 import { RebalanceModel } from '@/liquidity-manager/schemas/rebalance.schema'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { LiquidityManagerConfig } from '@/eco-configs/eco-config.types'
 import { Model } from 'mongoose'
 import { StargateProviderService } from '@/liquidity-manager/services/liquidity-providers/Stargate/stargate-provider.service'
 import { RelayProviderService } from '@/liquidity-manager/services/liquidity-providers/Relay/relay-provider.service'
 import { CCTPV2ProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { serialize } from '@/common/utils/serialize'
+import { GatewayProviderService } from '../Gateway/gateway-provider.service'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceQuoteRejectionRepository } from '@/liquidity-manager/repositories/rebalance-quote-rejection.repository'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { USDT0ProviderService } from '../USDT0/usdt0-provider.service'
+import { USDT0LiFiProviderService } from '../USDT0-LiFi/usdt0-lifi-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -83,6 +91,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let queue: DeepMocked<Queue>
   let flowProducer: DeepMocked<FlowProducer>
   let rebalanceModel: DeepMocked<Model<RebalanceModel>>
+  let rebalanceRepo: { create: jest.Mock; getPendingReservedByTokenForWallet: jest.Mock }
 
   const walletAddress = '0x1234567890123456789012345678901234567890'
 
@@ -91,10 +100,6 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     targetSlippage: 0.02,
     intervalDuration: 300000, // 5 minutes
     thresholds: { surplus: 0.15, deficit: 0.15 }, // 15% threshold
-    coreTokens: [
-      { token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', chainID: 1 }, // USDC on Ethereum
-      { token: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', chainID: 10 }, // USDC on Optimism
-    ],
     walletStrategies: {
       'eco-wallet': ['CCTPLiFi'], // Only test CCTPLiFi strategy
     },
@@ -149,6 +154,13 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         LiquidityProviderService,
         CCTPLiFiProviderService,
         {
+          provide: RebalanceRepository,
+          useValue: (rebalanceRepo = {
+            getPendingReservedByTokenForWallet: jest.fn().mockResolvedValue(new Map()),
+            create: jest.fn().mockResolvedValue({}),
+          }),
+        },
+        {
           provide: LiFiProviderService,
           useValue: createMock<LiFiProviderService>(),
         },
@@ -177,6 +189,14 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<CCTPV2ProviderService>(),
         },
         {
+          provide: EverclearProviderService,
+          useValue: createMock<EverclearProviderService>(),
+        },
+        {
+          provide: GatewayProviderService,
+          useValue: createMock<GatewayProviderService>(),
+        },
+        {
           provide: BalanceService,
           useValue: createMock<BalanceService>(),
         },
@@ -185,17 +205,15 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           useValue: createMock<EcoConfigService>(),
         },
         {
-          provide: KernelAccountClientService,
-          useValue: createMock<KernelAccountClientService>(),
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: createMock<LmTxGatedKernelAccountClientService>(),
         },
         {
           provide: CrowdLiquidityService,
           useValue: createMock<CrowdLiquidityService>(),
         },
-        {
-          provide: getQueueToken(LiquidityManagerQueue.queueName),
-          useValue: queue,
-        },
+        { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: queue },
+        { provide: getQueueToken(CheckBalancesQueue.queueName), useValue: createMock<Queue>() },
         {
           provide: getFlowProducerToken(LiquidityManagerQueue.flowName),
           useValue: flowProducer,
@@ -207,6 +225,18 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         {
           provide: EcoAnalyticsService,
           useValue: createMock<EcoAnalyticsService>(),
+        },
+        {
+          provide: RebalanceQuoteRejectionRepository,
+          useValue: createMock<RebalanceQuoteRejectionRepository>(),
+        },
+        {
+          provide: USDT0ProviderService,
+          useValue: createMock<USDT0ProviderService>(),
+        },
+        {
+          provide: USDT0LiFiProviderService,
+          useValue: createMock<USDT0LiFiProviderService>(),
         },
       ],
     }).compile()
@@ -485,8 +515,8 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
 
       await liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
 
-      // Verify storage
-      expect(rebalanceModel.create).toHaveBeenCalledWith(
+      // Verify storage via repository
+      expect(rebalanceRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           wallet: walletAddress,
           strategy: 'CCTPLiFi',
@@ -509,9 +539,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       jest.spyOn(cctpLiFiProvider, 'execute').mockResolvedValue(undefined)
 
       await liquidityManagerService.executeRebalancing({
+        groupID: `DummyGroupID`,
+        rebalanceJobID: `DummyRebalanceJobID`,
         walletAddress,
         network: '1',
-        rebalance: { quotes: quotes } as any,
+        rebalance: { quotes: serialize(quotes), token: {} as any },
       })
 
       // Verify execution calls
@@ -1077,7 +1109,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
         await liquidityManagerService.storeRebalancing(walletAddress, rebalance)
       }
 
-      expect(rebalanceModel.create).toHaveBeenCalledTimes(2)
+      const expectedCreateCalls = rebalances.reduce(
+        (sum, rebalance) => sum + rebalance.quotes.length,
+        0,
+      )
+      expect(rebalanceRepo.create).toHaveBeenCalledTimes(expectedCreateCalls)
     })
   })
 
@@ -1253,9 +1289,11 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
       // Execute should throw the transaction failure error
       await expect(
         liquidityManagerService.executeRebalancing({
+          groupID: `DummyGroupID`,
+          rebalanceJobID: `DummyRebalanceJobID`,
           walletAddress,
           network: '1',
-          rebalance: { quotes } as any,
+          rebalance: { quotes: serialize(quotes) } as any,
         }),
       ).rejects.toThrow('Transaction failed')
 

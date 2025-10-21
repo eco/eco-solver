@@ -12,12 +12,13 @@ import { BalanceService } from '@/balance/balance.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { LmTxGatedKernelAccountClientV2Service } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client-v2.service'
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
-  let kernelAccountClientService: KernelAccountClientV2Service
+  let kernelAccountClientService: LmTxGatedKernelAccountClientV2Service
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let mockAssetCacheManager: DeepMocked<LiFiAssetCacheManager>
@@ -34,11 +35,12 @@ describe('LiFiProviderService', () => {
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         LiFiProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         {
-          provide: KernelAccountClientV2Service,
-          useValue: createMock<KernelAccountClientV2Service>(),
+          provide: LmTxGatedKernelAccountClientV2Service,
+          useValue: createMock<LmTxGatedKernelAccountClientV2Service>(),
         },
         {
           provide: EcoAnalyticsService,
@@ -59,7 +61,7 @@ describe('LiFiProviderService', () => {
     ecoConfigService = chainMod.get(EcoConfigService)
     balanceService = chainMod.get(BalanceService)
     lifiProviderService = chainMod.get(LiFiProviderService)
-    kernelAccountClientService = chainMod.get(KernelAccountClientV2Service)
+    kernelAccountClientService = chainMod.get(LmTxGatedKernelAccountClientV2Service)
 
     kernelAccountClientService['getAddress'] = jest.fn().mockResolvedValue(zeroAddress)
 
@@ -129,6 +131,97 @@ describe('LiFiProviderService', () => {
   })
 
   describe('getQuote', () => {
+    it('passes Allow/Deny/Prefer bridges to getRoutes options', async () => {
+      const mockTokenIn = {
+        chainId: 1,
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 6 },
+      }
+      const mockTokenOut = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      }
+
+      const bridges = {
+        allow: ['stargate'],
+        deny: ['across'],
+        prefer: ['relay'],
+      }
+
+      jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco', bridges } as any)
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ swapSlippage: 0.001, maxQuoteSlippage: 0.005 } as any)
+
+      const mockRoute = {
+        fromAmount: '1000000',
+        toAmount: '1000000',
+        toAmountMin: '995000',
+        steps: [],
+      }
+
+      const getRoutesSpy = jest
+        .spyOn(LiFi, 'getRoutes')
+        .mockResolvedValue({ routes: [mockRoute] } as any)
+
+      await lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1)
+
+      expect(getRoutesSpy).toHaveBeenCalled()
+      const calledWith = getRoutesSpy.mock.calls[0][0]
+      expect(calledWith).toEqual(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            bridges,
+            slippage: 0.005,
+          }),
+        }),
+      )
+    })
+
+    it('uses swapSlippage for same-chain routes and maxQuoteSlippage for cross-chain', async () => {
+      const mockRoute = {
+        fromAmount: '1000000',
+        toAmount: '1000000',
+        toAmountMin: '995000',
+        steps: [],
+      }
+
+      jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco' } as any)
+      jest
+        .spyOn(ecoConfigService, 'getLiquidityManager')
+        .mockReturnValue({ swapSlippage: 0.001, maxQuoteSlippage: 0.005 } as any)
+
+      const getRoutesSpy = jest
+        .spyOn(LiFi, 'getRoutes')
+        .mockResolvedValue({ routes: [mockRoute] } as any)
+
+      // Same-chain
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 1, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
+      let calledWith = getRoutesSpy.mock.calls[getRoutesSpy.mock.calls.length - 1][0]
+      expect(calledWith).toEqual(
+        expect.objectContaining({
+          options: expect.objectContaining({ slippage: 0.001 }),
+        }),
+      )
+
+      // Cross-chain
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 10, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
+      calledWith = getRoutesSpy.mock.calls[getRoutesSpy.mock.calls.length - 1][0]
+      expect(calledWith).toEqual(
+        expect.objectContaining({
+          options: expect.objectContaining({ slippage: 0.005 }),
+        }),
+      )
+    })
     it('should return a quote for direct route when tokens are supported', async () => {
       const mockTokenIn = {
         chainId: 1,
@@ -268,367 +361,6 @@ describe('LiFiProviderService', () => {
       await expect(
         lifiProviderService.getQuote(mockTokenIn as any, mockTokenOut as any, 1),
       ).rejects.toThrow()
-    })
-  })
-
-  describe('fallback', () => {
-    it('should return a quote through a core token when supported', async () => {
-      // Setup mocks
-      const mockTokenIn = {
-        chainId: 1,
-        config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
-      }
-      const mockTokenOut = {
-        chainId: 2,
-        config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
-      }
-      const mockCoreToken = {
-        token: '0xCoreToken',
-        chainID: 3,
-      }
-      const mockRoute1 = {
-        fromAmount: '1000000000000000000',
-        toAmount: '3000000000000000000',
-        toAmountMin: '2900000000000000000',
-        steps: [],
-      }
-      const mockRoute2 = {
-        fromAmount: '2900000000000000000',
-        toAmount: '2800000000000000000',
-        toAmountMin: '2700000000000000000',
-        steps: [],
-      }
-
-      // Mock getLiquidityManager to return core tokens
-      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue({
-        coreTokens: [mockCoreToken],
-      } as any)
-
-      // Mock getAllTokenDataForAddress to return proper core token data
-      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockResolvedValue([
-        {
-          chainId: mockCoreToken.chainID,
-          config: {
-            address: mockCoreToken.token,
-            chainId: mockCoreToken.chainID,
-          },
-          balance: { decimals: 18 },
-        },
-      ] as any)
-
-      // Create a spy on the getQuote method to verify it's called
-      const getQuoteSpy = jest.spyOn(lifiProviderService, 'getQuote')
-      getQuoteSpy
-        .mockResolvedValueOnce({
-          amountIn: BigInt(mockRoute1.fromAmount),
-          amountOut: BigInt(mockRoute1.toAmount),
-          slippage: 0.03,
-          tokenIn: mockTokenIn,
-          tokenOut: mockCoreToken,
-          strategy: 'LiFi',
-          context: mockRoute1,
-        } as any)
-        .mockResolvedValueOnce({
-          amountIn: BigInt(mockRoute2.fromAmount),
-          amountOut: BigInt(mockRoute2.toAmount),
-          slippage: 0.02,
-          tokenIn: mockCoreToken,
-          tokenOut: mockTokenOut,
-          strategy: 'LiFi',
-          context: mockRoute2,
-        } as any)
-
-      // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
-
-      // Verify the result is an array with two quotes
-      expect(result).toHaveLength(2)
-      expect(result[0].amountIn).toEqual(BigInt(mockRoute1.fromAmount))
-      expect(result[0].amountOut).toEqual(BigInt(mockRoute1.toAmount))
-      expect(result[0].tokenIn).toEqual(mockTokenIn)
-      expect(result[0].tokenOut).toEqual(mockCoreToken)
-      expect(result[0].strategy).toEqual('LiFi')
-      expect(result[0].context).toEqual(mockRoute1)
-
-      expect(result[1].amountIn).toEqual(BigInt(mockRoute2.fromAmount))
-      expect(result[1].amountOut).toEqual(BigInt(mockRoute2.toAmount))
-      expect(result[1].tokenIn).toEqual(mockCoreToken)
-      expect(result[1].tokenOut).toEqual(mockTokenOut)
-      expect(result[1].strategy).toEqual('LiFi')
-      expect(result[1].context).toEqual(mockRoute2)
-
-      // Verify that getQuote was called twice
-      expect(getQuoteSpy).toHaveBeenCalledTimes(2)
-      expect(getQuoteSpy).toHaveBeenCalledWith(
-        mockTokenIn,
-        expect.objectContaining({
-          chainId: mockCoreToken.chainID,
-          config: expect.objectContaining({
-            address: mockCoreToken.token,
-            chainId: mockCoreToken.chainID,
-          }),
-        }),
-        1,
-      )
-      expect(getQuoteSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          chainId: mockCoreToken.chainID,
-          config: expect.objectContaining({
-            address: mockCoreToken.token,
-            chainId: mockCoreToken.chainID,
-          }),
-        }),
-        mockTokenOut,
-        2.9, // toAmountMin converted from the first quote
-      )
-    })
-
-    it('should skip unsupported core tokens and try next one', async () => {
-      const mockTokenIn = {
-        chainId: 1,
-        config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
-      }
-      const mockTokenOut = {
-        chainId: 2,
-        config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
-      }
-      const unsupportedCoreToken = {
-        token: '0xUnsupportedCoreToken',
-        chainID: 999, // Unsupported chain
-        config: { address: '0xUnsupportedCoreToken', chainId: 999 },
-      }
-      const supportedCoreToken = {
-        token: '0xSupportedCoreToken',
-        chainID: 3,
-        config: { address: '0xSupportedCoreToken', chainId: 3 },
-      }
-      const mockRoute = {
-        fromAmount: '1000000000000000000',
-        toAmount: '3000000000000000000',
-        toAmountMin: '2900000000000000000',
-        steps: [],
-      }
-
-      // Mock getLiquidityManager to return multiple core tokens
-      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue({
-        coreTokens: [unsupportedCoreToken, supportedCoreToken],
-      } as any)
-
-      // Mock validation to reject unsupported core token
-      mockAssetCacheManager.isChainSupported.mockImplementation((chainId) => chainId !== 999)
-
-      // Create a spy on the getQuote method
-      const getQuoteSpy = jest.spyOn(lifiProviderService, 'getQuote')
-      getQuoteSpy.mockResolvedValue({
-        amountIn: BigInt(mockRoute.fromAmount),
-        amountOut: BigInt(mockRoute.toAmount),
-        slippage: 0.05,
-        tokenIn: mockTokenIn,
-        tokenOut: supportedCoreToken,
-        strategy: 'LiFi',
-        context: mockRoute,
-      } as any)
-
-      jest.spyOn(balanceService, 'getAllTokenDataForAddress').mockImplementation(
-        (addr, tokens) =>
-          tokens.map((token) => ({
-            ...token,
-            config: { address: '0xTokenOut' },
-            balance: { decimals: 1 },
-          })) as any,
-      )
-
-      // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
-
-      // Verify the result uses the supported core token
-      expect(result[0].tokenOut).toEqual(supportedCoreToken)
-
-      // Verify that getQuote was only called for the supported core token
-      expect(getQuoteSpy).toHaveBeenCalledTimes(2)
-      expect(getQuoteSpy).toHaveBeenCalledWith(
-        mockTokenIn,
-        expect.objectContaining({
-          chainId: supportedCoreToken.chainID,
-          config: expect.objectContaining({
-            address: expect.any(String),
-          }),
-        }),
-        1,
-      )
-    })
-
-    it('should try multiple core tokens and throw error when all fail', async () => {
-      const mockTokenIn = {
-        chainId: 1,
-        config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
-      }
-      const mockTokenOut = {
-        chainId: 2,
-        config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
-      }
-      const mockCoreTokens = [
-        { token: '0xCoreToken1', chainID: 3 },
-        { token: '0xCoreToken2', chainID: 4 },
-      ]
-
-      // Mock getLiquidityManager to return multiple core tokens
-      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue({
-        coreTokens: mockCoreTokens,
-      } as any)
-
-      // Mock getAllTokenDataForAddress to return proper core token data
-      jest
-        .spyOn(balanceService, 'getAllTokenDataForAddress')
-        .mockImplementation((walletAddress: string, configs: any[]) => {
-          if (configs.length > 0) {
-            const config = configs[0]
-            const coreToken = mockCoreTokens.find((ct) => ct.token === config.address)
-            if (coreToken) {
-              return Promise.resolve([
-                {
-                  chainId: coreToken.chainID,
-                  config: {
-                    address: coreToken.token,
-                    chainId: coreToken.chainID,
-                  },
-                  balance: { decimals: 18 },
-                },
-              ] as any)
-            }
-          }
-          return Promise.resolve([])
-        })
-
-      // Mock getQuote to fail for all core tokens
-      const getQuoteSpy = jest.spyOn(lifiProviderService, 'getQuote')
-      getQuoteSpy.mockRejectedValue(new Error('Route not found'))
-
-      // Call should throw an error after trying all core tokens
-      await expect(
-        lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1),
-      ).rejects.toThrow()
-
-      // Verify getQuote was called for each core token
-      expect(getQuoteSpy).toHaveBeenCalledTimes(mockCoreTokens.length)
-    })
-
-    it('should return first successful core token route', async () => {
-      const mockTokenIn = {
-        chainId: 1,
-        config: { address: '0xTokenIn', chainId: 1 },
-        balance: { decimals: 18 },
-      }
-      const mockTokenOut = {
-        chainId: 2,
-        config: { address: '0xTokenOut', chainId: 2 },
-        balance: { decimals: 18 },
-      }
-      const mockCoreTokens = [
-        { token: '0xCoreToken1', chainID: 3 },
-        { token: '0xCoreToken2', chainID: 4 },
-      ]
-      const mockRoute1 = {
-        fromAmount: '1000000000000000000',
-        toAmount: '3000000000000000000',
-        toAmountMin: '2900000000000000000',
-        steps: [],
-      }
-      const mockRoute2 = {
-        fromAmount: '2900000000000000000',
-        toAmount: '2800000000000000000',
-        toAmountMin: '2700000000000000000',
-        steps: [],
-      }
-
-      // Mock getLiquidityManager to return multiple core tokens
-      jest.spyOn(ecoConfigService, 'getLiquidityManager').mockReturnValue({
-        coreTokens: mockCoreTokens,
-      } as any)
-
-      // Mock getAllTokenDataForAddress to return proper core token data
-      jest
-        .spyOn(balanceService, 'getAllTokenDataForAddress')
-        .mockImplementation((walletAddress: string, configs: any[]) => {
-          if (configs.length > 0) {
-            const config = configs[0]
-            const coreToken = mockCoreTokens.find((ct) => ct.token === config.address)
-            if (coreToken) {
-              return Promise.resolve([
-                {
-                  chainId: coreToken.chainID,
-                  config: {
-                    address: coreToken.token,
-                    chainId: coreToken.chainID,
-                  },
-                  balance: { decimals: 18 },
-                },
-              ] as any)
-            }
-          }
-          return Promise.resolve([])
-        })
-
-      // Mock getQuote to fail for first core token but succeed for second
-      const getQuoteSpy = jest.spyOn(lifiProviderService, 'getQuote')
-      let callCount = 0
-      getQuoteSpy.mockImplementation((tokenIn: any, tokenOut: any) => {
-        callCount++
-        if (callCount === 1) {
-          // First call with first core token fails
-          return Promise.reject(new Error('Route not found'))
-        } else if (callCount === 2) {
-          // Second call with second core token succeeds
-          return Promise.resolve({
-            amountIn: BigInt(mockRoute1.fromAmount),
-            amountOut: BigInt(mockRoute1.toAmount),
-            slippage: 0.05,
-            tokenIn: mockTokenIn,
-            tokenOut: { config: { address: mockCoreTokens[1].token } },
-            strategy: 'LiFi',
-            context: mockRoute1,
-          } as any)
-        } else {
-          // Third call from core token to tokenOut
-          return Promise.resolve({
-            amountIn: BigInt(mockRoute2.fromAmount),
-            amountOut: BigInt(mockRoute2.toAmount),
-            slippage: 0.02,
-            tokenIn: { config: { address: mockCoreTokens[1].token } },
-            tokenOut: mockTokenOut,
-            strategy: 'LiFi',
-            context: mockRoute2,
-          } as any)
-        }
-      })
-
-      // Call the fallback method
-      const result = await lifiProviderService.fallback(mockTokenIn as any, mockTokenOut as any, 1)
-
-      // Verify the result is an array with two quotes
-      expect(result).toHaveLength(2)
-      expect(result[0].amountIn).toEqual(BigInt(mockRoute1.fromAmount))
-      expect(result[0].tokenIn).toEqual(mockTokenIn)
-      expect(result[1].amountIn).toEqual(BigInt(mockRoute2.fromAmount))
-      expect(result[1].tokenOut).toEqual(mockTokenOut)
-
-      // Verify that getQuote was called 3 times (1 fail, 2 success)
-      expect(getQuoteSpy).toHaveBeenCalledTimes(3)
-      expect(getQuoteSpy).toHaveBeenCalledWith(
-        mockTokenIn,
-        expect.objectContaining({
-          config: expect.objectContaining({
-            address: mockCoreTokens[0].token,
-          }),
-        }),
-        1,
-      )
     })
   })
 

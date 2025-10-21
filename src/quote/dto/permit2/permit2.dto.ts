@@ -1,20 +1,49 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Hex } from 'viem'
-import { IsEthereumAddress, IsNotEmpty, IsString, ValidateNested } from 'class-validator'
-import { Permit2DataDTO } from '@/quote/dto/permit2/permit2-data.dto'
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsEthereumAddress,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  ValidateNested,
+} from 'class-validator'
+import { Permit2TypedDataDetailsDTO } from '@/quote/dto/permit2/permit2-typed-data-details.dto'
 
 export class Permit2DTO {
+  @IsNotEmpty()
+  @IsInt()
+  @ApiProperty()
+  chainID: number
+
   @IsNotEmpty()
   @IsEthereumAddress()
   @ApiProperty()
   permitContract: Hex
 
-  @IsNotEmpty()
+  @IsArray()
+  @ArrayNotEmpty()
   @ApiProperty()
   @ValidateNested()
-  @Type(() => Permit2DataDTO)
-  permitData: Permit2DataDTO // SinglePermitData | BatchPermitData permit2 data required for permit call to the permit2 contract
+  @Type(() => Permit2TypedDataDetailsDTO)
+  details: Permit2TypedDataDetailsDTO[]
+
+  @IsNotEmpty()
+  @IsEthereumAddress()
+  @ApiProperty()
+  funder: Hex
+
+  @IsNotEmpty()
+  @IsEthereumAddress()
+  @ApiProperty()
+  spender: Hex
+
+  @IsNotEmpty()
+  @ApiProperty()
+  @Transform(({ value }) => BigInt(value))
+  sigDeadline: bigint // string of a UNIX seconds since epoch integer
 
   @IsNotEmpty()
   @IsString()

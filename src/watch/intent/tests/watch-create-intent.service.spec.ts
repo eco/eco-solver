@@ -15,6 +15,7 @@ describe('WatchIntentService', () => {
   let watchIntentService: WatchCreateIntentService
   let publicClientService: DeepMocked<MultichainPublicClientService>
   let ecoConfigService: DeepMocked<EcoConfigService>
+  let ecoAnalyticsService: DeepMocked<EcoAnalyticsService>
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
@@ -50,6 +51,7 @@ describe('WatchIntentService', () => {
     watchIntentService = chainMod.get(WatchCreateIntentService)
     publicClientService = chainMod.get(MultichainPublicClientService)
     ecoConfigService = chainMod.get(EcoConfigService)
+    ecoAnalyticsService = chainMod.get(EcoAnalyticsService)
     queue = chainMod.get(getQueueToken(QUEUES.SOURCE_INTENT.queue))
 
     watchIntentService['logger'].debug = mockLogDebug
@@ -91,6 +93,40 @@ describe('WatchIntentService', () => {
             args: { prover: s.provers },
           })
         }
+      })
+
+      it('tracks analytics on subscribe success', async () => {
+        const startSpy = jest.spyOn(
+          ecoAnalyticsService,
+          'trackWatchCreateIntentSubscriptionStarted',
+        )
+        const successSpy = jest.spyOn(
+          ecoAnalyticsService,
+          'trackWatchCreateIntentSubscriptionSuccess',
+        )
+        publicClientService.getClient.mockResolvedValue({
+          watchContractEvent: jest.fn(),
+        } as any)
+        ecoConfigService.getIntentSources.mockReturnValue(sources)
+        ecoConfigService.getSolvers.mockReturnValue(sources)
+
+        await watchIntentService.subscribe()
+        expect(startSpy).toHaveBeenCalledWith(sources)
+        expect(successSpy).toHaveBeenCalledWith(sources)
+      })
+
+      it('tracks analytics on subscribe failure', async () => {
+        const errorSpy = jest.spyOn(ecoAnalyticsService, 'trackError')
+        publicClientService.getClient.mockResolvedValue({
+          watchContractEvent: jest.fn(() => {
+            throw new Error('boom')
+          }),
+        } as any)
+        ecoConfigService.getIntentSources.mockReturnValue(sources)
+        ecoConfigService.getSolvers.mockReturnValue(sources)
+
+        await expect(watchIntentService.subscribe()).rejects.toThrow('boom')
+        expect(errorSpy).toHaveBeenCalled()
       })
     })
 
@@ -150,6 +186,49 @@ describe('WatchIntentService', () => {
         { jobId: 'watch-create-intent-0x1-2' },
       )
     })
+
+    it('tracks analytics when job is queued successfully', async () => {
+      const spy = jest.spyOn(ecoAnalyticsService, 'trackWatchCreateIntentJobQueued')
+      await watchIntentService.addJob(s)([log])
+      expect(spy).toHaveBeenCalledWith(expect.any(Object), expect.any(String), s)
+    })
+
+    it('tracks analytics when job queue add fails but error is silenced', async () => {
+      const err = new Error('queue down')
+      mockQueueAdd.mockRejectedValueOnce(err)
+      const analyticsSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
+
+      // Spy on Promise.allSettled to verify resilient processing is used
+      const allSettledSpy = jest.spyOn(Promise, 'allSettled')
+
+      // The method completes successfully despite the queue error being thrown internally
+      await expect(watchIntentService.addJob(s)([log])).resolves.not.toThrow()
+
+      // Verify that Promise.allSettled was used (proves resilient error handling)
+      expect(allSettledSpy).toHaveBeenCalled()
+
+      // Verify analytics tracking occurred (proves the error was thrown and caught internally)
+      expect(analyticsSpy).toHaveBeenCalledWith(
+        err,
+        expect.any(String),
+        expect.objectContaining({
+          createIntent: expect.any(Object),
+          jobId: expect.any(String),
+          source: s,
+        }),
+      )
+
+      // Additional verification: check that the error was logged by processLogsResiliently
+      expect(mockLogError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'watch create-intent: 1/1 jobs failed to be added to queue',
+          failures: ['queue down'],
+        }),
+      )
+
+      // Clean up
+      allSettledSpy.mockRestore()
+    })
   })
 
   describe('on unsubscribe', () => {
@@ -176,7 +255,7 @@ describe('WatchIntentService', () => {
       await watchIntentService.unsubscribe()
       expect(mockUnwatch1).toHaveBeenCalledTimes(1)
       expect(mockUnwatch2).toHaveBeenCalledTimes(1)
-      expect(mockLogError).toHaveBeenCalledTimes(1)
+      expect(mockLogError).toHaveBeenCalledTimes(2)
       expect(mockLogError).toHaveBeenCalledWith({
         msg: 'watch-event: unsubscribe',
         error: EcoError.WatchEventUnsubscribeError.toString(),
@@ -193,6 +272,11 @@ describe('WatchIntentService', () => {
       expect(mockLogDebug).toHaveBeenCalledWith({
         msg: 'watch-event: unsubscribe',
       })
+    })
+
+    it('unsubscribe removes unwatch entries to prevent leaks', async () => {
+      await watchIntentService.unsubscribe()
+      expect(Object.keys(watchIntentService['unwatch']).length).toBe(0)
     })
   })
 
@@ -254,6 +338,79 @@ describe('WatchIntentService', () => {
           chainID,
         })
       })
+    })
+  })
+
+  describe('onError (recovery)', () => {
+    const chainID = 1
+    const client: any = {} as any
+    const contract: any = { chainID } as any
+    const error = new Error('rpc error')
+
+    beforeEach(() => {
+      // make delay instant to simplify tests
+      ;(watchIntentService as any)['delay'] = jest.fn().mockResolvedValue(undefined)
+      jest.spyOn(watchIntentService as any, 'unsubscribeFrom').mockResolvedValue(undefined)
+      jest.spyOn(watchIntentService as any, 'subscribeTo').mockResolvedValue(undefined)
+      // ensure backoff config is set (onModuleInit not invoked in these unit tests)
+      ;(watchIntentService as any)['recoveryBackoffBaseMs'] = 1_000
+      ;(watchIntentService as any)['recoveryBackoffMaxMs'] = 30_000
+      ;(watchIntentService as any)['recoveryStabilityWindowMs'] = 60_000
+    })
+
+    afterEach(() => jest.clearAllMocks())
+
+    it('returns early if recovery already in progress for chain', async () => {
+      ;(watchIntentService as any)['recoveryInProgress'][chainID] = true
+      const occurSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorOccurred')
+
+      await watchIntentService.onError(error, client, contract)
+
+      expect((watchIntentService as any).unsubscribeFrom).not.toHaveBeenCalled()
+      expect((watchIntentService as any).subscribeTo).not.toHaveBeenCalled()
+      // ignored counter increments and no error occurrence tracking happens on skipped attempts
+      expect((watchIntentService as any)['recoveryIgnoredAttempts'][chainID]).toBe(1)
+      expect(occurSpy).not.toHaveBeenCalled()
+    })
+
+    it('applies capped exponential backoff and resubscribes; tracks error occurrence with context', async () => {
+      ;(watchIntentService as any)['recoveryAttempts'][chainID] = 2 // 1s * 2^2 = 4s (capped below max)
+      const delaySpy = jest.spyOn(watchIntentService as any, 'delay')
+      const occurSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorOccurred')
+
+      await watchIntentService.onError(error, client, contract)
+
+      expect(delaySpy).toHaveBeenCalledWith(expect.any(Number))
+      expect((watchIntentService as any).unsubscribeFrom).toHaveBeenCalledWith(chainID)
+      expect((watchIntentService as any).subscribeTo).toHaveBeenCalledWith(client, contract)
+      // attempts increment and are not reset on immediate success
+      expect((watchIntentService as any)['recoveryAttempts'][chainID]).toBe(3)
+      // in-progress flag is cleared and ignored counter reset
+      expect((watchIntentService as any)['recoveryInProgress'][chainID]).toBe(false)
+      expect((watchIntentService as any)['recoveryIgnoredAttempts'][chainID]).toBe(0)
+
+      // error occurrence tracking receives ignoredAttempts=0 and contract context
+      expect(occurSpy).toHaveBeenCalledWith(
+        error,
+        expect.any(String),
+        expect.objectContaining({ contract, ignoredAttempts: 0 }),
+      )
+    })
+
+    it('tracks analytics on recovery start and failure', async () => {
+      const startSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorRecoveryStarted')
+      const failSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorRecoveryFailed')
+
+      ;(watchIntentService as any).subscribeTo.mockRejectedValueOnce(
+        new Error('resubscribe failed'),
+      )
+
+      await expect(watchIntentService.onError(error, client, contract)).rejects.toThrow(
+        'resubscribe failed',
+      )
+
+      expect(startSpy).toHaveBeenCalled()
+      expect(failSpy).toHaveBeenCalled()
     })
   })
 })

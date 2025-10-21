@@ -39,6 +39,27 @@ type WarpRouteStrategyContext = undefined
 type RelayStrategyContext = RelayQuote
 type StargateStrategyContext = StargateQuote
 type SquidStrategyContext = SquidRoute
+type EverclearStrategyContext = undefined
+type GatewayStrategyContext = {
+  sourceDomain: number
+  destinationDomain: number
+  amountBase6: bigint
+  sources?: { domain: number; amountBase6: bigint }[]
+  transferId?: Hex | string
+  attestation?: Hex
+  signature?: Hex
+  id?: string
+}
+
+// USDT0 context (minimal)
+type USDT0StrategyContext = {
+  sourceChainId: number
+  sourceEid: number
+  destinationEid: number
+  to: Hex
+  amountLD: bigint
+  minAmountLD?: bigint
+}
 
 interface CCTPV2StrategyContext {
   transferType: 'standard' | 'fast'
@@ -70,6 +91,25 @@ interface CCTPLiFiStrategyContext {
   id?: string
 }
 
+// USDT0LiFi strategy context for multi-step USDT0 + LiFi operations
+interface USDT0LiFiStrategyContext {
+  sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → USDT
+  oftTransfer: {
+    sourceChain: number
+    destinationChain: number
+    amount: bigint
+  }
+  destinationSwapQuote?: LiFiStrategyContext // LiFi route for USDT → token
+  steps: ('sourceSwap' | 'usdt0Bridge' | 'destinationSwap')[]
+  gasEstimation?: {
+    sourceChainGas: bigint
+    destinationChainGas: bigint
+    totalGasUSD: number
+    gasWarnings: string[]
+  }
+  id?: string
+}
+
 type Strategy =
   | 'LiFi'
   | 'CCTP'
@@ -79,6 +119,10 @@ type Strategy =
   | 'Stargate'
   | 'Squid'
   | 'CCTPV2'
+  | 'Everclear'
+  | 'Gateway'
+  | 'USDT0'
+  | 'USDT0LiFi'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -95,11 +139,21 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
               ? SquidStrategyContext
               : S extends 'CCTPV2'
                 ? CCTPV2StrategyContext
-                : never
+                : S extends 'Everclear'
+                  ? EverclearStrategyContext
+                  : S extends 'Gateway'
+                    ? GatewayStrategyContext
+                    : S extends 'USDT0'
+                      ? USDT0StrategyContext
+                      : S extends 'USDT0LiFi'
+                        ? USDT0LiFiStrategyContext
+                        : never
 
 // Quote
 
 interface RebalanceQuote<S extends Strategy = Strategy> {
+  groupID?: string
+  rebalanceJobID?: string
   amountIn: bigint
   amountOut: bigint
   slippage: number

@@ -1,13 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { Squid } from '@0xsquid/sdk'
-import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
-import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { createApproveTransaction } from '@/liquidity-manager/utils/transaction'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getSlippage } from '@/liquidity-manager/utils/math'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
+import { parseUnits } from 'viem'
+import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { Squid } from '@0xsquid/sdk'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
 export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
@@ -16,7 +19,8 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
   async onModuleInit() {
@@ -115,15 +119,11 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
       }
 
       const { context: route } = quote
-      const approveData = encodeFunctionData({
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [route.transactionRequest.target!, BigInt(route.params.fromAmount)],
-      })
-      const approveTx = {
-        to: route.params.fromToken,
-        data: approveData,
-      }
+      const approveTx = createApproveTransaction(
+        route.params.fromToken,
+        route.transactionRequest.target!,
+        BigInt(route.params.fromAmount),
+      )
 
       // Build the Squid router execution tx
       const swapTx = {
@@ -153,6 +153,7 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         }),
       )
 
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.COMPLETED)
       return txReceipt.transactionHash
     } catch (error) {
       this.logger.error(
@@ -163,6 +164,8 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
           properties: { walletAddress, quote },
         }),
       )
+
+      await this.rebalanceRepository.updateStatus(quote.rebalanceJobID!, RebalanceStatus.FAILED)
       throw error
     }
   }

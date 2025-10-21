@@ -6,7 +6,6 @@ import { CCTPLiFiProviderService } from './cctp-lifi-provider.service'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CheckCCTPAttestationJobManager } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
@@ -15,6 +14,8 @@ import { CCTPLiFiRoutePlanner } from './utils/route-planner'
 import { BalanceService } from '@/balance/balance.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { createMock } from '@golevelup/ts-jest'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 describe('CCTPLiFi Provider Integration Tests', () => {
   let service: CCTPLiFiProviderService
@@ -106,6 +107,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
             fetchAttestation: jest.fn(),
           },
         },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: BalanceService,
           useValue: {},
@@ -119,7 +121,7 @@ describe('CCTPLiFi Provider Integration Tests', () => {
           useValue: mockQueue,
         },
         {
-          provide: KernelAccountClientService,
+          provide: LmTxGatedKernelAccountClientService,
           useValue: {
             getClient: jest.fn().mockResolvedValue({
               account: { address: '0x1234567890123456789012345678901234567890' },

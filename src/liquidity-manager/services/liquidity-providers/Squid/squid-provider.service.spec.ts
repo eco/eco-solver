@@ -7,8 +7,9 @@ import { zeroAddress } from 'viem'
 
 import { SquidProviderService } from './squid-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { TokenData } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 const mockedSquid = jest.mocked(Squid)
 const mockSquidInstance = {
@@ -21,7 +22,7 @@ mockedSquid.mockImplementation(() => mockSquidInstance as any)
 describe('SquidProviderService', () => {
   let squidProviderService: SquidProviderService
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
+  let kernelAccountClientService: DeepMocked<LmTxGatedKernelAccountClientService>
 
   beforeEach(async () => {
     jest.clearAllMocks()
@@ -29,17 +30,18 @@ describe('SquidProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SquidProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
         {
-          provide: KernelAccountClientService,
-          useValue: createMock<KernelAccountClientService>(),
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: createMock<LmTxGatedKernelAccountClientService>(),
         },
       ],
     }).compile()
 
     squidProviderService = module.get<SquidProviderService>(SquidProviderService)
     ecoConfigService = module.get(EcoConfigService)
-    kernelAccountClientService = module.get(KernelAccountClientService)
+    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
 
     ecoConfigService.getSquid.mockReturnValue({
       integratorId: 'test-integrator',

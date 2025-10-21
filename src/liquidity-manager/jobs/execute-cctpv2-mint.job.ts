@@ -1,23 +1,27 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { CCTPV2StrategyContext } from '../types/types'
+import { deserialize, Serialize } from '@/common/utils/serialize'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
-import { CCTPV2StrategyContext } from '../types/types'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '../processors/eco-protocol-intents.processor'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { deserialize, Serialize } from '@/common/utils/serialize'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
-export interface ExecuteCCTPV2MintJobData {
+export interface ExecuteCCTPV2MintJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
   messageHash: Hex
   messageBody: Hex
   attestation: Hex
   context: Serialize<CCTPV2StrategyContext>
-  id?: string
-  [key: string]: unknown
 }
 
 export type ExecuteCCTPV2MintJob = LiquidityManagerJob<
@@ -27,11 +31,13 @@ export type ExecuteCCTPV2MintJob = LiquidityManagerJob<
 >
 
 export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<ExecuteCCTPV2MintJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   static async start(queue: Queue, data: ExecuteCCTPV2MintJob['data']): Promise<void> {
     await queue.add(LiquidityManagerJobName.EXECUTE_CCTPV2_MINT, data, {
       jobId: `${ExecuteCCTPV2MintJobManager.name}-${data.messageHash}`,
-      removeOnComplete: false,
-      removeOnFail: true,
+      removeOnFail: false,
       attempts: 3,
       backoff: {
         type: 'exponential',
@@ -58,34 +64,65 @@ export class ExecuteCCTPV2MintJobManager extends LiquidityManagerJobManager<Exec
       }),
     )
     deserialize(job.data.context) // Deserialize for consistency, though not used here
-    return processor.cctpv2ProviderService.receiveV2Message(
-      destinationChainId,
-      messageBody,
-      attestation,
-      job.data.id,
-    )
+
+    let txHash = job.data.txHash as Hex | undefined
+    if (!txHash) {
+      // receive message not called yet
+      txHash = await processor.cctpv2ProviderService.receiveV2Message(
+        destinationChainId,
+        messageBody,
+        attestation,
+        job.data.id,
+      )
+      job.updateData({ ...job.data, txHash })
+    }
+
+    await processor.cctpv2ProviderService.getTxReceipt(destinationChainId, txHash as Hex)
+    return txHash as Hex
   }
 
   async onComplete(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor) {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
     processor.logger.log(
       EcoLogMessage.withId({
         message: `CCTPV2: ExecuteCCTPV2MintJob: Completed!`,
         id: job.data.id,
         properties: {
+          groupID,
+          rebalanceJobID,
           chainId: job.data.destinationChainId,
           txHash: job.returnvalue,
           id: job.data.id,
         },
       }),
     )
+
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
-  onFailed(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(job: ExecuteCCTPV2MintJob, processor: LiquidityManagerProcessor, error: unknown) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPV2: ExecuteCCTPV2MintJob: FINAL FAILURE'
+      : 'CCTPV2: ExecuteCCTPV2MintJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTPV2: ExecuteCCTPV2MintJob: Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
-        properties: { error: (error as any)?.message ?? error, data: job.data },
+        error: error as any,
+        properties: {
+          data: job.data,
+        },
       }),
     )
   }

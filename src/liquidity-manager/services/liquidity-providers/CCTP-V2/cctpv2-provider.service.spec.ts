@@ -4,11 +4,12 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { parseUnits, Hex } from 'viem'
 import { CCTPV2ProviderService } from './cctpv2-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { TokenData, RebalanceQuote } from '@/liquidity-manager/types/types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { Queue } from 'bullmq'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { LmTxGatedWalletClientService } from '@/liquidity-manager/wallet-wrappers/wallet-gated-client.service'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
@@ -19,8 +20,8 @@ global.fetch = jest.fn()
 describe('CCTPV2ProviderService', () => {
   let service: CCTPV2ProviderService
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
-  let walletClientService: DeepMocked<WalletClientDefaultSignerService>
+  let kernelAccountClientService: DeepMocked<LmTxGatedKernelAccountClientService>
+  let walletClientService: DeepMocked<LmTxGatedWalletClientService>
   let queue: DeepMocked<Queue>
 
   const mockTokenIn: TokenData = {
@@ -67,19 +68,23 @@ describe('CCTPV2ProviderService', () => {
       providers: [
         CCTPV2ProviderService,
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: KernelAccountClientService, useValue: createMock<KernelAccountClientService>() },
         {
-          provide: WalletClientDefaultSignerService,
-          useValue: createMock<WalletClientDefaultSignerService>(),
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: createMock<LmTxGatedKernelAccountClientService>(),
         },
+        {
+          provide: LmTxGatedWalletClientService,
+          useValue: createMock<LmTxGatedWalletClientService>(),
+        },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<Queue>() },
       ],
     }).compile()
 
     service = module.get<CCTPV2ProviderService>(CCTPV2ProviderService)
     ecoConfigService = module.get(EcoConfigService)
-    kernelAccountClientService = module.get(KernelAccountClientService)
-    walletClientService = module.get(WalletClientDefaultSignerService)
+    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
+    walletClientService = module.get(LmTxGatedWalletClientService)
     queue = module.get(getQueueToken(LiquidityManagerQueue.queueName))
     service['liquidityManagerQueue'] = new LiquidityManagerQueue(queue as any)
 

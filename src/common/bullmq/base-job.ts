@@ -1,5 +1,5 @@
 /* eslint @typescript-eslint/no-unused-vars: 0 */
-import { Job as BullMQJob } from 'bullmq'
+import { Job as BullMQJob, DelayedError, UnrecoverableError } from 'bullmq'
 
 export abstract class BaseJobManager<Job extends BullMQJob, Processor = unknown> {
   /**
@@ -32,5 +32,29 @@ export abstract class BaseJobManager<Job extends BullMQJob, Processor = unknown>
    */
   onFailed(job: Job, processor: Processor, error: unknown): void {
     // Placeholder method implementation
+  }
+
+  /**
+   * Checks if the job is a final attempt.
+   * @param job - The job to check.
+   * @param error - The error that occurred.
+   * @returns A boolean indicating if the job is a final attempt.
+   */
+  isFinalAttempt(job: Job, error: unknown): boolean {
+    if (error instanceof DelayedError) return false
+    if (error instanceof UnrecoverableError) return true
+    const attemptsAllowed = job.opts?.attempts ?? 1
+    return job.attemptsMade >= attemptsAllowed
+  }
+
+  /** Delays the job by the given delay.
+   * @param job - The job to delay.
+   * @param delay - The delay in milliseconds.
+   */
+  async delay(job: Job, delay: number): Promise<void> {
+    await job.moveToDelayed(Date.now() + delay, job.token)
+    // we need to exit from the processor by throwing this error that will signal to the worker
+    // that the job has been delayed so that it does not try to complete (or fail the job) instead
+    throw new DelayedError()
   }
 }

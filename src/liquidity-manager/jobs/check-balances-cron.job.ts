@@ -1,30 +1,40 @@
-import { Queue, JobsOptions } from 'bullmq'
-import { formatUnits } from 'viem'
-import { table } from 'table'
+import { EcoCronJobManager } from '@/liquidity-manager/jobs/eco-cron-job-manager'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { formatUnits } from 'viem'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
+import { Queue } from 'bullmq'
 import { shortAddr } from '@/liquidity-manager/utils/address'
+import { table } from 'table'
 import {
   RebalanceQuote,
   RebalanceRequest,
   TokenDataAnalyzed,
 } from '@/liquidity-manager/types/types'
+import { TokenState } from '@/liquidity-manager/types/token-state.enum'
 
-type CheckBalancesCronJob = LiquidityManagerJob<
+export interface CheckBalancesCronJobData extends LiquidityManagerQueueDataType {
+  wallet: string
+}
+
+export type CheckBalancesCronJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_BALANCES,
-  { wallet: string }
+  CheckBalancesCronJobData
 >
 
 /**
  * A cron job that checks token balances, logs information, and attempts to rebalance deficits.
  */
-export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
+export class CheckBalancesCronJobManager extends LiquidityManagerJobManager<CheckBalancesCronJob> {
   static readonly jobSchedulerNamePrefix = 'job-scheduler-check-balances'
+  private static ecoCronJobManagers: Record<string, EcoCronJobManager> = {}
 
   /**
    * Gets the unique job scheduler name for a specific wallet
@@ -42,25 +52,19 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param walletAddress - Wallet address
    */
   static async start(queue: Queue, interval: number, walletAddress: string): Promise<void> {
-    const job: {
-      name: CheckBalancesCronJob['name']
-      data: CheckBalancesCronJob['data']
-      opts?: Omit<JobsOptions, 'jobId' | 'repeat' | 'delay'>
-    } = {
-      name: LiquidityManagerJobName.CHECK_BALANCES,
-      data: {
-        wallet: walletAddress,
-      },
-      opts: {
-        removeOnComplete: true,
-      },
+    if (!this.ecoCronJobManagers[walletAddress]) {
+      this.ecoCronJobManagers[walletAddress] = new EcoCronJobManager(
+        LiquidityManagerJobName.CHECK_BALANCES,
+        `check-balances-${walletAddress}`,
+      )
     }
 
-    await queue.upsertJobScheduler(
-      CheckBalancesCronJobManager.getJobSchedulerName(walletAddress),
-      { every: interval },
-      job,
-    )
+    await this.ecoCronJobManagers[walletAddress].start(queue, interval, walletAddress)
+  }
+
+  static stop(walletAddress: string) {
+    this.ecoCronJobManagers[walletAddress]?.stop()
+    delete this.ecoCronJobManagers[walletAddress]
   }
 
   /**
@@ -109,6 +113,17 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       processor.logger.log(
         EcoLogMessage.fromDefault({
           message: `CheckBalancesCronJob: No deficits found`,
+          properties: { walletAddress },
+        }),
+      )
+      return
+    }
+
+    if (!surplus.total) {
+      processor.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `CheckBalancesCronJob: No surpluses found`,
+          properties: { walletAddress },
         }),
       )
       return
@@ -117,13 +132,67 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
     const rebalances: RebalanceRequest[] = []
 
     for (const deficitToken of deficit.items) {
+      try {
+        const decimals = deficitToken.balance.decimals
+        const { current, minimum, maximum, target } = deficitToken.analysis.balance
+        const remainingBaseUnits = current < minimum ? minimum - current : 0n
+        const remainingTokens = parseFloat(formatUnits(remainingBaseUnits, decimals))
+
+        processor.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: 'Rebalance candidate selected',
+            properties: {
+              walletAddress,
+              token: {
+                chainId: deficitToken.config.chainId,
+                address: deficitToken.config.address,
+                decimals,
+              },
+              state: deficitToken.analysis.state,
+              diffTokens: deficitToken.analysis.diff,
+              balance: {
+                current: current.toString(),
+                minimum: minimum.toString(),
+                maximum: maximum.toString(),
+                target: target.toString(),
+              },
+              remainingToMin: {
+                baseUnits: remainingBaseUnits.toString(),
+                tokens: remainingTokens,
+              },
+            },
+          }),
+        )
+      } catch (e) {
+        processor.logger.debug(
+          EcoLogMessage.withError({
+            message: 'Failed to emit debug for rebalance candidate',
+            error: e as Error,
+          }),
+        )
+      }
+      // Filter dynamic surplus list to only usable entries (still SURPLUS with diff>0)
+      const usableSurplus = surplus.items.filter(
+        (t) => t?.analysis?.state === TokenState.SURPLUS && (t?.analysis?.diff ?? 0) > 0,
+      )
+
+      if (usableSurplus.length === 0) {
+        processor.logger.log(
+          EcoLogMessage.fromDefault({
+            message: `CheckBalancesCronJob: No usable surplus left`,
+            properties: { walletAddress },
+          }),
+        )
+        break
+      }
+
       const rebalancingQuotes = await processor.liquidityManagerService.getOptimizedRebalancing(
         walletAddress,
         deficitToken,
-        surplus.items,
+        usableSurplus,
       )
 
-      if (!rebalancingQuotes.length) {
+      if (rebalancingQuotes.length === 0) {
         processor.logger.debug(
           EcoLogMessage.fromDefault({
             message: 'CheckBalancesCronJob: No rebalancing quotes found',
@@ -136,19 +205,18 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
       }
 
       this.updateGroupBalances(processor, surplus.items, rebalancingQuotes)
-
       const rebalanceRequest = { token: deficitToken, quotes: rebalancingQuotes }
 
       // Store rebalance request on DB
       await processor.liquidityManagerService.storeRebalancing(walletAddress, rebalanceRequest)
-
       rebalances.push(rebalanceRequest)
     }
 
-    if (!rebalances.length) {
+    if (rebalances.length === 0) {
       processor.logger.warn(
         EcoLogMessage.fromDefault({
-          message: 'CheckBalancesCronJob: Rebalancing routes available',
+          message: 'CheckBalancesCronJob: No rebalancing routes available',
+          properties: { walletAddress },
         }),
       )
       return
@@ -166,15 +234,41 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    * @param error - The error that occurred.
    */
   onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: unknown) {
+    const durationMs = this.getDurationMs(job)
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withError({
         message: `CheckBalancesCronJob: Failed`,
+        error: error as Error,
         properties: {
-          error: (error as any)?.message ?? error,
-          stack: (error as any)?.stack,
+          durationMs,
+          walletAddress: job.data.wallet,
+          queue: job.queueName,
         },
       }),
     )
+  }
+
+  /**
+   * Hook triggered when a job is completed successfully.
+   */
+  onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor) {
+    const durationMs = this.getDurationMs(job)
+    processor.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `CheckBalancesCronJob: completed`,
+        properties: {
+          durationMs,
+          walletAddress: job.data.wallet,
+          queue: job.queueName,
+        },
+      }),
+    )
+  }
+
+  private getDurationMs(job: LiquidityManagerJob) {
+    const finishedOn = job.finishedOn ?? Date.now()
+    const processedOn = job.processedOn ?? finishedOn
+    return finishedOn - processedOn
   }
 
   /**
@@ -209,7 +303,7 @@ export class CheckBalancesCronJobManager extends LiquidityManagerJobManager {
    */
   private displayRebalancingTable(items: RebalanceRequest[]) {
     // Skip if no rebalancing quotes are found.
-    if (!items.length) return
+    if (items.length === 0) return
 
     const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format
     const slippageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format

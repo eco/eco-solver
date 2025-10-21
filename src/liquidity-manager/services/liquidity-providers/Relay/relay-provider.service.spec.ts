@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { RelayProviderService } from './relay-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { WalletClient } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { createClient, Execute as RelayQuote, getClient } from '@reservoir0x/relay-sdk'
 import { ChainsSupported } from '@/common/chains/supported'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { createMock } from '@golevelup/ts-jest'
+import { LmTxGatedKernelAccountClientV2Service } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client-v2.service'
 
 // Mock the relay-sdk
 jest.mock('@reservoir0x/relay-sdk', () => {
@@ -43,7 +45,7 @@ jest.mock('@/liquidity-manager/services/liquidity-providers/Relay/wallet-adapter
 describe('RelayProviderService', () => {
   let service: RelayProviderService
   let ecoConfigService: EcoConfigService
-  let kernelAccountClientV2Service: KernelAccountClientV2Service
+  let kernelAccountClientV2Service: LmTxGatedKernelAccountClientV2Service
 
   const mockTokenData: TokenData = {
     chainId: 1,
@@ -85,14 +87,17 @@ describe('RelayProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RelayProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: EcoConfigService,
           useValue: {
             getSupportedChains: jest.fn().mockReturnValue([1n, 10n, 137n]),
+            getLiquidityManager: jest.fn().mockReturnValue({ maxQuoteSlippage: 0.01 }),
+            getLiquidityManagerMaxQuoteSlippageBps: jest.fn().mockReturnValue('100'),
           },
         },
         {
-          provide: KernelAccountClientV2Service,
+          provide: LmTxGatedKernelAccountClientV2Service,
           useValue: {
             getClient: jest.fn().mockResolvedValue(mockWalletClient),
             getAddress: () => Promise.resolve('0x123abc'),
@@ -103,8 +108,8 @@ describe('RelayProviderService', () => {
 
     service = module.get<RelayProviderService>(RelayProviderService)
     ecoConfigService = module.get<EcoConfigService>(EcoConfigService)
-    kernelAccountClientV2Service = module.get<KernelAccountClientV2Service>(
-      KernelAccountClientV2Service,
+    kernelAccountClientV2Service = module.get<LmTxGatedKernelAccountClientV2Service>(
+      LmTxGatedKernelAccountClientV2Service,
     )
 
     // Bypass the onModuleInit for unit tests
@@ -134,6 +139,9 @@ describe('RelayProviderService', () => {
       amount: expect.any(String),
       wallet: mockWalletClient,
       tradeType: 'EXACT_INPUT',
+      options: {
+        slippageTolerance: '100',
+      },
     })
 
     expect(quote).toMatchObject({

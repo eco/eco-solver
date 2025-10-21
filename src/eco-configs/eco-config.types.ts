@@ -1,20 +1,21 @@
-import { Network } from '@/common/alchemy/network'
-import { ClusterNode } from 'ioredis'
-import { Params as PinoParams } from 'nestjs-pino'
-import * as Redis from 'ioredis'
-import { Settings } from 'redlock'
-import { JobsOptions, RepeatOptions } from 'bullmq'
-import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
-import { LDOptions } from '@launchdarkly/node-server-sdk'
-import { CacheModuleOptions } from '@nestjs/cache-manager'
-import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
-import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
-import { ConfigRegex } from '@eco-foundation/chains'
-import { Strategy } from '@/liquidity-manager/types/types'
 import { AnalyticsConfig } from '@/analytics'
+import { CacheModuleOptions } from '@nestjs/cache-manager'
+import { ClusterNode } from 'ioredis'
+import { ConfigRegex } from '@eco-foundation/chains'
+import { Hex, HttpTransportConfig, WebSocketTransportConfig } from 'viem'
+import { IntentExecutionTypeKeys } from '@/quote/enums/intent-execution-type.enum'
+import { JobsOptions, RepeatOptions } from 'bullmq'
+import { LDOptions } from '@launchdarkly/node-server-sdk'
+import { LIT_NETWORKS_KEYS } from '@lit-protocol/types'
+import { Network } from '@/common/alchemy/network'
+import { Params as PinoParams } from 'nestjs-pino'
+import { Settings } from 'redlock'
+import { Strategy } from '@/liquidity-manager/types/types'
+import * as Redis from 'ioredis'
 
 // The config type that we store in json
 export type EcoConfigType = {
+  port: number
   analytics: AnalyticsConfig
   server: ServerConfig
   gasEstimations: GasEstimationsConfig
@@ -25,6 +26,8 @@ export type EcoConfigType = {
   quotesConfig: QuotesConfig
   solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
+  // Global per-route fee overrides
+  routeFeeOverrides?: RouteFeeOverride[]
   fulfillmentEstimate: FulfillmentEstimateConfig
   rpcs: RpcConfigType
   cache: CacheModuleOptions
@@ -83,6 +86,10 @@ export type EcoConfigType = {
   cctpLiFi: CCTPLiFiConfig
   squid: SquidConfig
   CCTPV2: CCTPV2Config
+  everclear: EverclearConfig
+  gateway: GatewayConfig
+  watch: WatchConfig
+  usdt0: USDT0Config
   rhinestone: RhinestoneConfig
 }
 
@@ -329,11 +336,13 @@ export type FeeAlgorithmConfig<T extends FeeAlgorithm> = T extends 'linear'
   ? {
       token: FeeAlgoLinear
       native: FeeAlgoLinear
+      nonSwapToken: FeeAlgoLinear
     }
   : T extends 'quadratic'
     ? {
         token: FeeAlgoQuadratic
         native: FeeAlgoQuadratic
+        nonSwapToken: FeeAlgoQuadratic
       }
     : never
 
@@ -348,6 +357,8 @@ export interface TargetContract {
   selectors: string[]
   minBalance: number
   targetBalance: number
+  // Tags used to indicate cross-chain sameness for fee selection
+  nonSwapGroups?: string[]
 }
 
 /**
@@ -389,16 +400,16 @@ export interface LiquidityManagerConfig {
   // Maximum allowed slippage for quotes (e.g., 0.05 for 5%)
   maxQuoteSlippage: number
   swapSlippage: number
+  /**
+   * Global minimum trade size for stables in base-6 units (e.g., 1_000_000 = 1 USDC).
+   * Trades below this threshold will be skipped to avoid dust movements.
+   */
+  minTradeBase6?: number
   intervalDuration: number
   thresholds: {
     surplus: number // Percentage above target balance
     deficit: number // Percentage below target balance
   }
-  // Core tokens are used as intermediaries between two chains
-  coreTokens: {
-    token: Hex
-    chainID: number
-  }[]
   walletStrategies: {
     [walletName: string]: Strategy[]
   }
@@ -407,6 +418,11 @@ export interface LiquidityManagerConfig {
 export interface LiFiConfigType {
   integrator: string
   apiKey?: string
+  bridges?: {
+    allow?: string[]
+    deny?: string[]
+    prefer?: string[]
+  }
 }
 
 export interface IndexerConfig {
@@ -467,6 +483,29 @@ export interface CCTPConfig {
   }[]
 }
 
+// --------------------------- USDT0 (OFT v2) ----------------------------
+
+export type USDT0ChainType = 'adapter' | 'oft'
+
+export interface USDT0ChainConfig {
+  chainId: number
+  eid: number
+  type: USDT0ChainType
+  contract: Hex
+  decimals: 6
+  // ERC20 token address on the chain that represents USDT/USDT0 balances.
+  // For Ethereum (adapter), this is the native USDT token and is provided via `underlyingToken`.
+  // For other EVMs, this may be the chain's USDT token (extension) address. Optional to keep
+  // backwards compatibility; when present, we validate quotes and use it for delivery checks.
+  token?: Hex
+  underlyingToken?: Hex // Ethereum adapter only
+}
+
+export interface USDT0Config {
+  scanApiBaseUrl: string
+  chains: USDT0ChainConfig[]
+}
+
 export interface CCTPV2Config {
   apiUrl: string
   fastTransferEnabled?: boolean
@@ -519,6 +558,48 @@ export interface CCTPLiFiConfig {
 export interface SquidConfig {
   integratorId: string
   baseUrl: string
+}
+
+export interface EverclearConfig {
+  baseUrl: string
+}
+
+export interface GatewayConfig {
+  apiUrl: string
+  enabled?: boolean
+  bootstrap?: {
+    enabled: boolean
+    chainId: number
+    amountBase6: string
+  }
+  chains: {
+    chainId: number
+    domain: number
+    usdc: Hex
+    wallet?: Hex
+    minter?: Hex
+  }[]
+  fees?: {
+    // percentage = numerator / denominator; e.g., 5 / 100000 = 0.5 bps
+    percent?: { numerator: number | string; denominator: number | string }
+    // per-domain base fees in base-6 USDC
+    base6ByDomain?: Record<number, number | string>
+    // fallback base fee in base-6 USDC (default: Ethereum base fee)
+    fallbackBase6?: number | string
+  }
+}
+export interface WatchConfig {
+  recoveryBackoffBaseMs: number
+  recoveryBackoffMaxMs: number
+  recoveryStabilityWindowMs: number
+}
+
+export interface RouteFeeOverride {
+  sourceChainId: number
+  destinationChainId: number
+  sourceToken: Hex // zeroAddress represents native
+  destinationToken: Hex // zeroAddress represents native
+  fee: FeeConfigType
 }
 
 export interface RhinestoneConfig {

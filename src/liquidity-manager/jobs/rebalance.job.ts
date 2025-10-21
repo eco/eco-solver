@@ -1,21 +1,26 @@
-import { FlowChildJob, Job } from 'bullmq'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { deserialize, serialize, Serialize } from '@/common/utils/serialize'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { FlowChildJob, Job } from 'bullmq'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { serialize, Serialize } from '@/common/utils/serialize'
 import { RebalanceRequest } from '@/liquidity-manager/types/types'
 
-export type RebalanceJobData = {
+export interface RebalanceJobData extends LiquidityManagerQueueDataType {
   network: string
   walletAddress: string
   rebalance: Serialize<RebalanceRequest>
 }
 
-type RebalanceJob = Job<RebalanceJobData, unknown, LiquidityManagerJobName.REBALANCE>
+export type RebalanceJob = LiquidityManagerJob<LiquidityManagerJobName.REBALANCE, RebalanceJobData>
 
 export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob> {
   static createJob(
@@ -23,7 +28,10 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     rebalance: RebalanceRequest,
     queueName: string,
   ): FlowChildJob {
+    const firstQuote = rebalance.quotes?.[0]
     const data: RebalanceJobData = {
+      groupID: firstQuote?.groupID ?? 'UnknownGroupID',
+      rebalanceJobID: firstQuote?.rebalanceJobID ?? 'UnknownRebalanceJobID',
       walletAddress,
       network: rebalance.token.config.chainId.toString(),
       rebalance: serialize(rebalance),
@@ -44,10 +52,29 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
     return job.name === LiquidityManagerJobName.REBALANCE
   }
 
-  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+  async process(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<unknown> {
     if (this.is(job)) {
       return processor.liquidityManagerService.executeRebalancing(job.data)
     }
+  }
+
+  /**
+   * Hook triggered when a job is completed.
+   * Updates the corresponding rebalance records in DB to COMPLETED.
+   * @param job - The job to process.
+   * @param processor - The processor handling the job.
+   */
+  async onComplete(job: LiquidityManagerJob, processor: LiquidityManagerProcessor): Promise<void> {
+    processor.logger.log(
+      EcoLogMessage.withId({
+        message: `RebalanceJobManager: LiquidityManagerJob: Completed!`,
+        id: job.data.id,
+        properties: {
+          jobName: job.name,
+          data: job.data,
+        },
+      }),
+    )
   }
 
   /**
@@ -58,9 +85,11 @@ export class RebalanceJobManager extends LiquidityManagerJobManager<RebalanceJob
    */
   onFailed(job: LiquidityManagerJob, processor: LiquidityManagerProcessor, error: Error) {
     processor.logger.error(
-      EcoLogMessage.fromDefault({
+      EcoLogMessage.withErrorAndId({
+        id: job.data.id,
         message: `RebalanceJob: Failed`,
-        properties: { error: error.message, stack: error.stack },
+        error,
+        properties: { data: job.data, jobName: job.name },
       }),
     )
   }

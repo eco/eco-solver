@@ -1,15 +1,21 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
+import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
-export interface CCTPLiFiDestinationSwapJobData {
+export interface CCTPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
   messageHash: Hex
   messageBody: Hex
   attestation: Hex
@@ -23,8 +29,6 @@ export interface CCTPLiFiDestinationSwapJobData {
   }
   cctpTransactionHash?: Hex
   retryCount?: number
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type CCTPLiFiDestinationSwapJob = LiquidityManagerJob<
@@ -34,18 +38,20 @@ export type CCTPLiFiDestinationSwapJob = LiquidityManagerJob<
 >
 
 export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManager<CCTPLiFiDestinationSwapJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   /**
    * Starts a job for executing the destination swap after CCTP attestation
    */
   static async start(queue: Queue, data: CCTPLiFiDestinationSwapJobData, delay = 0): Promise<void> {
     await queue.add(LiquidityManagerJobName.CCTP_LIFI_DESTINATION_SWAP, data, {
-      removeOnComplete: true,
-      removeOnFail: false, // Keep failed jobs for debugging - helps with stranded USDC recovery
+      removeOnFail: false,
       delay,
       attempts: 3,
       backoff: {
         type: 'exponential',
-        delay: 15_000, // 15 seconds base delay
+        delay: 2_000, // 2 second base delay
       },
     })
   }
@@ -240,11 +246,16 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
     job: CCTPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
+    const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+    const { groupID, rebalanceJobID } = jobData
+
     processor.logger.log(
       EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed successfully',
         id: job.data.id,
         properties: {
+          groupID,
+          rebalanceJobID,
           jobId: job.data.id,
           txHash: job.returnvalue?.txHash,
           finalAmount: job.returnvalue?.finalAmount,
@@ -253,20 +264,37 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
         },
       }),
     )
+
+    await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
   }
 
   /**
    * Handles job failures with detailed error logging for recovery purposes
    */
-  onFailed(job: CCTPLiFiDestinationSwapJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(
+    job: CCTPLiFiDestinationSwapJob,
+    processor: LiquidityManagerProcessor,
+    error: unknown,
+  ) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE'
+      : 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+
     processor.logger.error(
-      EcoLogMessage.withId({
-        message:
-          'CCTPLiFi: CCTPLiFiDestinationSwapJob: FINAL FAILURE - Manual intervention required for stranded USDC',
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+        error: error as any,
         properties: {
           jobId: job.data.id,
-          error: (error as any)?.message ?? error,
           walletAddress: job.data.walletAddress,
           chainId: job.data.destinationChainId,
           originalTokenTarget: job.data.originalTokenOut.address,
@@ -274,9 +302,9 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
           attemptsMade: job.attemptsMade,
           maxAttempts: job.opts?.attempts || 1,
           timestamp: new Date().toISOString(),
+          data: job.data,
         },
       }),
     )
-    // This error log can be monitored for alerting systems to detect stranded USDC
   }
 }

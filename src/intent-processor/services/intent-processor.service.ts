@@ -20,14 +20,21 @@ import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wa
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import { getWithdrawData } from '@/intent-processor/utils/intent'
 import { ExecuteWithdrawsJobData } from '@/intent-processor/jobs/execute-withdraws.job'
+import { isGaslessIntent } from '@/intent-processor/utils/gasless'
+import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
+import {
+  BatchWithdrawGasless,
+  BatchWithdraws,
+} from '@/indexer/interfaces/batch-withdraws.interface'
 import {
   IntentProcessorQueue,
   IntentProcessorQueueType,
 } from '@/intent-processor/queues/intent-processor.queue'
 import { ExecuteSendBatchJobData } from '@/intent-processor/jobs/execute-send-batch.job'
-import { Multicall3Abi } from '@/contracts/Multicall3'
-import { getMulticall } from '@/intent-processor/utils/multicall'
+import { batchTransactionsWithMulticall } from '@/common/multicall/multicall3'
 import { getChainConfig } from '@/eco-configs/utils'
+import { IndexerIntent } from '@/indexer/interfaces/intent.interface'
+import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 
 @Injectable()
 export class IntentProcessorService implements OnApplicationBootstrap {
@@ -46,6 +53,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     private readonly ecoConfigService: EcoConfigService,
     private readonly indexerService: IndexerService,
     private readonly walletClientDefaultSignerService: WalletClientDefaultSignerService,
+    private readonly intentSourceRepository: IntentSourceRepository,
   ) {
     this.intentProcessorQueue = new IntentProcessorQueue(queue)
   }
@@ -100,9 +108,57 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         },
       }),
     )
+    // Separate gasless and regular intents for processing
+    const gaslessWithdrawals = batchWithdrawals.filter(isGaslessIntent) as (BatchWithdrawGasless & {
+      intentSourceAddr: Hex
+    })[]
+    const regularWithdrawals = batchWithdrawals
+      .filter((w) => !isGaslessIntent(w))
+      .map((w) => ({
+        ...w,
+        intent: getWithdrawData(w.intent as IndexerIntent),
+        source: Number((w as BatchWithdraws).intent.source),
+      }))
+
+    // Get all gasless intent hashes
+    const gaslessIntentHashes = gaslessWithdrawals.map((g) => g.intent.intentHash)
+
+    // Fetch full data for all gasless intents from MongoDB in a single query
+    const gaslessIntentsFromDb =
+      await this.intentSourceRepository.getIntentsByHashes(gaslessIntentHashes)
+
+    // Create a map for quick lookup
+    const gaslessIntentsMap = new Map(
+      gaslessIntentsFromDb.map((intent) => [intent.intent.hash as string, intent]),
+    )
+
+    // Map gasless withdrawals with their full data
+    const gaslessWithdrawalsWithData = gaslessWithdrawals
+      .map((gaslessWithdrawal) => {
+        const fullIntent = gaslessIntentsMap.get(gaslessWithdrawal.intent.intentHash)
+        if (!fullIntent) {
+          this.logger.warn(
+            EcoLogMessage.fromDefault({
+              message: `Gasless intent not found in the database: ${gaslessWithdrawal.intent.intentHash}`,
+            }),
+          )
+          return null
+        }
+        return {
+          source: Number(fullIntent.intent.route.source),
+          intent: IntentDataModel.toChainIntent(fullIntent.intent),
+          claimant: gaslessWithdrawal.claimant,
+          intentSourceAddr: gaslessWithdrawal.intentSourceAddr,
+        }
+      })
+      .filter((w) => w !== null)
+
+    // Combine regular and gasless withdrawals
+    const allWithdrawalsWithData = [...regularWithdrawals, ...gaslessWithdrawalsWithData]
+
     const batchWithdrawalsPerSource = _.groupBy(
-      batchWithdrawals,
-      (withdrawal) => withdrawal.intent.source,
+      allWithdrawalsWithData,
+      (withdrawal) => withdrawal.source,
     )
 
     this.logger.debug(
@@ -110,7 +166,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
         message: `${IntentProcessorService.name}.getNextBatchWithdrawals(): Withdrawals`,
         properties: {
           intentSourceAddrs,
-          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.intent.hash),
+          intentHashes: _.map(batchWithdrawals, (withdrawal) => withdrawal.claimant._hash),
         },
       }),
     )
@@ -119,7 +175,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
 
     for (const sourceChainId in batchWithdrawalsPerSource) {
       const withdrawalsForChain = batchWithdrawalsPerSource[sourceChainId]
-      const batchWithdrawalsData = withdrawalsForChain.map(({ intent }) => getWithdrawData(intent))
+      const batchWithdrawalsData = withdrawalsForChain.map((w) => w.intent)
 
       const chunkWithdrawals = _.chunk(batchWithdrawalsData, this.config.withdrawals.chunkSize)
       const chunkWithdrawalsWithAddr = _.chunk(
@@ -301,7 +357,7 @@ export class IntentProcessorService implements OnApplicationBootstrap {
       }),
     )
 
-    const transaction = this.sendTransactions(chainId, sendBatchTransactions)
+    const transaction = batchTransactionsWithMulticall(chainId, sendBatchTransactions)
 
     const txHash = await walletClient.sendTransaction(transaction)
 
@@ -316,38 +372,6 @@ export class IntentProcessorService implements OnApplicationBootstrap {
     )
 
     await publicClient.waitForTransactionReceipt({ hash: txHash })
-  }
-
-  /**
-   * Aggregates transactions using a Multicall contract
-   * @param chainId
-   * @param transactions
-   * @private
-   */
-  private sendTransactions(
-    chainId: number,
-    transactions: TransactionRequest[],
-  ): TransactionRequest {
-    if (transactions.length === 1) {
-      return transactions[0]
-    }
-
-    const totalValue = transactions.reduce((acc, tx) => acc + (tx.value || 0n), 0n)
-
-    const calls = transactions.map((tx) => ({
-      target: tx.to!,
-      allowFailure: false,
-      value: tx.value ?? 0n,
-      callData: tx.data ?? '0x',
-    }))
-
-    const data = encodeFunctionData({
-      abi: Multicall3Abi,
-      functionName: 'aggregate3Value',
-      args: [calls],
-    })
-
-    return { to: getMulticall(chainId), value: totalValue, data }
   }
 
   private getIntentSource() {

@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { StargateProviderService } from './stargate-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { KernelAccountClientV2Service } from '@/transaction/smart-wallets/kernel/kernel-account-client-v2.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { StargateQuote, StargateStep } from './types/stargate-quote.interface'
 import { Hex } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { createMock } from '@golevelup/ts-jest'
+import { LmTxGatedKernelAccountClientV2Service } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client-v2.service'
 
 // Mock global fetch
 global.fetch = jest.fn()
@@ -14,7 +16,7 @@ global.fetch = jest.fn()
 describe('StargateProviderService', () => {
   let service: StargateProviderService
   let ecoConfigService: EcoConfigService
-  let kernelAccountClientV2Service: KernelAccountClientV2Service
+  let kernelAccountClientV2Service: LmTxGatedKernelAccountClientV2Service
   let multiChainPublicClientService: MultichainPublicClientService
 
   const mockTokenData: TokenData = {
@@ -130,6 +132,7 @@ describe('StargateProviderService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StargateProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         {
           provide: EcoConfigService,
           useValue: {
@@ -142,7 +145,7 @@ describe('StargateProviderService', () => {
           },
         },
         {
-          provide: KernelAccountClientV2Service,
+          provide: LmTxGatedKernelAccountClientV2Service,
           useValue: {
             getClient: jest.fn().mockResolvedValue(mockClient),
             getAddress: jest.fn().mockResolvedValue(mockWalletAddress),
@@ -162,8 +165,8 @@ describe('StargateProviderService', () => {
     ecoConfigService.getLiquidityManager = jest.fn().mockReturnValue({
       maxQuoteSlippage: 0.5,
     })
-    kernelAccountClientV2Service = module.get<KernelAccountClientV2Service>(
-      KernelAccountClientV2Service,
+    kernelAccountClientV2Service = module.get<LmTxGatedKernelAccountClientV2Service>(
+      LmTxGatedKernelAccountClientV2Service,
     )
     multiChainPublicClientService = module.get<MultichainPublicClientService>(
       MultichainPublicClientService,

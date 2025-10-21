@@ -6,8 +6,9 @@ import { WarpRouteProviderService } from './warp-route-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { BalanceService } from '@/balance/balance.service'
 import { LiFiProviderService } from '../LiFi/lifi-provider.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { WarpRoutesConfig } from '@/eco-configs/eco-config.types'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 const WALLET_ADDRESS: Hex = '0x21c77848520d8a41138287a5e9ed66185a4317f2'
 
@@ -53,7 +54,7 @@ describe('WarpRouteProviderService', () => {
   let ecoConfigService: DeepMocked<EcoConfigService>
   let balanceService: DeepMocked<BalanceService>
   let liFiProviderService: DeepMocked<LiFiProviderService>
-  let kernelAccountClientService: DeepMocked<KernelAccountClientService>
+  let kernelAccountClientService: DeepMocked<LmTxGatedKernelAccountClientService>
 
   beforeEach(async () => {
     const ecoConfigServiceMock = {
@@ -68,11 +69,12 @@ describe('WarpRouteProviderService', () => {
           provide: EcoConfigService,
           useValue: ecoConfigServiceMock,
         },
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         { provide: LiFiProviderService, useValue: createMock<LiFiProviderService>() },
         {
-          provide: KernelAccountClientService,
-          useValue: createMock<KernelAccountClientService>(),
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: createMock<LmTxGatedKernelAccountClientService>(),
         },
       ],
     }).compile()
@@ -81,7 +83,7 @@ describe('WarpRouteProviderService', () => {
     ecoConfigService = module.get(EcoConfigService)
     balanceService = module.get(BalanceService)
     liFiProviderService = module.get(LiFiProviderService)
-    kernelAccountClientService = module.get(KernelAccountClientService)
+    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
   })
 
   afterEach(() => {

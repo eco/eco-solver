@@ -1,17 +1,26 @@
-import { Queue } from 'bullmq'
+import { AutoInject } from '@/common/decorators/auto-inject.decorator'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import {
+  ExecuteCCTPMintJobData,
+  ExecuteCCTPMintJobManager,
+} from '@/liquidity-manager/jobs/execute-cctp-mint.job'
 import { Hex } from 'viem'
+import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
 } from '@/liquidity-manager/jobs/liquidity-manager.job'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { LiquidityManagerJobName } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import {
+  LiquidityManagerJobName,
+  LiquidityManagerQueueDataType,
+} from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { ExecuteCCTPMintJobManager } from '@/liquidity-manager/jobs/execute-cctp-mint.job'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { Queue } from 'bullmq'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 
 // Enhanced job data to support CCTPLiFi operations
-export interface CheckCCTPAttestationJobData {
+export interface CheckCCTPAttestationJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
   messageHash: Hex
   messageBody: Hex
@@ -25,8 +34,6 @@ export interface CheckCCTPAttestationJobData {
       decimals: number
     }
   }
-  id?: string
-  [key: string]: unknown // Index signature for BullMQ compatibility
 }
 
 export type CheckCCTPAttestationJob = LiquidityManagerJob<
@@ -36,6 +43,9 @@ export type CheckCCTPAttestationJob = LiquidityManagerJob<
 >
 
 export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<CheckCCTPAttestationJob> {
+  @AutoInject(RebalanceRepository)
+  private rebalanceRepository: RebalanceRepository
+
   /**
    * Starts a job scheduler for checking CCTP attestation.
    *
@@ -50,9 +60,9 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     delay?: number,
   ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCTP_ATTESTATION, data, {
-      removeOnComplete: true,
-      delay,
-      attempts: 3,
+      removeOnFail: false,
+      delay: delay ?? 10_000,
+      attempts: 10,
       backoff: {
         type: 'exponential',
         delay: 10_000,
@@ -80,8 +90,27 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
     job: CheckCCTPAttestationJob,
     processor: LiquidityManagerProcessor,
   ): Promise<CheckCCTPAttestationJob['returnvalue']> {
-    const { messageHash } = job.data
-    return processor.cctpProviderService.fetchAttestation(messageHash)
+    const { messageHash, id, destinationChainId, cctpLiFiContext } = job.data
+    const result = await processor.cctpProviderService.fetchAttestation(messageHash, id)
+
+    if (result.status === 'pending') {
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
+          id,
+          properties: {
+            ...result,
+            messageHash,
+            destinationChainId,
+            isCCTPLiFi: !!cctpLiFiContext,
+          },
+        }),
+      )
+
+      await this.delay(job, 10_000)
+    }
+
+    return result as CheckCCTPAttestationJob['returnvalue']
   }
 
   async onComplete(
@@ -94,30 +123,33 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
           message:
             'CCTP: CheckCCTPAttestationJob: Attestation complete. Adding CCTP mint transaction to execution queue',
           id: job.data.id,
-          properties: job.returnvalue,
-        }),
-      )
-
-      await ExecuteCCTPMintJobManager.start(processor.queue, {
-        ...job.data,
-        attestation: job.returnvalue.attestation,
-        id: job.data.id,
-      })
-    } else {
-      processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'CCTP: CheckCCTPAttestationJob: Attestation pending...',
-          id: job.data.id,
           properties: {
-            ...job.returnvalue,
-            messageHash: job.data.messageHash,
-            destinationChainId: job.data.destinationChainId,
-            isCCTPLiFi: !!job.data.cctpLiFiContext,
+            groupID: job.data.groupID,
+            rebalanceJobID: job.data.rebalanceJobID,
+            returnvalue: job.returnvalue,
           },
         }),
       )
 
-      await CheckCCTPAttestationJobManager.start(processor.queue, job.data, 30_000)
+      const executeCCTPMintJobData: ExecuteCCTPMintJobData = {
+        ...job.data,
+        attestation: job.returnvalue.attestation,
+        id: job.data.id,
+      }
+
+      await ExecuteCCTPMintJobManager.start(processor.queue, executeCCTPMintJobData)
+    } else {
+      processor.logger.error(
+        EcoLogMessage.withId({
+          message:
+            'CCTP: CheckCCTPAttestationJob: it should not happen, attestation is not complete',
+          id: job.data.id,
+          properties: {
+            returnvalue: job.returnvalue,
+            data: job.data,
+          },
+        }),
+      )
     }
   }
 
@@ -127,15 +159,30 @@ export class CheckCCTPAttestationJobManager extends LiquidityManagerJobManager<C
    * @param processor - The processor handling the job.
    * @param error - The error that occurred.
    */
-  onFailed(job: CheckCCTPAttestationJob, processor: LiquidityManagerProcessor, error: unknown) {
+  async onFailed(
+    job: CheckCCTPAttestationJob,
+    processor: LiquidityManagerProcessor,
+    error: unknown,
+  ) {
+    const isFinal = this.isFinalAttempt(job, error)
+
+    const errorMessage = isFinal
+      ? 'CCTP: CheckCCTPAttestationJob: FINAL FAILURE'
+      : 'CCTP: CheckCCTPAttestationJob: Failed: Retrying...'
+
+    if (isFinal) {
+      const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
+      const { rebalanceJobID } = jobData
+      await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+    }
+
     processor.logger.error(
-      EcoLogMessage.withId({
-        message: `CCTP: CheckCCTPAttestationJob: Failed`,
+      EcoLogMessage.withErrorAndId({
+        message: errorMessage,
         id: job.data.id,
+        error: error as any,
         properties: {
-          error: (error as any)?.message ?? error,
           data: job.data,
-          isCCTPLiFi: !!job.data.cctpLiFiContext,
         },
       }),
     )

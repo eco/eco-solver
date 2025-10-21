@@ -20,7 +20,6 @@ import { hyperlaneCollateralERC20 } from '@/contracts/HyperlaneCollateralERC20'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
-import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { HyperlaneMailboxAbi } from '@/contracts/HyperlaneMailbox'
 import * as Hyperlane from '@/intent-processor/utils/hyperlane'
 import {
@@ -40,6 +39,9 @@ import {
   InvalidInputError,
 } from './warp-route.errors'
 import { withRetry, withTimeout } from './warp-route.utils'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
 export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'> {
@@ -49,7 +51,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly liFiProviderService: LiFiProviderService,
-    private readonly kernelAccountClientService: KernelAccountClientService,
+    private readonly kernelAccountClientService: LmTxGatedKernelAccountClientService,
+    private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
   getStrategy() {
@@ -136,68 +139,82 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'WarpRoute'>) {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'WarpRouteProviderService: executing quote',
-        id: quote.id,
-        properties: {
-          tokenIn: quote.tokenIn.config.address,
-          chainIn: quote.tokenIn.config.chainId,
-          tokenOut: quote.tokenOut.config.address,
-          chainOut: quote.tokenOut.config.chainId,
-          amountIn: quote.amountIn,
-          amountOut: quote.amountOut,
-          slippage: quote.slippage,
-        },
-      }),
-    )
+    try {
+      this.logger.debug(
+        EcoLogMessage.withId({
+          message: 'WarpRouteProviderService: executing quote',
+          id: quote.id,
+          properties: {
+            groupID: quote.groupID,
+            rebalanceJobID: quote.rebalanceJobID,
+            tokenIn: quote.tokenIn.config.address,
+            chainIn: quote.tokenIn.config.chainId,
+            tokenOut: quote.tokenOut.config.address,
+            chainOut: quote.tokenOut.config.chainId,
+            amountIn: quote.amountIn,
+            amountOut: quote.amountOut,
+            slippage: quote.slippage,
+          },
+        }),
+      )
 
-    const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
-    const txHash = await withRetry(
-      () => this._execute(walletAddress, quote),
-      { maxRetries: 2, retryDelay: 2000 },
-      this.logger,
-      { operation: 'execute', quote: quote.id },
-    )
-    const receipt = await withRetry(
-      () => client.waitForTransactionReceipt({ hash: txHash }),
-      { maxRetries: 3, retryDelay: 5000 },
-      this.logger,
-      { operation: 'waitForReceipt', txHash },
-    )
+      const client = await this.kernelAccountClientService.getClient(quote.tokenIn.chainId)
+      const txHash = await withRetry(
+        () => this._execute(walletAddress, quote),
+        { maxRetries: 2, retryDelay: 2000 },
+        this.logger,
+        { operation: 'execute', quote: quote.id },
+      )
+      const receipt = await withRetry(
+        () => client.waitForTransactionReceipt({ hash: txHash }),
+        { maxRetries: 3, retryDelay: 5000 },
+        this.logger,
+        { operation: 'waitForReceipt', txHash },
+      )
 
-    const { messageId } = this.getMessageFromReceipt(receipt)
+      const { messageId } = this.getMessageFromReceipt(receipt as TransactionReceipt)
 
-    this.logger.log(
-      EcoLogMessage.withId({
-        message:
-          'WarpRouteProviderService: remote transfer executed, waiting for message to get relayed',
-        id: quote.id,
-        properties: {
-          chainId: quote.tokenIn.config.chainId,
-          transactionHash: txHash,
-          destinationChainId: quote.tokenOut.config.chainId,
-          messageId,
-        },
-      }),
-    )
+      this.logger.log(
+        EcoLogMessage.withId({
+          message:
+            'WarpRouteProviderService: remote transfer executed, waiting for message to get relayed',
+          id: quote.id,
+          properties: {
+            chainId: quote.tokenIn.config.chainId,
+            transactionHash: txHash,
+            destinationChainId: quote.tokenOut.config.chainId,
+            messageId,
+          },
+        }),
+      )
 
-    // Used to complete the job only after the message is relayed
-    await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
+      // Used to complete the job only after the message is relayed
+      await this.waitMessageRelay(quote.tokenOut.config.chainId, messageId)
 
-    this.logger.log(
-      EcoLogMessage.withId({
-        id: quote.id,
-        message: 'WarpRouteProviderService: message relayed',
-        properties: {
-          chainId: quote.tokenOut.config.chainId,
-          transactionHash: txHash,
-          messageId,
-        },
-      }),
-    )
+      this.logger.log(
+        EcoLogMessage.withId({
+          id: quote.id,
+          message: 'WarpRouteProviderService: message relayed',
+          properties: {
+            chainId: quote.tokenOut.config.chainId,
+            transactionHash: txHash,
+            messageId,
+          },
+        }),
+      )
 
-    return txHash
+      if (quote.rebalanceJobID) {
+        await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.COMPLETED)
+      }
+      return txHash
+    } catch (error) {
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+      throw error
+    }
   }
 
   private getRemoteTransferQuote(
@@ -210,8 +227,8 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
       amountIn: amount,
       amountOut: amount,
       slippage: 0,
-      tokenIn: tokenIn,
-      tokenOut: tokenOut,
+      tokenIn,
+      tokenOut,
       strategy: this.getStrategy(),
       context: undefined,
       id,
@@ -287,7 +304,7 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
 
     const transferRemoteTx: TransactionRequest = {
       to: warpToken.warpContract,
-      value: transferRemoteFee,
+      value: transferRemoteFee as bigint,
       data: transferRemoteData,
     }
 
