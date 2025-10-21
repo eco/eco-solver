@@ -1,4 +1,4 @@
-import { ConfigurationSchemas } from '@/dynamic-config/schemas/configuration-schemas';
+import { ConfigurationSchemas } from '@/modules/dynamic-config/schemas/configuration-schemas';
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 

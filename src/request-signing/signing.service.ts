@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-
+import { SignatureGenerator } from '@/request-signing/signature-generator';
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface';
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface';
-import { SignatureGenerator } from '@/request-signing/signature-generator';
-// import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 
 @Injectable()
 export class SigningService implements OnModuleInit {

@@ -1,9 +1,9 @@
-import { AuditQueryDTO } from '@/dynamic-config/dtos/audit-query.dto';
-import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto';
-import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum';
-import { CreateConfigurationDTO } from '@/dynamic-config/dtos/create-configuration.dto';
-import { DynamicConfigController } from '@/dynamic-config/controllers/dynamic-config.controller';
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
+import { AuditQueryDTO } from '@/modules/dynamic-config/dtos/audit-query.dto';
+import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
+import { CreateConfigurationDTO } from '@/modules/dynamic-config/dtos/create-configuration.dto';
+import { DynamicConfigController } from '@/modules/dynamic-config/controllers/dynamic-config.controller';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
 import {
@@ -12,7 +12,7 @@ import {
   SIGNATURE_HEADER,
 } from '@/request-signing/interfaces/signature-headers.interface';
 import { Test, TestingModule } from '@nestjs/testing';
-import { UpdateConfigurationDTO } from '@/dynamic-config/dtos/update-configuration.dto';
+import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
 
 describe('ConfigurationController', () => {
   let controller: DynamicConfigController;
@@ -40,18 +40,23 @@ describe('ConfigurationController', () => {
     updatedAt: new Date(),
   };
 
-  const mockAuditLog = {
-    _id: 'mock-audit-id',
-    configKey: 'test.key',
-    operation: 'CREATE' as const,
-    newValue: 'test-value',
-    userId: 'test-user-id',
-    userAgent: 'Mozilla/5.0',
-    timestamp: new Date(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    getMaskedOldValue: jest.fn().mockReturnValue(null),
-    getMaskedNewValue: jest.fn().mockReturnValue('test-value'),
+  const mockAuditLogsResponse = {
+    logs: [
+      {
+        _id: 'mock-audit-id',
+        configKey: 'test.key',
+        operation: 'CREATE' as const,
+        newValue: 'test-value',
+        userId: 'test-user-id',
+        userAgent: 'Mozilla/5.0',
+        timestamp: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        getMaskedOldValue: jest.fn().mockReturnValue(null),
+        getMaskedNewValue: jest.fn().mockReturnValue('test-value'),
+      },
+    ],
+    total: 1,
   };
 
   beforeEach(async () => {
@@ -64,15 +69,9 @@ describe('ConfigurationController', () => {
       delete: jest.fn(),
       exists: jest.fn(),
       getAuditHistory: jest.fn(),
+      getAuditHistoryCountForKey: jest.fn(),
+      findByKey: jest.fn(),
     };
-
-    // Add configRepository as a property that can be accessed
-    Object.defineProperty(mockService, 'configRepository', {
-      value: {
-        findByKey: jest.fn(),
-      },
-      writable: true,
-    });
 
     // Mock the RequestSignatureGuard
     const mockRequestSignatureGuard = {
@@ -151,7 +150,7 @@ describe('ConfigurationController', () => {
   describe('getConfiguration', () => {
     it('should return configuration by key', async () => {
       service.get.mockResolvedValue('test-value');
-      (service as any).configRepository.findByKey.mockResolvedValue(mockConfigDocument);
+      (service as any).findByKey.mockResolvedValue(mockConfigDocument);
 
       const result = await controller.getConfiguration('test.key');
 
@@ -170,7 +169,7 @@ describe('ConfigurationController', () => {
 
     it('should throw 404 when config document not found', async () => {
       service.get.mockResolvedValue('test-value');
-      (service as any).configRepository.findByKey.mockResolvedValue(null);
+      service.findByKey.mockResolvedValue(null);
 
       await expect(controller.getConfiguration('test.key')).rejects.toThrow(
         new HttpException('Configuration not found: test.key', HttpStatus.NOT_FOUND),
@@ -336,7 +335,7 @@ describe('ConfigurationController', () => {
 
     it('should return audit history successfully', async () => {
       service.exists.mockResolvedValue(true);
-      service.getAuditHistory.mockResolvedValue([mockAuditLog as any]);
+      service.getAuditHistory.mockResolvedValue(mockAuditLogsResponse as any);
 
       const result = await controller.getConfigurationAuditHistory('test.key', query);
 
@@ -344,6 +343,15 @@ describe('ConfigurationController', () => {
       expect(service.getAuditHistory).toHaveBeenCalledWith('test.key', 10, 0);
       expect(result.data).toHaveLength(1);
       expect(result.data[0].configKey).toBe('test.key');
+    });
+
+    it('should return audit history count successfully', async () => {
+      service.exists.mockResolvedValue(true);
+      service.getAuditHistory.mockResolvedValue(mockAuditLogsResponse as any);
+      service.getAuditHistoryCountForKey.mockResolvedValue(9494);
+
+      const result = await controller.getConfigurationAuditHistory('test.key', query);
+      expect(result.total).toEqual(9494);
     });
 
     it('should throw 404 when configuration not found', async () => {
@@ -401,7 +409,7 @@ describe('ConfigurationController', () => {
 
     describe('toAuditResponseDTO', () => {
       it('should transform audit log to response DTO', () => {
-        const result = (controller as any).toAuditResponseDTO(mockAuditLog);
+        const result = (controller as any).toAuditResponseDTO(mockAuditLogsResponse.logs[0]);
 
         expect(result.id).toBe('mock-audit-id');
         expect(result.configKey).toBe('test.key');

@@ -1,18 +1,18 @@
-import { AwsToMongoDbMigrationService } from '@/dynamic-config/migration/aws-to-mongodb-migration.service';
-import { Configuration, ConfigurationSchema } from '@/dynamic-config/schemas/configuration.schema';
+import { AwsToMongoDbMigrationService } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
+import { Configuration, ConfigurationSchema } from '@/modules/dynamic-config/schemas/configuration.schema';
 import {
   ConfigurationAudit,
   ConfigurationAuditSchema,
-} from '@/dynamic-config/schemas/configuration-audit.schema';
-import { DynamicConfigAuditRepository } from '@/dynamic-config/repositories/dynamic-config-audit.repository';
-import { DynamicConfigAuditService } from '@/dynamic-config/services/dynamic-config-audit.service';
-import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository';
-import { DynamicConfigSanitizerService } from '@/dynamic-config/services/dynamic-config-sanitizer.service';
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
-import { DynamicConfigValidationService } from '@/dynamic-config/migration/dynamic-config-validation.service';
-import { DynamicConfigValidatorService } from '@/dynamic-config/services/dynamic-config-validator.service';
+} from '@/modules/dynamic-config/schemas/configuration-audit.schema';
+import { DynamicConfigAuditRepository } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
+import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
+import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
 import { EcoConfigService } from '@/config/eco-config.service';
-import { EventEmitterModule } from '@nestjs/event-emitter';
+import { EventsModule } from '@/modules/events';
 import { Module } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { ModuleRefProvider } from '@/common/services/module-ref-provider';
@@ -29,7 +29,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       { name: Configuration.name, schema: ConfigurationSchema },
       { name: ConfigurationAudit.name, schema: ConfigurationAuditSchema },
     ]),
-    EventEmitterModule.forRoot(),
+    EventsModule,
     MongooseModule.forRootAsync({
       useFactory: async () => {
         // Use static config to get MongoDB URI (same as EcoConfigService would use)

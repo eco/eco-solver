@@ -3,9 +3,9 @@ import {
   AuditLogEntry,
   AuditStatistics,
   DynamicConfigAuditRepository,
-} from '@/dynamic-config/repositories/dynamic-config-audit.repository';
-import { ConfigurationAuditDocument } from '@/dynamic-config/schemas/configuration-audit.schema';
-import { ConfigurationChangeEvent } from '@/dynamic-config/services/dynamic-config.service';
+} from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
+import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
+import { ConfigurationChangeEvent } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { EcoError } from '@/errors/eco-error';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
@@ -35,16 +35,27 @@ export class DynamicConfigAuditService {
   }
 
   /**
+   * Get the count of configuration history entries for a specific key
+   * @param configKey The configuration key to filter by
+   * @returns The count of history entries
+   */
+  getConfigurationHistoryCount(configKey: string): Promise<number> {
+    return this.auditRepository.count({ configKey });
+  }
+
+  /**
    * Get audit history for a specific configuration key
    */
   async getConfigurationHistory(
     configKey: string,
     limit: number = 50,
     offset: number = 0,
-  ): Promise<ConfigurationAuditDocument[]> {
+  ): Promise<{
+    logs: ConfigurationAuditDocument[];
+    total: number;
+  }> {
     try {
-      const { logs } = await this.auditRepository.findHistory(configKey, limit, offset);
-      return logs;
+      return await this.auditRepository.findHistory(configKey, limit, offset);
     } catch (ex) {
       EcoError.logError(ex, `Failed to get history for ${configKey}`, this.logger);
       throw ex;
@@ -63,13 +74,8 @@ export class DynamicConfigAuditService {
     total: number;
   }> {
     try {
-      const logs = await this.auditRepository.findWithFilter(filter);
-      const total = await this.auditRepository.count(filter);
-
-      // Apply pagination manually since the repository method doesn't support it yet
-      const paginatedLogs = logs.slice(offset, offset + limit);
-
-      return { logs: paginatedLogs, total };
+      // Use the new paginated repository method for efficient database-level pagination
+      return await this.auditRepository.findWithFilterPaginated(filter, limit, offset);
     } catch (ex) {
       EcoError.logError(ex, `Failed to get audit logs`, this.logger);
       throw ex;
@@ -145,7 +151,7 @@ export class DynamicConfigAuditService {
    */
   async exportAuditLogs(filter: AuditFilter = {}): Promise<string> {
     try {
-      const logs = await this.auditRepository.findWithFilter(filter);
+      const { logs } = await this.auditRepository.findWithFilterPaginated(filter);
 
       return JSON.stringify(
         logs.map((log) => ({

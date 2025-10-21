@@ -4,7 +4,8 @@ import { AwsSecretsManager } from '@/modules/config/utils/aws-secrets-manager';
 import {
   ConfigurationChangeEvent,
   DynamicConfigService,
-} from '@/dynamic-config/services/dynamic-config.service';
+} from '@/modules/dynamic-config/services/dynamic-config.service';
+import { EcoError } from '@/errors/eco-error';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
@@ -214,7 +215,14 @@ export class EcoConfigService {
    */
   private static mergeConfigurations() {
     // Start with external configs, then static configs, then MongoDB configs
-    this.cachedConfig = merge({}, this.cachedConfig, this.mongoConfig || {});
+    const savedConfig = this.cachedConfig;
+    const merged = merge({}, this.cachedConfig, this.mongoConfig || {});
+    try {
+      this.cachedConfig = this.validateConfig(merged);
+    } catch (ex) {
+      EcoError.logError(ex, `Dynamic config validation failed; reverting merge`, this.logger);
+      this.cachedConfig = savedConfig;
+    }
   }
 
   private static subscribeToConfigChanges() {

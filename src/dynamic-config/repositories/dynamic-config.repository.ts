@@ -7,11 +7,11 @@ import {
   PaginatedResult,
   PaginationOptions,
   UpdateConfigurationDTO,
-} from '@/dynamic-config/interfaces/configuration-repository.interface';
+} from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
 import {
   Configuration,
   ConfigurationDocument,
-} from '@/dynamic-config/schemas/configuration.schema';
+} from '@/modules/dynamic-config/schemas/configuration.schema';
 import { EcoError } from '@/errors/eco-error';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { FilterQuery, Model } from 'mongoose';
@@ -81,8 +81,8 @@ export class DynamicConfigRepository implements IConfigurationRepository {
     }
   }
 
-  async findAll(
-    filter?: ConfigurationFilter,
+  async findAllWithFilteringAndPagination(
+    filter: ConfigurationFilter,
     pagination?: PaginationOptions,
   ): Promise<PaginatedResult<ConfigurationDocument>> {
     try {
@@ -93,7 +93,7 @@ export class DynamicConfigRepository implements IConfigurationRepository {
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
-          message: `findAll`,
+          message: `findAllWithFilteringAndPagination`,
           properties: {
             filter,
             pagination,
@@ -112,7 +112,7 @@ export class DynamicConfigRepository implements IConfigurationRepository {
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
-          message: `findAll: result`,
+          message: `findAllWithFilteringAndPagination: result`,
           properties: {
             data,
             total,
@@ -438,7 +438,7 @@ export class DynamicConfigRepository implements IConfigurationRepository {
   ): Promise<PaginatedResult<ConfigurationDocument>> {
     try {
       const filter: ConfigurationFilter = { lastModifiedBy: userId };
-      return await this.findAll(filter, pagination);
+      return await this.findAllWithFilteringAndPagination(filter, pagination);
     } catch (ex) {
       EcoError.logError(
         ex,

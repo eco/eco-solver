@@ -1,5 +1,5 @@
-import { ConfigurationSchemas } from '@/dynamic-config/schemas/configuration-schemas';
-import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service';
+import { ConfigurationSchemas } from '@/modules/dynamic-config/schemas/configuration-schemas';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { EcoConfigService } from '@/config/eco-config.service';
 import { EcoError } from '@/errors/eco-error';
 import { EcoLogger } from '@/common/logging/eco-logger';

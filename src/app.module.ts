@@ -18,7 +18,7 @@ import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
-import { DynamicConfigModule } from '@/dynamic-config/dynamic-config.module';
+import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 import { ModuleRef } from '@nestjs/core';
 import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 

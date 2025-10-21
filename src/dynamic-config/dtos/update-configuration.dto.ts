@@ -1,6 +1,6 @@
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 
-import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 
 export class UpdateConfigurationDTO {
   @IsOptional()

@@ -1,4 +1,4 @@
-import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum';
+import { AuditOperation } from '@/modules/dynamic-config/enums/audit-operation.enum';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 

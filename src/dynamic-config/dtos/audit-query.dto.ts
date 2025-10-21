@@ -1,6 +1,6 @@
-import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum';
+import { AuditOperation } from '@/modules/dynamic-config/enums/audit-operation.enum';
 import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
-import { SortOrder } from '@/dynamic-config/enums/sort-order.enum';
+import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
 import { Type } from 'class-transformer';
 
 export class AuditQueryDTO {
@@ -38,7 +38,6 @@ export class AuditQueryDTO {
   sortBy?: string = 'timestamp';
 
   @IsOptional()
-  @IsEnum(['asc', 'desc'])
   @IsEnum(SortOrder)
   sortOrder?: SortOrder = SortOrder.DESC;
 }

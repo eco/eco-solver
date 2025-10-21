@@ -1,23 +1,26 @@
-import { ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema';
+import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
 import {
   ConfigurationFilter,
   CreateConfigurationDTO,
   PaginatedResult,
   PaginationOptions,
   UpdateConfigurationDTO,
-} from '@/dynamic-config/interfaces/configuration-repository.interface';
-import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto';
-import { DynamicConfigAuditService } from '@/dynamic-config/services/dynamic-config-audit.service';
-import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository';
-import { DynamicConfigSanitizerService } from '@/dynamic-config/services/dynamic-config-sanitizer.service';
-import { DynamicConfigValidatorService } from '@/dynamic-config/services/dynamic-config-validator.service';
+} from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
+import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
+import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
 import { EcoConfigService } from '@/config/eco-config.service';
+import { EcoError } from '@/errors/eco-error';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { SortOrder } from '@/dynamic-config/enums/sort-order.enum';
-import { EcoError } from '@/errors/eco-error';
+import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
+import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
+import { AuditStatistics } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
 
 export interface ConfigurationChangeEvent {
   key: string;
@@ -114,6 +117,10 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     return null;
   }
 
+  async findByKey(key: string): Promise<ConfigurationDocument | null> {
+    return this.configRepository.findByKey(key);
+  }
+
   /**
    * Get a configuration value with a default fallback
    */
@@ -152,13 +159,13 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    * Get all configurations with filtering and pagination
    */
   async getAll(): Promise<PaginatedResult<CachedConfiguration>> {
-    const filter = undefined;
+    const filter = {};
 
     const pagination: PaginationOptions = {
       page: 1,
       limit: Number.MAX_SAFE_INTEGER,
       sortBy: 'key',
-      sortOrder: 'asc',
+      sortOrder: SortOrder.ASC,
     };
 
     return await this.getAllWithFilteringAndPagination(filter, pagination);
@@ -168,10 +175,13 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    * Get all configurations with filtering and pagination
    */
   async getAllWithFilteringAndPagination(
-    filter?: ConfigurationFilter,
+    filter: ConfigurationFilter,
     pagination?: PaginationOptions,
   ): Promise<PaginatedResult<CachedConfiguration>> {
-    const dbResult = await this.configRepository.findAll(filter, pagination);
+    const dbResult = await this.configRepository.findAllWithFilteringAndPagination(
+      filter,
+      pagination,
+    );
 
     // Convert to cached format and mask secrets
     const data = dbResult.data.map((config) => this.convertToCachedFormat(config));
@@ -490,7 +500,19 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    */
   private async loadDynamicConfigIntoCache(): Promise<void> {
     try {
-      const allConfigs = await this.configRepository.findAll();
+      const filter = {};
+
+      const pagination: PaginationOptions = {
+        page: 1,
+        limit: Number.MAX_SAFE_INTEGER,
+        sortBy: 'key',
+        sortOrder: SortOrder.ASC,
+      };
+
+      const allConfigs = await this.configRepository.findAllWithFilteringAndPagination(
+        filter,
+        pagination,
+      );
 
       this.configCache.clear();
 
@@ -573,21 +595,36 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get configuration audit history
    */
-  async getAuditHistory(configKey: string, limit: number = 50, offset: number = 0) {
+  async getAuditHistoryCountForKey(configKey: string): Promise<number> {
+    return await this.auditService.getConfigurationHistoryCount(configKey);
+  }
+
+  /**
+   * Get configuration audit history
+   */
+  async getAuditHistory(
+    configKey: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
     return await this.auditService.getConfigurationHistory(configKey, limit, offset);
   }
 
   /**
    * Get user activity
    */
-  async getUserActivity(userId: string, limit: number = 50, offset: number = 0) {
+  async getUserActivity(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<ConfigurationAuditDocument[]> {
     return await this.auditService.getUserActivity(userId, limit, offset);
   }
 
   /**
    * Get audit statistics
    */
-  async getAuditStatistics(startDate?: Date, endDate?: Date) {
+  async getAuditStatistics(startDate?: Date, endDate?: Date): Promise<AuditStatistics> {
     return await this.auditService.getAuditStatistics(startDate, endDate);
   }
 
@@ -603,8 +640,10 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      // This should never be reached since we only emit 'api' and 'change-stream' events
-      this.logger.warn(`Unexpected event source: ${event.source} for key: ${event.key}`);
+      if (event.source !== 'api') {
+        // This should never be reached since we only emit 'api' and 'change-stream' events
+        this.logger.warn(`Unexpected event source: ${event.source} for key: ${event.key}`);
+      }
     } catch (ex) {
       EcoError.logError(ex, `Failed to handle configuration change event`, this.logger);
     }
@@ -660,11 +699,11 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   private async startChangeStreamMonitoring(): Promise<void> {
     try {
       // Create change stream with pipeline to filter only configuration changes
+      // Note: Don't filter by fullDocument.key as it excludes delete operations (fullDocument is null for deletes)
       const pipeline = [
         {
           $match: {
-            'fullDocument.key': { $exists: true },
-            operationType: { $in: ['insert', 'update', 'delete'] },
+            operationType: { $in: ['insert', 'update', 'delete', 'replace'] },
           },
         },
       ];
@@ -716,20 +755,61 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       const fullDocument = change.fullDocument as any;
       const fullDocumentBeforeChange = change.fullDocumentBeforeChange as any;
 
-      // Extract configuration key and values
-      const key = fullDocument?.key || fullDocumentBeforeChange?.key;
-      const newValue = fullDocument?.value;
-      const oldValue = fullDocumentBeforeChange?.value;
+      // Extract configuration key and values based on operation type
+      let key: string;
+      let newValue: any;
+      let oldValue: any;
+
+      switch (operationType) {
+        case 'insert':
+        case 'replace':
+          // For inserts/replaces, key and value are in fullDocument
+          key = fullDocument?.key;
+          newValue = fullDocument?.value;
+          oldValue = fullDocumentBeforeChange?.value; // May be undefined for inserts
+          break;
+        case 'update':
+          // For updates, key can be in either document, prefer fullDocument
+          key = fullDocument?.key || fullDocumentBeforeChange?.key;
+          newValue = fullDocument?.value;
+          oldValue = fullDocumentBeforeChange?.value;
+          break;
+        case 'delete':
+          // For deletes, fullDocument is null, so key must come from fullDocumentBeforeChange
+          key = fullDocumentBeforeChange?.key;
+          newValue = undefined; // No new value for deletes
+          oldValue = fullDocumentBeforeChange?.value;
+          break;
+        default:
+          this.logger.warn(`Unsupported change stream operation type: ${operationType}`);
+          return;
+      }
 
       if (!key) {
-        this.logger.warn('Change stream event missing configuration key:', change);
+        this.logger.warn(`Change stream event missing configuration key for ${operationType}:`, {
+          operationType,
+          hasFullDocument: !!fullDocument,
+          hasFullDocumentBeforeChange: !!fullDocumentBeforeChange,
+          fullDocumentKeys: fullDocument ? Object.keys(fullDocument) : [],
+          fullDocumentBeforeChangeKeys: fullDocumentBeforeChange
+            ? Object.keys(fullDocumentBeforeChange)
+            : [],
+        });
         return;
       }
+
+      // Map MongoDB operation types to service operation types
+      const opMap: Record<string, 'CREATE' | 'UPDATE' | 'DELETE'> = {
+        insert: 'CREATE',
+        update: 'UPDATE',
+        replace: 'UPDATE',
+        delete: 'DELETE',
+      };
 
       // Create configuration change event
       const event: ConfigurationChangeEvent = {
         key,
-        operation: operationType.toUpperCase() as 'CREATE' | 'UPDATE' | 'DELETE',
+        operation: opMap[operationType],
         newValue,
         oldValue,
         timestamp: new Date(),
@@ -739,8 +819,16 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.debug(`Change stream detected: ${key} - ${event.operation}`);
 
-      // Update local cache based on operation type
-      this.updateCacheFromChangeStream(event);
+      // Use fullDocument metadata to update cache; fall back only if absent
+      if (fullDocument) {
+        // Trust DB document
+        this.updateCacheEntry(fullDocument as unknown as ConfigurationDocument);
+        const sanitizedValue = fullDocument.isSecret ? '[REDACTED]' : fullDocument.value;
+        this.logger.debug(`Cache updated: ${key} = ${sanitizedValue}`);
+      } else {
+        // Fallback when pre-image/full document not available
+        this.updateCacheFromChangeStream(event);
+      }
 
       // Emit event for other services (like EcoConfigService)
       if (this.eventEmitter) {
@@ -756,13 +844,13 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    */
   private inferConfigurationType(value: any): 'string' | 'number' | 'boolean' | 'object' | 'array' {
     if (Array.isArray(value)) {
-      return 'array';
+      return ConfigurationType.ARRAY;
     }
     if (value === null || value === undefined) {
-      return 'string';
+      return ConfigurationType.STRING;
     }
     if (typeof value === 'object') {
-      return 'object';
+      return ConfigurationType.OBJECT;
     }
     return typeof value as 'string' | 'number' | 'boolean';
   }

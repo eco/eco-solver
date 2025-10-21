@@ -1,4 +1,4 @@
-import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 
 export class ConfigurationResponseDTO {
   id: string;

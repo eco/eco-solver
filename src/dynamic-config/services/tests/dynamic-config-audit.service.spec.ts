@@ -2,9 +2,9 @@ import {
   AuditFilter,
   AuditLogEntry,
   DynamicConfigAuditRepository,
-} from '@/dynamic-config/repositories/dynamic-config-audit.repository';
-import { ConfigurationChangeEvent } from '@/dynamic-config/services/dynamic-config.service';
-import { DynamicConfigAuditService } from '@/dynamic-config/services/dynamic-config-audit.service';
+} from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
+import { ConfigurationChangeEvent } from '@/modules/dynamic-config/services/dynamic-config.service';
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('DynamicConfigAuditService', () => {
@@ -32,7 +32,7 @@ describe('DynamicConfigAuditService', () => {
       findHistory: jest.fn(),
       findUserActivity: jest.fn(),
       getStatistics: jest.fn(),
-      findWithFilter: jest.fn(),
+      findWithFilterPaginated: jest.fn(),
       count: jest.fn(),
       deleteOlderThan: jest.fn(),
       healthCheck: jest.fn(),
@@ -94,7 +94,7 @@ describe('DynamicConfigAuditService', () => {
       const result = await service.getConfigurationHistory('test.key');
 
       expect(repository.findHistory).toHaveBeenCalledWith('test.key', 50, 0);
-      expect(result).toEqual([mockAuditDocument]);
+      expect(result.logs).toEqual([mockAuditDocument]);
     });
 
     it('should get configuration history with custom pagination', async () => {
@@ -106,7 +106,7 @@ describe('DynamicConfigAuditService', () => {
       const result = await service.getConfigurationHistory('test.key', 10, 5);
 
       expect(repository.findHistory).toHaveBeenCalledWith('test.key', 10, 5);
-      expect(result).toEqual([mockAuditDocument]);
+      expect(result.logs).toEqual([mockAuditDocument]);
     });
 
     it('should handle database errors', async () => {
@@ -118,13 +118,16 @@ describe('DynamicConfigAuditService', () => {
 
   describe('getAuditLogs', () => {
     it('should get audit logs with no filter', async () => {
-      repository.findWithFilter.mockResolvedValue([mockAuditDocument]);
+      repository.findWithFilterPaginated.mockResolvedValue({
+        logs: [mockAuditDocument],
+        total: 1,
+      });
+
       repository.count.mockResolvedValue(1);
 
       const result = await service.getAuditLogs();
 
-      expect(repository.findWithFilter).toHaveBeenCalledWith({});
-      expect(repository.count).toHaveBeenCalledWith({});
+      expect(repository.findWithFilterPaginated).toHaveBeenCalledWith({}, 100, 0);
       expect(result).toEqual({
         logs: [mockAuditDocument],
         total: 1,
@@ -140,13 +143,16 @@ describe('DynamicConfigAuditService', () => {
         endDate: new Date('2023-12-31'),
       };
 
-      repository.findWithFilter.mockResolvedValue([mockAuditDocument]);
+      repository.findWithFilterPaginated.mockResolvedValue({
+        logs: [mockAuditDocument],
+        total: 1,
+      });
+
       repository.count.mockResolvedValue(1);
 
       const result = await service.getAuditLogs(filter, 50, 0);
 
-      expect(repository.findWithFilter).toHaveBeenCalledWith(filter);
-      expect(repository.count).toHaveBeenCalledWith(filter);
+      expect(repository.findWithFilterPaginated).toHaveBeenCalledWith(filter, 50, 0);
       expect(result).toEqual({
         logs: [mockAuditDocument],
         total: 1,
@@ -286,11 +292,14 @@ describe('DynamicConfigAuditService', () => {
     });
 
     it('should export audit logs as JSON', async () => {
-      repository.findWithFilter.mockResolvedValue([mockAuditDocument]);
+      repository.findWithFilterPaginated.mockResolvedValue({
+        logs: [mockAuditDocument],
+        total: 1,
+      });
 
       const result = await service.exportAuditLogs({});
 
-      expect(repository.findWithFilter).toHaveBeenCalledWith({});
+      expect(repository.findWithFilterPaginated).toHaveBeenCalledWith({});
       expect(result).toContain('"configKey": "test.key"');
       expect(result).toContain('"operation": "CREATE"');
       expect(result).toContain('"oldValue": "masked-old"');

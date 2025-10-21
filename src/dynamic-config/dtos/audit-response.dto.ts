@@ -1,4 +1,4 @@
-import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum';
+import { AuditOperation } from '@/modules/dynamic-config/enums/audit-operation.enum';
 
 export class ConfigurationAuditResponseDTO {
   configKey: string;
