@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
 
 # Skip validation for merge commits
 if [ -f .git/MERGE_HEAD ]; then
