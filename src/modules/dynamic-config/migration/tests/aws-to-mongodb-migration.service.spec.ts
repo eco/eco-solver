@@ -35,7 +35,6 @@ describe('AwsToMongoDbMigrationService', () => {
       value: 'existing-value',
       type: 'string' as const,
       isRequired: false,
-      isSecret: false,
       lastModified: new Date(),
     },
   ];
@@ -132,7 +131,6 @@ describe('AwsToMongoDbMigrationService', () => {
             value: { uri: 'existing-uri', dbName: 'existing-db' },
             type: 'object' as const,
             isRequired: true,
-            isSecret: false,
             lastModified: new Date(),
           },
         ],
@@ -170,7 +168,6 @@ describe('AwsToMongoDbMigrationService', () => {
             value: { uri: 'existing-uri', dbName: 'existing-db' },
             type: 'object' as const,
             isRequired: true,
-            isSecret: false,
             lastModified: new Date(),
           },
         ],
@@ -358,7 +355,6 @@ describe('AwsToMongoDbMigrationService', () => {
         value: mockAwsSecrets[key],
         type: 'string' as const,
         isRequired: true,
-        isSecret: false,
         lastModified: new Date(),
       }));
 
@@ -428,16 +424,6 @@ describe('AwsToMongoDbMigrationService', () => {
       expect(inferType(true)).toBe('boolean');
       expect(inferType({ key: 'value' })).toBe('object');
       expect(inferType(['item1', 'item2'])).toBe('array');
-    });
-
-    it('should correctly detect secret configurations', () => {
-      const isSecret = (service as any).isSecretConfiguration.bind(service);
-
-      expect(isSecret('api.key', 'secret-value')).toBe(true);
-      expect(isSecret('database.password', 'password123')).toBe(true);
-      expect(isSecret('auth.token', 'token123')).toBe(true);
-      expect(isSecret('server.url', 'https://api.com')).toBe(false);
-      expect(isSecret('database.name', 'testdb')).toBe(false);
     });
 
     it('should correctly detect required configurations', () => {

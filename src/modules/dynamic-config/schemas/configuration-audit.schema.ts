@@ -102,32 +102,7 @@ ConfigurationAuditSchema.pre('save', function (next) {
   next();
 });
 
-// Add instance methods for safe value handling
-ConfigurationAuditSchema.methods.getMaskedOldValue = function () {
-  if (this.oldValue && typeof this.oldValue === 'object' && this.oldValue.isSecret) {
-    return '***MASKED***';
-  }
-  return this.oldValue;
-};
-
-ConfigurationAuditSchema.methods.getMaskedNewValue = function () {
-  if (this.newValue && typeof this.newValue === 'object' && this.newValue.isSecret) {
-    return '***MASKED***';
-  }
-  return this.newValue;
-};
-
 ConfigurationAuditSchema.methods.toSafeJSON = function () {
   const obj = this.toObject();
-
-  // Mask sensitive values in audit logs
-  if (this.oldValue && typeof this.oldValue === 'object' && this.oldValue.isSecret) {
-    obj.oldValue = '***MASKED***';
-  }
-
-  if (this.newValue && typeof this.newValue === 'object' && this.newValue.isSecret) {
-    obj.newValue = '***MASKED***';
-  }
-
   return obj;
 };

@@ -38,12 +38,6 @@ export class Configuration {
   isRequired: boolean;
 
   @Prop({
-    default: false,
-    type: Boolean,
-  })
-  isSecret: boolean;
-
-  @Prop({
     type: String,
     trim: true,
   })
@@ -72,7 +66,6 @@ export const ConfigurationSchema = SchemaFactory.createForClass(Configuration);
 
 // Add compound indexes for better query performance
 ConfigurationSchema.index({ key: 1, isRequired: 1 });
-ConfigurationSchema.index({ isSecret: 1 });
 ConfigurationSchema.index({ lastModifiedBy: 1, updatedAt: -1 });
 
 // Add validation middleware
@@ -101,18 +94,7 @@ ConfigurationSchema.pre('save', function (next) {
   next();
 });
 
-// Add instance methods
-ConfigurationSchema.methods.getMaskedValue = function () {
-  if (this.isSecret) {
-    return '***MASKED***';
-  }
-  return this.value;
-};
-
 ConfigurationSchema.methods.toSafeJSON = function () {
   const obj = this.toObject();
-  if (this.isSecret) {
-    obj.value = '***MASKED***';
-  }
   return obj;
 };

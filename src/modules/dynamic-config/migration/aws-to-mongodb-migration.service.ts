@@ -283,13 +283,11 @@ export class AwsToMongoDbMigrationService {
    */
   private createConfigurationDTO(key: string, value: any): CreateConfigurationDTO {
     const type = this.inferConfigurationType(value);
-    const isSecret = this.isSecretConfiguration(key, value);
 
     return {
       key,
       value,
       type,
-      isSecret,
       isRequired: this.isRequiredConfiguration(key),
       description: `Migrated from AWS Secrets Manager - ${key}`,
     };
@@ -312,27 +310,6 @@ export class AwsToMongoDbMigrationService {
       return ConfigurationType.NUMBER;
     }
     return ConfigurationType.STRING;
-  }
-
-  /**
-   * Determine if a configuration should be marked as secret
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private isSecretConfiguration(key: string, value: any): boolean {
-    const secretKeywords = [
-      'password',
-      'secret',
-      'key',
-      'token',
-      'credential',
-      'auth',
-      'private',
-      'api_key',
-      'apikey',
-    ];
-
-    const keyLower = key.toLowerCase();
-    return secretKeywords.some((keyword) => keyLower.includes(keyword));
   }
 
   /**
@@ -466,7 +443,6 @@ export class AwsToMongoDbMigrationService {
             key,
             value: originalValue,
             type: this.inferConfigurationType(originalValue),
-            isSecret: this.isSecretConfiguration(key, originalValue),
             isRequired: this.isRequiredConfiguration(key),
             description: 'Restored from rollback',
           },

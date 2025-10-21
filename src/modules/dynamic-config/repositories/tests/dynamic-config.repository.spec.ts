@@ -23,7 +23,6 @@ describe('DynamicConfigRepository', () => {
     value: 'test-value',
     type: 'string',
     isRequired: false,
-    isSecret: false,
     description: 'Test config',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -78,7 +77,6 @@ describe('DynamicConfigRepository', () => {
       value: 'test-value',
       type: 'string',
       isRequired: false,
-      isSecret: false,
       description: 'Test configuration',
     };
 
@@ -437,22 +435,6 @@ describe('DynamicConfigRepository', () => {
     });
   });
 
-  describe('findSecrets', () => {
-    it('should find all secret configurations', async () => {
-      const mockExec = jest.fn().mockResolvedValue([mockConfigurationDocument]);
-      model.find.mockReturnValue({
-        sort: jest.fn().mockReturnValue({
-          exec: mockExec,
-        }),
-      } as any);
-
-      const result = await repository.findSecrets();
-
-      expect(model.find).toHaveBeenCalledWith({ isSecret: true });
-      expect(result).toEqual([mockConfigurationDocument]);
-    });
-  });
-
   describe('findMissingRequired', () => {
     it('should find missing required configurations', async () => {
       const requiredKeys = ['key1', 'key2', 'key3'];
@@ -513,7 +495,6 @@ describe('DynamicConfigRepository', () => {
         .mockResolvedValueOnce(10) // total
         .mockResolvedValueOnce(mockStats) // typeStats
         .mockResolvedValueOnce(3) // required
-        .mockResolvedValueOnce(2) // secrets
         .mockResolvedValueOnce({ updatedAt: new Date('2023-01-01') }); // lastModified
 
       model.countDocuments.mockReturnValue({ exec: mockExec } as any);
@@ -532,7 +513,6 @@ describe('DynamicConfigRepository', () => {
         total: 10,
         byType: { string: 5, number: 3 },
         required: 3,
-        secrets: 2,
         lastModified: new Date('2023-01-01'),
       });
     });

@@ -34,14 +34,6 @@ export class ConfigurationQueryDTO {
   isRequired?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === undefined || value === null || value === '') return undefined;
-    const v = String(value).toLowerCase();
-    return v === 'true' || v === '1' || v === 'yes' || v === 'on';
-  })
-  isSecret?: boolean;
-
-  @IsOptional()
   @IsString()
   sortBy?: string = 'key';
 

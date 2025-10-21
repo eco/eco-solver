@@ -408,15 +408,6 @@ export class DynamicConfigRepository implements IConfigurationRepository {
     }
   }
 
-  async findSecrets(): Promise<ConfigurationDocument[]> {
-    try {
-      return await this.configurationModel.find({ isSecret: true }).sort({ key: 1 }).exec();
-    } catch (ex) {
-      EcoError.logError(ex, `findSecrets: Failed to find secret configurations`, this.logger);
-      throw ex;
-    }
-  }
-
   async findByType(
     type: 'string' | 'number' | 'boolean' | 'object' | 'array',
   ): Promise<ConfigurationDocument[]> {
@@ -485,17 +476,15 @@ export class DynamicConfigRepository implements IConfigurationRepository {
     total: number;
     byType: Record<string, number>;
     required: number;
-    secrets: number;
     lastModified: Date | null;
   }> {
     try {
-      const [total, typeStats, required, secrets, lastModifiedDoc] = await Promise.all([
+      const [total, typeStats, required, lastModifiedDoc] = await Promise.all([
         this.configurationModel.countDocuments().exec(),
         this.configurationModel
           .aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }])
           .exec(),
         this.configurationModel.countDocuments({ isRequired: true }).exec(),
-        this.configurationModel.countDocuments({ isSecret: true }).exec(),
         this.configurationModel.findOne().sort({ updatedAt: -1 }).select('updatedAt').exec(),
       ]);
 
@@ -511,7 +500,6 @@ export class DynamicConfigRepository implements IConfigurationRepository {
         total,
         byType,
         required,
-        secrets,
         lastModified: lastModifiedDoc?.updatedAt || null,
       };
     } catch (ex) {
@@ -535,10 +523,6 @@ export class DynamicConfigRepository implements IConfigurationRepository {
 
     if (filter.isRequired !== undefined) {
       query.isRequired = filter.isRequired;
-    }
-
-    if (filter.isSecret !== undefined) {
-      query.isSecret = filter.isSecret;
     }
 
     if (filter.lastModifiedBy) {

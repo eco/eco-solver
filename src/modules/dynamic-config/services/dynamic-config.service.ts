@@ -6,6 +6,8 @@ import {
   PaginationOptions,
   UpdateConfigurationDTO,
 } from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
+import { AuditStatistics } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
+import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
 import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
 import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
@@ -14,13 +16,12 @@ import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services
 import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
 import { EcoConfigService } from '@/config/eco-config.service';
 import { EcoError } from '@/errors/eco-error';
+import { EcoLogger } from '@/common/logging/eco-logger';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
-import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
-import { AuditStatistics } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
 
 export interface ConfigurationChangeEvent {
   key: string;
@@ -38,14 +39,13 @@ export interface CachedConfiguration {
   value: any;
   type: 'string' | 'number' | 'boolean' | 'object' | 'array';
   isRequired: boolean;
-  isSecret: boolean;
   description?: string;
   lastModified: Date;
 }
 
 @Injectable()
 export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(DynamicConfigService.name);
+  private readonly logger = new EcoLogger(DynamicConfigService.name);
   private readonly configCache = new Map<string, CachedConfiguration>();
 
   private cacheInitialized = false;
@@ -101,7 +101,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     if (this.cacheInitialized && this.configCache.has(key)) {
       const cached = this.configCache.get(key)!;
       this.logger.debug(`Configuration retrieved from cache: ${key}`);
-      return (cached.isSecret ? this.maskSecretValue() : cached.value) as T;
+      return cached.value as T;
     }
 
     // Fallback to database
@@ -111,7 +111,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     if (config) {
       // Update cache
       this.updateCacheEntry(config);
-      return (config.isSecret ? this.maskSecretValue() : config.value) as T;
+      return config.value as T;
     }
 
     return null;
@@ -137,7 +137,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     const filter: ConfigurationFilter = {};
     if (query.type) filter.type = query.type;
     if (query.isRequired !== undefined) filter.isRequired = query.isRequired;
-    if (query.isSecret !== undefined) filter.isSecret = query.isSecret;
     if (query.lastModifiedBy) filter.lastModifiedBy = query.lastModifiedBy;
     if (query.createdAfter) filter.createdAfter = new Date(query.createdAfter);
     if (query.createdBefore) filter.createdBefore = new Date(query.createdBefore);
@@ -183,7 +182,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       pagination,
     );
 
-    // Convert to cached format and mask secrets
+    // Convert to cached format
     const data = dbResult.data.map((config) => this.convertToCachedFormat(config));
 
     return {
@@ -210,12 +209,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
     // Sanitize configuration value
     const sanitizedValue = this.sanitizer.sanitizeValue(data.value);
-
-    // Auto-detect sensitive values if not explicitly marked
-    if (!data.isSecret && this.sanitizer.detectSensitiveValue(data.key, sanitizedValue)) {
-      this.logger.warn(`Auto-detected sensitive value for key '${data.key}', marking as secret`);
-      data.isSecret = true;
-    }
 
     // Create sanitized data object
     const sanitizedData = {
@@ -285,15 +278,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     if (data.value !== undefined) {
       // Sanitize the value
       sanitizedData.value = this.sanitizer.sanitizeValue(data.value);
-
-      // Auto-detect sensitive values if not explicitly marked
-      if (data.isSecret === undefined) {
-        const oldConfig = await this.configRepository.findByKey(key);
-        if (!oldConfig?.isSecret && this.sanitizer.detectSensitiveValue(key, sanitizedData.value)) {
-          this.logger.warn(`Auto-detected sensitive value for key '${key}', marking as secret`);
-          sanitizedData.isSecret = true;
-        }
-      }
 
       const validationResult = await this.validator.validateConfiguration(key, sanitizedData.value);
       if (!validationResult.isValid) {
@@ -416,14 +400,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Get all secret configurations (values will be masked)
-   */
-  async getSecrets(): Promise<CachedConfiguration[]> {
-    const configs = await this.configRepository.findSecrets();
-    return configs.map((config) => this.convertToCachedFormat(config));
-  }
-
-  /**
    * Find missing required configurations
    */
   async findMissingRequired(requiredKeys: string[]): Promise<string[]> {
@@ -538,7 +514,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       value: config.value,
       type: config.type,
       isRequired: config.isRequired,
-      isSecret: config.isSecret,
       description: config.description,
       lastModified: config.updatedAt,
     };
@@ -552,10 +527,9 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   private convertToCachedFormat(config: ConfigurationDocument): CachedConfiguration {
     return {
       key: config.key,
-      value: config.isSecret ? this.maskSecretValue() : config.value,
+      value: config.value,
       type: config.type,
       isRequired: config.isRequired,
-      isSecret: config.isSecret,
       description: config.description,
       lastModified: config.updatedAt,
     };
@@ -823,7 +797,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       if (fullDocument) {
         // Trust DB document
         this.updateCacheEntry(fullDocument as unknown as ConfigurationDocument);
-        const sanitizedValue = fullDocument.isSecret ? '[REDACTED]' : fullDocument.value;
+        const sanitizedValue = fullDocument.value;
         this.logger.debug(`Cache updated: ${key} = ${sanitizedValue}`);
       } else {
         // Fallback when pre-image/full document not available
@@ -871,12 +845,11 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
           value: event.newValue,
           type: this.inferConfigurationType(event.newValue),
           isRequired: false, // Will be determined by validation
-          isSecret: this.sanitizer.detectSensitiveValue(event.key, event.newValue),
           lastModified: event.timestamp,
         };
 
         this.configCache.set(event.key, cachedConfig);
-        const sanitizedValue = cachedConfig.isSecret ? '[REDACTED]' : event.newValue;
+        const sanitizedValue = event.newValue;
         this.logger.debug(`Cache updated: ${event.key} = ${sanitizedValue}`);
       }
     } catch (ex) {

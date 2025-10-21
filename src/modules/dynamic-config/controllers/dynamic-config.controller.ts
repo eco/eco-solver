@@ -5,7 +5,6 @@ import {
   Get,
   HttpException,
   HttpStatus,
-  Logger,
   Param,
   Post,
   Put,
@@ -26,8 +25,9 @@ import {
 } from '@/modules/dynamic-config/dtos/configuration-response.dto';
 import { CreateConfigurationDTO } from '@/modules/dynamic-config/dtos/create-configuration.dto';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { EcoError } from '@/errors/eco-error';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { Request } from 'express';
 import { RequestHeaders } from '@/request-signing/request-headers';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
@@ -37,7 +37,7 @@ import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-con
 @Controller('api/v1/configuration')
 @UseGuards(RequestSignatureGuard)
 export class DynamicConfigController {
-  private readonly logger = new Logger(DynamicConfigController.name);
+  private readonly logger = new EcoLogger(DynamicConfigController.name);
 
   constructor(private readonly configurationService: DynamicConfigService) {}
 
@@ -152,7 +152,6 @@ export class DynamicConfigController {
         value: config, // This will be masked if secret
         type: configDoc.type,
         isRequired: configDoc.isRequired,
-        isSecret: configDoc.isSecret,
         description: configDoc.description,
         lastModified: configDoc.updatedAt,
       });
@@ -230,10 +229,9 @@ export class DynamicConfigController {
 
       return this.toResponseDTO({
         key: config.key,
-        value: config.isSecret ? '***MASKED***' : config.value,
+        value: config.value,
         type: config.type,
         isRequired: config.isRequired,
-        isSecret: config.isSecret,
         description: config.description,
         lastModified: config.updatedAt,
       });
@@ -318,10 +316,9 @@ export class DynamicConfigController {
 
       return this.toResponseDTO({
         key: config.key,
-        value: config.isSecret ? '***MASKED***' : config.value,
+        value: config.value,
         type: config.type,
         isRequired: config.isRequired,
-        isSecret: config.isSecret,
         description: config.description,
         lastModified: config.updatedAt,
       });
@@ -503,7 +500,6 @@ export class DynamicConfigController {
       value: config.value,
       type: config.type,
       isRequired: config.isRequired,
-      isSecret: config.isSecret,
       description: config.description,
       lastModifiedBy: config.lastModifiedBy,
       createdAt: config.createdAt || config.lastModified,
