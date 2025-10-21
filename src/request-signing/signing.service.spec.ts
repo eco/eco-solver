@@ -25,11 +25,7 @@ describe('SigningService', () => {
 
   beforeAll(async () => {
     const mockEcoConfigService = {
-      getConfig: () => ({
-        requestSigner: {
-          privateKey: '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9',
-        },
-      }),
+      getConfig: () => ({}),
     }
 
     $ = EcoTester.setupTestFor(SigningService).withProviders([

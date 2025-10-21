@@ -31,11 +31,7 @@ describe('SignatureVerificationService', () => {
 
   beforeAll(async () => {
     const mockEcoConfigService = {
-      getConfig: () => ({
-        requestSigner: {
-          privateKey: TestPrivateKey,
-        },
-      }),
+      getConfig: () => ({}),
     }
 
     $ = EcoTester.setupTestFor(SignatureVerificationService).withProviders([

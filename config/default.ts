@@ -1,5 +1,8 @@
 export default {
   port: 3000,
+
+  requestSignatureValidationEnabled: true,
+
   aws: [
     {
       region: 'us-east-2',
@@ -14,9 +17,11 @@ export default {
       secretID: 'eco-solver-whitelist-dev',
     },
   ],
+
   cache: {
     ttl: 10_000, // milliseconds till cache key expires
   },
+
   redis: {
     options: {
       single: {
@@ -34,12 +39,14 @@ export default {
         dnsLookup: (address: string, callback: any) => callback(null, address, 6),
       },
     },
+
     redlockSettings: {
       driftFactor: 0.01,
       retryCount: 3,
       retryDelay: 200,
       retryJitter: 200,
     },
+
     jobs: {
       intentJobConfig: {
         removeOnComplete: false,
@@ -51,6 +58,7 @@ export default {
           delay: 2_000,
         },
       },
+
       watchJobConfig: {
         removeOnComplete: true,
         removeOnFail: false,
@@ -63,6 +71,7 @@ export default {
       },
     },
   },
+
   intervals: {
     retryInfeasableIntents: {
       repeatOpts: {
@@ -73,6 +82,7 @@ export default {
         data: {},
       },
     },
+
     defaults: {
       repeatOpts: {
         every: 300_000, // 5 minutes
