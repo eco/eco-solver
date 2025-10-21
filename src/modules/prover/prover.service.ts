@@ -78,25 +78,6 @@ export class ProverService implements OnModuleInit {
     return null;
   }
 
-  getMaxDeadlineBuffer(sourceChainId: number, destinationChainId: number): bigint {
-    let maxBuffer = 0n;
-
-    // Check each prover that supports this route and find the maximum deadline buffer
-    for (const prover of this.provers.values()) {
-      const sourceSupported = prover.isSupported(sourceChainId);
-      const destinationSupported = prover.isSupported(destinationChainId);
-
-      if (sourceSupported && destinationSupported) {
-        const buffer = prover.getDeadlineBuffer();
-        if (buffer > maxBuffer) {
-          maxBuffer = buffer;
-        }
-      }
-    }
-
-    throw new Error('Unable to get max deadline buffer');
-  }
-
   findProverForRoute(sourceChainId: number, destinationChainId: number): BaseProver | null {
     // Check each prover to see if it supports both chains and has matching contracts
     for (const [type, prover] of this.provers) {

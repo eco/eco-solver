@@ -161,13 +161,13 @@ describe('AddressNormalizer', () => {
       });
 
       it('should throw error for invalid Solana address', () => {
-        expect(() => AddressNormalizer.normalizeSvm('invalidsolanaaddress')).toThrow(
+        expect(() => AddressNormalizer.normalizeSvm('invalidsolanaaddress' as SvmAddress)).toThrow(
           /Failed to normalize SVM address/,
         );
       });
 
       it('should throw error for address with wrong length', () => {
-        expect(() => AddressNormalizer.normalizeSvm('short')).toThrow(
+        expect(() => AddressNormalizer.normalizeSvm('short' as SvmAddress)).toThrow(
           /Failed to normalize SVM address/,
         );
       });
@@ -294,7 +294,7 @@ describe('AddressNormalizer', () => {
 
     it('should validate Solana public key creation', () => {
       const invalidBase58 = '!!!invalid!!!';
-      expect(() => AddressNormalizer.normalizeSvm(invalidBase58)).toThrow(
+      expect(() => AddressNormalizer.normalizeSvm(invalidBase58 as SvmAddress)).toThrow(
         /Failed to normalize SVM address/,
       );
     });

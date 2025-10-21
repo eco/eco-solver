@@ -46,6 +46,10 @@ const FeeSchema = extendApi(
 // Quote data schema with OpenAPI metadata
 const QuoteDataSchema = extendApi(
   z.object({
+    intentExecutionType: extendApi(z.enum(['SELF_PUBLISH', 'GASLESS']).optional(), {
+      description: 'Intent execution type - SELF_PUBLISH for onchain, GASLESS for gasless',
+      example: 'SELF_PUBLISH',
+    }),
     sourceChainID: extendApi(z.number(), {
       description: 'Source chain ID',
       example: 1,

@@ -8,6 +8,8 @@ import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 
 import { BlockchainProcessor } from '../blockchain.processor';
@@ -26,6 +28,8 @@ describe('BlockchainProcessor', () => {
   let blockchainService: jest.Mocked<BlockchainExecutorService>;
   let queueConfig: jest.Mocked<QueueConfigService>;
   let logger: jest.Mocked<any>;
+  let bullMQOtelFactory: jest.Mocked<any>;
+  let otelService: jest.Mocked<any>;
 
   const mockIntent: Intent = {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
@@ -73,12 +77,30 @@ describe('BlockchainProcessor', () => {
       setContext: jest.fn(),
     } as any;
 
+    bullMQOtelFactory = {
+      getInstance: jest.fn().mockReturnValue(null),
+    } as any;
+
+    otelService = {
+      startNewTraceWithCorrelation: jest.fn().mockImplementation(async (name, id, stage, fn) => {
+        const span = {
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainProcessor,
         { provide: BlockchainExecutorService, useValue: blockchainService },
         { provide: QueueConfigService, useValue: queueConfig },
         { provide: SystemLoggerService, useValue: logger },
+        { provide: BullMQOtelFactory, useValue: bullMQOtelFactory },
+        { provide: OpenTelemetryService, useValue: otelService },
       ],
     }).compile();
 

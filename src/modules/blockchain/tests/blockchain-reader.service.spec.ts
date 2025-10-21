@@ -52,20 +52,23 @@ describe('BlockchainReaderService', () => {
 
   beforeEach(async () => {
     blockchainConfigService = {
-      getAllConfiguredChains: jest
-        .fn()
-        .mockReturnValue([1, 10, 137, 'solana-mainnet', 'solana-devnet']),
+      getAllConfiguredChains: jest.fn().mockReturnValue([1, 10, 137, 1399811149, 1399811150]),
       getChainType: jest.fn().mockImplementation((chainId) => {
-        if (typeof chainId === 'number' || (typeof chainId === 'bigint' && chainId < 1000000)) {
-          return 'evm';
-        }
-        if (typeof chainId === 'string' && chainId.startsWith('solana')) {
+        const numericChainId = typeof chainId === 'bigint' ? Number(chainId) : chainId;
+        if (
+          numericChainId === 1399811149 ||
+          numericChainId === 1399811150 ||
+          numericChainId === 1399811151
+        ) {
           return 'svm';
+        }
+        if (typeof numericChainId === 'number' && numericChainId < 1000000) {
+          return 'evm';
         }
         return 'tvm';
       }),
       isChainSupported: jest.fn().mockImplementation((chainId) => {
-        const supportedChains = [1, 10, 137, 'solana-mainnet', 'solana-devnet'];
+        const supportedChains = [1, 10, 137, 1399811149, 1399811150];
         return supportedChains.includes(Number(chainId));
       }),
     } as any;
@@ -187,8 +190,8 @@ describe('BlockchainReaderService', () => {
       expect(supportedChains).toContain(1);
       expect(supportedChains).toContain(10);
       expect(supportedChains).toContain(137);
-      expect(supportedChains).toContain('solana-mainnet');
-      expect(supportedChains).toContain('solana-devnet');
+      expect(supportedChains).toContain(1399811149);
+      expect(supportedChains).toContain(1399811150);
     });
   });
 
@@ -200,13 +203,13 @@ describe('BlockchainReaderService', () => {
     });
 
     it('should return true for supported Solana chains', () => {
-      expect(service.isChainSupported('solana-mainnet')).toBe(true);
-      expect(service.isChainSupported('solana-devnet')).toBe(true);
+      expect(service.isChainSupported(1399811149)).toBe(true);
+      expect(service.isChainSupported(1399811150)).toBe(true);
     });
 
     it('should return false for unsupported chains', () => {
       expect(service.isChainSupported(999)).toBe(false);
-      expect(service.isChainSupported('unsupported-chain')).toBe(false);
+      expect(service.isChainSupported(888888888)).toBe(false);
     });
 
     it('should handle bigint chain IDs', () => {
@@ -218,17 +221,19 @@ describe('BlockchainReaderService', () => {
   describe('getReaderForChain', () => {
     it('should return reader for supported chains', () => {
       expect(service.getReaderForChain(1)).toBeDefined();
-      expect(service.getReaderForChain('solana-mainnet')).toBeDefined();
+      expect(service.getReaderForChain(1399811149)).toBeDefined();
     });
 
-    it('should return undefined for unsupported chains', () => {
-      expect(service.getReaderForChain(999)).toBeUndefined();
-      expect(service.getReaderForChain('unsupported-chain')).toBeUndefined();
+    it('should throw error for unsupported chains', () => {
+      expect(() => service.getReaderForChain(999)).toThrow('No reader available for chain 999');
+      expect(() => service.getReaderForChain(888888888)).toThrow(
+        'No reader available for chain 888888888',
+      );
     });
 
     it('should handle bigint chain IDs', () => {
       expect(service.getReaderForChain(1n)).toBeDefined();
-      expect(service.getReaderForChain(999n)).toBeUndefined();
+      expect(() => service.getReaderForChain(999n)).toThrow('No reader available for chain 999');
     });
   });
 
@@ -244,9 +249,9 @@ describe('BlockchainReaderService', () => {
 
     it('should get balance for Solana chain', async () => {
       const testAddress = toUniversalAddress('0x' + '1'.repeat(64)); // Valid 32-byte hex address for Solana
-      const balance = await service.getBalance('solana-mainnet', testAddress);
+      const balance = await service.getBalance(1399811149, testAddress);
       expect(balance).toBe(2000000000n);
-      expect(svmReader.getBalance).toHaveBeenCalledWith(testAddress, 'solana-mainnet');
+      expect(svmReader.getBalance).toHaveBeenCalledWith(testAddress, 1399811149);
     });
 
     it('should throw error for unsupported chain', async () => {
@@ -275,12 +280,12 @@ describe('BlockchainReaderService', () => {
     it('should get token balance for Solana chain', async () => {
       const tokenAddress = toUniversalAddress('0x' + '2'.repeat(64)); // Valid 32-byte hex address for Solana token
       const walletAddress = toUniversalAddress('0x' + '3'.repeat(64)); // Valid 32-byte hex address for Solana wallet
-      const balance = await service.getTokenBalance('solana-mainnet', tokenAddress, walletAddress);
+      const balance = await service.getTokenBalance(1399811149, tokenAddress, walletAddress);
       expect(balance).toBe(1000000000n);
       expect(svmReader.getTokenBalance).toHaveBeenCalledWith(
         tokenAddress,
         walletAddress,
-        'solana-mainnet',
+        1399811149,
       );
     });
 
@@ -305,9 +310,9 @@ describe('BlockchainReaderService', () => {
     });
 
     it('should check intent funding for Solana chain', async () => {
-      const isFunded = await service.isIntentFunded('solana-mainnet', mockIntent);
+      const isFunded = await service.isIntentFunded(1399811149, mockIntent);
       expect(isFunded).toBe(true);
-      expect(svmReader.isIntentFunded).toHaveBeenCalledWith(mockIntent, 'solana-mainnet');
+      expect(svmReader.isIntentFunded).toHaveBeenCalledWith(mockIntent, 1399811149);
     });
 
     it('should throw error for unsupported chain', async () => {
@@ -336,7 +341,7 @@ describe('BlockchainReaderService', () => {
 
     it('should fetch prover fee for Solana chain', async () => {
       const fee = await service.fetchProverFee(
-        'solana-mainnet',
+        1399811149,
         mockIntent,
         prover,
         messageData,
@@ -347,7 +352,7 @@ describe('BlockchainReaderService', () => {
         mockIntent,
         prover,
         messageData,
-        'solana-mainnet',
+        1399811149,
         claimant,
       );
     });

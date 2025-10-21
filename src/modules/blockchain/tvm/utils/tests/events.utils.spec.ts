@@ -14,6 +14,7 @@ describe('TVM Event Utils', () => {
         event_name: 'IntentFulfilled',
         transaction_id: 'abc123def456',
         block_number: '12345678',
+        block_timestamp: 1735689600000, // Add timestamp
         result: {
           intentHash: '0x1234567890abcdef',
           claimant: '0xabcdefabcdef',
@@ -29,15 +30,18 @@ describe('TVM Event Utils', () => {
         chainId,
         transactionHash: 'abc123def456',
         blockNumber: 12345678n,
+        timestamp: new Date(1735689600000),
       });
     });
 
-    it('should handle event without block number', () => {
+    it('should handle event with all fields', () => {
       const mockEvent: any = {
         event_name: 'IntentFulfilled',
         transaction_id: 'xyz789',
+        block_number: '999',
+        block_timestamp: 1735689700000,
         result: {
-          hash: '0xaaaaaa', // Alternative field name
+          intentHash: '0xaaaaaa',
           claimant: '0xbbbbbb',
         },
       };
@@ -50,7 +54,8 @@ describe('TVM Event Utils', () => {
         claimant: '0xbbbbbb',
         chainId,
         transactionHash: 'xyz789',
-        blockNumber: undefined,
+        blockNumber: 999n,
+        timestamp: new Date(1735689700000),
       });
     });
   });

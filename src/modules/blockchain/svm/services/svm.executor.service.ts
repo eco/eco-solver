@@ -83,14 +83,19 @@ export class SvmExecutorService extends BaseChainExecutor {
           'svm.destination_chain': intent.destination.toString(),
           'svm.operation': 'fulfill',
           'svm.wallet_id': _walletId || 'default',
+          'svm.route.tokens_count': intent.route.tokens.length,
+          'svm.route.calls_count': intent.route.calls.length,
+          'svm.route.native_amount': intent.route.nativeAmount.toString(),
         },
       },
       async (span) => {
         // Lazy initialization of Portal program
         if (!this.isInitialized) {
+          span.addEvent('svm.fulfill.initialization_required');
           try {
             await this.initializeProgram();
             this.isInitialized = true;
+            span.addEvent('svm.fulfill.initialization_completed');
           } catch (error) {
             this.logger.error(
               'Failed to initialize Portal program during fulfill:',
@@ -111,31 +116,72 @@ export class SvmExecutorService extends BaseChainExecutor {
           throw error;
         }
 
+        span.addEvent('svm.fulfill.started');
+
         try {
           // Step 1: Execute the fulfill transaction
+          span.addEvent('svm.fulfill.fulfill_transaction.phase_started');
+
           const fulfillResult = await this.executeFulfillTransaction(intent, span);
 
+          span.setAttribute('svm.fulfill_transaction.success', fulfillResult.success);
+
           if (!fulfillResult.success) {
+            span.addEvent('svm.fulfill.fulfill_transaction.failed', {
+              error: fulfillResult.error,
+            });
+            span.setAttribute('svm.fulfill.result', 'fulfill_failed');
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
             return fulfillResult;
           }
+
+          span.addEvent('svm.fulfill.fulfill_transaction.phase_completed', {
+            transaction_hash: fulfillResult.txHash,
+          });
 
           this.logger.log(
             `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
           );
 
           // Step 2: Execute the prove transaction
+          span.addEvent('svm.fulfill.prove_transaction.phase_started');
+
           const proveResult = await this.executeProveTransaction(intent, span);
 
-          if (proveResult && !proveResult.success) {
-            this.logger.error(
-              `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
-            );
-          } else if (proveResult && proveResult.success) {
-            this.logger.log(
-              `Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`,
-            );
+          if (proveResult) {
+            span.setAttribute('svm.prove_transaction.success', proveResult.success);
+
+            if (!proveResult.success) {
+              this.logger.error(
+                `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
+              );
+              span.addEvent('svm.fulfill.prove_transaction.failed', {
+                error: proveResult.error,
+              });
+            } else {
+              this.logger.log(
+                `Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`,
+              );
+              span.addEvent('svm.fulfill.prove_transaction.phase_completed', {
+                transaction_hash: proveResult.txHash,
+              });
+              if (proveResult.txHash) {
+                span.setAttribute('svm.prove_transaction_hash', proveResult.txHash);
+              }
+            }
+          } else {
+            span.addEvent('svm.fulfill.prove_transaction.skipped', {
+              reason: 'no_prove_result',
+            });
+            span.setAttribute('svm.prove_transaction.skipped', true);
           }
 
+          span.setAttributes({
+            'svm.fulfill.result': 'success',
+            'svm.fulfill_transaction_hash': fulfillResult.txHash,
+          });
+
+          span.addEvent('svm.fulfill.completed');
           span.addEvent('svm.transaction.confirmed');
           span.setStatus({ code: api.SpanStatusCode.OK });
 
@@ -144,9 +190,22 @@ export class SvmExecutorService extends BaseChainExecutor {
             txHash: fulfillResult.txHash,
           };
         } catch (error) {
-          this.logger.error('Solana execution error:', toError(error));
-          span.recordException(toError(error));
+          const typedError = toError(error);
+
+          this.logger.error('Solana execution error:', typedError);
+
+          span.setAttributes({
+            'svm.fulfill.result': 'error',
+            'svm.error_type': typedError.constructor.name,
+          });
+
+          span.addEvent('svm.fulfill.error', {
+            error_message: getErrorMessage(error),
+          });
+
+          span.recordException(typedError);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
+
           return {
             success: false,
             error: getErrorMessage(error),
@@ -207,8 +266,6 @@ export class SvmExecutorService extends BaseChainExecutor {
         },
       },
       async (span) => {
-        const startTime = Date.now();
-
         try {
           // Add validation events
           span.addEvent('svm.batch_withdraw.validation.started');
@@ -302,21 +359,14 @@ export class SvmExecutorService extends BaseChainExecutor {
             preflightCommitment: 'confirmed',
           });
 
-          const executionTime = Date.now() - startTime;
-
           // Add comprehensive success attributes
           span.setAttributes({
             'svm.batch_withdraw_signature': signature,
-            'svm.execution_time_ms': executionTime,
             'svm.transaction_success': true,
-            'svm.instructions_per_second': Math.round(
-              (transaction.instructions.length / executionTime) * 1000,
-            ),
           });
 
           span.addEvent('svm.batch_withdraw.transaction.submitted', {
             signature,
-            execution_time_ms: executionTime,
             instructions_executed: transaction.instructions.length,
             ata_creations_executed: ataCreationInstructions.length,
             withdrawals_executed: withdrawalInstructions.length,
@@ -324,19 +374,17 @@ export class SvmExecutorService extends BaseChainExecutor {
           });
 
           this.logger.log(
-            `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature} (${executionTime}ms)`,
+            `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature}`,
           );
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return signature;
         } catch (error) {
-          const executionTime = Date.now() - startTime;
           const typedError = toError(error);
 
           // Enhanced error tracking
           span.setAttributes({
             'svm.transaction_success': false,
-            'svm.execution_time_ms': executionTime,
             'svm.error_type': typedError.constructor.name,
             'svm.error_stage': this.determineErrorStage(typedError),
           });
@@ -344,7 +392,6 @@ export class SvmExecutorService extends BaseChainExecutor {
           span.addEvent('svm.batch_withdraw.error', {
             error_message: getErrorMessage(error),
             error_type: typedError.constructor.name,
-            execution_time_ms: executionTime,
             stage: this.determineErrorStage(typedError),
           });
 
@@ -364,8 +411,50 @@ export class SvmExecutorService extends BaseChainExecutor {
     withdrawalInstructions: TransactionInstruction[];
     ataCreationInstructions: TransactionInstruction[];
   }> {
+    // Check for active span from parent, use it if available
+    const activeSpan = api.trace.getActiveSpan();
+    if (activeSpan) {
+      return this.createWithdrawalInstructionsWithSpan(withdrawalData, activeSpan);
+    }
+
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.batch_withdraw.create_instructions',
+      {
+        attributes: {
+          'svm.operation': 'create_withdrawal_instructions',
+          'svm.destinations_count': withdrawalData.destinations?.length || 0,
+        },
+      },
+      async (span) => {
+        try {
+          const result = await this.createWithdrawalInstructionsWithSpan(withdrawalData, span);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return result;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async createWithdrawalInstructionsWithSpan(
+    withdrawalData: any,
+    span: api.Span,
+  ): Promise<{
+    withdrawalInstructions: TransactionInstruction[];
+    ataCreationInstructions: TransactionInstruction[];
+  }> {
     const withdrawalInstructions: TransactionInstruction[] = [];
     const ataCreationInstructions: TransactionInstruction[] = [];
+
+    span.addEvent('svm.withdrawal_instructions.validation.started');
 
     if (!withdrawalData.destinations || !withdrawalData.routeHashes || !withdrawalData.rewards) {
       throw new Error(
@@ -381,8 +470,26 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
     }
 
+    span.setAttributes({
+      'svm.total_withdrawals': destinations.length,
+    });
+
+    span.addEvent('svm.withdrawal_instructions.validation.completed', {
+      total_withdrawals: destinations.length,
+    });
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    span.addEvent('svm.withdrawal_instructions.loop.started');
+
     for (let i = 0; i < destinations.length; i++) {
       try {
+        span.addEvent('svm.withdrawal_instructions.item.processing', {
+          index: i,
+          total: destinations.length,
+        });
+
         const destination = BigInt(destinations[i]);
         const routeHash = routeHashes[i];
         const reward = rewards[i];
@@ -477,18 +584,47 @@ export class SvmExecutorService extends BaseChainExecutor {
           .instruction();
 
         withdrawalInstructions.push(withdrawalIx);
+        successCount++;
+
+        span.addEvent('svm.withdrawal_instructions.item.success', {
+          index: i,
+          intent_hash: intentHashHex,
+          token_account_metas: tokenAccountMetas.length,
+          ata_instructions_created: createATAInstructions.length,
+        });
 
         this.logger.debug(
           `Created withdrawal instruction for intent hash: ${intentHashHex}, claimant: ${claimantPublicKey.toString()}`,
         );
       } catch (error) {
+        failureCount++;
         this.logger.error(
           `Failed to create withdrawal instruction for intent ${i}: ${getErrorMessage(error)}`,
         );
+
+        span.addEvent('svm.withdrawal_instructions.item.failure', {
+          index: i,
+          error: getErrorMessage(error),
+        });
+
         // Continue with other intents rather than failing the entire batch
         continue;
       }
     }
+
+    span.setAttributes({
+      'svm.withdrawal_instructions.success_count': successCount,
+      'svm.withdrawal_instructions.failure_count': failureCount,
+      'svm.withdrawal_instructions.total_created': withdrawalInstructions.length,
+      'svm.ata_instructions.total_created': ataCreationInstructions.length,
+    });
+
+    span.addEvent('svm.withdrawal_instructions.loop.completed', {
+      success_count: successCount,
+      failure_count: failureCount,
+      withdrawal_instructions: withdrawalInstructions.length,
+      ata_instructions: ataCreationInstructions.length,
+    });
 
     return { withdrawalInstructions, ataCreationInstructions };
   }
@@ -501,10 +637,81 @@ export class SvmExecutorService extends BaseChainExecutor {
     tokenAccountMetas: AccountMeta[];
     createATAInstructions: TransactionInstruction[];
   }> {
+    // Check for active span from parent, use it if available
+    const activeSpan = api.trace.getActiveSpan();
+    if (activeSpan) {
+      return this.generateTokenAccountMetasWithSpan(
+        tokens,
+        vaultPDA,
+        claimantPublicKey,
+        activeSpan,
+      );
+    }
+
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.batch_withdraw.generate_token_accounts',
+      {
+        attributes: {
+          'svm.operation': 'generate_token_account_metas',
+          'svm.tokens_count': tokens.length,
+        },
+      },
+      async (span) => {
+        try {
+          const result = await this.generateTokenAccountMetasWithSpan(
+            tokens,
+            vaultPDA,
+            claimantPublicKey,
+            span,
+          );
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return result;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async generateTokenAccountMetasWithSpan(
+    tokens: any[],
+    vaultPDA: PublicKey,
+    claimantPublicKey: PublicKey,
+    span: api.Span,
+  ): Promise<{
+    tokenAccountMetas: AccountMeta[];
+    createATAInstructions: TransactionInstruction[];
+  }> {
     const tokenAccountMetas: AccountMeta[] = [];
     const createATAInstructions: TransactionInstruction[] = [];
 
-    for (const token of tokens) {
+    span.setAttributes({
+      'svm.vault_pda': vaultPDA.toString(),
+      'svm.claimant_address': claimantPublicKey.toString(),
+    });
+
+    span.addEvent('svm.token_accounts.generation.started', {
+      tokens_count: tokens.length,
+    });
+
+    let ataCreationCount = 0;
+    let ataCheckErrors = 0;
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+
+      span.addEvent('svm.token_accounts.token_processing.started', {
+        index: i,
+        total: tokens.length,
+      });
+
       const mintPublicKey = new PublicKey(AddressNormalizer.denormalizeToSvm(token.token));
 
       // Calculate vault ATA
@@ -533,11 +740,25 @@ export class SvmExecutorService extends BaseChainExecutor {
             mintPublicKey,
           );
           createATAInstructions.push(createATAIx);
+          ataCreationCount++;
 
           this.logger.debug(`Will create ATA for claimant: ${claimantATA.toString()}`);
+
+          span.addEvent('svm.token_accounts.ata_creation_scheduled', {
+            index: i,
+            mint: mintPublicKey.toString(),
+            claimant_ata: claimantATA.toString(),
+          });
         }
       } catch (error) {
+        ataCheckErrors++;
         this.logger.warn(`Could not check claimant ATA ${claimantATA.toString()}: ${error}`);
+
+        span.addEvent('svm.token_accounts.ata_check_error', {
+          index: i,
+          claimant_ata: claimantATA.toString(),
+          error: getErrorMessage(error),
+        });
       }
 
       // Add the three required accounts per token (vault ATA, claimant ATA, mint)
@@ -558,7 +779,29 @@ export class SvmExecutorService extends BaseChainExecutor {
           isWritable: false,
         },
       );
+
+      span.addEvent('svm.token_accounts.token_processing.completed', {
+        index: i,
+        vault_ata: vaultATA.toString(),
+        claimant_ata: claimantATA.toString(),
+        mint: mintPublicKey.toString(),
+        accounts_added: 3,
+      });
     }
+
+    span.setAttributes({
+      'svm.token_account_metas_count': tokenAccountMetas.length,
+      'svm.ata_instructions_count': createATAInstructions.length,
+      'svm.ata_creation_count': ataCreationCount,
+      'svm.ata_check_errors': ataCheckErrors,
+    });
+
+    span.addEvent('svm.token_accounts.generation.completed', {
+      token_account_metas: tokenAccountMetas.length,
+      ata_instructions: createATAInstructions.length,
+      ata_creations: ataCreationCount,
+      ata_check_errors: ataCheckErrors,
+    });
 
     return { tokenAccountMetas, createATAInstructions };
   }
@@ -599,9 +842,45 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async generateFulfillIx(intent: Intent) {
+    // Check for active span, use it if available, otherwise create a new one
+    const activeSpan = api.trace.getActiveSpan();
+    if (activeSpan) {
+      return this.generateFulfillIxWithSpan(intent, activeSpan);
+    }
+
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.fulfill.generate_instruction',
+      {
+        attributes: {
+          'svm.intent_hash': intent.intentHash,
+          'svm.operation': 'generate_fulfill_instruction',
+        },
+      },
+      async (span) => {
+        try {
+          const result = await this.generateFulfillIxWithSpan(intent, span);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return result;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async generateFulfillIxWithSpan(intent: Intent, span: api.Span) {
     if (!this.portalProgram || !this.keypair) {
       throw new Error('Portal program not initialized');
     }
+
+    span.addEvent('svm.fulfill.token_accounts.generation.started');
 
     const tokenAccounts = await getTokenAccounts(
       intent.route,
@@ -609,7 +888,16 @@ export class SvmExecutorService extends BaseChainExecutor {
       this.portalProgram.idl.address,
     );
 
+    span.setAttributes({
+      'svm.token_accounts_count': tokenAccounts.length,
+    });
+
+    span.addEvent('svm.fulfill.token_accounts.generation.completed', {
+      token_accounts: tokenAccounts.length,
+    });
+
     // Construct calls
+    span.addEvent('svm.fulfill.calls.decoding.started');
 
     const calls = decodeRouteCalls(intent.route.calls);
     const callAccounts = calls.map((call) => call.accounts).flat();
@@ -618,7 +906,21 @@ export class SvmExecutorService extends BaseChainExecutor {
       (call) => getTransferDestination(call.calldata.data, call.accounts).pubkey,
     );
 
+    span.setAttributes({
+      'svm.calls_count': calls.length,
+      'svm.call_accounts_count': callAccounts.length,
+      'svm.recipients_count': recipients.length,
+    });
+
+    span.addEvent('svm.fulfill.calls.decoding.completed', {
+      calls: calls.length,
+      call_accounts: callAccounts.length,
+      recipients: recipients.length,
+    });
+
     // Get Token Instructions
+    span.addEvent('svm.fulfill.transfer_instructions.building.started');
+
     const wallet = this.walletManager.getWallet();
     const walletAddress = await wallet.getAddress();
 
@@ -629,16 +931,33 @@ export class SvmExecutorService extends BaseChainExecutor {
       recipients,
     );
 
+    span.setAttributes({
+      'svm.transfer_instructions_count': transferInstructions.length,
+      'svm.wallet_address': walletAddress.toString(),
+    });
+
+    span.addEvent('svm.fulfill.transfer_instructions.building.completed', {
+      transfer_instructions: transferInstructions.length,
+    });
+
     // Calculate hashes
+    span.addEvent('svm.fulfill.hashes.calculation.started');
+
     const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intent);
     const intentHashBuffer = toBuffer(intentHash);
     const rewardHashBytes = toBuffer(rewardHash);
 
+    span.addEvent('svm.fulfill.hashes.calculation.completed');
+
     // Get claimant from configuration
+    span.addEvent('svm.fulfill.pda_derivation.started');
+
     const configuredClaimant = this.blockchainConfigService.getClaimant(intent.sourceChainId);
     const claimantPublicKey = new PublicKey(AddressNormalizer.denormalizeToSvm(configuredClaimant));
     const claimantBytes32 = new Uint8Array(32);
     claimantBytes32.set(claimantPublicKey.toBytes());
+
+    span.setAttribute('svm.claimant_address', claimantPublicKey.toString());
 
     const [fulfillMarkerPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from('fulfill_marker'), intentHashBuffer],
@@ -650,7 +969,15 @@ export class SvmExecutorService extends BaseChainExecutor {
       this.portalProgram.programId,
     );
 
+    span.setAttributes({
+      'svm.fulfill_marker_pda': fulfillMarkerPDA.toString(),
+      'svm.executor_pda': executorPDA.toString(),
+    });
+
+    span.addEvent('svm.fulfill.pda_derivation.completed');
+
     // Prepare route data for the instruction
+    span.addEvent('svm.fulfill.instruction_building.started');
 
     const svmRoute: Intent['route'] = {
       ...intent.route,
@@ -676,6 +1003,17 @@ export class SvmExecutorService extends BaseChainExecutor {
       .remainingAccounts([...tokenAccounts, ...callAccounts])
       .instruction();
 
+    const totalRemainingAccounts = tokenAccounts.length + callAccounts.length;
+
+    span.setAttributes({
+      'svm.total_remaining_accounts': totalRemainingAccounts,
+      'svm.portal_program_id': this.portalProgram.programId.toString(),
+    });
+
+    span.addEvent('svm.fulfill.instruction_building.completed', {
+      total_remaining_accounts: totalRemainingAccounts,
+    });
+
     return { fulfillmentIx, transferInstructions };
   }
 
@@ -683,145 +1021,336 @@ export class SvmExecutorService extends BaseChainExecutor {
     intent: Intent,
     span: api.Span,
   ): Promise<ExecutionResult> {
-    try {
-      // Add compute budget instruction for fulfill transaction
-      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 600_000, // Reduced from 800k since we're only doing fulfill
-      });
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.fulfill.execute_transaction',
+      {
+        attributes: {
+          'svm.intent_hash': intent.intentHash,
+          'svm.operation': 'execute_fulfill_transaction',
+        },
+      },
+      async (txSpan) => {
+        try {
+          const computeUnits = 600_000;
 
-      // Generate the fulfillment instruction for the Portal program
-      const { fulfillmentIx, transferInstructions } = await this.generateFulfillIx(intent);
+          txSpan.addEvent('svm.fulfill.instruction_generation.started');
 
-      span.setAttribute('svm.transfer_instruction_count', transferInstructions.length);
+          // Add compute budget instruction for fulfill transaction
+          const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+            units: computeUnits,
+          });
 
-      const transaction = new Transaction()
-        .add(computeBudgetIx)
-        .add(...transferInstructions)
-        .add(fulfillmentIx);
+          // Generate the fulfillment instruction for the Portal program
+          const { fulfillmentIx, transferInstructions } = await this.generateFulfillIx(intent);
 
-      span.addEvent('svm.fulfill_transaction.submitting', {
-        instruction_count: 1 + transferInstructions.length + 1, // compute budget + transfers + fulfill
-        compute_unit_limit: 600_000,
-      });
+          txSpan.setAttributes({
+            'svm.transfer_instruction_count': transferInstructions.length,
+            'svm.compute_units': computeUnits,
+          });
 
-      // Get wallet and send transaction
-      const wallet = this.walletManager.getWallet();
-      const signature = await wallet.sendTransaction(transaction, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
+          span.setAttribute('svm.transfer_instruction_count', transferInstructions.length);
 
-      span.setAttribute('svm.fulfill_transaction_signature', signature);
-      span.addEvent('svm.fulfill_transaction.submitted');
+          txSpan.addEvent('svm.fulfill.instruction_generation.completed', {
+            transfer_instructions: transferInstructions.length,
+          });
 
-      return {
-        success: true,
-        txHash: signature,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to execute fulfill transaction for intent ${intent.intentHash}:`,
-        toError(error),
-      );
-      return {
-        success: false,
-        error: getErrorMessage(error),
-      };
-    }
+          txSpan.addEvent('svm.fulfill.transaction_build.started');
+
+          const transaction = new Transaction()
+            .add(computeBudgetIx)
+            .add(...transferInstructions)
+            .add(fulfillmentIx);
+
+          const totalInstructions = 1 + transferInstructions.length + 1;
+
+          txSpan.setAttributes({
+            'svm.transaction.instruction_count': totalInstructions,
+            'svm.transaction.size_bytes': transaction.serialize({ requireAllSignatures: false })
+              .length,
+          });
+
+          txSpan.addEvent('svm.fulfill.transaction_build.completed', {
+            total_instructions: totalInstructions,
+          });
+
+          span.addEvent('svm.fulfill_transaction.submitting', {
+            instruction_count: totalInstructions,
+            compute_unit_limit: computeUnits,
+          });
+
+          txSpan.addEvent('svm.fulfill.transaction_submission.started');
+
+          // Get wallet and send transaction
+          const wallet = this.walletManager.getWallet();
+          const signature = await wallet.sendTransaction(transaction, {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
+
+          txSpan.setAttributes({
+            'svm.transaction_signature': signature,
+            'svm.transaction_success': true,
+          });
+
+          span.setAttribute('svm.fulfill_transaction_signature', signature);
+          span.addEvent('svm.fulfill_transaction.submitted');
+
+          txSpan.addEvent('svm.fulfill.transaction_submission.completed', {
+            signature,
+          });
+
+          txSpan.setStatus({ code: api.SpanStatusCode.OK });
+
+          return {
+            success: true,
+            txHash: signature,
+          };
+        } catch (error) {
+          const typedError = toError(error);
+          this.logger.error(
+            `Failed to execute fulfill transaction for intent ${intent.intentHash}:`,
+            typedError,
+          );
+
+          txSpan.recordException(typedError);
+          txSpan.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+
+          return {
+            success: false,
+            error: getErrorMessage(error),
+          };
+        } finally {
+          txSpan.end();
+        }
+      },
+    );
   }
 
   private async executeProveTransaction(
     intent: Intent,
     span: api.Span,
   ): Promise<ExecutionResult | null> {
-    try {
-      const proveResult = await this.generateProveIx(intent);
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.prove.execute_transaction',
+      {
+        attributes: {
+          'svm.intent_hash': intent.intentHash,
+          'svm.operation': 'execute_prove_transaction',
+        },
+      },
+      async (txSpan) => {
+        try {
+          txSpan.addEvent('svm.prove.instruction_generation.started');
 
-      if (!proveResult) {
-        this.logger.debug(
-          `No prove instruction generated for intent ${intent.intentHash}, skipping prove transaction`,
-        );
-        return null;
-      }
+          const proveResult = await this.generateProveIx(intent);
 
-      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 400_000,
-      });
+          if (!proveResult) {
+            this.logger.debug(
+              `No prove instruction generated for intent ${intent.intentHash}, skipping prove transaction`,
+            );
+            txSpan.addEvent('svm.prove.skipped', {
+              reason: 'no_prove_instruction',
+            });
+            txSpan.setStatus({ code: api.SpanStatusCode.OK });
+            txSpan.end();
+            return null;
+          }
 
-      const { blockhash } = await this.connection.getLatestBlockhash();
+          txSpan.setAttributes({
+            'svm.prove.additional_signers': proveResult.signers.length,
+          });
 
-      const messageV0 = new TransactionMessage({
-        payerKey: this.walletManager.getWallet().getKeypair().publicKey,
-        recentBlockhash: blockhash,
-        instructions: [computeBudgetIx, proveResult.instruction],
-      }).compileToV0Message();
-      const versionedTx = new VersionedTransaction(messageV0);
+          txSpan.addEvent('svm.prove.instruction_generation.completed', {
+            additional_signers: proveResult.signers.length,
+          });
 
-      // sign with wallet keypair first
-      const wallet = this.walletManager.getWallet();
-      versionedTx.sign([wallet.getKeypair()]);
+          const computeUnits = 400_000;
+          const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+            units: computeUnits,
+          });
 
-      // sign with additional signers (unique message keypair)
-      versionedTx.sign(proveResult.signers);
+          txSpan.setAttribute('svm.compute_units', computeUnits);
 
-      span.addEvent('svm.prove_transaction.submitting', {
-        instruction_count: 2, // compute budget + prove
-        compute_unit_limit: 400_000,
-        additional_signers: proveResult.signers.length,
-      });
+          txSpan.addEvent('svm.prove.transaction_build.started');
 
-      const signature = await this.connection.sendTransaction(versionedTx, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      });
+          const { blockhash } = await this.connection.getLatestBlockhash();
 
-      await this.connection.confirmTransaction(signature, 'confirmed');
+          const messageV0 = new TransactionMessage({
+            payerKey: this.walletManager.getWallet().getKeypair().publicKey,
+            recentBlockhash: blockhash,
+            instructions: [computeBudgetIx, proveResult.instruction],
+          }).compileToV0Message();
+          const versionedTx = new VersionedTransaction(messageV0);
 
-      span.setAttribute('svm.prove_transaction_signature', signature);
-      span.addEvent('svm.prove_transaction.submitted');
+          // sign with wallet keypair first
+          const wallet = this.walletManager.getWallet();
+          versionedTx.sign([wallet.getKeypair()]);
 
-      // Parse the message ID from the transaction logs
-      const messageId = await this.parseMessageIdFromTransaction(signature);
-      if (messageId) {
-        const gasPaymentResult = await this.payForGasForProve(intent, messageId, span);
-        this.logger.log(
-          `Gas payment result for intent ${intent.intentHash} with message id: 0x${Buffer.from(messageId).toString('hex')}, payment amount: ${gasPaymentResult}`,
-        );
-      } else {
-        const errorMessage = `Could not parse message ID from prove transaction ${signature} for intent ${intent.intentHash}`;
-        span.addEvent('svm.prove_transaction.message_id_parse_failed', {
-          transaction_signature: signature,
-          intent_hash: intent.intentHash,
-          error: errorMessage,
-        });
-        span.setStatus({
-          code: api.SpanStatusCode.ERROR,
-          message: errorMessage,
-        });
-        throw new Error(errorMessage);
-      }
+          // sign with additional signers (unique message keypair)
+          versionedTx.sign(proveResult.signers);
 
-      return {
-        success: true,
-        txHash: signature,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to execute prove transaction for intent ${intent.intentHash}:`,
-        toError(error),
-      );
-      return {
-        success: false,
-        error: getErrorMessage(error),
-      };
-    }
+          txSpan.setAttributes({
+            'svm.transaction.instruction_count': 2,
+            'svm.transaction.total_signers': 1 + proveResult.signers.length,
+          });
+
+          txSpan.addEvent('svm.prove.transaction_build.completed', {
+            instruction_count: 2,
+            total_signers: 1 + proveResult.signers.length,
+          });
+
+          span.addEvent('svm.prove_transaction.submitting', {
+            instruction_count: 2,
+            compute_unit_limit: computeUnits,
+            additional_signers: proveResult.signers.length,
+          });
+
+          txSpan.addEvent('svm.prove.transaction_submission.started');
+
+          const signature = await this.connection.sendTransaction(versionedTx, {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
+
+          txSpan.setAttribute('svm.transaction_signature', signature);
+          txSpan.addEvent('svm.prove.transaction_submitted', { signature });
+
+          txSpan.addEvent('svm.prove.transaction_confirmation.started');
+
+          await this.connection.confirmTransaction(signature, 'confirmed');
+
+          txSpan.setAttributes({
+            'svm.transaction_success': true,
+          });
+
+          span.setAttribute('svm.prove_transaction_signature', signature);
+          span.addEvent('svm.prove_transaction.submitted');
+
+          txSpan.addEvent('svm.prove.transaction_confirmation.completed');
+
+          // Parse the message ID from the transaction logs
+          const messageId = await this.parseMessageIdFromTransaction(signature);
+          if (messageId) {
+            const messageIdHex = Buffer.from(messageId).toString('hex');
+            txSpan.setAttribute('svm.message_id', messageIdHex);
+
+            const gasPaymentResult = await this.payForGasForProve(intent, messageId, span);
+
+            txSpan.setAttribute('svm.gas_payment_amount', gasPaymentResult.toString());
+
+            this.logger.log(
+              `Gas payment result for intent ${intent.intentHash} with message id: 0x${messageIdHex}, payment amount: ${gasPaymentResult}`,
+            );
+          } else {
+            const errorMessage = `Could not parse message ID from prove transaction ${signature} for intent ${intent.intentHash}`;
+
+            txSpan.addEvent('svm.prove.message_id_parse_failed', {
+              transaction_signature: signature,
+            });
+
+            span.addEvent('svm.prove_transaction.message_id_parse_failed', {
+              transaction_signature: signature,
+              intent_hash: intent.intentHash,
+              error: errorMessage,
+            });
+
+            txSpan.recordException(new Error(errorMessage));
+            txSpan.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: errorMessage,
+            });
+
+            span.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: errorMessage,
+            });
+
+            txSpan.end();
+            throw new Error(errorMessage);
+          }
+
+          txSpan.setStatus({ code: api.SpanStatusCode.OK });
+
+          return {
+            success: true,
+            txHash: signature,
+          };
+        } catch (error) {
+          const typedError = toError(error);
+          this.logger.error(
+            `Failed to execute prove transaction for intent ${intent.intentHash}:`,
+            typedError,
+          );
+
+          txSpan.recordException(typedError);
+          txSpan.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+
+          return {
+            success: false,
+            error: getErrorMessage(error),
+          };
+        } finally {
+          txSpan.end();
+        }
+      },
+    );
   }
 
   private async generateProveIx(
     intent: Intent,
   ): Promise<{ instruction: TransactionInstruction; signers: Keypair[] } | null> {
+    // Check for active span, use it if available, otherwise create a new one
+    const activeSpan = api.trace.getActiveSpan();
+    if (activeSpan) {
+      return this.generateProveIxWithSpan(intent, activeSpan);
+    }
+
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.prove.generate_instruction',
+      {
+        attributes: {
+          'svm.intent_hash': intent.intentHash,
+          'svm.operation': 'generate_prove_instruction',
+        },
+      },
+      async (span) => {
+        try {
+          const result = await this.generateProveIxWithSpan(intent, span);
+          if (result) {
+            span.setStatus({ code: api.SpanStatusCode.OK });
+          } else {
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            span.addEvent('svm.prove.instruction_skipped');
+          }
+          return result;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          return null;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async generateProveIxWithSpan(
+    intent: Intent,
+    span: api.Span,
+  ): Promise<{ instruction: TransactionInstruction; signers: Keypair[] } | null> {
     try {
       // Get the base prover to determine the type
+      span.addEvent('svm.prove.prover_lookup.started');
+
       const sourceChainId = Number(intent.sourceChainId);
       const baseProver = this.proverService.getProver(sourceChainId, intent.reward.prover);
 
@@ -833,18 +1362,42 @@ export class SvmExecutorService extends BaseChainExecutor {
         this.logger.warn(
           `No prover found for intent ${intent.intentHash}, skipping prove instruction`,
         );
+        span.addEvent('svm.prove.prover_not_found', {
+          source_chain_id: sourceChainId,
+          prover_address: intent.reward.prover.toString(),
+        });
+        span.setAttribute('svm.prove.skip_reason', 'prover_not_found');
         return null;
       }
+
+      span.setAttributes({
+        'svm.prover_type': baseProver.type,
+        'svm.source_chain_id': sourceChainId,
+      });
+
+      span.addEvent('svm.prove.prover_lookup.completed', {
+        prover_type: baseProver.type,
+      });
 
       // Check if this is a HyperProver (the only one with SVM support)
       if (baseProver.type !== ProverType.HYPER) {
         this.logger.warn(
           `Prover type ${baseProver.type} does not have SVM support for intent ${intent.intentHash}, skipping prove instruction`,
         );
+        span.addEvent('svm.prove.unsupported_prover_type', {
+          prover_type: baseProver.type,
+        });
+        span.setAttribute('svm.prove.skip_reason', 'unsupported_prover_type');
+        span.setAttribute('svm.prove.svm_support', false);
         return null;
       }
 
+      span.setAttribute('svm.prove.svm_support', true);
+
       const destinationChainId = Number(intent.destination);
+
+      span.addEvent('svm.prove.prover_address_lookup.started');
+
       const proverAddress = this.blockchainConfigService.getProverAddress(
         destinationChainId,
         baseProver.type as TProverType,
@@ -854,10 +1407,24 @@ export class SvmExecutorService extends BaseChainExecutor {
         this.logger.warn(
           `No prover address configured for ${baseProver.type} on chain ${destinationChainId}, skipping prove instruction`,
         );
+        span.addEvent('svm.prove.prover_address_not_configured', {
+          prover_type: baseProver.type,
+          destination_chain_id: destinationChainId,
+        });
+        span.setAttribute('svm.prove.skip_reason', 'prover_address_not_configured');
         return null;
       }
 
+      span.setAttributes({
+        'svm.destination_chain_id': destinationChainId,
+        'svm.prover_address': proverAddress.toString(),
+      });
+
+      span.addEvent('svm.prove.prover_address_lookup.completed');
+
       // Calculate intent hash
+      span.addEvent('svm.prove.pda_derivation.started');
+
       const { intentHash } = PortalHashUtils.getIntentHash(intent);
       const intentHashBuffer = toBuffer(intentHash);
 
@@ -870,7 +1437,16 @@ export class SvmExecutorService extends BaseChainExecutor {
         this.portalProgram.programId,
       );
 
+      span.setAttributes({
+        'svm.fulfill_marker_pda': fulfillMarkerPDA.toString(),
+        'svm.dispatcher_pda': dispatcherPDA.toString(),
+      });
+
+      span.addEvent('svm.prove.pda_derivation.completed');
+
       // Create the context for SVM prove instruction generation
+      span.addEvent('svm.prove.context_creation.started');
+
       const context = {
         portalProgram: this.portalProgram,
         keypair: this.keypair!,
@@ -880,13 +1456,29 @@ export class SvmExecutorService extends BaseChainExecutor {
         dispatcherPDA,
       };
 
+      span.addEvent('svm.prove.context_creation.completed');
+
       // Use the SVM HyperProver to generate the instruction
+      span.addEvent('svm.prove.instruction_generation.started');
+
       const result = await this.svmHyperProver.generateSvmProveInstruction(intent, context);
 
       if (result) {
         this.logger.debug(
           `Generated prove instruction for intent ${intent.intentHash} with prover ${baseProver.type}`,
         );
+
+        span.setAttributes({
+          'svm.prove.instruction_generated': true,
+          'svm.prove.signers_count': result.signers.length,
+        });
+
+        span.addEvent('svm.prove.instruction_generation.completed', {
+          signers_count: result.signers.length,
+        });
+      } else {
+        span.setAttribute('svm.prove.instruction_generated', false);
+        span.addEvent('svm.prove.instruction_generation.returned_null');
       }
 
       return result;
@@ -895,12 +1487,57 @@ export class SvmExecutorService extends BaseChainExecutor {
         `Failed to generate prove instruction for intent ${intent.intentHash}:`,
         toError(error),
       );
+      span.recordException(toError(error));
       return null;
     }
   }
 
   private async parseMessageIdFromTransaction(signature: string): Promise<Uint8Array | null> {
+    // Check for active span from parent, use it if available
+    const activeSpan = api.trace.getActiveSpan();
+    if (activeSpan) {
+      return this.parseMessageIdFromTransactionWithSpan(signature, activeSpan);
+    }
+
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.prove.parse_message_id',
+      {
+        attributes: {
+          'svm.operation': 'parse_message_id',
+          'svm.transaction_signature': signature,
+        },
+      },
+      async (span) => {
+        try {
+          const result = await this.parseMessageIdFromTransactionWithSpan(signature, span);
+          if (result) {
+            span.setStatus({ code: api.SpanStatusCode.OK });
+          } else {
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            span.addEvent('svm.parse_message_id.not_found');
+          }
+          return result;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          return null;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async parseMessageIdFromTransactionWithSpan(
+    signature: string,
+    span: api.Span,
+  ): Promise<Uint8Array | null> {
     try {
+      span.addEvent('svm.parse_message_id.started');
+
       const messageId = await HyperProverUtils.parseMessageIdFromTransaction(
         this.connection,
         signature,
@@ -908,17 +1545,41 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       if (!messageId) {
         this.logger.warn(`Could not parse message ID from transaction ${signature}`);
+
+        span.addEvent('svm.parse_message_id.not_found', {
+          transaction_signature: signature,
+        });
+
+        span.setAttribute('svm.message_id_found', false);
+
         return null;
       }
 
-      this.logger.debug(
-        `Parsed message ID from transaction ${signature}: 0x${Buffer.from(messageId).toString('hex')}`,
-      );
+      const messageIdHex = Buffer.from(messageId).toString('hex');
+
+      span.setAttributes({
+        'svm.message_id': messageIdHex,
+        'svm.message_id_found': true,
+        'svm.message_id_length': messageId.length,
+      });
+
+      span.addEvent('svm.parse_message_id.completed', {
+        message_id: messageIdHex,
+      });
+
+      this.logger.debug(`Parsed message ID from transaction ${signature}: 0x${messageIdHex}`);
+
       return messageId;
     } catch (error) {
       this.logger.error(
         `Failed to parse message ID from transaction ${signature}: ${getErrorMessage(error)}`,
       );
+
+      span.recordException(toError(error));
+      span.addEvent('svm.parse_message_id.error', {
+        error: getErrorMessage(error),
+      });
+
       return null;
     }
   }
@@ -1066,11 +1727,58 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async initializeProgram() {
+    // Check for active span from parent, use it if available
+    const activeSpan = api.trace.getActiveSpan();
+    if (activeSpan) {
+      return this.initializeProgramWithSpan(activeSpan);
+    }
+
+    return this.otelService.tracer.startActiveSpan(
+      'svm.executor.initialize_program',
+      {
+        attributes: {
+          'svm.operation': 'initialize_program',
+          'svm.rpc_url': this.solanaConfigService.rpcUrl,
+        },
+      },
+      async (span) => {
+        try {
+          await this.initializeProgramWithSpan(span);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async initializeProgramWithSpan(span: api.Span): Promise<void> {
+    span.addEvent('svm.initialize.wallet_setup.started');
+
     // Get cached wallet instance and extract keypair for Anchor
     const svmWallet = this.walletManager.getWallet();
     this.keypair = svmWallet.getKeypair();
 
+    const walletAddress = this.keypair.publicKey.toString();
+
+    span.setAttributes({
+      'svm.wallet_address': walletAddress,
+    });
+
+    span.addEvent('svm.initialize.wallet_setup.completed', {
+      wallet_address: walletAddress,
+    });
+
     // Create Anchor provider with wallet adapter
+    span.addEvent('svm.initialize.provider_creation.started');
+
     const anchorWallet = getAnchorWallet(this.keypair);
 
     const provider = new AnchorProvider(this.connection, anchorWallet, {
@@ -1078,10 +1786,27 @@ export class SvmExecutorService extends BaseChainExecutor {
     });
     setProvider(provider);
 
+    span.setAttributes({
+      'svm.provider_commitment': 'confirmed',
+    });
+
+    span.addEvent('svm.initialize.provider_creation.completed');
+
     // Initialize Portal program with IDL
+    span.addEvent('svm.initialize.program_initialization.started');
+
     const portalProgramId = new PublicKey(this.solanaConfigService.portalProgramId);
     const idlWithAddress = { ...portalIdl, address: portalProgramId.toString() };
     this.portalProgram = new Program(idlWithAddress, provider);
+
+    span.setAttributes({
+      'svm.portal_program_id': portalProgramId.toString(),
+      'svm.program_initialized': true,
+    });
+
+    span.addEvent('svm.initialize.program_initialization.completed', {
+      portal_program_id: portalProgramId.toString(),
+    });
 
     this.logger.log(`Portal program initialized at ${portalProgramId.toString()}`);
   }

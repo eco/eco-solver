@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 
-import { encodePacked, Hex } from 'viem';
+import { Hex } from 'viem';
+import * as viem from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -11,11 +12,14 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 import { EvmReaderService } from '../evm.reader.service';
 import { EvmTransportService } from '../evm-transport.service';
 
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  encodePacked: jest.fn(),
-  pad: jest.fn().mockImplementation((value) => value),
-}));
+jest.mock('viem', () => {
+  const actual = jest.requireActual('viem');
+  return {
+    ...actual,
+    encodePacked: jest.fn(),
+    pad: jest.fn().mockImplementation((value) => value),
+  };
+});
 
 describe('EvmReaderService', () => {
   let service: EvmReaderService;
@@ -119,7 +123,7 @@ describe('EvmReaderService', () => {
     beforeEach(() => {
       // Reset mocks before each test
       jest.clearAllMocks();
-      (encodePacked as jest.Mock).mockReturnValue('0xencodedProof');
+      (viem.encodePacked as jest.Mock).mockReturnValue('0xencodedProof');
     });
 
     it('should fetch prover fee successfully', async () => {

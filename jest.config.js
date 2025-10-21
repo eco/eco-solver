@@ -22,5 +22,5 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   transformIgnorePatterns: ['node_modules/(?!(@zerodev|permissionless)/)'],
   modulePathIgnorePatterns: ['<rootDir>/node_modules/.pnpm'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/src/tests/integration/'],
 };

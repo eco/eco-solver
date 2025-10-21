@@ -1,19 +1,33 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { UniversalAddress } from '@/common/types/universal-address.type';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
+// Mock the blockchain reader service module before any imports
+jest.mock('@/modules/blockchain/blockchain-reader.service', () => ({
+  BlockchainReaderService: jest.fn().mockImplementation(() => ({
+    isIntentFunded: jest.fn(),
+  })),
+}));
+
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 
 import { ExecutorBalanceValidation } from '../executor-balance.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
+
+// Helper function to create UniversalAddress from string
+function toUniversalAddress(address: string): UniversalAddress {
+  return address as UniversalAddress;
+}
 
 describe('ExecutorBalanceValidation', () => {
   let validation: ExecutorBalanceValidation;
 
   beforeEach(async () => {
     const mockBlockchainReaderService = {
-      // Not used in this validation
-    };
+      isIntentFunded: jest.fn(),
+    } as any;
 
     const mockOtelService = {
       tracer: {
@@ -30,6 +44,17 @@ describe('ExecutorBalanceValidation', () => {
         }),
       },
     };
+
+    const mockTokenConfigService = {
+      getTokenConfig: jest.fn().mockReturnValue({
+        address: toUniversalAddress(
+          '0x0000000000000000000000000000000000000000000000000000000000000000',
+        ),
+        decimals: 6,
+        symbol: 'TOKEN',
+      }),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ExecutorBalanceValidation,
@@ -40,6 +65,10 @@ describe('ExecutorBalanceValidation', () => {
         {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
+        },
+        {
+          provide: TokenConfigService,
+          useValue: mockTokenConfigService,
         },
       ],
     }).compile();
@@ -130,7 +159,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Not enough token balance on chain 10',
         );
       });
 
@@ -143,7 +172,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607, 0x00000000000000000000000094b008aA00579c1307B0EF2c499aD98a8ce58e58',
+          'Not enough token balance on chain 10',
         );
       });
 
@@ -156,7 +185,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Not enough token balance on chain 10',
         );
       });
 
@@ -169,7 +198,7 @@ describe('ExecutorBalanceValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Not enough token balance found for: 0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
+          'Not enough token balance on chain 10',
         );
       });
     });

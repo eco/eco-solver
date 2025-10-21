@@ -1,3 +1,20 @@
+// Mock the strategy modules before any imports
+jest.mock('../../strategies/standard-fulfillment.strategy', () => ({
+  StandardFulfillmentStrategy: jest.fn(),
+}));
+jest.mock('../../strategies/crowd-liquidity-fulfillment.strategy', () => ({
+  CrowdLiquidityFulfillmentStrategy: jest.fn(),
+}));
+jest.mock('../../strategies/native-intents-fulfillment.strategy', () => ({
+  NativeIntentsFulfillmentStrategy: jest.fn(),
+}));
+jest.mock('../../strategies/negative-intents-fulfillment.strategy', () => ({
+  NegativeIntentsFulfillmentStrategy: jest.fn(),
+}));
+jest.mock('../../strategies/rhinestone-fulfillment.strategy', () => ({
+  RhinestoneFulfillmentStrategy: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
@@ -35,6 +52,13 @@ describe('StrategyManagementService', () => {
         return fn(span);
       }),
     },
+    startSpan: jest.fn().mockReturnValue({
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    }),
   };
 
   const mockConfigService = {
@@ -59,6 +83,10 @@ describe('StrategyManagementService', () => {
     getDefaultStrategy: jest.fn().mockReturnValue('standard'),
   };
 
+  const _mockQueueService = {
+    addIntentToExecutionQueue: jest.fn(),
+  };
+
   const createMockStrategy = (name: string, canHandle: boolean = true) => ({
     name,
     validate: jest.fn().mockResolvedValue(true),
@@ -69,26 +97,24 @@ describe('StrategyManagementService', () => {
   });
 
   beforeEach(async () => {
+    // Create instances first
+    const standardStrategy = createMockStrategy('standard');
+    const crowdLiquidityStrategy = createMockStrategy('crowd-liquidity');
+    const nativeIntentsStrategy = createMockStrategy('native-intents');
+    const negativeIntentsStrategy = createMockStrategy('negative-intents');
+    const rhinestoneStrategy = createMockStrategy('rhinestone');
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StrategyManagementService,
         { provide: SystemLoggerService, useValue: mockLogger },
         { provide: FulfillmentConfigService, useValue: mockConfigService },
         { provide: OpenTelemetryService, useValue: mockOtelService },
-        { provide: StandardFulfillmentStrategy, useValue: createMockStrategy('standard') },
-        {
-          provide: CrowdLiquidityFulfillmentStrategy,
-          useValue: createMockStrategy('crowd-liquidity'),
-        },
-        {
-          provide: NativeIntentsFulfillmentStrategy,
-          useValue: createMockStrategy('native-intents'),
-        },
-        {
-          provide: NegativeIntentsFulfillmentStrategy,
-          useValue: createMockStrategy('negative-intents'),
-        },
-        { provide: RhinestoneFulfillmentStrategy, useValue: createMockStrategy('rhinestone') },
+        { provide: StandardFulfillmentStrategy, useValue: standardStrategy },
+        { provide: CrowdLiquidityFulfillmentStrategy, useValue: crowdLiquidityStrategy },
+        { provide: NativeIntentsFulfillmentStrategy, useValue: nativeIntentsStrategy },
+        { provide: NegativeIntentsFulfillmentStrategy, useValue: negativeIntentsStrategy },
+        { provide: RhinestoneFulfillmentStrategy, useValue: rhinestoneStrategy },
       ],
     }).compile();
 

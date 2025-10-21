@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { DuplicateRewardTokensValidation } from '../duplicate-reward-tokens.validation';
@@ -61,9 +61,8 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000),
-              token: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              token:
+                '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress,
             },
           ],
         },
@@ -81,21 +80,18 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000),
-              token: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              token:
+                '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress,
             },
             {
               amount: BigInt(2000000000000000000),
-              token: toUniversalAddress(
-                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
-              ),
+              token:
+                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as UniversalAddress,
             },
             {
               amount: BigInt(3000000000000000000),
-              token: toUniversalAddress(
-                '0x0000000000000000000000009876543210987654321098765432109876543210',
-              ),
+              token:
+                '0x0000000000000000000000009876543210987654321098765432109876543210' as UniversalAddress,
             },
           ],
         },
@@ -107,9 +103,8 @@ describe('DuplicateRewardTokensValidation', () => {
     });
 
     it('should throw error when there are duplicate token addresses', async () => {
-      const duplicateToken = toUniversalAddress(
-        '0x0000000000000000000000001234567890123456789012345678901234567890',
-      );
+      const duplicateToken =
+        '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress;
       const intent = createMockIntent({
         reward: {
           ...createMockIntent().reward,
@@ -120,9 +115,8 @@ describe('DuplicateRewardTokensValidation', () => {
             },
             {
               amount: BigInt(2000000000000000000),
-              token: toUniversalAddress(
-                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
-              ),
+              token:
+                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as UniversalAddress,
             },
             {
               amount: BigInt(3000000000000000000),
@@ -144,15 +138,13 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000),
-              token: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              token:
+                '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress,
             },
             {
               amount: BigInt(2000000000000000000),
-              token: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ), // Same address, different case
+              token:
+                '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress, // Same address, different case
             },
           ],
         },
@@ -164,12 +156,10 @@ describe('DuplicateRewardTokensValidation', () => {
     });
 
     it('should throw error with multiple duplicate tokens', async () => {
-      const duplicateToken1 = toUniversalAddress(
-        '0x0000000000000000000000001234567890123456789012345678901234567890',
-      );
-      const duplicateToken2 = toUniversalAddress(
-        '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
-      );
+      const duplicateToken1 =
+        '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress;
+      const duplicateToken2 =
+        '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as UniversalAddress;
       const intent = createMockIntent({
         reward: {
           ...createMockIntent().reward,
@@ -208,15 +198,13 @@ describe('DuplicateRewardTokensValidation', () => {
           tokens: [
             {
               amount: BigInt(1000000000000000000), // Same amount
-              token: toUniversalAddress(
-                '0x0000000000000000000000001234567890123456789012345678901234567890',
-              ),
+              token:
+                '0x0000000000000000000000001234567890123456789012345678901234567890' as UniversalAddress,
             },
             {
               amount: BigInt(1000000000000000000), // Same amount
-              token: toUniversalAddress(
-                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
-              ),
+              token:
+                '0x000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd' as UniversalAddress,
             },
           ],
         },
@@ -228,16 +216,15 @@ describe('DuplicateRewardTokensValidation', () => {
     });
 
     it('should handle many tokens with one duplicate', async () => {
-      const duplicateToken = toUniversalAddress(
-        '0x0000000000000000000000005555555555555555555555555555555555555555',
-      );
+      const duplicateToken =
+        '0x0000000000000000000000005555555555555555555555555555555555555555' as UniversalAddress;
       const tokens = [];
 
       // Add 10 unique tokens
       for (let i = 0; i < 10; i++) {
         tokens.push({
           amount: BigInt(1000000000000000000 * (i + 1)),
-          token: toUniversalAddress(`0x000000000000000000000000${i.toString().padStart(40, '0')}`),
+          token: `0x000000000000000000000000${i.toString().padStart(40, '0')}` as UniversalAddress,
         });
       }
 
@@ -251,7 +238,7 @@ describe('DuplicateRewardTokensValidation', () => {
       for (let i = 10; i < 20; i++) {
         tokens.push({
           amount: BigInt(1000000000000000000 * (i + 1)),
-          token: toUniversalAddress(`0x000000000000000000000000${i.toString().padStart(40, '0')}`),
+          token: `0x000000000000000000000000${i.toString().padStart(40, '0')}` as UniversalAddress,
         });
       }
 

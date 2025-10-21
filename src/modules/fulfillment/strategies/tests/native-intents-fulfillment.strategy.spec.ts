@@ -14,6 +14,7 @@ import {
   ProverSupportValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
+  RouteEnabledValidation,
   RouteTokenValidation,
 } from '@/modules/fulfillment/validations';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
@@ -50,6 +51,17 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
         return fn(span);
       }),
     },
+    withSpan: jest.fn().mockImplementation(async (name, fn) => {
+      const span = {
+        setAttribute: jest.fn(),
+        setAttributes: jest.fn(),
+        addEvent: jest.fn(),
+        setStatus: jest.fn(),
+        recordException: jest.fn(),
+        end: jest.fn(),
+      };
+      return fn(span);
+    }),
   })),
 }));
 
@@ -64,6 +76,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
   let routeAmountLimitValidation: jest.Mocked<RouteAmountLimitValidation>;
   let expirationValidation: jest.Mocked<ExpirationValidation>;
   let chainSupportValidation: jest.Mocked<ChainSupportValidation>;
+  let routeEnabledValidation: jest.Mocked<RouteEnabledValidation>;
   let proverSupportValidation: jest.Mocked<ProverSupportValidation>;
   let executorBalanceValidation: jest.Mocked<ExecutorBalanceValidation>;
   let nativeFeeValidation: jest.Mocked<NativeFeeValidation>;
@@ -92,6 +105,17 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           return fn(span);
         }),
       },
+      withSpan: jest.fn().mockImplementation(async (name, fn) => {
+        const span = {
+          setAttribute: jest.fn(),
+          setAttributes: jest.fn(),
+          addEvent: jest.fn(),
+          setStatus: jest.fn(),
+          recordException: jest.fn(),
+          end: jest.fn(),
+        };
+        return fn(span);
+      }),
     };
 
     // Create mock validations
@@ -109,6 +133,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
     routeAmountLimitValidation = createMockValidation('RouteAmountLimitValidation') as any;
     expirationValidation = createMockValidation('ExpirationValidation') as any;
     chainSupportValidation = createMockValidation('ChainSupportValidation') as any;
+    routeEnabledValidation = createMockValidation('RouteEnabledValidation') as any;
     proverSupportValidation = createMockValidation('ProverSupportValidation') as any;
     executorBalanceValidation = createMockValidation('ExecutorBalanceValidation') as any;
     nativeFeeValidation = createMockValidation('NativeFeeValidation') as any;
@@ -161,6 +186,10 @@ describe('NativeIntentsFulfillmentStrategy', () => {
           useValue: chainSupportValidation,
         },
         {
+          provide: RouteEnabledValidation,
+          useValue: routeEnabledValidation,
+        },
+        {
           provide: ProverSupportValidation,
           useValue: proverSupportValidation,
         },
@@ -190,7 +219,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
 
     it('should have the correct validations in order', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(10);
+      expect(validations).toHaveLength(11);
       expect(validations[0]).toBe(intentFundedValidation);
       expect(validations[1]).toBe(duplicateRewardTokensValidation);
       expect(validations[2]).toBe(routeTokenValidation);
@@ -198,14 +227,15 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       expect(validations[4]).toBe(routeAmountLimitValidation);
       expect(validations[5]).toBe(expirationValidation);
       expect(validations[6]).toBe(chainSupportValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(nativeFeeValidation);
+      expect(validations[7]).toBe(routeEnabledValidation);
+      expect(validations[8]).toBe(proverSupportValidation);
+      expect(validations[9]).toBe(executorBalanceValidation);
+      expect(validations[10]).toBe(nativeFeeValidation);
     });
 
     it('should use NativeFeeValidation instead of StandardFeeValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations[9]).toBe(nativeFeeValidation);
+      expect(validations[10]).toBe(nativeFeeValidation);
       expect(validations.some((v: any) => v.constructor.name === 'StandardFeeValidation')).toBe(
         false,
       );
@@ -367,6 +397,10 @@ describe('NativeIntentsFulfillmentStrategy', () => {
         mockIntent,
         expect.objectContaining({ strategy }),
       );
+      expect(routeEnabledValidation.validate).toHaveBeenCalledWith(
+        mockIntent,
+        expect.objectContaining({ strategy }),
+      );
       expect(proverSupportValidation.validate).toHaveBeenCalledWith(
         mockIntent,
         expect.objectContaining({ strategy }),
@@ -388,6 +422,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
         routeAmountLimitValidation,
         expirationValidation,
         chainSupportValidation,
+        routeEnabledValidation,
         proverSupportValidation,
         executorBalanceValidation,
         nativeFeeValidation,
@@ -414,6 +449,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
       expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
       expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(routeEnabledValidation.validate).toHaveBeenCalledTimes(1);
       expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
       expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
       expect(nativeFeeValidation.validate).toHaveBeenCalledTimes(1);
@@ -508,7 +544,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(10);
+      expect(validations).toHaveLength(11);
       expect(Object.isFrozen(validations)).toBe(true);
     });
 
