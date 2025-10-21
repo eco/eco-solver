@@ -1,4 +1,7 @@
-import { Configuration, ConfigurationSchema } from '@/modules/dynamic-config/schemas/configuration.schema';
+import {
+  Configuration,
+  ConfigurationSchema,
+} from '@/modules/dynamic-config/schemas/configuration.schema';
 import {
   ConfigurationAudit,
   ConfigurationAuditSchema,

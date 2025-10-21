@@ -1,5 +1,8 @@
 import { AwsToMongoDbMigrationService } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
-import { Configuration, ConfigurationSchema } from '@/modules/dynamic-config/schemas/configuration.schema';
+import {
+  Configuration,
+  ConfigurationSchema,
+} from '@/modules/dynamic-config/schemas/configuration.schema';
 import {
   ConfigurationAudit,
   ConfigurationAuditSchema,
