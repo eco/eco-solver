@@ -140,6 +140,7 @@ export class QuotesService {
     const quoteID = crypto.randomUUID();
 
     const quoteData = {
+      intentExecutionType: 'SELF_PUBLISH' as const,
       sourceChainID: sourceChainId,
       destinationChainID: destinationChainId,
       sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),

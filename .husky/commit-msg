@@ -1,3 +1,11 @@
+#!/usr/bin/env sh
+
+# Skip validation for merge commits
+if [ -f .git/MERGE_HEAD ]; then
+  echo "✅ Merge commit detected, skipping validation"
+  exit 0
+fi
+
 # Check conventional commit format
 commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?: .{1,50}'
 

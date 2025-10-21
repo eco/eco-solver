@@ -22,15 +22,18 @@ describe('RouteEnabledValidation', () => {
   let configService: MockConfigService;
   let otelService: jest.Mocked<OpenTelemetryService>;
   let context: ValidationContext;
-
-  const mockSpan = {
-    setAttribute: jest.fn(),
-    setStatus: jest.fn(),
-    recordException: jest.fn(),
-    end: jest.fn(),
-  };
+  let mockSpan: any;
 
   beforeEach(async () => {
+    mockSpan = {
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      addEvent: jest.fn(),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    };
+
     const mockConfigService: MockConfigService = {
       getStrategyRouteEnablementConfig: jest.fn(),
       get routeEnablementConfig() {
@@ -53,15 +56,7 @@ describe('RouteEnabledValidation', () => {
           useValue: {
             tracer: {
               startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
-                const span = {
-                  setAttribute: jest.fn(),
-                  setAttributes: jest.fn(),
-                  addEvent: jest.fn(),
-                  setStatus: jest.fn(),
-                  recordException: jest.fn(),
-                  end: jest.fn(),
-                };
-                return fn(span);
+                return fn(mockSpan);
               }),
             },
           },
@@ -470,8 +465,9 @@ describe('RouteEnabledValidation', () => {
       const intent = createMockIntent();
       await validation.validate(intent, context);
 
-      expect(otelService.tracer.startActiveSpan).not.toHaveBeenCalled();
-      expect(mockSpan.end).not.toHaveBeenCalled();
+      // RouteEnabledValidation always creates its own span via startActiveSpan
+      expect(otelService.tracer.startActiveSpan).toHaveBeenCalled();
+      expect(mockSpan.end).toHaveBeenCalled();
     });
 
     it('should create new span if no active span', async () => {

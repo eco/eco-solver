@@ -1,14 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import {
-  Chain,
-  createPublicClient,
-  extractChain,
-  fallback,
-  http,
-  Transport,
-  webSocket,
-} from 'viem';
+import { Chain, Transport } from 'viem';
+import * as viem from 'viem';
 import * as chains from 'viem/chains';
 
 import { EvmConfigService } from '@/modules/config/services';
@@ -86,6 +79,7 @@ describe('EvmTransportService', () => {
         }
         return network;
       }),
+      getHttpConfigForWebSocket: jest.fn().mockReturnValue(null),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,11 +89,11 @@ describe('EvmTransportService', () => {
     service = module.get<EvmTransportService>(EvmTransportService);
 
     // Mock viem functions
-    (extractChain as jest.Mock).mockReturnValue(mockChain);
-    (http as jest.Mock).mockReturnValue(mockTransport);
-    (webSocket as jest.Mock).mockReturnValue(mockTransport);
-    (fallback as jest.Mock).mockReturnValue(mockTransport);
-    (createPublicClient as jest.Mock).mockReturnValue(mockPublicClient);
+    (viem.extractChain as jest.Mock).mockReturnValue(mockChain);
+    (viem.http as jest.Mock).mockReturnValue(mockTransport);
+    (viem.webSocket as jest.Mock).mockReturnValue(mockTransport);
+    (viem.fallback as jest.Mock).mockReturnValue(mockTransport);
+    (viem.createPublicClient as jest.Mock).mockReturnValue(mockPublicClient);
   });
 
   afterEach(() => {
@@ -115,16 +109,16 @@ describe('EvmTransportService', () => {
       service.onModuleInit();
 
       // Should extract chain for each configured network
-      expect(extractChain).toHaveBeenCalledTimes(3);
-      expect(extractChain).toHaveBeenCalledWith({
+      expect(viem.extractChain).toHaveBeenCalledTimes(3);
+      expect(viem.extractChain).toHaveBeenCalledWith({
         chains: Object.values(chains),
         id: 1,
       });
-      expect(extractChain).toHaveBeenCalledWith({
+      expect(viem.extractChain).toHaveBeenCalledWith({
         chains: Object.values(chains),
         id: 10,
       });
-      expect(extractChain).toHaveBeenCalledWith({
+      expect(viem.extractChain).toHaveBeenCalledWith({
         chains: Object.values(chains),
         id: 137,
       });
@@ -133,21 +127,21 @@ describe('EvmTransportService', () => {
     it('should create http transport for single RPC URL', () => {
       service.onModuleInit();
 
-      expect(http).toHaveBeenCalledWith('https://mainnet.infura.io/v3/', {});
+      expect(viem.http).toHaveBeenCalledWith('https://mainnet.infura.io/v3/', {});
     });
 
     it('should create fallback transport for multiple RPC URLs', () => {
       service.onModuleInit();
 
-      expect(http).toHaveBeenCalledWith('https://optimism.io', {});
-      expect(http).toHaveBeenCalledWith('https://optimism-backup.io', {});
-      expect(fallback).toHaveBeenCalled();
+      expect(viem.http).toHaveBeenCalledWith('https://optimism.io', {});
+      expect(viem.http).toHaveBeenCalledWith('https://optimism-backup.io', {});
+      expect(viem.fallback).toHaveBeenCalled();
     });
 
     it('should prefer WebSocket transport when available', () => {
       service.onModuleInit();
 
-      expect(webSocket).toHaveBeenCalledWith('wss://polygon-ws.io', { timeout: 5000 });
+      expect(viem.webSocket).toHaveBeenCalledWith('wss://polygon-ws.io', { timeout: 5000 });
     });
   });
 
@@ -164,7 +158,7 @@ describe('EvmTransportService', () => {
       const transport = service.getTransport(1);
 
       expect(transport).toBe(mockTransport);
-      expect(extractChain).toHaveBeenCalled();
+      expect(viem.extractChain).toHaveBeenCalled();
     });
 
     it('should throw error for uninitialized chain', () => {
@@ -183,7 +177,7 @@ describe('EvmTransportService', () => {
       const transport2 = service.getTransport(1);
 
       expect(transport1).toBe(transport2);
-      expect(extractChain).not.toHaveBeenCalled();
+      expect(viem.extractChain).not.toHaveBeenCalled();
     });
   });
 
@@ -200,7 +194,7 @@ describe('EvmTransportService', () => {
       const chain = service.getViemChain(1);
 
       expect(chain).toBe(mockChain);
-      expect(extractChain).toHaveBeenCalled();
+      expect(viem.extractChain).toHaveBeenCalled();
     });
 
     it('should throw error for uninitialized chain', () => {
@@ -217,7 +211,7 @@ describe('EvmTransportService', () => {
       const client = service.getPublicClient(1);
 
       expect(client).toBe(mockPublicClient);
-      expect(createPublicClient).toHaveBeenCalledWith({
+      expect(viem.createPublicClient).toHaveBeenCalledWith({
         chain: mockChain,
         transport: mockTransport,
       });
@@ -227,8 +221,8 @@ describe('EvmTransportService', () => {
       const client = service.getPublicClient(10);
 
       expect(client).toBe(mockPublicClient);
-      expect(extractChain).toHaveBeenCalled();
-      expect(createPublicClient).toHaveBeenCalled();
+      expect(viem.extractChain).toHaveBeenCalled();
+      expect(viem.createPublicClient).toHaveBeenCalled();
     });
   });
 
@@ -246,8 +240,8 @@ describe('EvmTransportService', () => {
 
       service.onModuleInit();
 
-      expect(webSocket).toHaveBeenCalledWith('wss://test-ws.io', { reconnect: true });
-      expect(fallback).not.toHaveBeenCalled();
+      expect(viem.webSocket).toHaveBeenCalledWith('wss://test-ws.io', { reconnect: true });
+      expect(viem.fallback).not.toHaveBeenCalled();
     });
 
     it('should create fallback WebSocket transport for multiple URLs', () => {
@@ -266,9 +260,9 @@ describe('EvmTransportService', () => {
 
       service.onModuleInit();
 
-      expect(webSocket).toHaveBeenCalledWith('wss://test-ws1.io', { reconnect: true });
-      expect(webSocket).toHaveBeenCalledWith('wss://test-ws2.io', { reconnect: true });
-      expect(fallback).toHaveBeenCalled();
+      expect(viem.webSocket).toHaveBeenCalledWith('wss://test-ws1.io', { reconnect: true });
+      expect(viem.webSocket).toHaveBeenCalledWith('wss://test-ws2.io', { reconnect: true });
+      expect(viem.fallback).toHaveBeenCalled();
     });
   });
 });

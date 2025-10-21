@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { encodeAbiParameters, Hex, pad } from 'viem';
 
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
+import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 
 // Helper function to cast string to UniversalAddress
 const toUniversalAddress = (address: string): UniversalAddress => address as UniversalAddress;

@@ -4,10 +4,7 @@ import { portalAbi } from '@/common/abis/portal.abi';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { EventsService } from '@/modules/events/events.service';
-import { createMockEventsService } from '@/modules/events/tests/events.service.mock';
 import { SystemLoggerService } from '@/modules/logging';
-import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { ChainListener } from '../chain.listener';
 
@@ -53,47 +50,7 @@ jest.mock('@/common/utils/portal-encoder', () => ({
   },
 }));
 
-// Mock parseIntentPublish and parseIntentFulfilled functions
-jest.mock('@/modules/blockchain/evm/utils/evm-event-parser', () => ({
-  parseIntentPublish: jest.fn((sourceChainId, log) => ({
-    intentHash: log.args.intentHash,
-    destination: log.args.destination,
-    sourceChainId,
-    route: {
-      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-      deadline: 1234567890n,
-      portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
-      nativeAmount: 0n,
-      tokens: [
-        {
-          token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
-          amount: 300n,
-        },
-      ],
-      calls: [
-        {
-          target: '0x000000000000000000000000TARGET10000000000000000000000000000000000000001',
-          data: '0xData1',
-          value: 0n,
-        },
-      ],
-    },
-    reward: {
-      deadline: log.args.rewardDeadline,
-      creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
-      prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
-      nativeAmount: log.args.rewardNativeAmount,
-      tokens: log.args.rewardTokens.map((token: any, index: number) => ({
-        amount: token.amount,
-        token: `0x00000000000000000000000TOKEN${index + 1}00000000000000000000000000000000000001`,
-      })),
-    },
-  })),
-  parseIntentFulfilled: jest.fn((sourceChainId, log) => ({
-    intentHash: log.args.intentHash,
-    claimant: log.args.claimant,
-  })),
-}));
+// No need to mock event parsers anymore - events are queued directly
 
 // Mock QueueSerializer
 jest.mock('@/common/utils/bigint-serializer', () => ({
@@ -105,11 +62,10 @@ jest.mock('@/common/utils/bigint-serializer', () => ({
 describe('ChainListener', () => {
   let listener: ChainListener;
   let transportService: jest.Mocked<EvmTransportService>;
-  let eventsService: ReturnType<typeof createMockEventsService>;
   let logger: jest.Mocked<SystemLoggerService>;
-  let otelService: jest.Mocked<OpenTelemetryService>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let evmConfigService: jest.Mocked<EvmConfigService>;
+  let queueService: jest.Mocked<any>;
   let mockPublicClient: any;
   let mockUnsubscribe: jest.Mock;
 
@@ -146,31 +102,15 @@ describe('ChainListener', () => {
 
     transportService = {
       getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
+      hasPollingTransport: jest.fn().mockReturnValue(false),
     } as any;
-
-    eventsService = createMockEventsService();
 
     logger = {
       setContext: jest.fn(),
       log: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
-    } as any;
-
-    otelService = {
-      tracer: {
-        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
-          const span = {
-            setAttribute: jest.fn(),
-            setAttributes: jest.fn(),
-            addEvent: jest.fn(),
-            setStatus: jest.fn(),
-            recordException: jest.fn(),
-            end: jest.fn(),
-          };
-          return fn(span);
-        }),
-      },
+      debug: jest.fn(),
     } as any;
 
     blockchainConfigService = {
@@ -188,14 +128,17 @@ describe('ChainListener', () => {
       }),
     } as any;
 
+    queueService = {
+      addBlockchainEvent: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
     listener = new ChainListener(
       mockConfig,
       transportService,
-      eventsService as any,
       logger,
-      otelService,
       blockchainConfigService,
       evmConfigService,
+      queueService,
     );
   });
 
@@ -208,67 +151,40 @@ describe('ChainListener', () => {
       await listener.start();
 
       expect(transportService.getPublicClient).toHaveBeenCalledWith(1);
-      expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith({
-        abi: portalAbi,
-        eventName: 'IntentPublished',
-        address: '0xPortalAddress',
-        strict: true,
-        onLogs: expect.any(Function),
-      });
+      expect(mockPublicClient.watchContractEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          abi: portalAbi,
+          eventName: 'IntentPublished',
+          address: '0xPortalAddress',
+          strict: true,
+          onLogs: expect.any(Function),
+          onError: expect.any(Function),
+        }),
+      );
     });
 
-    it('should process logs and emit intent.discovered event', async () => {
+    it('should process logs and queue blockchain event', async () => {
       await listener.start();
 
       // Get the onLogs callback
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
       // Simulate receiving logs
-      onLogsCallback([mockLog]);
+      await onLogsCallback([mockLog]);
 
-      expect(eventsService.emit).toHaveBeenCalledWith('intent.discovered', {
-        intent: {
-          intentHash: '0xIntentHash',
-          destination: 10n,
-          route: {
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-            deadline: 1234567890n,
-            portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
-            nativeAmount: 0n,
-            tokens: [
-              {
-                token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
-                amount: 300n,
-              },
-            ],
-            calls: [
-              {
-                target: '0x000000000000000000000000TARGET10000000000000000000000000000000000000001',
-                data: '0xData1',
-                value: 0n,
-              },
-            ],
-          },
-          reward: {
-            deadline: 1234567890n,
-            creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
-            prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
-            nativeAmount: 1000000000000000000n,
-            tokens: [
-              {
-                token: '0x00000000000000000000000TOKEN100000000000000000000000000000000000001',
-                amount: 100n,
-              },
-              {
-                token: '0x00000000000000000000000TOKEN200000000000000000000000000000000000001',
-                amount: 200n,
-              },
-            ],
-          },
-          sourceChainId: 1n,
-          publishTxHash: '0xTxHash',
+      expect(queueService.addBlockchainEvent).toHaveBeenCalledWith({
+        eventType: 'IntentPublished',
+        chainId: 1,
+        chainType: 'evm',
+        contractName: 'portal',
+        intentHash: '0xIntentHash',
+        eventData: mockLog,
+        metadata: {
+          txHash: '0xTxHash',
+          blockNumber: 1234n,
+          logIndex: undefined,
+          contractAddress: '0xPortalAddress',
         },
-        strategy: 'standard',
       });
     });
 
@@ -285,9 +201,9 @@ describe('ChainListener', () => {
         },
       };
 
-      onLogsCallback([mockLog, log2]);
+      await onLogsCallback([mockLog, log2]);
 
-      expect(eventsService.emit).toHaveBeenCalledTimes(2);
+      expect(queueService.addBlockchainEvent).toHaveBeenCalledTimes(2);
     });
 
     it('should handle empty reward tokens', async () => {
@@ -303,69 +219,31 @@ describe('ChainListener', () => {
         },
       };
 
-      onLogsCallback([logWithoutTokens]);
+      await onLogsCallback([logWithoutTokens]);
 
-      expect(eventsService.emit).toHaveBeenCalledWith('intent.discovered', {
-        intent: expect.objectContaining({
-          reward: expect.objectContaining({
-            tokens: [],
-          }),
+      expect(queueService.addBlockchainEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'IntentPublished',
+          intentHash: '0xIntentHash',
         }),
-        strategy: 'standard',
-      });
+      );
     });
 
-    it('should handle empty calls', async () => {
+    it('should queue events properly', async () => {
       await listener.start();
 
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
-      // Mock parseIntentPublish to return an intent with empty calls for this specific test
-      const { parseIntentPublish } = await import(
-        '@/modules/blockchain/evm/utils/evm-event-parser'
-      );
-      const mockParseIntentPublish = parseIntentPublish as jest.MockedFunction<
-        typeof parseIntentPublish
-      >;
-      mockParseIntentPublish.mockReturnValueOnce({
-        intentHash: mockLog.args.intentHash,
-        destination: mockLog.args.destination,
-        sourceChainId: 1n,
-        route: {
-          salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
-          deadline: 1234567890n,
-          portal: '0x000000000000000000000000PORTALADDRESS0000000000000000000000000000000001',
-          nativeAmount: 0n,
-          tokens: [
-            {
-              token: '0x000000000000000000000000ROUTETOKEN10000000000000000000000000000000001',
-              amount: 300n,
-            },
-          ],
-          calls: [], // Empty calls for this test
-        },
-        reward: {
-          deadline: mockLog.args.rewardDeadline,
-          creator: '0x00000000000000000000000CREATORADDRESS000000000000000000000000000001',
-          prover: '0x00000000000000000000000PROVERADDRESS0000000000000000000000000000001',
-          nativeAmount: mockLog.args.rewardNativeAmount,
-          tokens: mockLog.args.rewardTokens.map((token, index) => ({
-            amount: token.amount,
-            token: `0x00000000000000000000000TOKEN${index + 1}00000000000000000000000000000000000001`,
-          })),
-        },
-      });
+      await onLogsCallback([mockLog]);
 
-      onLogsCallback([mockLog]);
-
-      expect(eventsService.emit).toHaveBeenCalledWith('intent.discovered', {
-        intent: expect.objectContaining({
-          route: expect.objectContaining({
-            calls: [],
-          }),
+      expect(queueService.addBlockchainEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'IntentPublished',
+          chainId: 1,
+          chainType: 'evm',
+          contractName: 'portal',
         }),
-        strategy: 'standard',
-      });
+      );
     });
   });
 
@@ -374,7 +252,7 @@ describe('ChainListener', () => {
       await listener.start();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(3); // Called for IntentPublished, IntentFulfilled, and IntentWithdrawn
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(3); // Called for IntentPublished, IntentFulfilled, and IntentWithdrawn (0 provers configured)
     });
 
     it('should handle stop without start', async () => {
@@ -388,7 +266,8 @@ describe('ChainListener', () => {
       await listener.stop();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(3); // Called for IntentPublished, IntentFulfilled, and IntentWithdrawn
+      // Called twice for each subscription (3 subscriptions x 2 stop calls = 6)
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(6);
     });
   });
 
@@ -407,13 +286,12 @@ describe('ChainListener', () => {
 
       const onLogsCallback = mockPublicClient.watchContractEvent.mock.calls[0][0].onLogs;
 
-      // eventEmitter throws error
-      eventsService.emit.mockImplementation(() => {
-        throw new Error('Event emitter error');
-      });
+      // queueService throws error
+      queueService.addBlockchainEvent.mockRejectedValue(new Error('Queue error'));
 
-      // Should not throw - errors in callback are handled by viem
-      expect(() => onLogsCallback([mockLog])).not.toThrow();
+      // Should not throw - errors in callback are logged
+      await expect(onLogsCallback([mockLog])).resolves.not.toThrow();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -446,11 +324,10 @@ describe('ChainListener', () => {
       const customListener = new ChainListener(
         customConfig,
         transportService,
-        eventsService as unknown as EventsService,
         logger,
-        otelService,
         blockchainConfigService,
         evmConfigService,
+        queueService,
       );
       await customListener.start();
 
@@ -459,19 +336,11 @@ describe('ChainListener', () => {
   });
 
   describe('IntentFulfilled event handling', () => {
-    let mockPublicClient: any;
     let intentFulfilledCallback: (logs: any[]) => void;
 
     beforeEach(async () => {
       // Reset mocks
       jest.clearAllMocks();
-
-      mockPublicClient = {
-        watchContractEvent: jest.fn((_config) => {
-          return mockUnsubscribe; // Return the same mock unsubscribe function
-        }),
-      };
-      transportService.getPublicClient.mockReturnValue(mockPublicClient);
 
       await listener.start();
 
@@ -502,7 +371,7 @@ describe('ChainListener', () => {
       });
     });
 
-    it('should emit intent.fulfilled event when IntentFulfilled is received', () => {
+    it('should queue IntentFulfilled event when received', async () => {
       const mockLog = {
         args: {
           intentHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
@@ -516,16 +385,21 @@ describe('ChainListener', () => {
       expect(intentFulfilledCallback).toBeDefined();
 
       // Trigger the IntentFulfilled callback
-      intentFulfilledCallback([mockLog]);
+      await intentFulfilledCallback([mockLog]);
 
-      expect(eventsService.emit).toHaveBeenCalledWith(
-        'intent.fulfilled',
+      expect(queueService.addBlockchainEvent).toHaveBeenCalledWith(
         expect.objectContaining({
+          eventType: 'IntentFulfilled',
+          chainId: mockConfig.chainId,
+          chainType: 'evm',
+          contractName: 'portal',
           intentHash: mockLog.args.intentHash,
-          claimant: mockLog.args.claimant,
-          chainId: BigInt(mockConfig.chainId),
-          txHash: mockLog.transactionHash,
-          blockNumber: mockLog.blockNumber,
+          eventData: mockLog,
+          metadata: expect.objectContaining({
+            txHash: mockLog.transactionHash,
+            blockNumber: mockLog.blockNumber,
+            logIndex: undefined,
+          }),
         }),
       );
     });
@@ -543,26 +417,18 @@ describe('ChainListener', () => {
       // Ensure callback was set
       expect(intentFulfilledCallback).toBeDefined();
 
-      // Mock parseIntentFulfilled to throw an error
-      const { parseIntentFulfilled } = await import(
-        '@/modules/blockchain/evm/utils/evm-event-parser'
-      );
-      const mockParseIntentFulfilled = parseIntentFulfilled as jest.MockedFunction<
-        typeof parseIntentFulfilled
-      >;
-      mockParseIntentFulfilled.mockImplementationOnce(() => {
-        throw new Error('Parse error');
-      });
+      // Mock queueService to throw an error
+      queueService.addBlockchainEvent.mockRejectedValueOnce(new Error('Queue error'));
 
       // Should not throw, just log error
-      expect(() => intentFulfilledCallback([mockLog])).not.toThrow();
+      await expect(intentFulfilledCallback([mockLog])).resolves.not.toThrow();
       expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Error processing IntentFulfilled event'),
+        expect.stringContaining('Failed to queue IntentFulfilled event'),
         expect.any(Error),
       );
     });
 
-    it('should handle multiple IntentFulfilled events', () => {
+    it('should handle multiple IntentFulfilled events', async () => {
       const mockLogs = [
         {
           args: {
@@ -585,20 +451,20 @@ describe('ChainListener', () => {
       // Ensure callback was set
       expect(intentFulfilledCallback).toBeDefined();
 
-      intentFulfilledCallback(mockLogs);
+      await intentFulfilledCallback(mockLogs);
 
-      expect(eventsService.emit).toHaveBeenCalledTimes(2);
-      expect(eventsService.emit).toHaveBeenNthCalledWith(
+      expect(queueService.addBlockchainEvent).toHaveBeenCalledTimes(2);
+      expect(queueService.addBlockchainEvent).toHaveBeenNthCalledWith(
         1,
-        'intent.fulfilled',
         expect.objectContaining({
+          eventType: 'IntentFulfilled',
           intentHash: mockLogs[0].args.intentHash,
         }),
       );
-      expect(eventsService.emit).toHaveBeenNthCalledWith(
+      expect(queueService.addBlockchainEvent).toHaveBeenNthCalledWith(
         2,
-        'intent.fulfilled',
         expect.objectContaining({
+          eventType: 'IntentFulfilled',
           intentHash: mockLogs[1].args.intentHash,
         }),
       );

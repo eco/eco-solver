@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Address, encodeFunctionData } from 'viem';
+import { Address } from 'viem';
+import * as viem from 'viem';
 
 import { ExecutionResult } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
@@ -22,10 +23,13 @@ jest.mock('@/common/utils/portal-hash.utils', () => ({
   },
 }));
 
-jest.mock('viem', () => ({
-  ...jest.requireActual('viem'),
-  encodeFunctionData: jest.fn(),
-}));
+jest.mock('viem', () => {
+  const actual = jest.requireActual('viem');
+  return {
+    ...actual,
+    encodeFunctionData: jest.fn(),
+  };
+});
 
 jest.mock('@/common/utils/chain-type-detector', () => ({
   ChainTypeDetector: {
@@ -143,7 +147,7 @@ describe('EvmExecutorService', () => {
       intentHash: '0xIntentHash',
       rewardHash: '0xRewardHash',
     });
-    (encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedData');
+    (viem.encodeFunctionData as jest.Mock).mockReturnValue('0xEncodedData');
   });
 
   it('should be defined', () => {
@@ -176,7 +180,7 @@ describe('EvmExecutorService', () => {
       expect(mockWallet.writeContracts).toHaveBeenCalled();
       const writeContractsCall = mockWallet.writeContracts.mock.calls[0];
       expect(writeContractsCall[0]).toHaveLength(2); // 1 approval + 1 fulfill
-      expect(writeContractsCall[1]).toEqual({ value: 0n, gas: 1000000n });
+      expect(writeContractsCall[1]).toEqual({ value: 0n });
 
       // Verify transaction receipt was waited for
       expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({

@@ -64,32 +64,34 @@ describe('QuotesController', () => {
       };
 
       const mockResponse: SuccessfulQuoteResponse = {
-        quoteResponse: {
-          sourceChainID: 1,
-          destinationChainID: 10,
-          sourceToken: '0x1234567890123456789012345678901234567890',
-          destinationToken: '0x1234567890123456789012345678901234567890',
-          sourceAmount: '5000000000000000000',
-          destinationAmount: '5000000000000000000',
-          funder: '0x1234567890123456789012345678901234567890',
-          refundRecipient: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          encodedRoute: '0x',
-          fees: [
-            {
-              name: 'Eco Protocol Fee',
-              description: 'Protocol fee for fulfilling intent on chain 10',
-              token: {
-                address: '0x1234567890123456789012345678901234567890',
-                decimals: 18,
-                symbol: 'TOKEN',
+        quoteResponses: [
+          {
+            sourceChainID: 1,
+            destinationChainID: 10,
+            sourceToken: '0x1234567890123456789012345678901234567890',
+            destinationToken: '0x1234567890123456789012345678901234567890',
+            sourceAmount: '5000000000000000000',
+            destinationAmount: '5000000000000000000',
+            funder: '0x1234567890123456789012345678901234567890',
+            refundRecipient: '0x1234567890123456789012345678901234567890',
+            recipient: '0x1234567890123456789012345678901234567890',
+            encodedRoute: '0x',
+            fees: [
+              {
+                name: 'Eco Protocol Fee',
+                description: 'Protocol fee for fulfilling intent on chain 10',
+                token: {
+                  address: '0x1234567890123456789012345678901234567890',
+                  decimals: 18,
+                  symbol: 'TOKEN',
+                },
+                amount: '1050000000000000',
               },
-              amount: '1050000000000000',
-            },
-          ],
-          deadline: 1735689600,
-          estimatedFulfillTimeSec: 30,
-        },
+            ],
+            deadline: 1735689600,
+            estimatedFulfillTimeSec: 30,
+          },
+        ],
         contracts: {
           prover: '0x1234567890123456789012345678901234567890',
           sourcePortal: '0x1234567890123456789012345678901234567890',
@@ -120,21 +122,23 @@ describe('QuotesController', () => {
       };
 
       const mockResponse: SuccessfulQuoteResponse = {
-        quoteResponse: {
-          sourceChainID: 1,
-          destinationChainID: 10,
-          sourceToken: '0x0000000000000000000000000000000000000000',
-          destinationToken: '0x0000000000000000000000000000000000000000',
-          sourceAmount: '1000000000000000000',
-          destinationAmount: '1000000000000000000',
-          funder: '0x1234567890123456789012345678901234567890',
-          refundRecipient: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          encodedRoute: '0x',
-          fees: [],
-          deadline: 1735689600,
-          estimatedFulfillTimeSec: 30,
-        },
+        quoteResponses: [
+          {
+            sourceChainID: 1,
+            destinationChainID: 10,
+            sourceToken: '0x0000000000000000000000000000000000000000',
+            destinationToken: '0x0000000000000000000000000000000000000000',
+            sourceAmount: '1000000000000000000',
+            destinationAmount: '1000000000000000000',
+            funder: '0x1234567890123456789012345678901234567890',
+            refundRecipient: '0x1234567890123456789012345678901234567890',
+            recipient: '0x1234567890123456789012345678901234567890',
+            encodedRoute: '0x',
+            fees: [],
+            deadline: 1735689600,
+            estimatedFulfillTimeSec: 30,
+          },
+        ],
         contracts: {
           prover: '0x1234567890123456789012345678901234567890',
           sourcePortal: '0x1234567890123456789012345678901234567890',

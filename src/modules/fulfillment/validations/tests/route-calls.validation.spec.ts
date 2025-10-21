@@ -1,8 +1,16 @@
 import { Test } from '@nestjs/testing';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+
+// Mock the blockchain reader service module before any imports
+jest.mock('@/modules/blockchain/blockchain-reader.service', () => ({
+  BlockchainReaderService: jest.fn().mockImplementation(() => ({
+    validateTokenTransferCall: jest.fn(),
+  })),
+}));
+
+import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 
 import { RouteCallsValidation } from '../route-calls.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
@@ -17,10 +25,6 @@ describe('RouteCallsValidation', () => {
   let blockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
   beforeEach(async () => {
-    const mockBlockchainReaderService = {
-      validateTokenTransferCall: jest.fn(),
-    };
-
     const mockOtelService = {
       tracer: {
         startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
@@ -36,16 +40,21 @@ describe('RouteCallsValidation', () => {
         }),
       },
     };
+
+    const mockBlockchainReaderService = {
+      validateTokenTransferCall: jest.fn(),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         RouteCallsValidation,
         {
-          provide: BlockchainReaderService,
-          useValue: mockBlockchainReaderService,
-        },
-        {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
+        },
+        {
+          provide: BlockchainReaderService,
+          useValue: mockBlockchainReaderService,
         },
       ],
     }).compile();

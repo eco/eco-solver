@@ -1,11 +1,16 @@
 import { Test } from '@nestjs/testing';
 
-import { toUniversalAddress } from '@/common/types/universal-address.type';
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
 import { ProverSupportValidation } from '../prover-support.validation';
 import { createMockIntent, createMockValidationContext } from '../test-helpers';
+
+// Helper function to create UniversalAddress from string
+function toUniversalAddress(address: string): UniversalAddress {
+  return address as UniversalAddress;
+}
 
 describe('ProverSupportValidation', () => {
   let validation: ProverSupportValidation;

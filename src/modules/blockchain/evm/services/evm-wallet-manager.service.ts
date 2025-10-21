@@ -9,7 +9,7 @@ import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
-import { KernelWalletFactory } from '../wallets/kernel-wallet';
+import { KernelWalletFactory } from '../wallets/kernel-wallet/kernel-wallet.factory';
 
 export type WalletType = 'basic' | 'kernel';
 

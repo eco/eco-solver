@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RouteAmountLimitValidation } from '../route-amount-limit.validation';
@@ -12,12 +12,12 @@ const toUniversalAddress = (address: string): UniversalAddress => address as Uni
 
 describe('RouteAmountLimitValidation', () => {
   let validation: RouteAmountLimitValidation;
-  let fulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
+  let tokenConfigService: jest.Mocked<TokenConfigService>;
 
   beforeEach(async () => {
-    const mockFulfillmentConfigService = {
+    const mockTokenConfigService = {
       normalize: jest.fn(),
-      getToken: jest.fn(),
+      getTokenConfig: jest.fn(),
     };
 
     const mockOtelService = {
@@ -39,8 +39,8 @@ describe('RouteAmountLimitValidation', () => {
       providers: [
         RouteAmountLimitValidation,
         {
-          provide: FulfillmentConfigService,
-          useValue: mockFulfillmentConfigService,
+          provide: TokenConfigService,
+          useValue: mockTokenConfigService,
         },
         {
           provide: OpenTelemetryService,
@@ -50,7 +50,7 @@ describe('RouteAmountLimitValidation', () => {
     }).compile();
 
     validation = module.get<RouteAmountLimitValidation>(RouteAmountLimitValidation);
-    fulfillmentConfigService = module.get(FulfillmentConfigService);
+    tokenConfigService = module.get(TokenConfigService);
   });
 
   describe('validate', () => {
@@ -73,7 +73,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         // Mock normalize to return normalized amounts (18 decimals)
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -83,8 +83,8 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        // Mock getToken to return token config with limit
-        fulfillmentConfigService.getToken.mockReturnValue({
+        // Mock getTokenConfig to return token config with limit
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -96,11 +96,11 @@ describe('RouteAmountLimitValidation', () => {
         const result = await validation.validate(mockIntent, mockContext);
 
         expect(result).toBe(true);
-        expect(fulfillmentConfigService.normalize).toHaveBeenCalledWith(
+        expect(tokenConfigService.normalize).toHaveBeenCalledWith(
           mockIntent.destination,
           mockIntent.route.tokens,
         );
-        expect(fulfillmentConfigService.getToken).toHaveBeenCalledWith(
+        expect(tokenConfigService.getTokenConfig).toHaveBeenCalledWith(
           mockIntent.destination,
           '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
         );
@@ -121,7 +121,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -131,7 +131,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -153,7 +153,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([]);
+        tokenConfigService.normalize.mockReturnValue([]);
 
         const result = await validation.validate(mockIntent, mockContext);
 
@@ -177,7 +177,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -187,7 +187,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -197,7 +197,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 2000000000000000000000 exceeds route limit 1000000000000000000000 for route 8453-10',
+          'Total value 2000 exceeds route limit 1000 for route 8453-10',
         );
       });
 
@@ -216,7 +216,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -226,7 +226,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -236,7 +236,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 1000000000000000000001 exceeds route limit 1000000000000000000000 for route 8453-10',
+          'Total value 1000.000000000000000001 exceeds route limit 1000 for route 8453-10',
         );
       });
     });
@@ -263,7 +263,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -280,7 +280,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken
+        tokenConfigService.getTokenConfig
           .mockReturnValueOnce({
             address: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -299,7 +299,7 @@ describe('RouteAmountLimitValidation', () => {
           });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 700000000000000000000 exceeds route limit 500000000000000000000 for route 8453-10',
+          'Total value 700 exceeds route limit 500 for route 8453-10',
         );
       });
 
@@ -324,7 +324,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -341,7 +341,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken
+        tokenConfigService.getTokenConfig
           .mockReturnValueOnce({
             address: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -360,7 +360,7 @@ describe('RouteAmountLimitValidation', () => {
           });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 600000000000000000000 exceeds route limit 500000000000000000000 for route 8453-10',
+          'Total value 600 exceeds route limit 500 for route 8453-10',
         );
       });
     });
@@ -387,7 +387,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -404,7 +404,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken
+        tokenConfigService.getTokenConfig
           .mockReturnValueOnce({
             address: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -444,7 +444,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -454,7 +454,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -483,7 +483,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -493,7 +493,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -524,7 +524,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -534,7 +534,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -544,7 +544,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 2000000000000000000000 exceeds route limit 1000000000000000000000 for route 137-42161',
+          'Total value 2000 exceeds route limit 1000 for route 137-42161',
         );
       });
     });
@@ -565,7 +565,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -576,7 +576,7 @@ describe('RouteAmountLimitValidation', () => {
         ]);
 
         // Mock getToken to return object format limit
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -604,7 +604,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -614,7 +614,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),
@@ -624,7 +624,7 @@ describe('RouteAmountLimitValidation', () => {
         });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 1500000000000000000000 exceeds route limit 1000000000000000000000 for route 8453-10',
+          'Total value 1500 exceeds route limit 1000 for route 8453-10',
         );
       });
 
@@ -649,7 +649,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -666,7 +666,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         ]);
 
-        fulfillmentConfigService.getToken
+        tokenConfigService.getTokenConfig
           .mockReturnValueOnce({
             address: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -685,7 +685,7 @@ describe('RouteAmountLimitValidation', () => {
           });
 
         await expect(validation.validate(mockIntent, mockContext)).rejects.toThrow(
-          'Total value 500000000000000000000 exceeds route limit 400000000000000000000 for route 8453-10',
+          'Total value 500 exceeds route limit 400 for route 8453-10',
         ); // Total 500 > min(1000, 400) = 400
       });
 
@@ -704,7 +704,7 @@ describe('RouteAmountLimitValidation', () => {
           },
         });
 
-        fulfillmentConfigService.normalize.mockReturnValue([
+        tokenConfigService.normalize.mockReturnValue([
           {
             token: toUniversalAddress(
               '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
@@ -715,7 +715,7 @@ describe('RouteAmountLimitValidation', () => {
         ]);
 
         // Mock getToken to return no limit
-        fulfillmentConfigService.getToken.mockReturnValue({
+        tokenConfigService.getTokenConfig.mockReturnValue({
           address: toUniversalAddress(
             '0x0000000000000000000000007F5c764cBc14f9669B88837ca1490cCa17c31607',
           ),

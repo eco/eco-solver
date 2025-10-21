@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { Address, Chain, createPublicClient, createWalletClient, Transport } from 'viem';
+import { Address } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { EvmConfigService } from '@/modules/config/services';
@@ -8,14 +8,10 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../../../services/evm-transport.service';
+import { EvmWalletManager } from '../../../services/evm-wallet-manager.service';
 import { KernelWallet } from '../kernel-wallet';
 import { KernelWalletFactory } from '../kernel-wallet.factory';
 import { kmsToAccount } from '../kms/kms-account';
-
-jest.mock('viem', () => ({
-  createPublicClient: jest.fn(),
-  createWalletClient: jest.fn(),
-}));
 
 jest.mock('viem/accounts', () => ({
   privateKeyToAccount: jest.fn(),
@@ -28,6 +24,7 @@ describe('KernelWalletFactory', () => {
   let factory: KernelWalletFactory;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
+  let mockEvmWalletManager: any;
   let mockLogger: any;
   let mockOtelService: any;
 
@@ -38,13 +35,6 @@ describe('KernelWalletFactory', () => {
   const mockKmsAccount = {
     address: '0xKmsAccountAddress' as Address,
   };
-  const mockTransport = {} as Transport;
-  const mockChain: Chain = {
-    id: 1,
-    name: 'Ethereum',
-  } as Chain;
-  const mockPublicClient = { id: 'publicClient' };
-  const mockWalletClient = { id: 'walletClient' };
 
   beforeEach(async () => {
     evmConfigService = {
@@ -58,9 +48,9 @@ describe('KernelWalletFactory', () => {
     } as any;
 
     transportService = {
-      getTransport: jest.fn().mockReturnValue(mockTransport),
-      getViemChain: jest.fn().mockReturnValue(mockChain),
-      getPublicClient: jest.fn().mockReturnValue(mockPublicClient),
+      getTransport: jest.fn(),
+      getViemChain: jest.fn(),
+      getPublicClient: jest.fn(),
     } as any;
 
     mockLogger = {
@@ -86,6 +76,11 @@ describe('KernelWalletFactory', () => {
       },
     };
 
+    mockEvmWalletManager = {
+      getWallet: jest.fn(),
+      getWalletAddress: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         KernelWalletFactory,
@@ -93,6 +88,7 @@ describe('KernelWalletFactory', () => {
         { provide: EvmTransportService, useValue: transportService },
         { provide: SystemLoggerService, useValue: mockLogger },
         { provide: OpenTelemetryService, useValue: mockOtelService },
+        { provide: EvmWalletManager, useValue: mockEvmWalletManager },
       ],
     }).compile();
 
@@ -101,8 +97,6 @@ describe('KernelWalletFactory', () => {
     // Mock viem functions
     (privateKeyToAccount as jest.Mock).mockReturnValue(mockAccount);
     (kmsToAccount as jest.Mock).mockResolvedValue(mockKmsAccount);
-    (createPublicClient as jest.Mock).mockReturnValue(mockPublicClient);
-    (createWalletClient as jest.Mock).mockReturnValue(mockWalletClient);
 
     // Mock KernelWallet
     const mockKernelWalletInstance = {
@@ -184,6 +178,7 @@ describe('KernelWalletFactory', () => {
         transportService,
         mockLogger,
         mockOtelService,
+        mockEvmWalletManager,
       );
       expect(wallet).toBeDefined();
 
@@ -339,6 +334,7 @@ describe('KernelWalletFactory', () => {
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
+          { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
       }).compile();
 
@@ -391,6 +387,7 @@ describe('KernelWalletFactory', () => {
         transportService,
         mockLogger,
         mockOtelService,
+        expect.any(Object), // EvmWalletManager
       );
 
       expect(wallet).toBeDefined();
@@ -430,6 +427,7 @@ describe('KernelWalletFactory', () => {
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
+          { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
       }).compile();
 
@@ -490,6 +488,7 @@ describe('KernelWalletFactory', () => {
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
+          { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
       }).compile();
 
@@ -516,6 +515,7 @@ describe('KernelWalletFactory', () => {
             { provide: EvmTransportService, useValue: transportService },
             { provide: SystemLoggerService, useValue: mockLogger },
             { provide: OpenTelemetryService, useValue: mockOtelService },
+            { provide: EvmWalletManager, useValue: mockEvmWalletManager },
           ],
         }).compile();
 
@@ -597,6 +597,7 @@ describe('KernelWalletFactory', () => {
           { provide: EvmTransportService, useValue: transportService },
           { provide: SystemLoggerService, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
+          { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
       }).compile();
 

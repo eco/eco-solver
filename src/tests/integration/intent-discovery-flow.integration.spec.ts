@@ -160,8 +160,8 @@ describe.skip('Intent Discovery Flow Integration', () => {
       // Verify intent was saved to database
       const savedIntent = await intentsService.findById(mockIntent.intentHash);
       expect(savedIntent).toBeDefined();
-      expect(savedIntent.intentHash).toBe(mockIntent.intentHash);
-      expect(savedIntent.status).toBe(IntentStatus.PENDING);
+      expect(savedIntent?.intentHash).toBe(mockIntent.intentHash);
+      expect(savedIntent?.status).toBe(IntentStatus.PENDING);
 
       // Verify intent was added to fulfillment queue
       const jobs = await fulfillmentQueue.getJobs(['waiting', 'active']);

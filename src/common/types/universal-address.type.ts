@@ -52,3 +52,11 @@ export function unpadFrom32Bytes(hex: string): string {
   const unpadded = cleanHex.replace(/^0+/, '') || '0';
   return '0x' + unpadded.padStart(40, '0');
 }
+
+/**
+ * Converts a hex string to a UniversalAddress by padding to 32 bytes
+ * This is a helper function for creating UniversalAddress values
+ */
+export function toUniversalAddress(hex: string): UniversalAddress {
+  return padTo32Bytes(hex) as UniversalAddress;
+}

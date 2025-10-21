@@ -74,11 +74,24 @@ class MockFeeValidation implements FeeCalculationValidation {
   async calculateFee(_intent: Intent, _context: ValidationContext): Promise<FeeDetails> {
     return (
       this.feeDetails || {
-        baseFee: BigInt('1000000000000000'),
-        percentageFee: BigInt('50000000000000'),
-        totalRequiredFee: BigInt('1050000000000000'),
-        currentReward: BigInt('5000000000000000000'),
-        minimumRequiredReward: BigInt('1050000000000000'),
+        reward: {
+          native: BigInt('5000000000000000000'),
+          tokens: BigInt('5000000000000000000'),
+        },
+        route: {
+          native: BigInt('0'),
+          tokens: BigInt('100000000000000000'),
+          maximum: {
+            native: BigInt('4998950000000000000'),
+            tokens: BigInt('4998950000000000000'),
+          },
+        },
+        fee: {
+          base: BigInt('1000000000000000'),
+          percentage: BigInt('50000000000000'),
+          total: BigInt('1050000000000000'),
+          bps: 10,
+        },
       }
     );
   }
@@ -160,11 +173,24 @@ describe('FulfillmentStrategy - getQuote', () => {
         valid: true,
         strategy: 'standard',
         fees: {
-          baseFee: BigInt('1000000000000000'),
-          percentageFee: BigInt('50000000000000'),
-          totalRequiredFee: BigInt('1050000000000000'),
-          currentReward: BigInt('5000000000000000000'),
-          minimumRequiredReward: BigInt('1050000000000000'),
+          reward: {
+            native: BigInt('5000000000000000000'),
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: BigInt('0'),
+            tokens: BigInt('100000000000000000'),
+            maximum: {
+              native: BigInt('4998950000000000000'),
+              tokens: BigInt('4998950000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('50000000000000'),
+            total: BigInt('1050000000000000'),
+            bps: 10,
+          },
         },
         validationResults: [
           { validation: 'MockValidation', passed: true },
@@ -176,19 +202,45 @@ describe('FulfillmentStrategy - getQuote', () => {
 
     it('should handle multiple fee validations and use the first one', async () => {
       const firstFeeDetails: FeeDetails = {
-        baseFee: BigInt('2000000000000000'),
-        percentageFee: BigInt('100000000000000'),
-        totalRequiredFee: BigInt('2100000000000000'),
-        currentReward: BigInt('3000000000000000000'),
-        minimumRequiredReward: BigInt('2100000000000000'),
+        reward: {
+          native: BigInt('3000000000000000000'),
+          tokens: BigInt('3000000000000000000'),
+        },
+        route: {
+          native: BigInt('0'),
+          tokens: BigInt('100000000000000000'),
+          maximum: {
+            native: BigInt('2997900000000000000'),
+            tokens: BigInt('2997900000000000000'),
+          },
+        },
+        fee: {
+          base: BigInt('2000000000000000'),
+          percentage: BigInt('100000000000000'),
+          total: BigInt('2100000000000000'),
+          bps: 10,
+        },
       };
 
       const secondFeeDetails: FeeDetails = {
-        baseFee: BigInt('3000000000000000'),
-        percentageFee: BigInt('150000000000000'),
-        totalRequiredFee: BigInt('3150000000000000'),
-        currentReward: BigInt('4000000000000000000'),
-        minimumRequiredReward: BigInt('3150000000000000'),
+        reward: {
+          native: BigInt('4000000000000000000'),
+          tokens: BigInt('4000000000000000000'),
+        },
+        route: {
+          native: BigInt('0'),
+          tokens: BigInt('100000000000000000'),
+          maximum: {
+            native: BigInt('3996850000000000000'),
+            tokens: BigInt('3996850000000000000'),
+          },
+        },
+        fee: {
+          base: BigInt('3000000000000000'),
+          percentage: BigInt('150000000000000'),
+          total: BigInt('3150000000000000'),
+          bps: 10,
+        },
       };
 
       const validations = [
@@ -231,11 +283,24 @@ describe('FulfillmentStrategy - getQuote', () => {
         valid: false,
         strategy: 'standard',
         fees: {
-          baseFee: BigInt('1000000000000000'),
-          percentageFee: BigInt('50000000000000'),
-          totalRequiredFee: BigInt('1050000000000000'),
-          currentReward: BigInt('5000000000000000000'),
-          minimumRequiredReward: BigInt('1050000000000000'),
+          reward: {
+            native: BigInt('5000000000000000000'),
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: BigInt('0'),
+            tokens: BigInt('100000000000000000'),
+            maximum: {
+              native: BigInt('4998950000000000000'),
+              tokens: BigInt('4998950000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('50000000000000'),
+            total: BigInt('1050000000000000'),
+            bps: 10,
+          },
         },
         validationResults: [
           { validation: 'MockValidation', passed: true },

@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 # Run ESLint and fix issues
 pnpm run lint
 

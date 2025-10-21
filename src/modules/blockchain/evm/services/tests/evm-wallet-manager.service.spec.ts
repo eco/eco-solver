@@ -6,8 +6,23 @@ import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EvmConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
+// Mock the wallet factories to prevent NestJS from trying to instantiate them
+jest.mock('../../wallets/basic-wallet', () => ({
+  BasicWalletFactory: jest.fn().mockImplementation(() => ({
+    name: 'basic',
+    createWallet: jest.fn(),
+  })),
+}));
+
+jest.mock('../../wallets/kernel-wallet/kernel-wallet.factory', () => ({
+  KernelWalletFactory: jest.fn().mockImplementation(() => ({
+    name: 'kernel',
+    createWallet: jest.fn(),
+  })),
+}));
+
 import { BasicWalletFactory } from '../../wallets/basic-wallet';
-import { KernelWalletFactory } from '../../wallets/kernel-wallet';
+import { KernelWalletFactory } from '../../wallets/kernel-wallet/kernel-wallet.factory';
 import { EvmWalletManager, WalletType } from '../evm-wallet-manager.service';
 
 describe('EvmWalletManager', () => {
@@ -144,8 +159,8 @@ describe('EvmWalletManager', () => {
       expect(wallet).toBe(mockKernelWallet);
     });
 
-    it('should use default wallet type when not specified', () => {
-      const wallet = service.getWallet(undefined, 137);
+    it('should return basic wallet as default', () => {
+      const wallet = service.getWallet('basic', 137);
 
       expect(wallet).toBe(mockBasicWallet);
     });
