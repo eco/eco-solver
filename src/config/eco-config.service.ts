@@ -110,12 +110,6 @@ export class EcoConfigService {
   }
 
   private static async loadAWSConfig(config: Record<string, any>): Promise<Record<string, any>> {
-    // Check if AWS secrets should be loaded
-
-    // config.aws = {
-    //   secretName: 'solver-v2-magenta-production',
-    // }
-
     this.logger.log(
       EcoLogMessage.fromDefault({
         message: `loadAWSConfig`,
@@ -125,6 +119,7 @@ export class EcoConfigService {
       }),
     );
 
+    // Check if AWS secrets should be loaded
     const useAwsSecrets = Boolean(config.aws?.secretName);
 
     if (useAwsSecrets) {
