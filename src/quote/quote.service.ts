@@ -772,7 +772,7 @@ export class QuoteService implements OnModuleInit {
     const defaultGasOverhead = this.getDefaultGasOverhead()
     const solver = this.ecoConfigService.getSolver(quoteIntentModel.route.source)
 
-    if (solver?.gasOverhead == null) {
+    if (solver?.gasOverhead == null || typeof solver.gasOverhead !== 'number') {
       return defaultGasOverhead
     }
 
