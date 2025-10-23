@@ -50,12 +50,18 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   ) {}
 
   /**
-   * Module initialization - service is ready but won't auto-connect
+   * Module initialization - service is ready but won't auto-connect unless enabled
    */
   async onModuleInit() {
     this.logger.log('RhinestoneWebsocketService initialized');
-    // Auto-connect on startup
-    await this.connect();
+
+    // Only auto-connect if the Rhinestone strategy is enabled
+    if (this.configService.enabled) {
+      this.logger.log('Rhinestone strategy is enabled - connecting to WebSocket');
+      await this.connect();
+    } else {
+      this.logger.log('Rhinestone strategy is disabled - skipping WebSocket connection');
+    }
   }
 
   /**
