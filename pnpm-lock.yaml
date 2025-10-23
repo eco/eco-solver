@@ -116,6 +116,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.91.8
         version: 1.98.4(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       '@zerodev/ecdsa-validator':
         specifier: ^5.4.9
         version: 5.4.9(@zerodev/sdk@5.4.41(viem@2.28.1(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)(zod@3.23.8)))(viem@2.28.1(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)(zod@3.23.8))
@@ -194,6 +197,9 @@ importers:
       winston:
         specifier: ^3.17.0
         version: 3.17.0
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       zod:
         specifier: ^3.23.8
         version: 3.23.8
