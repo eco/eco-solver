@@ -1,5 +1,7 @@
 import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
 
+import { OkActionStatusMessageSchema, OkAuthenticationMessageSchema } from './message-schemas';
+
 /**
  * Hello message sent by server upon WebSocket connection
  *
@@ -27,41 +29,25 @@ export interface AuthenticationMessage {
 }
 
 /**
- * Ok message sent after successful authentication
- * Contains a unique connection identifier
+ * Ok message for successful authentication
  */
 export interface OkAuthenticationMessage {
   type: RhinestoneMessageType.Ok;
-  /**
-   * Discriminant field to identify this as an authentication acknowledgment
-   */
   context: 'authentication';
-  /**
-   * Unique identifier for this connection
-   * Use this for troubleshooting with Rhinestone team
-   */
   connectionId: string;
 }
 
 /**
- * Ok message sent to acknowledge ActionStatus submission (future feature)
- * Contains the messageId of the acknowledged message
+ * Ok message acknowledging ActionStatus submission
  */
 export interface OkActionStatusMessage {
   type: RhinestoneMessageType.Ok;
-  /**
-   * Discriminant field to identify this as an action status acknowledgment
-   */
   context: 'action';
-  /**
-   * ID of the acknowledged ActionStatus message
-   */
   messageId: string;
 }
 
 /**
- * Union type for all Ok message variants
- * Discriminated by the 'context' field for type-safe handling
+ * Union of Ok message variants
  */
 export type OkMessage = OkAuthenticationMessage | OkActionStatusMessage;
 
@@ -88,19 +74,17 @@ export interface ErrorMessage {
 }
 
 /**
- * Type guard to check if OkMessage is an authentication acknowledgment
- * Uses the 'context' discriminant field for type narrowing
+ * Type guard for authentication Ok messages
  */
 export function isOkAuthenticationMessage(message: OkMessage): message is OkAuthenticationMessage {
-  return message.context === 'authentication';
+  return OkAuthenticationMessageSchema.safeParse(message).success;
 }
 
 /**
- * Type guard to check if OkMessage is an ActionStatus acknowledgment
- * Uses the 'context' discriminant field for type narrowing
+ * Type guard for action status Ok messages
  */
 export function isOkActionStatusMessage(message: OkMessage): message is OkActionStatusMessage {
-  return message.context === 'action';
+  return OkActionStatusMessageSchema.safeParse(message).success;
 }
 
 /**
