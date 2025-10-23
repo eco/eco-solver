@@ -41,5 +41,17 @@ export interface RhinestoneConfig {
      * @default 30000
      */
     pingInterval: number;
+
+    /**
+     * Timeout for receiving Hello message after connection (milliseconds)
+     * @default 2000
+     */
+    helloTimeout: number;
+
+    /**
+     * Timeout for receiving authentication response after sending Auth message (milliseconds)
+     * @default 2000
+     */
+    authTimeout: number;
   };
 }

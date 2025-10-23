@@ -12,13 +12,12 @@ const RHINESTONE_DEFAULTS = {
   RECONNECT_INTERVAL_MS: 5000,
   MAX_RECONNECT_ATTEMPTS: 10,
   PING_INTERVAL_MS: 30000,
+  HELLO_TIMEOUT_MS: 2000,
+  AUTH_TIMEOUT_MS: 2000,
 } as const;
 
 /**
  * Configuration service for Rhinestone module
- *
- * Loads configuration from environment variables and provides
- * type-safe access to Rhinestone-specific settings.
  */
 @Injectable()
 export class RhinestoneConfigService {
@@ -26,15 +25,13 @@ export class RhinestoneConfigService {
 
   /**
    * Check if Rhinestone module is enabled
-   * Reads from fulfillment.strategies.rhinestone.enabled configuration
    */
   get enabled(): boolean {
     return this.configService.get<boolean>('fulfillment.strategies.rhinestone.enabled', false);
   }
 
   /**
-   * Get WebSocket configuration (includes API key for authentication)
-   * Note: Only validates required fields if Rhinestone is enabled
+   * Get WebSocket configuration
    */
   get websocket(): RhinestoneConfig['websocket'] {
     const url = this.configService.get<string>('RHINESTONE_WS_URL', '');
@@ -73,6 +70,14 @@ export class RhinestoneConfigService {
       pingInterval: this.configService.get<number>(
         'RHINESTONE_WS_PING_INTERVAL',
         RHINESTONE_DEFAULTS.PING_INTERVAL_MS,
+      ),
+      helloTimeout: this.configService.get<number>(
+        'RHINESTONE_WS_HELLO_TIMEOUT',
+        RHINESTONE_DEFAULTS.HELLO_TIMEOUT_MS,
+      ),
+      authTimeout: this.configService.get<number>(
+        'RHINESTONE_WS_AUTH_TIMEOUT',
+        RHINESTONE_DEFAULTS.AUTH_TIMEOUT_MS,
       ),
     };
   }

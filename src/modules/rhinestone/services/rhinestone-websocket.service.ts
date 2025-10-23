@@ -16,19 +16,15 @@ import {
   OkMessage,
 } from '../types/auth-messages.types';
 import { RHINESTONE_EVENTS } from '../types/events.types';
+import { parseErrorMessage, parseHelloMessage, parseOkMessage } from '../types/message-schemas';
 
 import { RhinestoneConfigService } from './rhinestone-config.service';
 
 /**
- * Service for managing WebSocket connection to Rhinestone orchestrator
+ * Manages WebSocket connection to Rhinestone orchestrator
  *
- * Responsibilities:
- * - Establish and maintain WebSocket connection to Rhinestone
- * - Handle authentication flow (Hello → Authentication → Ok)
- * - Maintain connection health with ping/pong keepalive
- * - Automatic reconnection on disconnect with exponential backoff
- * - Emit events for connection state changes via EventsService
- * - Redact sensitive credentials from logs for security
+ * Handles authentication, keepalive, reconnection, and event emission.
+ * Credentials are redacted from logs for security.
  */
 @Injectable()
 export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy {
@@ -50,29 +46,28 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   ) {}
 
   /**
-   * Module initialization - service is ready but won't auto-connect unless enabled
+   * Initialize and optionally auto-connect based on feature flag
    */
   async onModuleInit() {
     this.logger.log('RhinestoneWebsocketService initialized');
 
-    // Only auto-connect if the Rhinestone strategy is enabled
     if (this.configService.enabled) {
-      this.logger.log('Rhinestone strategy is enabled - connecting to WebSocket');
+      this.logger.log('Rhinestone strategy enabled - connecting to WebSocket');
       await this.connect();
     } else {
-      this.logger.log('Rhinestone strategy is disabled - skipping WebSocket connection');
+      this.logger.log('Rhinestone strategy disabled - skipping connection');
     }
   }
 
   /**
-   * Module cleanup - ensures WebSocket is properly disconnected
+   * Cleanup on module destruction
    */
   async onModuleDestroy() {
     await this.disconnect();
   }
 
   /**
-   * Establish WebSocket connection to Rhinestone orchestrator
+   * Connect to Rhinestone WebSocket
    */
   async connect(): Promise<void> {
     return this.otelService.tracer.startActiveSpan(
@@ -115,7 +110,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Disconnect the WebSocket connection and clean up resources
+   * Disconnect and cleanup resources
    */
   async disconnect(): Promise<void> {
     return this.otelService.tracer.startActiveSpan(
@@ -168,14 +163,14 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Check if WebSocket is currently connected and authenticated
+   * Check if connected and authenticated
    */
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN && this.isAuthenticated;
   }
 
   /**
-   * Get the current connection ID (available after successful authentication)
+   * Get current connection ID
    */
   getConnectionId(): string | null {
     return this.connectionId;
@@ -187,15 +182,17 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   private setupEventHandlers() {
     if (!this.ws) return;
 
+    const config = this.configService.websocket;
+
     this.ws.on('open', () => {
       this.logger.log('WebSocket connection established');
       this.reconnectAttempts = 0;
 
-      // Set timeout for Hello message (should arrive within 2 seconds)
+      // Set timeout for Hello message
       this.authenticationTimeout = setTimeout(() => {
-        this.logger.error('No Hello message received within 2 seconds');
+        this.logger.error(`No Hello message received within ${config.helloTimeout}ms`);
         this.ws?.close();
-      }, 2000);
+      }, config.helloTimeout);
 
       this.eventsService.emit(RHINESTONE_EVENTS.CONNECTED, undefined);
     });
@@ -272,8 +269,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Parse incoming WebSocket message data and add discriminant fields
-   * Note: The protocol doesn't send a 'context' field, so we infer it based on message structure
+   * Parse and validate incoming WebSocket message
    */
   private parseMessage(data: WebSocket.Data): any {
     return this.otelService.tracer.startActiveSpan(
@@ -300,21 +296,33 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
           span.setAttribute('rhinestone.ws.message_type', parsedData.type);
 
-          // Add context discriminant for Ok messages based on which fields are present
-          // This transforms the protocol message into our discriminated union type
-          if (parsedData.type === RhinestoneMessageType.Ok) {
-            if ('connectionId' in parsedData && parsedData.connectionId) {
-              parsedData.context = 'authentication';
-              span.setAttribute('rhinestone.ws.ok_context', 'authentication');
-            } else if ('messageId' in parsedData && parsedData.messageId) {
-              parsedData.context = 'action';
-              span.setAttribute('rhinestone.ws.ok_context', 'action');
+          // Validate message structure using Zod schemas and add context discriminant
+          let validatedMessage: HelloMessage | OkMessage | ErrorMessage | Record<string, unknown>;
+
+          switch (parsedData.type) {
+            case RhinestoneMessageType.Hello:
+              validatedMessage = parseHelloMessage(parsedData);
+              break;
+
+            case RhinestoneMessageType.Ok: {
+              const okMessage = parseOkMessage(parsedData);
+              validatedMessage = okMessage;
+              span.setAttribute('rhinestone.ws.ok_context', okMessage.context);
+              break;
             }
-            // If neither field is present, leave context undefined so type guards fail gracefully
+
+            case RhinestoneMessageType.Error:
+              validatedMessage = parseErrorMessage(parsedData);
+              break;
+
+            default:
+              // Unknown message type - pass through without validation
+              validatedMessage = parsedData as Record<string, unknown>;
+              span.setAttribute('rhinestone.ws.unknown_type', true);
           }
 
           span.setStatus({ code: api.SpanStatusCode.OK });
-          return parsedData;
+          return validatedMessage;
         } catch (error) {
           this.logger.error(`Error parsing message: ${error}`);
           span.recordException(error as Error);
@@ -379,11 +387,11 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
           span.addEvent('rhinestone.ws.auth_sent');
 
-          // Set timeout for authentication response (2 seconds)
+          // Set timeout for authentication response
           this.authenticationTimeout = setTimeout(() => {
-            this.logger.error('No authentication response within 2 seconds');
+            this.logger.error(`No authentication response within ${config.authTimeout}ms`);
             this.ws?.close();
-          }, 2000);
+          }, config.authTimeout);
 
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
@@ -401,7 +409,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
   /**
    * Handle Ok message from server
-   * Uses type guards to discriminate between authentication and action status acknowledgments
    */
   private handleOk(message: OkMessage) {
     return this.otelService.tracer.startActiveSpan(
@@ -536,7 +543,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Send a message through the WebSocket connection
+   * Send message through WebSocket
    */
   private async send(message: any): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -559,7 +566,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Redact sensitive data from log messages
+   * Redact sensitive data from logs
    */
   private redactSensitiveData(messageStr: string): string {
     try {
@@ -584,7 +591,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Mask API key for logging (show first 5 and last 4 characters)
+   * Mask API key for logging
    */
   private maskApiKey(apiKey: string): string {
     if (apiKey.length <= 9) return '***';
@@ -592,7 +599,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Start periodic ping messages to keep connection alive
+   * Start ping keepalive interval
    */
   private startPingInterval() {
     const config = this.configService.websocket;
@@ -606,7 +613,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Stop the ping interval timer
+   * Stop ping interval
    */
   private stopPingInterval() {
     if (this.pingInterval) {
@@ -616,7 +623,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
-   * Attempt to reconnect to the WebSocket server after disconnection
+   * Attempt reconnection after disconnect
    */
   private attemptReconnect() {
     return this.otelService.tracer.startActiveSpan(
