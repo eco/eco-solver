@@ -59,6 +59,7 @@
     "@opentelemetry/semantic-conventions": "^1.36.0",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.91.8",
+    "@types/ws": "^8.18.1",
     "@zerodev/ecdsa-validator": "^5.4.9",
     "@zerodev/sdk": "^5.4.41",
     "axios": "^1.11.0",
@@ -87,6 +88,7 @@
     "tronweb": "^6.0.4",
     "viem": "^2.28.1",
     "winston": "^3.17.0",
+    "ws": "^8.18.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

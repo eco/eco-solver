@@ -17,6 +17,7 @@ import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
+import { RhinestoneModule } from '@/modules/rhinestone/rhinestone.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
 import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 
@@ -46,6 +47,7 @@ import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.mod
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
     WithdrawalModule,
+    RhinestoneModule,
     BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,
