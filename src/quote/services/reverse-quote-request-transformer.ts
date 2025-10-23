@@ -33,7 +33,7 @@ export class ReverseQuoteRequestTransformer {
             data: encodeFunctionData({
               abi: erc20Abi,
               functionName: 'transfer',
-              args: [quoteRequest.recipient, 0n], // solver fills
+              args: [quoteRequest.recipient, BigInt(quoteRequest.sourceAmount)],
             }),
             value: 0n,
           },
