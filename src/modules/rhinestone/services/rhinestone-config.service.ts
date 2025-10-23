@@ -25,22 +25,34 @@ export class RhinestoneConfigService {
   constructor(private readonly configService: NestConfigService) {}
 
   /**
+   * Check if Rhinestone module is enabled
+   * Reads from fulfillment.strategies.rhinestone.enabled configuration
+   */
+  get enabled(): boolean {
+    return this.configService.get<boolean>('fulfillment.strategies.rhinestone.enabled', false);
+  }
+
+  /**
    * Get WebSocket configuration (includes API key for authentication)
+   * Note: Only validates required fields if Rhinestone is enabled
    */
   get websocket(): RhinestoneConfig['websocket'] {
-    const url = this.configService.get<string>('RHINESTONE_WS_URL');
-    const apiKey = this.configService.get<string>('RHINESTONE_API_KEY');
+    const url = this.configService.get<string>('RHINESTONE_WS_URL', '');
+    const apiKey = this.configService.get<string>('RHINESTONE_API_KEY', '');
 
-    if (!url) {
-      throw new Error(
-        'RHINESTONE_WS_URL is required but not set. Please set this environment variable.',
-      );
-    }
+    // Only enforce required fields if the module is enabled
+    if (this.enabled) {
+      if (!url) {
+        throw new Error(
+          'RHINESTONE_WS_URL is required but not set. Please set this environment variable.',
+        );
+      }
 
-    if (!apiKey) {
-      throw new Error(
-        'RHINESTONE_API_KEY is required but not set. Please set this environment variable.',
-      );
+      if (!apiKey) {
+        throw new Error(
+          'RHINESTONE_API_KEY is required but not set. Please set this environment variable.',
+        );
+      }
     }
 
     return {
