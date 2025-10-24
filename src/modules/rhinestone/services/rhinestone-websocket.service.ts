@@ -238,9 +238,23 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
     this.ws.on('close', (code: number, reason: Buffer) => {
       this.logger.log(`WebSocket closed. Code: ${code}, Reason: ${reason.toString()}`);
+
+      // Clear all pending timeouts before proceeding
+      if (this.authenticationTimeout) {
+        clearTimeout(this.authenticationTimeout);
+        this.authenticationTimeout = null;
+      }
+
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+
+      this.stopPingInterval();
+
+      // Clear connection state
       this.isAuthenticated = false;
       this.connectionId = null;
-      this.stopPingInterval();
 
       this.eventsService.emit(RHINESTONE_EVENTS.DISCONNECTED, {
         code,
