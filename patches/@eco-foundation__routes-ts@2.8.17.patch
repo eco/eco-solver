@@ -1,5 +1,5 @@
 diff --git a/deployAddresses.csv b/deployAddresses.csv
-index adebd90898a1d0018df16bfb6557e2c7b08bdfd6..50fbb289b1560b36c31472b4f86b575e745ca380 100644
+index adebd90898a1d0018df16bfb6557e2c7b08bdfd6..3c668d6cfd6e4f4bae7be231b3c333830d676ea7 100644
 --- a/deployAddresses.csv
 +++ b/deployAddresses.csv
 @@ -30,34 +30,34 @@ ChainID,IntentSource,Inbox,HyperProver,MetaProver
@@ -69,7 +69,7 @@ index adebd90898a1d0018df16bfb6557e2c7b08bdfd6..50fbb289b1560b36c31472b4f86b575e
 +11155420-pre,0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97,0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97,0x101c1d5521dc32115089d02774F5298Df13dC71f,
 +1380012617-pre,0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97,0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97,0x101c1d5521dc32115089d02774F5298Df13dC71f,0x3d529eFAEDb3B999A404c1B8543441aE616cB914
 diff --git a/deployAddresses.json b/deployAddresses.json
-index ba45ba7aa5961fbb517ce2a73f188e47a73d66a5..814dec35a7056b5b10d7f4fd17477dd0f874ba3e 100644
+index ba45ba7aa5961fbb517ce2a73f188e47a73d66a5..d064cac79ca9d9956ca1b8722a84fd408393b949 100644
 --- a/deployAddresses.json
 +++ b/deployAddresses.json
 @@ -166,169 +166,174 @@
@@ -334,11 +334,12 @@ index ba45ba7aa5961fbb517ce2a73f188e47a73d66a5..814dec35a7056b5b10d7f4fd17477dd0
      "MetaProver": "0x3d529eFAEDb3B999A404c1B8543441aE616cB914"
    }
  }
+\ No newline at end of file
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 3190a5d0d4eace056f4fe11813c71c83737bb5d9..f900503f6eeb0f212147361380bfad91e6f61b04 100644
+index 3190a5d0d4eace056f4fe11813c71c83737bb5d9..e84a8e38b88ba3bc7f1d3508fadde836eda26120 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -196,63 +196,63 @@ export declare const EcoProtocolAddresses: {
+@@ -196,189 +196,189 @@ export declare const EcoProtocolAddresses: {
          readonly MetaProver: "0x3d529eFAEDb3B999A404c1B8543441aE616cB914";
      };
      readonly "1-pre": {
@@ -431,7 +432,12 @@ index 3190a5d0d4eace056f4fe11813c71c83737bb5d9..f900503f6eeb0f212147361380bfad91
          readonly MetaProver: "0x3d529eFAEDb3B999A404c1B8543441aE616cB914";
      };
      readonly "480-pre": {
-@@ -262,123 +262,123 @@ export declare const EcoProtocolAddresses: {
+-        readonly IntentSource: "0xe39F0072f5C267ae79cC81b6D404d66c00D91092";
+-        readonly Inbox: "0x46a5C76Fe4248Bc49D9f934903ac212A9EFe0995";
+-        readonly HyperProver: "0xA9b1aA9f11045EFd418e50F96fa9c019C39ff70F";
++        readonly IntentSource: "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97";
++        readonly Inbox: "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97";
++        readonly HyperProver: "0x101c1d5521dc32115089d02774F5298Df13dC71f";
          readonly MetaProver: "0x0000000000000000000000000000000000000000";
      };
      readonly "1992-pre": {
@@ -611,10 +617,10 @@ index 3190a5d0d4eace056f4fe11813c71c83737bb5d9..f900503f6eeb0f212147361380bfad91
      };
  };
 diff --git a/dist/index.js b/dist/index.js
-index 06a2c581d862fd380849de30777a4a893c8b835e..555a66c0a38dddd84c440053439bc79032399984 100644
+index 06a2c581d862fd380849de30777a4a893c8b835e..7b1badfefc1f9976b7f0a5c3652b1b45c237a4b5 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -212,63 +212,63 @@ exports.EcoProtocolAddresses = {
+@@ -212,189 +212,195 @@ exports.EcoProtocolAddresses = {
          "MetaProver": "0x3d529eFAEDb3B999A404c1B8543441aE616cB914"
      },
      "1-pre": {
@@ -707,7 +713,12 @@ index 06a2c581d862fd380849de30777a4a893c8b835e..555a66c0a38dddd84c440053439bc790
          "MetaProver": "0x3d529eFAEDb3B999A404c1B8543441aE616cB914"
      },
      "480-pre": {
-@@ -278,123 +278,129 @@ exports.EcoProtocolAddresses = {
+-        "IntentSource": "0xe39F0072f5C267ae79cC81b6D404d66c00D91092",
+-        "Inbox": "0x46a5C76Fe4248Bc49D9f934903ac212A9EFe0995",
+-        "HyperProver": "0xA9b1aA9f11045EFd418e50F96fa9c019C39ff70F",
++        "IntentSource": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
++        "Inbox": "0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97",
++        "HyperProver": "0x101c1d5521dc32115089d02774F5298Df13dC71f",
          "MetaProver": "0x0000000000000000000000000000000000000000"
      },
      "1992-pre": {
