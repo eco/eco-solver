@@ -89,7 +89,7 @@ describe('WatchIntentService', () => {
           const partial = { address, eventName, args }
           expect(partial).toEqual({
             address: s.sourceAddress,
-            eventName: 'IntentCreated',
+            eventName: 'IntentPublished',
             args: { prover: s.provers },
           })
         }
@@ -153,7 +153,10 @@ describe('WatchIntentService', () => {
 
   describe('on intent', () => {
     const s = sources[0]
-    const log: any = { logIndex: 2, args: { hash: '0x1' } as Partial<IntentCreatedLog['args']> }
+    const log: any = {
+      logIndex: 2,
+      args: { intentHash: '0x1' } as Partial<IntentCreatedLog['args']>,
+    }
     let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
 
     beforeEach(async () => {
@@ -198,16 +201,7 @@ describe('WatchIntentService', () => {
       mockQueueAdd.mockRejectedValueOnce(err)
       const analyticsSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
 
-      // Spy on Promise.allSettled to verify resilient processing is used
-      const allSettledSpy = jest.spyOn(Promise, 'allSettled')
-
-      // The method completes successfully despite the queue error being thrown internally
-      await expect(watchIntentService.addJob(s)([log])).resolves.not.toThrow()
-
-      // Verify that Promise.allSettled was used (proves resilient error handling)
-      expect(allSettledSpy).toHaveBeenCalled()
-
-      // Verify analytics tracking occurred (proves the error was thrown and caught internally)
+      await watchIntentService.addJob(s)([log])
       expect(analyticsSpy).toHaveBeenCalledWith(
         err,
         expect.any(String),
@@ -225,9 +219,6 @@ describe('WatchIntentService', () => {
           failures: ['queue down'],
         }),
       )
-
-      // Clean up
-      allSettledSpy.mockRestore()
     })
   })
 

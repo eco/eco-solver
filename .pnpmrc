@@ -3,3 +3,4 @@ auto-install-peers=true
 strict-peer-dependencies=false
 save-exact=false
 prefer-frozen-lockfile=true
+enable-pre-post-scripts=true

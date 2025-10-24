@@ -273,7 +273,28 @@ describe('ValidateIntentService', () => {
 
   describe('on intentFunded', () => {
     const chainID = 1
-    const model = { intent: { hash: '0x12', route: { source: chainID } } } as any
+    const model = {
+      intent: {
+        hash: '0x12',
+        route: {
+          source: chainID,
+          destination: BigInt(2),
+          salt: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+          deadline: BigInt(Date.now() + 86400000),
+          portal: '0x1234567890123456789012345678901234567890',
+          nativeAmount: BigInt(0),
+          tokens: [],
+          calls: [],
+        },
+        reward: {
+          creator: '0x1234567890123456789012345678901234567890',
+          prover: '0x0987654321098765432109876543210987654321',
+          deadline: BigInt(Date.now() + 86400000),
+          nativeValue: BigInt(0),
+          tokens: [],
+        },
+      },
+    } as any
 
     it('should return false if no intentSource for intent', async () => {
       jest.spyOn(ecoConfigService, 'getIntentSource').mockReturnValue(undefined)

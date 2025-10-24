@@ -1,3 +1,4 @@
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
@@ -8,13 +9,16 @@ import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
 import { Model } from 'mongoose'
 import { QuoteRewardDataType } from '@/quote/dto/quote.reward.data.dto'
 import { RewardTokensInterface, CallDataInterface } from '@/contracts'
-import { RouteType, hashIntent } from '@eco-foundation/routes-ts'
+import { RouteType } from '@eco-foundation/routes-ts'
 
 @Injectable()
 export class IntentSourceRepository {
   private logger = new EcoLogger(IntentSourceRepository.name)
 
-  constructor(@InjectModel(IntentSourceModel.name) private model: Model<IntentSourceModel>) {}
+  constructor(
+    @InjectModel(IntentSourceModel.name) private model: Model<IntentSourceModel>,
+    private readonly ecoAnalytics: EcoAnalyticsService,
+  ) {}
 
   async create(data: any): Promise<IntentSourceModel> {
     return this.model.create(data)
@@ -45,14 +49,22 @@ export class IntentSourceRepository {
     intentGroupID: string,
     quoteID: string,
     funder: Hex,
+    intentHash: Hex,
     route: RouteType,
     reward: QuoteRewardDataType,
   ) {
     try {
-      const { salt, source, destination, inbox, tokens: routeTokens, calls } = route
+      const {
+        salt,
+        source,
+        destination,
+        inbox,
+        tokens: routeTokens,
+        calls,
+        deadline: routeDeadline,
+      } = route as RouteType & { deadline: bigint } // TODO: Must be update to use V2 contracts
       const { creator, prover, deadline, nativeValue } = reward
       const rewardTokens = reward.tokens as RewardTokensInterface[]
-      const intentHash = hashIntent({ route, reward }).intentHash
 
       this.logger.debug(
         EcoLogMessage.fromDefault({
@@ -61,6 +73,15 @@ export class IntentSourceRepository {
             intentHash,
           },
         }),
+      )
+
+      // Track gasless intent creation attempt with complete objects
+      this.ecoAnalytics.trackGaslessIntentCreationStarted(
+        intentHash,
+        quoteID,
+        funder,
+        route,
+        reward,
       )
 
       const intent = new IntentDataModel({
@@ -76,6 +97,7 @@ export class IntentSourceRepository {
         creator,
         prover,
         deadline,
+        routeDeadline: routeDeadline || deadline,
         nativeValue,
         rewardTokens,
         logIndex: 0,
@@ -88,6 +110,16 @@ export class IntentSourceRepository {
         receipt: null,
         status: 'PENDING',
       })
+
+      // Track successful gasless intent creation with complete context
+      this.ecoAnalytics.trackGaslessIntentCreated(
+        intentHash,
+        quoteID,
+        funder,
+        intent,
+        route,
+        reward,
+      )
     } catch (ex) {
       this.logger.error(
         EcoLogMessage.fromDefault({
@@ -97,7 +129,11 @@ export class IntentSourceRepository {
             error: ex.message,
           },
         }),
+        ex.stack,
       )
+
+      // Track gasless intent creation failure with complete context
+      this.ecoAnalytics.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
     }
   }
 

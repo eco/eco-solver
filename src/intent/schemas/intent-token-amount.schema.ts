@@ -12,7 +12,7 @@ export class TokenAmountDataModel implements RewardTokensInterface {
   getRewardTokensInterface?(): RewardTokensInterface {
     return {
       token: this.token,
-      amount: this.amount,
+      amount: BigInt(this.amount.toString()),
     }
   }
 }

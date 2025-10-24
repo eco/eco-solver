@@ -121,4 +121,12 @@ export class QuoteV2QuoteResponseDTO {
   @IsNotEmpty()
   @IsNumber()
   estimatedFulfillTimeSec: number
+
+  @ApiProperty({
+    description: 'The encoded route data for the intent',
+    example: '0x...',
+  })
+  @IsNotEmpty()
+  @IsString()
+  encodedRoute: Hex
 }

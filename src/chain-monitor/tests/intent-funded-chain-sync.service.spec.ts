@@ -3,14 +3,14 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { EcoConfigService } from '../../eco-configs/eco-config.service'
 import { getModelToken } from '@nestjs/mongoose'
 import { IntentFundedChainSyncService } from '@/chain-monitor/intent-funded-chain-sync.service'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
+import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 import { IntentSourceModel } from '../../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 import { Solver, IntentSource } from '../../eco-configs/eco-config.types'
 import { Test, TestingModule } from '@nestjs/testing'
 import { WatchIntentFundedService } from '@/watch/intent/intent-funded-events/services/watch-intent-funded.service'
-import { IntentFundedEventModel } from '@/watch/intent/intent-funded-events/schemas/intent-funded-events.schema'
 
 describe.skip('IntentFundedChainSyncService', () => {
   let chainSyncService: IntentFundedChainSyncService
@@ -123,7 +123,7 @@ describe.skip('IntentFundedChainSyncService', () => {
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
         address: intentSource.sourceAddress,
-        abi: IntentSourceAbi,
+        abi: portalAbi,
         eventName: 'IntentFunded',
         strict: true,
         fromBlock: undefined,
@@ -138,7 +138,7 @@ describe.skip('IntentFundedChainSyncService', () => {
       expect(mockGetContractEvents).toHaveBeenCalledTimes(1)
       expect(mockGetContractEvents).toHaveBeenCalledWith({
         address: intentSource.sourceAddress,
-        abi: IntentSourceAbi,
+        abi: portalAbi,
         eventName: 'IntentFunded',
         fromBlock: model.blockNumber + 1n, // we search from the next block
         toBlock,

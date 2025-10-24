@@ -9,7 +9,7 @@ export class QuoteV2ResponseDTO {
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => QuoteV2QuoteResponseDTO)
-  quoteResponse: QuoteV2QuoteResponseDTO
+  quoteResponses: QuoteV2QuoteResponseDTO[]
 
   @ApiProperty()
   @IsNotEmpty()

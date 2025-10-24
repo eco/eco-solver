@@ -375,16 +375,22 @@ export const ProverEcoRoutesProverAppend = 'append'
 export class IntentSource {
   // The network that the prover is on
   network: Network
+
   // The chain ID of the network
   chainID: number
+
   // The address that the IntentSource contract is deployed at, we read events from this contract to fulfill
   sourceAddress: Hex
+
   // The address that the Inbox contract is deployed at, we execute fulfills in this contract
   inbox: Hex
+
   // The addresses of the tokens that we support as rewards
   tokens: Hex[]
+
   // The addresses of the provers that we support
   provers: Hex[]
+
   // custom configs for the intent source
   config?: {
     // Defaults to append, @eco-foundation/routes-ts provers will append to the provers in configs
