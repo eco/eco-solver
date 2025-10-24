@@ -118,12 +118,8 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     // Server sends Hello
     mockWs.emit('message', Buffer.from(JSON.stringify({ type: 'Hello', version: 'v1.1' })));
-    await waitForAsync();
 
     // Server rejects with InvalidApiKey error (use actual enum value)
     const errorMessage = {
@@ -132,7 +128,6 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
       message: 'Invalid API key provided',
     };
     mockWs.emit('message', Buffer.from(JSON.stringify(errorMessage)));
-    await waitForAsync();
 
     // Should emit AUTH_FAILED event
     expect(mockEventsService.emit).toHaveBeenCalledWith(RHINESTONE_EVENTS.AUTH_FAILED, {
@@ -141,7 +136,6 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     });
 
     // Should close connection
-    await waitForAsync();
     expect(mockWs.close).toHaveBeenCalled();
 
     // Should not be authenticated
@@ -152,12 +146,8 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     // Send invalid JSON
     mockWs.emit('message', Buffer.from('invalid-json{'));
-    await waitForAsync();
 
     // Should emit ERROR event
     expect(mockEventsService.emit).toHaveBeenCalledWith(
@@ -170,12 +160,8 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     // Send message without type
     mockWs.emit('message', Buffer.from(JSON.stringify({ version: 'v1.1' })));
-    await waitForAsync();
 
     // Should emit ERROR event
     expect(mockEventsService.emit).toHaveBeenCalledWith(
@@ -188,12 +174,8 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     // Send Hello with invalid version format
     mockWs.emit('message', Buffer.from(JSON.stringify({ type: 'Hello', version: '1.1' })));
-    await waitForAsync();
 
     // Should emit ERROR event
     expect(mockEventsService.emit).toHaveBeenCalledWith(
@@ -206,11 +188,7 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     mockWs.emit('message', Buffer.from(JSON.stringify({ type: 'Hello', version: 'v1.1' })));
-    await waitForAsync();
 
     // Server sends general error (not auth-related) - use actual enum value
     const errorMessage = {
@@ -220,7 +198,6 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
       messageId: 'msg-789',
     };
     mockWs.emit('message', Buffer.from(JSON.stringify(errorMessage)));
-    await waitForAsync();
 
     // Should emit ERROR event (not AUTH_FAILED)
     expect(mockEventsService.emit).toHaveBeenCalledWith(
@@ -243,12 +220,8 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     // Simulate socket close
     mockWs.emit('close', 1000, Buffer.from('Normal closure'));
-    await waitForAsync();
 
     expect(mockEventsService.emit).toHaveBeenCalledWith(RHINESTONE_EVENTS.DISCONNECTED, {
       code: 1000,
@@ -260,13 +233,9 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     await service.connect();
     mockWs = (WebSocket as any).mock.results[0].value;
 
-    // Wait for auto-emitted 'open' event
-    await waitForAsync();
-
     // Simulate WebSocket error
     const wsError = new Error('Connection error');
     mockWs.emit('error', wsError);
-    await waitForAsync();
 
     expect(mockEventsService.emit).toHaveBeenCalledWith(RHINESTONE_EVENTS.ERROR, {
       error: wsError,
@@ -298,6 +267,3 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
  * FUTURE: Implement using real WebSocketServer from ws library for true E2E testing.
  */
 
-function waitForAsync() {
-  return new Promise((resolve) => setImmediate(resolve));
-}
