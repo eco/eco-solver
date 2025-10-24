@@ -358,8 +358,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       );
     }
 
-    // Send authentication
-    this.sendAuthentication();
+    // Send authentication - handle promise to avoid unhandled rejections
+    this.sendAuthentication().catch((error) => {
+      this.logger.error(`Error sending authentication: ${error}`);
+      this.eventsService.emit(RHINESTONE_EVENTS.ERROR, { error: error as Error });
+      this.ws?.close();
+    });
   }
 
   /**
