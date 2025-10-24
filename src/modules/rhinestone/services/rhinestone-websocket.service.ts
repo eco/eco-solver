@@ -145,8 +145,8 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             // Remove all event listeners to prevent memory leaks
             this.ws.removeAllListeners();
 
-            // Close socket if still open
-            if (this.ws.readyState === WebSocket.OPEN) {
+            // Terminate socket in any non-CLOSED state
+            if (this.ws.readyState !== WebSocket.CLOSED) {
               this.ws.close();
               this.logger.log('WebSocket connection closed');
               span.addEvent('rhinestone.ws.closed');
