@@ -305,11 +305,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           }
 
           // Validate message has type field
-          if (
-            typeof parsedData !== 'object' ||
-            parsedData === null ||
-            !('type' in parsedData)
-          ) {
+          if (typeof parsedData !== 'object' || parsedData === null || !('type' in parsedData)) {
             throw new Error('Message missing required "type" field');
           }
 
