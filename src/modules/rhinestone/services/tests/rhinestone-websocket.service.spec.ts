@@ -13,24 +13,6 @@ jest.mock('ws', () => {
   });
 });
 
-// Mock OpenTelemetry
-jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
-  OpenTelemetryService: jest.fn().mockImplementation(() => ({
-    tracer: {
-      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
-        const span = {
-          setAttribute: jest.fn(),
-          addEvent: jest.fn(),
-          setStatus: jest.fn(),
-          recordException: jest.fn(),
-          end: jest.fn(),
-        };
-        return typeof options === 'function' ? options(span) : fn(span);
-      }),
-    },
-  })),
-}));
-
 import { Test } from '@nestjs/testing';
 
 import WebSocket from 'ws';
@@ -45,6 +27,7 @@ describe('RhinestoneWebsocketService', () => {
   let service: RhinestoneWebsocketService;
   let mockConfigService: jest.Mocked<RhinestoneConfigService>;
   let mockEventsService: jest.Mocked<EventsService>;
+  let mockOtelService: jest.Mocked<OpenTelemetryService>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -67,6 +50,22 @@ describe('RhinestoneWebsocketService', () => {
       emit: jest.fn(),
     } as any;
 
+    mockOtelService = {
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            addEvent: jest.fn(),
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
+    } as any;
+
     const module = await Test.createTestingModule({
       providers: [
         RhinestoneWebsocketService,
@@ -80,7 +79,7 @@ describe('RhinestoneWebsocketService', () => {
         },
         {
           provide: OpenTelemetryService,
-          useFactory: () => new (OpenTelemetryService as any)(),
+          useValue: mockOtelService,
         },
       ],
     }).compile();
