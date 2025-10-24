@@ -1,21 +1,3 @@
-/**
- * Integration Tests for Rhinestone Authentication Flow
- *
- * These tests verify error handling and event emission behaviors that are
- * observable through the public API.
- *
- * NOTE: Full authentication flow testing (Hello → Auth → Ok) is complex with
- * EventEmitter-based mocks due to OpenTelemetry span wrapping and async timing.
- * Those scenarios are comprehensively covered by unit tests in:
- * - rhinestone-websocket.service.spec.ts (lifecycle, connect, disconnect)
- * - message-schemas.spec.ts (message parsing and validation)
- * - rhinestone-config.service.spec.ts (configuration)
- *
- * FUTURE: Consider using real WebSocketServer from ws library for true
- * integration testing of the complete authentication flow.
- * See: https://thomason-isaiah.medium.com/writing-integration-tests-for-websocket-servers-using-jest-and-ws-8e5c61726b2a
- */
-
 // Mock WebSocket with EventEmitter
 jest.mock('ws', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
