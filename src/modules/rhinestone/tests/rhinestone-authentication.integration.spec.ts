@@ -66,6 +66,7 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
         pingInterval: 1000,
         helloTimeout: 1000,
         authTimeout: 1000,
+        handshakeTimeout: 5000,
       },
     };
 
@@ -266,4 +267,3 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
  *
  * FUTURE: Implement using real WebSocketServer from ws library for true E2E testing.
  */
-

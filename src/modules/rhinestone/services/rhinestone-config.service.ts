@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
 
+import { z } from 'zod';
+
 import { RhinestoneConfig } from '../interfaces/rhinestone-config.interface';
 
 /**
@@ -14,7 +16,16 @@ const RHINESTONE_DEFAULTS = {
   PING_INTERVAL_MS: 30000,
   HELLO_TIMEOUT_MS: 2000,
   AUTH_TIMEOUT_MS: 2000,
+  HANDSHAKE_TIMEOUT_MS: 5000,
 } as const;
+
+/**
+ * Zod schema for WebSocket URL validation
+ * Must use secure WebSocket protocol (wss://)
+ */
+const WebSocketUrlSchema = z.string().url().startsWith('wss://', {
+  message: 'WebSocket URL must use secure protocol (wss://)',
+});
 
 /**
  * Configuration service for Rhinestone module
@@ -42,6 +53,15 @@ export class RhinestoneConfigService {
       if (!url) {
         throw new Error(
           'RHINESTONE_WS_URL is required but not set. Please set this environment variable.',
+        );
+      }
+
+      // Validate URL format and security (must be wss://)
+      const urlValidation = WebSocketUrlSchema.safeParse(url);
+      if (!urlValidation.success) {
+        throw new Error(
+          `RHINESTONE_WS_URL is invalid: ${urlValidation.error.errors[0].message}. ` +
+            'URL must be a valid wss:// (secure WebSocket) endpoint.',
         );
       }
 
@@ -78,6 +98,10 @@ export class RhinestoneConfigService {
       authTimeout: this.configService.get<number>(
         'RHINESTONE_WS_AUTH_TIMEOUT',
         RHINESTONE_DEFAULTS.AUTH_TIMEOUT_MS,
+      ),
+      handshakeTimeout: this.configService.get<number>(
+        'RHINESTONE_WS_HANDSHAKE_TIMEOUT',
+        RHINESTONE_DEFAULTS.HANDSHAKE_TIMEOUT_MS,
       ),
     };
   }
