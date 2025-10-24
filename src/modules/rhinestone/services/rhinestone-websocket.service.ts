@@ -275,35 +275,51 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   /**
    * Parse and validate incoming WebSocket message
    */
-  private parseMessage(data: WebSocket.Data): any {
+  private parseMessage(
+    data: WebSocket.Data,
+  ): HelloMessage | OkMessage | ErrorMessage | Record<string, unknown> {
     return this.otelService.tracer.startActiveSpan(
       'rhinestone.websocket.parse_message',
       {},
       (span) => {
         try {
-          let parsedData: any;
+          let parsedData: unknown;
 
+          // Handle all WebSocket.Data types
           if (data instanceof Buffer) {
             parsedData = JSON.parse(data.toString());
             span.setAttribute('rhinestone.ws.message_format', 'buffer');
           } else if (typeof data === 'string') {
             parsedData = JSON.parse(data);
             span.setAttribute('rhinestone.ws.message_format', 'string');
+          } else if (data instanceof ArrayBuffer) {
+            const buffer = Buffer.from(new Uint8Array(data));
+            parsedData = JSON.parse(buffer.toString());
+            span.setAttribute('rhinestone.ws.message_format', 'arraybuffer');
+          } else if (Array.isArray(data)) {
+            const concatenated = Buffer.concat(data);
+            parsedData = JSON.parse(concatenated.toString());
+            span.setAttribute('rhinestone.ws.message_format', 'buffer_array');
           } else {
             throw new Error('Unsupported message format');
           }
 
           // Validate message has type field
-          if (!parsedData.type) {
+          if (
+            typeof parsedData !== 'object' ||
+            parsedData === null ||
+            !('type' in parsedData)
+          ) {
             throw new Error('Message missing required "type" field');
           }
 
-          span.setAttribute('rhinestone.ws.message_type', parsedData.type);
+          const messageType = (parsedData as { type: unknown }).type;
+          span.setAttribute('rhinestone.ws.message_type', String(messageType));
 
           // Validate message structure using Zod schemas and add context discriminant
           let validatedMessage: HelloMessage | OkMessage | ErrorMessage | Record<string, unknown>;
 
-          switch (parsedData.type) {
+          switch (messageType) {
             case RhinestoneMessageType.Hello:
               validatedMessage = parseHelloMessage(parsedData);
               break;
