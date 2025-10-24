@@ -1,6 +1,42 @@
-# Example configuration file for blockchain-intent-solver
-# Copy this file to config.yaml or config.yml and modify as needed
-# Environment variables will override values in this file
+# Example YAML Configuration File for Blockchain Intent Solver
+#
+# This file demonstrates how to configure the application using YAML instead of
+# environment variables. YAML configuration is useful for:
+# - Complex nested configurations
+# - Managing multiple environments
+# - Declarative configuration management
+# - Version control of configuration (without secrets!)
+#
+# Usage:
+# 1. Copy this file to config.yaml (or any name you prefer):
+#    cp config.example.yaml config.yaml
+#
+# 2. Edit config.yaml with your configuration values
+#
+# 3. Specify the YAML file using the CONFIG_FILES environment variable:
+#    CONFIG_FILES=config.yaml
+#    or for multiple files:
+#    CONFIG_FILES=config.yaml,config.prod.yaml
+#
+# 4. Start the application - it will automatically load and merge configurations
+#
+# Configuration Precedence (highest to lowest):
+# 1. Environment variables (.env file) - Always override YAML
+# 2. AWS Secrets Manager (if AWS_SECRET_NAME is configured)
+# 3. YAML configuration files (this file, if CONFIG_FILES is set)
+# 4. Default values from Zod schemas
+#
+# Best Practices:
+# - Use YAML for base configuration and structure
+# - Use environment variables for environment-specific overrides
+# - NEVER commit sensitive values (private keys, passwords) to version control
+# - Store secrets in AWS Secrets Manager or environment variables only
+# - Use config.yaml for local development, config.prod.yaml for production base config
+#
+# Notes:
+# - Relative paths in CONFIG_FILES are resolved from project root (where package.json is)
+# - YAML supports comments, making it easier to document configuration choices
+# - You can mix YAML and environment variables - env vars take precedence
 
 # Base configuration
 env: development
@@ -16,14 +52,6 @@ redis:
   port: 6379
   # password: your-redis-password  # Uncomment if using authentication
 
-# Queue configuration
-queue:
-  defaultJobOptions:
-    attempts: 3
-    backoff:
-      type: exponential
-      delay: 1000
-
 # AWS configuration (optional)
 # aws:
 #   region: us-east-1
@@ -33,73 +61,155 @@ queue:
 
 # Fulfillment configuration
 fulfillment:
-  defaultStrategy: standard
-  strategies:
-    standard:
-      enabled: true
-    crowdLiquidity:
-      enabled: false
-    nativeIntents:
-      enabled: false
-    negativeIntents:
-      enabled: false
-    rhinestone:
-      enabled: false
+  # Default fee configuration (applies to all chains unless overridden)
+  # NOTE: tokens.flatFee uses a decimal format, native.flatFee uses wei format
+  defaultFee:
+    tokens:
+      flatFee: 0.001 # Decimal amount (normalized to 18 decimals internally)
+      scalarBps: 100 # 1% (100 basis points)
 
 # EVM configuration
 evm:
+
+  # Wallet configuration (REQUIRED)
   wallets:
     basic:
-      # privateKey: 0x...  # Never commit private keys! Use env vars or AWS secrets
-    # kernel:
-    #   signer:
-    #     type: eoa
-    #     privateKey: 0x...  # Never commit private keys!
+      privateKey: 0x... # Never commit private keys! Use env vars or AWS secrets
+    # Uncomment to enable Kernel smart account wallet
+    kernel:
+      signer:
+        type: eoa # or 'kms' for AWS KMS
+        privateKey: 0x... # Required for EOA signer
 
-  # Example network configurations
+  # Network configurations
   networks:
     - chainId: 1
-      name: Ethereum Mainnet
-      rpcUrls:
-        - https://eth.llamarpc.com
-      intentSource:
-        address: '0x0000000000000000000000000000000000000000'
-      listeners:
-        - enabled: true
-          startBlock: 0
-          pollingInterval: 12000
+      # RPC configuration
+      rpc:
+        urls:
+          - https://eth.llamarpc.com
+          - https://mainnet.infura.io/v3/YOUR_INFURA_KEY # Add your own RPC URLs
 
+      # Contract addresses (REQUIRED)
+      contracts:
+        portal: '0x0000000000000000000000000000000000000000' # Replace with actual portal address
+
+      # Claimant address (REQUIRED) - Address that can claim rewards
+      claimant: '0x0000000000000000000000000000000000000000' # Replace with actual claimant
+
+      # Prover configurations (REQUIRED) - Maps prover types to contract addresses
+      provers:
+        hyper: '0x0000000000000000000000000000000000000000' # Replace with actual Hyper prover address
+        # metalayer: '0x0000000000000000000000000000000000000000'  # Uncomment if using Metalayer
+
+      # Default prover to use (REQUIRED)
+      defaultProver: hyper # Options: hyper, metalayer
+
+      # Token whitelist (REQUIRED to support any tokens - if empty, NO tokens are allowed)
+      # tokens:
+      #   - address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'  # USDC
+      #     decimals: 6
+      #     symbol: USDC
+      #     limit: 1000000000000  # Max 1M USDC
+
+      # Network-specific fee configuration (optional - overrides default)
+      # fee:
+      #   tokens:
+      #     flatFee: 1000000000000000  # 0.001 ETH
+      #     scalarBps: 100  # 1%
+      #   native:
+      #     flatFee: 1000000000000000
+      #     scalarBps: 100
+
+    # Example: Optimism network
     - chainId: 10
-      name: Optimism
-      rpcUrls:
-        - https://mainnet.optimism.io
-      intentSource:
-        address: '0x0000000000000000000000000000000000000000'
-      listeners:
-        - enabled: true
-          startBlock: 0
-          pollingInterval: 2000
+      rpc:
+        urls:
+          - https://mainnet.optimism.io
+        pollingInterval: 2000 # Faster polling for L2
+        options:
+          batch: true
+          timeout: 30000
+      contracts:
+        portal: '0x0000000000000000000000000000000000000000'
+      claimant: '0x0000000000000000000000000000000000000000'
+      provers:
+        hyper: '0x0000000000000000000000000000000000000000'
+      defaultProver: hyper
+      # Lower fees for L2
+      # fee:
+      #   tokens:
+      #     flatFee: 100000000000000  # 0.0001 ETH
+      #     scalarBps: 50  # 0.5%
 
-# Solana configuration
-solana:
-  network: mainnet-beta
-  rpcUrl: https://api.mainnet-beta.solana.com
-  # walletPrivateKey: base58-encoded-key  # Never commit! Use env vars
-  # programId: YourProgramIdHere
-  listeners:
-    - enabled: false
-      pollingInterval: 1000
-
-# Prover configuration
-provers:
-  - type: hyper
-    chainConfigs:
-      - chainId: 1
-        contractAddress: '0x0000000000000000000000000000000000000000'
-      - chainId: 10
-        contractAddress: '0x0000000000000000000000000000000000000000'
-
-  # - type: metalayer
-  #   chainConfigs:
-  #     - chainId: 1
-  #       contractAddress: "0x0000000000000000000000000000000000000000"
+# Solana (SVM) configuration (optional)
+# Note: The key is 'svm' not 'solana' to match the schema
+# svm:
+#   chainId: 1399811149  # Solana mainnet chain ID
+#   rpcUrl: https://api.mainnet-beta.solana.com
+#   wsUrl: wss://api.mainnet-beta.solana.com  # Optional WebSocket URL
+#   secretKey: base58-encoded-private-key  # NEVER commit! Use env vars or AWS secrets
+#   portalProgramId: YourPortalProgramIdHere  # Solana program ID for portal
+#   claimant: YourClaimantPublicKeyHere  # Solana public key (base58)
+#
+#   # Prover configurations (REQUIRED)
+#   provers:
+#     hyper: YourHyperProverProgramId  # Solana program ID for Hyper prover
+#
+#   defaultProver: hyper
+#
+#   # Token whitelist (optional)
+#   # tokens:
+#   #   - address: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v  # USDC on Solana
+#   #     decimals: 6
+#   #     symbol: USDC
+#   #     limit: 1000000000000
+#
+# Tron (TVM) configuration (optional)
+# tvm:
+#   # Wallet configuration
+#   wallets:
+#     basic:
+#       privateKey: your-tron-private-key  # NEVER commit! Use env vars or AWS secrets
+#
+#   # Network configurations
+#   networks:
+#     - chainId: 728126428  # Tron Mainnet
+#
+#       # RPC configuration
+#       rpc:
+#         fullNode: https://api.trongrid.io
+#         apiKey: your-trongrid-api-key  # Optional
+#
+#       # Contract addresses (REQUIRED)
+#       contracts:
+#         portal: T1234567890123456789012345678901234  # Tron address format
+#
+#       # Claimant address (REQUIRED)
+#       claimant: T1234567890123456789012345678901234
+#
+#       # Prover configurations (REQUIRED)
+#       provers:
+#         hyper: T1234567890123456789012345678901234
+#
+#       defaultProver: hyper
+#
+#       # Token whitelist (optional)
+#       # tokens:
+#       #   - address: TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t  # USDT on Tron
+#       #     decimals: 6
+#       #     symbol: USDT
+#       #     limit: 1000000000000
+#
+# OpenTelemetry tracing (optional)
+# opentelemetry:
+#   enabled: true
+#   otlp:
+#     endpoint: http://localhost:4318
+#     protocol: http  # Options: http, grpc
+#
+# Bull Board admin UI (optional)
+# bullBoard:
+#   enabled: false
+#   # username: admin
+#   # password: secure-password  # NEVER commit! Use env vars
