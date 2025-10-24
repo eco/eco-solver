@@ -604,6 +604,10 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   private startPingInterval() {
     const config = this.configService.websocket;
 
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
     this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.ping();
