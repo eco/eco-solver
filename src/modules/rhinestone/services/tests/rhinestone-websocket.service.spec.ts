@@ -43,6 +43,7 @@ describe('RhinestoneWebsocketService', () => {
         pingInterval: 1000,
         helloTimeout: 500,
         authTimeout: 500,
+        handshakeTimeout: 5000,
       },
     } as any;
 
@@ -143,10 +144,12 @@ describe('RhinestoneWebsocketService', () => {
   });
 
   describe('connect', () => {
-    it('should create WebSocket with configured URL', async () => {
+    it('should create WebSocket with configured URL and options', async () => {
       await service.connect();
 
-      expect(WebSocket).toHaveBeenCalledWith('wss://test.rhinestone.dev');
+      expect(WebSocket).toHaveBeenCalledWith('wss://test.rhinestone.dev', {
+        handshakeTimeout: 5000,
+      });
     });
 
     it('should not reconnect if already open and authenticated', async () => {

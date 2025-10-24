@@ -53,5 +53,11 @@ export interface RhinestoneConfig {
      * @default 2000
      */
     authTimeout: number;
+
+    /**
+     * Timeout for TLS handshake completion (milliseconds)
+     * @default 5000
+     */
+    handshakeTimeout: number;
   };
 }

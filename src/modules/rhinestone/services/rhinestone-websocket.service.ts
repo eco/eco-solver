@@ -80,20 +80,42 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       },
       async (span) => {
         try {
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.logger.warn('WebSocket is already connected');
-            span.setAttribute('rhinestone.ws.already_connected', true);
-            span.setStatus({ code: api.SpanStatusCode.OK });
-            return;
+          // Check if connection already exists
+          if (this.ws) {
+            if (this.ws.readyState === WebSocket.OPEN) {
+              this.logger.warn('WebSocket already connected - ignoring duplicate connect()');
+              span.setAttribute('rhinestone.ws.already_connected', true);
+              span.setStatus({ code: api.SpanStatusCode.OK });
+              return;
+            }
+
+            if (this.ws.readyState === WebSocket.CONNECTING) {
+              this.logger.warn(
+                'WebSocket connection already in progress - ignoring duplicate connect()',
+              );
+              span.setAttribute('rhinestone.ws.already_connecting', true);
+              span.setStatus({ code: api.SpanStatusCode.OK });
+              return;
+            }
           }
 
           const config = this.configService.websocket;
-          this.isIntentionallyClosed = false;
-          this.logger.log(`Connecting to WebSocket at ${config.url}`);
 
+          // URL validation happens in config.websocket getter (throws if invalid)
+          // This will catch non-wss:// URLs
+          span.setAttribute('rhinestone.ws.url', config.url);
+          span.setAttribute('rhinestone.ws.handshake_timeout_ms', config.handshakeTimeout);
+
+          this.logger.log(`Connecting to WebSocket at ${config.url}`);
           span.addEvent('rhinestone.ws.connecting');
 
-          this.ws = new WebSocket(config.url);
+          // Only clear intentionallyClosed after validation passes
+          this.isIntentionallyClosed = false;
+
+          // Create WebSocket with handshake timeout option
+          this.ws = new WebSocket(config.url, {
+            handshakeTimeout: config.handshakeTimeout,
+          });
           this.setupEventHandlers();
 
           span.addEvent('rhinestone.ws.handlers_setup');
