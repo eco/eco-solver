@@ -91,3 +91,9 @@ export function isOkActionStatusMessage(message: OkMessage): message is OkAction
  * Union type of all authentication-related messages
  */
 export type AuthMessage = HelloMessage | AuthenticationMessage | OkMessage | ErrorMessage;
+
+/**
+ * Union type of all outbound messages sent by client
+ */
+export type OutboundMessage = AuthenticationMessage;
+// Future: Add ActionStatusMessage when implementing Milestone 2

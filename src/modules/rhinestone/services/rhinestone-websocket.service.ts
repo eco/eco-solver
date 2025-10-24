@@ -14,6 +14,7 @@ import {
   isOkActionStatusMessage,
   isOkAuthenticationMessage,
   OkMessage,
+  OutboundMessage,
 } from '../types/auth-messages.types';
 import { RHINESTONE_EVENTS } from '../types/events.types';
 import { parseErrorMessage, parseHelloMessage, parseOkMessage } from '../types/message-schemas';
@@ -574,12 +575,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   /**
    * Send message through WebSocket
    */
-  private async send(message: any): Promise<void> {
+  private async send(message: OutboundMessage): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket is not connected');
     }
 
-    const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+    const messageStr = JSON.stringify(message);
 
     return new Promise((resolve, reject) => {
       this.ws!.send(messageStr, (error) => {
