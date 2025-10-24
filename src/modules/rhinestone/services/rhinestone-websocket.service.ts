@@ -141,6 +141,10 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           this.stopPingInterval();
 
           if (this.ws) {
+            // Remove all event listeners to prevent memory leaks
+            this.ws.removeAllListeners();
+
+            // Close socket if still open
             if (this.ws.readyState === WebSocket.OPEN) {
               this.ws.close();
               this.logger.log('WebSocket connection closed');
@@ -461,7 +465,10 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           // If we reach here, the message structure is invalid
           this.logger.warn('Received Ok message with invalid structure', message);
           span.setAttribute('rhinestone.ws.invalid_structure', true);
-          span.setStatus({ code: api.SpanStatusCode.ERROR, message: 'Invalid message structure' });
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: 'Invalid message structure',
+          });
         } catch (error) {
           this.logger.error(`Error handling Ok message: ${error}`);
           span.recordException(error as Error);
@@ -517,7 +524,10 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             });
 
             this.ws?.close();
-            span.setStatus({ code: api.SpanStatusCode.ERROR, message: 'Authentication failed' });
+            span.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: 'Authentication failed',
+            });
             return;
           }
 
@@ -529,7 +539,10 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             messageId: message.messageId,
           });
 
-          span.setStatus({ code: api.SpanStatusCode.ERROR, message: message.message });
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: message.message,
+          });
         } catch (error) {
           this.logger.error(`Error handling Error message: ${error}`);
           span.recordException(error as Error);
