@@ -31,24 +31,6 @@ jest.mock('ws', () => {
   });
 });
 
-// Mock OpenTelemetry
-jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
-  OpenTelemetryService: jest.fn().mockImplementation(() => ({
-    tracer: {
-      startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
-        const span = {
-          setAttribute: jest.fn(),
-          addEvent: jest.fn(),
-          setStatus: jest.fn(),
-          recordException: jest.fn(),
-          end: jest.fn(),
-        };
-        return typeof options === 'function' ? options(span) : fn(span);
-      }),
-    },
-  })),
-}));
-
 import { Test } from '@nestjs/testing';
 
 import WebSocket from 'ws';
