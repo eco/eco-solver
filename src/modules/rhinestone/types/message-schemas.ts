@@ -23,7 +23,26 @@ export const AuthenticationMessageSchema = z.object({
 });
 
 /**
- * Ok message schema for authentication response
+ * Ok message schema for authentication response (wire format)
+ * Note: 'context' field is added during parsing, not part of protocol
+ */
+const OkAuthenticationWireSchema = z.object({
+  type: z.literal(RhinestoneMessageType.Ok),
+  connectionId: z.string().min(1).max(200),
+});
+
+/**
+ * Ok message schema for action status acknowledgment (wire format)
+ * Note: 'context' field is added during parsing, not part of protocol
+ */
+const OkActionStatusWireSchema = z.object({
+  type: z.literal(RhinestoneMessageType.Ok),
+  messageId: z.string().min(1).max(200),
+});
+
+/**
+ * Ok message schema with context discriminant (internal format)
+ * Used by type guards after parsing adds the context field
  */
 export const OkAuthenticationMessageSchema = z.object({
   type: z.literal(RhinestoneMessageType.Ok),
@@ -31,9 +50,6 @@ export const OkAuthenticationMessageSchema = z.object({
   connectionId: z.string().min(1).max(200),
 });
 
-/**
- * Ok message schema for action status acknowledgment
- */
 export const OkActionStatusMessageSchema = z.object({
   type: z.literal(RhinestoneMessageType.Ok),
   context: z.literal('action'),
@@ -59,15 +75,18 @@ export function parseAuthenticationMessage(data: unknown) {
 }
 
 /**
- * Parse Ok message and infer context discriminant
+ * Parse Ok message and add context discriminant
+ * Validates wire format then adds context field for type safety
  */
 export function parseOkMessage(data: unknown) {
-  const authResult = OkAuthenticationMessageSchema.safeParse(data);
+  // Try authentication response (has connectionId)
+  const authResult = OkAuthenticationWireSchema.safeParse(data);
   if (authResult.success) {
     return { ...authResult.data, context: 'authentication' as const };
   }
 
-  const actionResult = OkActionStatusMessageSchema.safeParse(data);
+  // Try action status acknowledgment (has messageId)
+  const actionResult = OkActionStatusWireSchema.safeParse(data);
   if (actionResult.success) {
     return { ...actionResult.data, context: 'action' as const };
   }
