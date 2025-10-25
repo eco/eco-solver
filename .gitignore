@@ -16,7 +16,13 @@ lerna-debug.log*
 
 # Tests
 /coverage
+/coverage-e2e
 /.nyc_output
+
+# E2E Test Runtime Files
+test/.e2e-setup-state.json
+anvil-*.log
+anvil-*.pid
 
 # IDEs and editors
 /.idea

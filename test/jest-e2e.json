@@ -1,0 +1,32 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testMatch": ["<rootDir>/e2e/**/*.e2e.spec.ts"],
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "esModuleInterop": true,
+          "allowSyntheticDefaultImports": true
+        }
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/../src/$1"
+  },
+  "testTimeout": 60000,
+  "globalSetup": "<rootDir>/e2e/setup/globalSetup.ts",
+  "globalTeardown": "<rootDir>/e2e/setup/globalTeardown.ts",
+  "setupFilesAfterEnv": [],
+  "collectCoverageFrom": ["src/**/*.(t|j)s"],
+  "coverageDirectory": "../coverage-e2e",
+  "coveragePathIgnorePatterns": ["/node_modules/", "/dist/", "/test/"],
+  "transformIgnorePatterns": ["node_modules/(?!(@zerodev|permissionless)/)"],
+  "modulePathIgnorePatterns": ["<rootDir>/../node_modules/.pnpm"],
+  "maxWorkers": 1,
+  "bail": true,
+  "verbose": true
+}

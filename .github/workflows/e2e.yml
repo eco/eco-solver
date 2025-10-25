@@ -1,0 +1,168 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request:
+    branches: [main, v2]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # GitHub Actions services for MongoDB and Redis
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.11.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Verify Anvil installation
+        run: |
+          which anvil
+          anvil --version
+
+      - name: Start Anvil - Base Mainnet Fork
+        run: |
+          echo "Starting Base Mainnet fork on port 8545..."
+          anvil \
+            --port 8545 \
+            --host 0.0.0.0 \
+            --fork-url ${{ secrets.BASE_MAINNET_RPC_URL }} \
+            --chain-id 8453 \
+            --no-rate-limit \
+            > anvil-base.log 2>&1 &
+          echo $! > anvil-base.pid
+          echo "Anvil Base PID: $(cat anvil-base.pid)"
+
+      - name: Start Anvil - Optimism Mainnet Fork
+        run: |
+          echo "Starting Optimism Mainnet fork on port 9545..."
+          anvil \
+            --port 9545 \
+            --host 0.0.0.0 \
+            --fork-url ${{ secrets.OP_MAINNET_RPC_URL }} \
+            --chain-id 10 \
+            --no-rate-limit \
+            > anvil-op.log 2>&1 &
+          echo $! > anvil-op.pid
+          echo "Anvil OP PID: $(cat anvil-op.pid)"
+
+      - name: Wait for Anvil instances to be ready
+        run: |
+          echo "Waiting for Base Mainnet fork..."
+          timeout 60 bash -c 'until curl -s -f -X POST \
+            -H "Content-Type: application/json" \
+            -d '"'"'{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'"'"' \
+            http://localhost:8545 > /dev/null; do sleep 1; done'
+          echo "✓ Base Mainnet fork ready"
+
+          echo "Waiting for Optimism Mainnet fork..."
+          timeout 60 bash -c 'until curl -s -f -X POST \
+            -H "Content-Type: application/json" \
+            -d '"'"'{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'"'"' \
+            http://localhost:9545 > /dev/null; do sleep 1; done'
+          echo "✓ Optimism Mainnet fork ready"
+
+      - name: Set environment variables for CI
+        run: |
+          echo "CI=true" >> $GITHUB_ENV
+          echo "MONGODB_URI=mongodb://localhost:27017/intent-solver-e2e" >> $GITHUB_ENV
+          echo "REDIS_HOST=localhost" >> $GITHUB_ENV
+          echo "REDIS_PORT=6379" >> $GITHUB_ENV
+          echo "BASE_MAINNET_RPC_URL=${{ secrets.BASE_MAINNET_RPC_URL }}" >> $GITHUB_ENV
+          echo "OP_MAINNET_RPC_URL=${{ secrets.OP_MAINNET_RPC_URL }}" >> $GITHUB_ENV
+
+      - name: Run E2E tests
+        run: pnpm test:e2e:ci
+        env:
+          NODE_ENV: test
+          CI: true
+
+      - name: Display Anvil logs on failure
+        if: failure()
+        run: |
+          echo "=== Base Mainnet Anvil Logs ==="
+          cat anvil-base.log || echo "No Base Mainnet logs found"
+          echo ""
+          echo "=== Optimism Mainnet Anvil Logs ==="
+          cat anvil-op.log || echo "No Optimism Mainnet logs found"
+
+      - name: Stop Anvil instances
+        if: always()
+        run: |
+          echo "Stopping Anvil instances..."
+          if [ -f anvil-base.pid ]; then
+            kill $(cat anvil-base.pid) || true
+            echo "✓ Base Mainnet fork stopped"
+          fi
+          if [ -f anvil-op.pid ]; then
+            kill $(cat anvil-op.pid) || true
+            echo "✓ Optimism Mainnet fork stopped"
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            coverage-e2e/
+            anvil-*.log
+          retention-days: 7
