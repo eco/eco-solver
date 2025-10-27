@@ -29,6 +29,12 @@ describe('RhinestoneConfigService', () => {
     jest.clearAllMocks();
   });
 
+  it('should throw when rhinestone config is missing', () => {
+    mockConfigService.get.mockReturnValue(undefined);
+
+    expect(() => service.websocket).toThrow();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });

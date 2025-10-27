@@ -159,11 +159,16 @@ describe('RhinestoneWebsocketService', () => {
     });
 
     it('should handle WebSocket creation errors', async () => {
+      // Suppress expected error log for this error test
+      const errorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation();
+
       (WebSocket as any).mockImplementationOnce(() => {
         throw new Error('Connection failed');
       });
 
       await expect(service.connect()).rejects.toThrow('Connection failed');
+
+      errorSpy.mockRestore();
     });
   });
 
@@ -237,6 +242,9 @@ describe('RhinestoneWebsocketService', () => {
     });
 
     it('should handle errors during disconnect gracefully', async () => {
+      // Suppress expected error log for this error test
+      const errorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation();
+
       await service.connect();
       const mockWs = (WebSocket as any).mock.results[0].value;
 
@@ -245,6 +253,8 @@ describe('RhinestoneWebsocketService', () => {
       });
 
       await expect(service.disconnect()).rejects.toThrow('Cleanup error');
+
+      errorSpy.mockRestore();
     });
   });
 });
