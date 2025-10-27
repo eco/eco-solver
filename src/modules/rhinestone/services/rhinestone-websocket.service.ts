@@ -3,6 +3,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as api from '@opentelemetry/api';
 import WebSocket from 'ws';
 
+import { RhinestoneConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -20,8 +21,6 @@ import {
 import { RHINESTONE_EVENTS } from '../types/events.types';
 import { parseRhinestoneMessage } from '../types/message-schemas';
 import { RelayerActionEnvelope } from '../types/relayer-action.types';
-
-import { RhinestoneConfigService } from './rhinestone-config.service';
 
 /**
  * Manages WebSocket connection to Rhinestone orchestrator

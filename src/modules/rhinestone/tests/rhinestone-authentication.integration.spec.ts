@@ -35,11 +35,11 @@ import { Test } from '@nestjs/testing';
 
 import WebSocket from 'ws';
 
+import { RhinestoneConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
-import { RhinestoneConfigService } from '../services/rhinestone-config.service';
 import { RhinestoneWebsocketService } from '../services/rhinestone-websocket.service';
 import { RHINESTONE_EVENTS } from '../types/events.types';
 
