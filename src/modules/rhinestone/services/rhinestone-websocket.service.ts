@@ -18,8 +18,8 @@ import {
   OutboundMessage,
 } from '../types/auth-messages.types';
 import { RHINESTONE_EVENTS } from '../types/events.types';
-import { parseErrorMessage, parseHelloMessage, parseOkMessage } from '../types/message-schemas';
-import { parseRelayerAction, RelayerActionEnvelope } from '../types/relayer-action.types';
+import { parseRhinestoneMessage } from '../types/message-schemas';
+import { RelayerActionEnvelope } from '../types/relayer-action.types';
 
 import { RhinestoneConfigService } from './rhinestone-config.service';
 
@@ -49,17 +49,11 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   ) {}
 
   /**
-   * Initialize and optionally auto-connect based on feature flag
+   * Initialize and connect to Rhinestone
    */
   async onModuleInit() {
-    this.logger.log('RhinestoneWebsocketService initialized');
-
-    if (this.configService.enabled) {
-      this.logger.log('Rhinestone strategy enabled - connecting to WebSocket');
-      await this.connect();
-    } else {
-      this.logger.log('Rhinestone strategy disabled - skipping connection');
-    }
+    this.logger.log('RhinestoneWebsocketService initialized - connecting to Rhinestone');
+    await this.connect();
   }
 
   /**
@@ -272,15 +266,15 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         // Route message based on type
         switch (message.type) {
           case RhinestoneMessageType.Hello:
-            this.handleHello(message as HelloMessage);
+            this.handleHello(message);
             break;
 
           case RhinestoneMessageType.Ok:
-            this.handleOk(message as OkMessage);
+            this.handleOk(message);
             break;
 
           case RhinestoneMessageType.Error:
-            this.handleError(message as ErrorMessage);
+            this.handleError(message);
             break;
 
           case RhinestoneMessageType.RelayerAction:
@@ -293,10 +287,13 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
           default:
             if (!this.isAuthenticated) {
-              this.logger.warn(`Received ${message.type} before authentication - ignoring`);
+              this.logger.warn(
+                `Received unknown message before authentication - ignoring: ${JSON.stringify(message)}`,
+              );
               return;
             }
-            this.logger.warn(`Unknown message type: ${message.type}`);
+            this.logger.warn(`Unknown message - ignoring: ${JSON.stringify(message)}`);
+            break;
         }
       } catch (error) {
         this.logger.error(`Failed to parse message: ${error}`);
@@ -362,7 +359,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
    */
   private parseMessage(
     data: WebSocket.Data,
-  ): HelloMessage | OkMessage | ErrorMessage | RelayerActionEnvelope | Record<string, unknown> {
+  ): HelloMessage | OkMessage | ErrorMessage | RelayerActionEnvelope {
     return this.otelService.tracer.startActiveSpan(
       'rhinestone.websocket.parse_message',
       {},
@@ -397,43 +394,20 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           const messageType = (parsedData as { type: unknown }).type;
           span.setAttribute('rhinestone.ws.message_type', String(messageType));
 
-          // Validate message structure using Zod schemas and add context discriminant
-          let validatedMessage:
-            | HelloMessage
-            | OkMessage
-            | ErrorMessage
-            | RelayerActionEnvelope
-            | Record<string, unknown>;
+          // Validate message structure using discriminated union schema
+          const result = parseRhinestoneMessage(parsedData);
 
-          switch (messageType) {
-            case RhinestoneMessageType.Hello:
-              validatedMessage = parseHelloMessage(parsedData);
-              break;
+          if (!result) {
+            span.setAttribute('rhinestone.ws.unknown_type', true);
+            throw new Error(`Invalid or unknown message type: ${messageType}`);
+          }
 
-            case RhinestoneMessageType.Ok: {
-              const okMessage = parseOkMessage(parsedData);
-              validatedMessage = okMessage;
-              span.setAttribute('rhinestone.ws.ok_context', okMessage.context);
-              break;
-            }
-
-            case RhinestoneMessageType.Error:
-              validatedMessage = parseErrorMessage(parsedData);
-              break;
-
-            case RhinestoneMessageType.RelayerAction:
-              validatedMessage = parseRelayerAction(parsedData);
-              span.setAttribute('rhinestone.ws.action_id', validatedMessage.action.id);
-              break;
-
-            default:
-              // Unknown message type - pass through without validation
-              validatedMessage = parsedData as Record<string, unknown>;
-              span.setAttribute('rhinestone.ws.unknown_type', true);
+          if (result.type === RhinestoneMessageType.Ok) {
+            span.setAttribute('rhinestone.ws.ok_context', result.context);
           }
 
           span.setStatus({ code: api.SpanStatusCode.OK });
-          return validatedMessage;
+          return result;
         } catch (error) {
           this.logger.error(`Error parsing message: ${error}`);
           span.recordException(error as Error);
@@ -468,7 +442,9 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     // Send authentication - handle promise to avoid unhandled rejections
     this.sendAuthentication().catch((error) => {
       this.logger.error(`Error sending authentication: ${error}`);
-      this.eventsService.emit(RHINESTONE_EVENTS.ERROR, { error: error as Error });
+      this.eventsService.emit(RHINESTONE_EVENTS.ERROR, {
+        error: error as Error,
+      });
       this.ws?.close();
     });
   }

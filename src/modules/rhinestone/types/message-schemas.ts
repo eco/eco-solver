@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
 
+import { RelayerActionEnvelopeSchema } from './relayer-action.types';
+
 /**
  * Hello message schema
  */
@@ -76,16 +78,13 @@ export function parseAuthenticationMessage(data: unknown) {
 
 /**
  * Parse Ok message and add context discriminant
- * Validates wire format then adds context field for type safety
  */
 export function parseOkMessage(data: unknown) {
-  // Try authentication response (has connectionId)
   const authResult = OkAuthenticationWireSchema.safeParse(data);
   if (authResult.success) {
     return { ...authResult.data, context: 'authentication' as const };
   }
 
-  // Try action status acknowledgment (has messageId)
   const actionResult = OkActionStatusWireSchema.safeParse(data);
   if (actionResult.success) {
     return { ...actionResult.data, context: 'action' as const };
@@ -98,4 +97,53 @@ export function parseOkMessage(data: unknown) {
 
 export function parseErrorMessage(data: unknown) {
   return ErrorMessageSchema.parse(data);
+}
+
+/**
+ * Ok message wire schema (either auth or action variant)
+ */
+const OkMessageWireSchema = z.union([OkAuthenticationWireSchema, OkActionStatusWireSchema]);
+
+/**
+ * Union schema for all inbound messages
+ */
+export const RhinestoneInboundMessageSchema = z.union([
+  HelloMessageSchema,
+  OkMessageWireSchema,
+  ErrorMessageSchema,
+  RelayerActionEnvelopeSchema,
+]);
+
+/**
+ * Parse any inbound Rhinestone message
+ * Returns validated message or null if validation fails
+ */
+export function parseRhinestoneMessage(data: unknown) {
+  const result = RhinestoneInboundMessageSchema.safeParse(data);
+
+  if (!result.success) {
+    return null;
+  }
+
+  switch (result.data.type) {
+    case RhinestoneMessageType.Hello:
+      return result.data;
+
+    case RhinestoneMessageType.Ok:
+      if ('connectionId' in result.data) {
+        return { ...result.data, context: 'authentication' as const };
+      } else if ('messageId' in result.data) {
+        return { ...result.data, context: 'action' as const };
+      }
+      return result.data;
+
+    case RhinestoneMessageType.Error:
+      return result.data;
+
+    case RhinestoneMessageType.RelayerAction:
+      return result.data;
+
+    default:
+      return result.data;
+  }
 }

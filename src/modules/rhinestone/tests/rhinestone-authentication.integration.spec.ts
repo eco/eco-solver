@@ -47,6 +47,7 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
   let service: RhinestoneWebsocketService;
   let mockEventsService: jest.Mocked<EventsService>;
   let mockWs: any;
+  let errorSpy: jest.SpyInstance;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -105,9 +106,14 @@ describe('Rhinestone Authentication Flow (Integration)', () => {
     }).compile();
 
     service = module.get<RhinestoneWebsocketService>(RhinestoneWebsocketService);
+
+    // Spy on logger after service is created
+    errorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation();
   });
 
   afterEach(async () => {
+    errorSpy.mockRestore();
+
     try {
       await service.disconnect();
     } catch {

@@ -46,7 +46,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
     WithdrawalModule,
-    RhinestoneModule,
+    RhinestoneModule.forRootAsync(),
     BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,

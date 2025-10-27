@@ -102,22 +102,12 @@ describe('RhinestoneWebsocketService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should connect when enabled', async () => {
-      Object.defineProperty(mockConfigService, 'enabled', { value: true, writable: true });
+    it('should connect', async () => {
       const connectSpy = jest.spyOn(service, 'connect').mockResolvedValue(undefined);
 
       await service.onModuleInit();
 
       expect(connectSpy).toHaveBeenCalled();
-    });
-
-    it('should not connect when disabled', async () => {
-      Object.defineProperty(mockConfigService, 'enabled', { value: false, writable: true });
-      const connectSpy = jest.spyOn(service, 'connect');
-
-      await service.onModuleInit();
-
-      expect(connectSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -169,11 +159,16 @@ describe('RhinestoneWebsocketService', () => {
     });
 
     it('should handle WebSocket creation errors', async () => {
+      // Suppress expected error log for this error test
+      const errorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation();
+
       (WebSocket as any).mockImplementationOnce(() => {
         throw new Error('Connection failed');
       });
 
       await expect(service.connect()).rejects.toThrow('Connection failed');
+
+      errorSpy.mockRestore();
     });
   });
 
@@ -247,6 +242,9 @@ describe('RhinestoneWebsocketService', () => {
     });
 
     it('should handle errors during disconnect gracefully', async () => {
+      // Suppress expected error log for this error test
+      const errorSpy = jest.spyOn((service as any).logger, 'error').mockImplementation();
+
       await service.connect();
       const mockWs = (WebSocket as any).mock.results[0].value;
 
@@ -255,6 +253,8 @@ describe('RhinestoneWebsocketService', () => {
       });
 
       await expect(service.disconnect()).rejects.toThrow('Cleanup error');
+
+      errorSpy.mockRestore();
     });
   });
 });
