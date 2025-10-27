@@ -55,6 +55,7 @@ const VaultKubernetesAuthSchema = z
   .object({
     type: z.literal('kubernetes'),
     role: z.string(),
+    mountPoint: z.string().default('kubernetes'), // Add this line
     jwt: z.string().optional(), // Optional: reads from service account if not provided
     jwtPath: z.string().optional(), // Optional: reads from service account if not provided
   })
