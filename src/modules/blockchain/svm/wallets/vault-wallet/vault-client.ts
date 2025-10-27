@@ -42,7 +42,7 @@ export class VaultClient {
         // Kubernetes authentication
         const jwt =
           this.authConfig.jwt ||
-          this.readServiceAccountToken('/var/run/secrets/kubernetes.io/serviceaccount/token');
+          (this.authConfig.jwtPath && this.readServiceAccountToken(this.authConfig.jwtPath));
 
         const response = await this.client.kubernetesLogin({
           role: this.authConfig.role,
