@@ -7,6 +7,7 @@ import { EventsService } from '@/modules/events/events.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
+import { ActionStatus, ActionStatusMessage } from '../types/action-status.types';
 import {
   AuthenticationMessage,
   ErrorMessage,
@@ -18,6 +19,7 @@ import {
 } from '../types/auth-messages.types';
 import { RHINESTONE_EVENTS } from '../types/events.types';
 import { parseErrorMessage, parseHelloMessage, parseOkMessage } from '../types/message-schemas';
+import { parseRelayerAction, RelayerActionEnvelope } from '../types/relayer-action.types';
 
 import { RhinestoneConfigService } from './rhinestone-config.service';
 
@@ -204,6 +206,44 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
+   * Send ActionStatus response to Rhinestone
+   * Must be called within 3 seconds of receiving RelayerAction
+   */
+  async sendActionStatus(messageId: string, status: ActionStatus): Promise<void> {
+    return this.otelService.tracer.startActiveSpan(
+      'rhinestone.websocket.send_action_status',
+      {
+        attributes: {
+          'rhinestone.ws.message_id': messageId,
+          'rhinestone.ws.status_type': status.type,
+        },
+      },
+      async (span) => {
+        try {
+          const message: ActionStatusMessage = {
+            type: 'ActionStatus',
+            messageId,
+            status,
+          };
+
+          await this.send(message);
+          this.logger.log(`Sent ActionStatus for messageId: ${messageId} (${status.type})`);
+
+          span.addEvent('rhinestone.ws.action_status_sent');
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          this.logger.error(`Failed to send ActionStatus for ${messageId}: ${error}`);
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
    * Set up WebSocket event handlers
    */
   private setupEventHandlers() {
@@ -241,6 +281,14 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
           case RhinestoneMessageType.Error:
             this.handleError(message as ErrorMessage);
+            break;
+
+          case RhinestoneMessageType.RelayerAction:
+            if (!this.isAuthenticated) {
+              this.logger.warn('Received RelayerAction before authentication - ignoring');
+              return;
+            }
+            this.handleRelayerAction(message as RelayerActionEnvelope);
             break;
 
           default:
@@ -314,7 +362,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
    */
   private parseMessage(
     data: WebSocket.Data,
-  ): HelloMessage | OkMessage | ErrorMessage | Record<string, unknown> {
+  ): HelloMessage | OkMessage | ErrorMessage | RelayerActionEnvelope | Record<string, unknown> {
     return this.otelService.tracer.startActiveSpan(
       'rhinestone.websocket.parse_message',
       {},
@@ -350,7 +398,12 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setAttribute('rhinestone.ws.message_type', String(messageType));
 
           // Validate message structure using Zod schemas and add context discriminant
-          let validatedMessage: HelloMessage | OkMessage | ErrorMessage | Record<string, unknown>;
+          let validatedMessage:
+            | HelloMessage
+            | OkMessage
+            | ErrorMessage
+            | RelayerActionEnvelope
+            | Record<string, unknown>;
 
           switch (messageType) {
             case RhinestoneMessageType.Hello:
@@ -366,6 +419,11 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
             case RhinestoneMessageType.Error:
               validatedMessage = parseErrorMessage(parsedData);
+              break;
+
+            case RhinestoneMessageType.RelayerAction:
+              validatedMessage = parseRelayerAction(parsedData);
+              span.setAttribute('rhinestone.ws.action_id', validatedMessage.action.id);
               break;
 
             default:
@@ -598,6 +656,43 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           });
         } catch (error) {
           this.logger.error(`Error handling Error message: ${error}`);
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Handle RelayerAction message from server
+   */
+  private handleRelayerAction(message: RelayerActionEnvelope) {
+    return this.otelService.tracer.startActiveSpan(
+      'rhinestone.websocket.handle_relayer_action',
+      {
+        attributes: {
+          'rhinestone.ws.message_id': message.messageId,
+          'rhinestone.ws.action_id': message.action.id,
+          'rhinestone.ws.action_timestamp': message.action.timestamp,
+        },
+      },
+      (span) => {
+        try {
+          this.logger.log(`Received RelayerAction with messageId: ${message.messageId}`);
+
+          // Emit event for action processor to handle
+          this.eventsService.emit(RHINESTONE_EVENTS.RELAYER_ACTION, {
+            messageId: message.messageId,
+            action: message.action,
+          });
+
+          span.addEvent('rhinestone.ws.relayer_action_emitted');
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          this.logger.error(`Error handling RelayerAction: ${error}`);
           span.recordException(error as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;

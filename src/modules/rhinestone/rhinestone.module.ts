@@ -2,8 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
+import { QueueModule } from '@/modules/queue/queue.module';
 
-import { RhinestoneConfigService, RhinestoneWebsocketService } from './services';
+import {
+  RhinestoneActionProcessor,
+  RhinestoneConfigService,
+  RhinestoneWebsocketService,
+} from './services';
 
 /**
  * Rhinestone Module
@@ -16,16 +21,12 @@ import { RhinestoneConfigService, RhinestoneWebsocketService } from './services'
  * - Authentication flow with API key
  * - Ping/pong keepalive mechanism
  * - Event-based message handling
- *
- * Future: ActionStatus responses and intent processing
+ * - RelayerAction processing with ActionStatus responses
+ * - Intent queueing to fulfillment system
  */
 @Module({
-  imports: [ConfigModule, OpenTelemetryModule],
-  providers: [
-    RhinestoneConfigService,
-    RhinestoneWebsocketService,
-    // TODO: Add RhinestoneActionProcessor for intent processing
-  ],
+  imports: [ConfigModule, OpenTelemetryModule, QueueModule],
+  providers: [RhinestoneConfigService, RhinestoneWebsocketService, RhinestoneActionProcessor],
   exports: [RhinestoneConfigService, RhinestoneWebsocketService],
 })
 export class RhinestoneModule {}

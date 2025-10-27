@@ -4,6 +4,7 @@ import {
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
+import { RelayerActionV1 } from '@/modules/rhinestone/types';
 
 /**
  * Central event map defining all events and their payload types
@@ -76,6 +77,22 @@ export interface EventMap {
    * Emitted when max reconnection attempts are reached
    */
   'rhinestone.reconnect.failed': void;
+
+  /**
+   * Emitted when RelayerAction received from Rhinestone
+   */
+  'rhinestone.relayerAction': {
+    messageId: string;
+    action: RelayerActionV1;
+  };
+
+  /**
+   * Emitted when ActionStatus sent to Rhinestone
+   */
+  'rhinestone.actionStatus.sent': {
+    messageId: string;
+    statusType: 'Success' | 'Error';
+  };
 }
 
 /**
