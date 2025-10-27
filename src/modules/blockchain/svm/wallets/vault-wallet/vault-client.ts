@@ -45,9 +45,9 @@ export class VaultClient {
           (this.authConfig.jwtPath && this.readServiceAccountToken(this.authConfig.jwtPath));
 
         const response = await this.client.kubernetesLogin({
-          role: this.authConfig.role,
           jwt: jwt,
-          mount_point: this.authConfig.mountPoint || 'kubernetes', // Add mount_point to fix 301 redirect
+          role: this.authConfig.role,
+          mount_point: this.authConfig.mountPoint,
         });
 
         if (!response.auth || !response.auth.client_token) {
