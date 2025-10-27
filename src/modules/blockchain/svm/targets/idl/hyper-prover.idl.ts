@@ -1,5 +1,5 @@
 export const hyperProverIdl = {
-  address: 'B4pMQaAGPZ7Mza9XnDxJfXZ1cUa4aa67zrNkv8zYAjx4',
+  address: '2EH5fziYTBE6Z7QyvNRsePp4dQEBjM1Uc9Hdtzx2jQpe',
   metadata: {
     name: 'hyper_prover',
     version: '0.1.0',
