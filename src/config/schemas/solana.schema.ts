@@ -51,11 +51,16 @@ const VaultTokenAuthSchema = z.object({
 /**
  * Kubernetes auth configuration for HashiCorp Vault
  */
-const VaultKubernetesAuthSchema = z.object({
-  type: z.literal('kubernetes'),
-  role: z.string(),
-  jwt: z.string().optional(), // Optional: reads from service account if not provided
-});
+const VaultKubernetesAuthSchema = z
+  .object({
+    type: z.literal('kubernetes'),
+    role: z.string(),
+    jwt: z.string().optional(), // Optional: reads from service account if not provided
+    jwtPath: z.string().optional(), // Optional: reads from service account if not provided
+  })
+  .refine((data) => data.jwt || data.jwtPath, {
+    message: "Either 'jwt' or 'jwtPath' must be provided",
+  });
 
 /**
  * Union of Vault authentication methods
