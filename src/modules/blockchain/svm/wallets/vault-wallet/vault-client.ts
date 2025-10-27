@@ -45,8 +45,9 @@ export class VaultClient {
           (this.authConfig.jwtPath && this.readServiceAccountToken(this.authConfig.jwtPath));
 
         const response = await this.client.kubernetesLogin({
-          role: this.authConfig.role,
           jwt: jwt,
+          role: this.authConfig.role,
+          mount_point: this.authConfig.mountPoint,
         });
 
         if (!response.auth || !response.auth.client_token) {
