@@ -239,7 +239,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           default:
             if (!this.isAuthenticated) {
               this.logger.warn(
-                `Received unknown message before authentication - ignoring: ${JSON.stringify(message)}˝`,
+                `Received unknown message before authentication - ignoring: ${JSON.stringify(message)}`,
               );
               return;
             }
