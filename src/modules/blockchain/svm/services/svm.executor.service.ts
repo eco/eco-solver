@@ -339,8 +339,17 @@ export class SvmExecutorService extends BaseChainExecutor {
           // Track transaction creation
           span.addEvent('svm.batch_withdraw.transaction.creation.started');
 
+          // Get recent blockhash for the transaction
+          const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
+          
+          const wallet = this.walletManager.getWallet();
+          
           // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
-          const transaction = new Transaction()
+          const transaction = new Transaction({
+            blockhash,
+            lastValidBlockHeight,
+            feePayer: wallet.getKeypair().publicKey,
+          })
             .add(computeBudgetIx)
             .add(...ataCreationInstructions)
             .add(...withdrawalInstructions);
@@ -353,7 +362,6 @@ export class SvmExecutorService extends BaseChainExecutor {
           // Track transaction submission
           span.addEvent('svm.batch_withdraw.transaction.submission.started');
 
-          const wallet = this.walletManager.getWallet();
           const signature = await wallet.sendTransaction(transaction, {
             skipPreflight: false,
             preflightCommitment: 'confirmed',
@@ -1041,7 +1049,15 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.fulfill.transaction_build.started');
 
-          const transaction = new Transaction()
+          // Get recent blockhash for the transaction
+          const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
+          
+          const wallet = this.walletManager.getWallet();
+          const transaction = new Transaction({
+            blockhash,
+            lastValidBlockHeight,
+            feePayer: wallet.getKeypair().publicKey,
+          })
             .add(computeBudgetIx)
             .add(...transferInstructions)
             .add(fulfillmentIx);
@@ -1065,8 +1081,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.fulfill.transaction_submission.started');
 
-          // Get wallet and send transaction
-          const wallet = this.walletManager.getWallet();
+          // Send transaction (wallet already retrieved above for feePayer)
           const signature = await wallet.sendTransaction(transaction, {
             skipPreflight: false,
             preflightCommitment: 'confirmed',
@@ -1648,9 +1663,10 @@ export class SvmExecutorService extends BaseChainExecutor {
           gasPaymentSpan.setAttribute('svm.gas_payment.pda', gasPaymentPDA.toString());
           gasPaymentSpan.addEvent('svm.gas_payment.quoted');
 
-          const { blockhash } = await this.connection.getLatestBlockhash();
+          const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
           const payForGasTransaction = new Transaction({
-            recentBlockhash: blockhash,
+            blockhash,
+            lastValidBlockHeight,
             feePayer: payer,
           });
 
