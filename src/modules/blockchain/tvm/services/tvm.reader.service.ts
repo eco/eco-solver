@@ -61,7 +61,7 @@ export class TvmReaderService extends BaseChainReader {
       chainType: 'TVM',
       wallets,
       tokens: tokens.map((token) => ({
-        address: token.address,
+        address: AddressNormalizer.denormalize(token.address, ChainType.TVM),
         decimals: token.decimals,
         symbol: token.symbol,
       })),

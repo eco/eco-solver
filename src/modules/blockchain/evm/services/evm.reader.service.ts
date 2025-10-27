@@ -72,7 +72,7 @@ export class EvmReaderService extends BaseChainReader {
       chainType: 'EVM',
       wallets,
       tokens: tokens.map((token) => ({
-        address: token.address,
+        address: AddressNormalizer.denormalize(token.address, ChainType.EVM),
         decimals: token.decimals,
         symbol: token.symbol,
       })),

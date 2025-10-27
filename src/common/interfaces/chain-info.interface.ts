@@ -1,5 +1,3 @@
-import { UniversalAddress } from '../types/universal-address.type';
-
 export interface WalletInfo {
   type: string;
   address: string;
@@ -7,7 +5,7 @@ export interface WalletInfo {
 }
 
 export interface TokenInfo {
-  address: UniversalAddress;
+  address: string;
   decimals: number;
   symbol: string;
 }

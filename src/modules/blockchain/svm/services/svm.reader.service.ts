@@ -72,7 +72,7 @@ export class SvmReaderService extends BaseChainReader {
       chainType: 'SVM',
       wallets,
       tokens: tokens.map((token) => ({
-        address: token.address,
+        address: AddressNormalizer.denormalize(token.address, ChainType.SVM),
         decimals: token.decimals,
         symbol: token.symbol,
       })),

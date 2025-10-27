@@ -17,12 +17,12 @@ export class BlockchainController {
   @ApiOperation({
     summary: 'Get all supported blockchain networks, wallets and tokens.',
     description:
-      'Returns a list of all configured blockchain networks (EVM, SVM, TVM) along with their wallet addresses and supported tokens.',
+      'Returns a list of all configured blockchain networks (EVM, SVM, TVM) along with their wallet addresses and supported tokens. Token addresses are returned in chain-native format.',
   })
   @ApiZodResponse(
     200,
     ChainsResponseSchema,
-    'List of all supported chains with their wallet configurations and supported tokens.',
+    'List of all supported chains with their wallet configurations and supported tokens. Token addresses are in chain-native format (0x for EVM, base58 for SVM/TVM).',
   )
   async getChains(): Promise<ChainsResponse> {
     return this.blockchainInfoService.getAllChains();
