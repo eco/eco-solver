@@ -75,8 +75,6 @@ export class VaultClient {
       // Call Transit sign endpoint
       const response = await this.client.write(`${this.transitPath}/sign/${this.keyName}`, {
         input: base64Data,
-        hash_algorithm: 'sha2-256',
-        signature_algorithm: 'pkcs1v15',
       });
 
       if (!response.data || !response.data.signature) {
