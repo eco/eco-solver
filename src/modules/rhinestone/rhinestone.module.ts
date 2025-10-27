@@ -1,10 +1,9 @@
 import { DynamicModule, Module } from '@nestjs/common';
 
 import { configurationFactory } from '@/config/configuration-factory';
-import { ConfigModule } from '@/modules/config/config.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
 
-import { RhinestoneConfigService, RhinestoneWebsocketService } from './services';
+import { RhinestoneWebsocketService } from './services';
 
 /**
  * Rhinestone Module
@@ -31,9 +30,9 @@ export class RhinestoneModule {
 
     return {
       module: RhinestoneModule,
-      imports: [ConfigModule, OpenTelemetryModule],
-      providers: [RhinestoneConfigService, RhinestoneWebsocketService],
-      exports: [RhinestoneConfigService, RhinestoneWebsocketService],
+      imports: [OpenTelemetryModule],
+      providers: [RhinestoneWebsocketService],
+      exports: [RhinestoneWebsocketService],
     };
   }
 }
