@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { DynamicModule, Module } from '@nestjs/common';
 
+import { configurationFactory } from '@/config/configuration-factory';
+import { ConfigModule } from '@/modules/config/config.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
 
 import { RhinestoneConfigService, RhinestoneWebsocketService } from './services';
@@ -8,24 +9,31 @@ import { RhinestoneConfigService, RhinestoneWebsocketService } from './services'
 /**
  * Rhinestone Module
  *
- * Handles WebSocket connection to Rhinestone orchestrator for receiving
- * cross-chain intent fulfillment requests via RelayerAction messages.
+ * WebSocket client for Rhinestone orchestrator.
+ * Handles authentication, message routing, and keepalive.
  *
- * Features:
- * - WebSocket connection management with automatic reconnection
- * - Authentication flow with API key
- * - Ping/pong keepalive mechanism
- * - Event-based message handling
- *
- * Future: ActionStatus responses and intent processing
+ * Only loaded if rhinestone config exists with url and apiKey.
  */
-@Module({
-  imports: [ConfigModule, OpenTelemetryModule],
-  providers: [
-    RhinestoneConfigService,
-    RhinestoneWebsocketService,
-    // TODO: Add RhinestoneActionProcessor for intent processing
-  ],
-  exports: [RhinestoneConfigService, RhinestoneWebsocketService],
-})
-export class RhinestoneModule {}
+@Module({})
+export class RhinestoneModule {
+  static async forRootAsync(): Promise<DynamicModule> {
+    const config = await configurationFactory();
+
+    // Only load if config exists (schema validates url/apiKey)
+    if (!config.rhinestone) {
+      return {
+        module: RhinestoneModule,
+        imports: [],
+        providers: [],
+        exports: [],
+      };
+    }
+
+    return {
+      module: RhinestoneModule,
+      imports: [ConfigModule, OpenTelemetryModule],
+      providers: [RhinestoneConfigService, RhinestoneWebsocketService],
+      exports: [RhinestoneConfigService, RhinestoneWebsocketService],
+    };
+  }
+}
