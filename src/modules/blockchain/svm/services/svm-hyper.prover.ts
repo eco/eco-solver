@@ -77,7 +77,7 @@ export class SvmHyperProver extends HyperProver implements ISvmProver {
       },
       // Hyper prover specific accounts (matching the integration test)
       { pubkey: proverDispatcherPDA, isSigner: false, isWritable: false },
-      { pubkey: context.keypair.publicKey, isSigner: true, isWritable: true }, // payer
+      { pubkey: context.publicKey, isSigner: true, isWritable: true }, // payer
       { pubkey: outboxPDA, isSigner: false, isWritable: true },
       {
         pubkey: HyperProverUtils.getNoopProgram(hyperlaneConfig),

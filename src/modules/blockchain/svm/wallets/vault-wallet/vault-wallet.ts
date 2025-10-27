@@ -1,5 +1,5 @@
 import * as api from '@opentelemetry/api';
-import { Connection, Keypair, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 
 import { ISvmWallet, SvmTransactionOptions } from '@/common/interfaces/svm-wallet.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -31,12 +31,6 @@ export class VaultWallet implements ISvmWallet {
 
   async getAddress(): Promise<PublicKey> {
     return this.publicKey;
-  }
-
-  getKeypair(): Keypair {
-    throw new Error(
-      'VaultWallet does not expose keypair - private keys remain in HashiCorp Vault for security',
-    );
   }
 
   async signTransaction(

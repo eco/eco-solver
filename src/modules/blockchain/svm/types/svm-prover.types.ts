@@ -8,7 +8,7 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
  */
 export interface SvmProveContext {
   portalProgram: any; // Anchor Program instance
-  keypair: Keypair;
+  publicKey: PublicKey;
   proverAddress: UniversalAddress;
   intentHash: Buffer;
   fulfillMarkerPDA: PublicKey;
