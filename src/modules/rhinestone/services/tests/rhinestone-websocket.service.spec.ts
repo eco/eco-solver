@@ -102,22 +102,12 @@ describe('RhinestoneWebsocketService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should connect when enabled', async () => {
-      Object.defineProperty(mockConfigService, 'enabled', { value: true, writable: true });
+    it('should connect', async () => {
       const connectSpy = jest.spyOn(service, 'connect').mockResolvedValue(undefined);
 
       await service.onModuleInit();
 
       expect(connectSpy).toHaveBeenCalled();
-    });
-
-    it('should not connect when disabled', async () => {
-      Object.defineProperty(mockConfigService, 'enabled', { value: false, writable: true });
-      const connectSpy = jest.spyOn(service, 'connect');
-
-      await service.onModuleInit();
-
-      expect(connectSpy).not.toHaveBeenCalled();
     });
   });
 

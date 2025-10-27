@@ -47,7 +47,7 @@ import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.mod
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
     WithdrawalModule,
-    RhinestoneModule,
+    RhinestoneModule.forRootAsync(),
     BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,

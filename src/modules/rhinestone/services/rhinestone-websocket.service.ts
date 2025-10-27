@@ -47,17 +47,11 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
   ) {}
 
   /**
-   * Initialize and optionally auto-connect based on feature flag
+   * Initialize and connect to Rhinestone
    */
   async onModuleInit() {
-    this.logger.log('RhinestoneWebsocketService initialized');
-
-    if (this.configService.enabled) {
-      this.logger.log('Rhinestone strategy enabled - connecting to WebSocket');
-      await this.connect();
-    } else {
-      this.logger.log('Rhinestone strategy disabled - skipping connection');
-    }
+    this.logger.log('RhinestoneWebsocketService initialized - connecting to Rhinestone');
+    await this.connect();
   }
 
   /**
