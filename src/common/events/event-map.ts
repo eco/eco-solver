@@ -4,7 +4,7 @@ import {
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
-import type { RhinestoneEvents } from '@/modules/rhinestone/events/rhinestone-event-map';
+import type { RhinestoneEvents } from '@/modules/rhinestone/events';
 
 /**
  * Central event map defining all events and their payload types
