@@ -50,7 +50,21 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
    */
   async onModuleInit() {
     this.logger.log('RhinestoneWebsocketService initialized - connecting to Rhinestone');
-    await this.connect();
+
+    try {
+      await this.connect();
+    } catch (error) {
+      this.logger.error(
+        `Initial connect failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      this.eventsService.emit(RHINESTONE_EVENTS.ERROR, { error: error as Error });
+
+      // Manually trigger reconnect since close event won't fire on init failure
+      const config = this.configService.websocket;
+      if (config.reconnect) {
+        this.attemptReconnect();
+      }
+    }
   }
 
   /**
