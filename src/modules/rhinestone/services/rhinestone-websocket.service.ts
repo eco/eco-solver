@@ -18,7 +18,7 @@ import {
   OutboundMessage,
 } from '../types/auth-messages.types';
 import { RHINESTONE_EVENTS } from '../types/events.types';
-import { parseRhinestoneMessage } from '../types/message-schemas';
+import { RhinestoneInboundMessageSchema } from '../types/message-schemas';
 
 /**
  * Manages WebSocket connection to Rhinestone orchestrator
@@ -334,28 +334,19 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             throw new Error('Unsupported message format');
           }
 
-          // Validate message has type field
-          if (typeof parsedData !== 'object' || parsedData === null || !('type' in parsedData)) {
-            throw new Error('Message missing required "type" field');
-          }
+          const result = RhinestoneInboundMessageSchema.safeParse(parsedData);
 
-          const messageType = (parsedData as { type: unknown }).type;
-          span.setAttribute('rhinestone.ws.message_type', String(messageType));
-
-          // Validate message structure using discriminated union schema
-          const result = parseRhinestoneMessage(parsedData);
-
-          if (!result) {
+          if (!result.success) {
             span.setAttribute('rhinestone.ws.unknown_type', true);
-            throw new Error(`Invalid or unknown message type: ${messageType}`);
+            throw new Error(`Invalid or unknown message type`);
           }
 
-          if (result.type === RhinestoneMessageType.Ok) {
-            span.setAttribute('rhinestone.ws.ok_context', result.context);
+          if (result.data.type === RhinestoneMessageType.Ok) {
+            span.setAttribute('rhinestone.ws.ok_context', result.data.context);
           }
 
           span.setStatus({ code: api.SpanStatusCode.OK });
-          return result;
+          return result.data;
         } catch (error) {
           this.logger.error(`Error parsing message: ${error}`);
           span.recordException(error as Error);
