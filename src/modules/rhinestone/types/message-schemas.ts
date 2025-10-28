@@ -26,35 +26,23 @@ export const AuthenticationMessageSchema = z.object({
  * Ok message schema for authentication response (wire format)
  * Note: 'context' field is added during parsing, not part of protocol
  */
-const OkAuthenticationWireSchema = z.object({
-  type: z.literal(RhinestoneMessageType.Ok),
-  connectionId: z.string().min(1).max(200),
-});
+export const OkAuthenticationMessageSchema = z
+  .object({
+    type: z.literal(RhinestoneMessageType.Ok),
+    connectionId: z.string().min(1).max(200),
+  })
+  .transform((data) => ({ ...data, context: 'authentication' as const }));
 
 /**
  * Ok message schema for action status acknowledgment (wire format)
  * Note: 'context' field is added during parsing, not part of protocol
  */
-const OkActionStatusWireSchema = z.object({
-  type: z.literal(RhinestoneMessageType.Ok),
-  messageId: z.string().min(1).max(200),
-});
-
-/**
- * Ok message schema with context discriminant (internal format)
- * Used by type guards after parsing adds the context field
- */
-export const OkAuthenticationMessageSchema = z.object({
-  type: z.literal(RhinestoneMessageType.Ok),
-  context: z.literal('authentication'),
-  connectionId: z.string().min(1).max(200),
-});
-
-export const OkActionStatusMessageSchema = z.object({
-  type: z.literal(RhinestoneMessageType.Ok),
-  context: z.literal('action'),
-  messageId: z.string().min(1).max(200),
-});
+export const OkActionStatusMessageSchema = z
+  .object({
+    type: z.literal(RhinestoneMessageType.Ok),
+    messageId: z.string().min(1).max(200),
+  })
+  .transform((data) => ({ ...data, context: 'action' as const }));
 
 /**
  * Error message schema
@@ -69,7 +57,7 @@ export const ErrorMessageSchema = z.object({
 /**
  * Ok message wire schema (either auth or action variant)
  */
-const OkMessageWireSchema = z.union([OkAuthenticationWireSchema, OkActionStatusWireSchema]);
+const OkMessageWireSchema = z.union([OkAuthenticationMessageSchema, OkActionStatusMessageSchema]);
 
 /**
  * Union schema for all inbound messages
@@ -79,34 +67,3 @@ export const RhinestoneInboundMessageSchema = z.union([
   OkMessageWireSchema,
   ErrorMessageSchema,
 ]);
-
-/**
- * Parse any inbound Rhinestone message
- * Returns validated message or null if validation fails
- */
-export function parseRhinestoneMessage(data: unknown) {
-  const result = RhinestoneInboundMessageSchema.safeParse(data);
-
-  if (!result.success) {
-    return null;
-  }
-
-  switch (result.data.type) {
-    case RhinestoneMessageType.Hello:
-      return result.data;
-
-    case RhinestoneMessageType.Ok:
-      if ('connectionId' in result.data) {
-        return { ...result.data, context: 'authentication' as const };
-      } else if ('messageId' in result.data) {
-        return { ...result.data, context: 'action' as const };
-      }
-      return result.data;
-
-    case RhinestoneMessageType.Error:
-      return result.data;
-
-    default:
-      return result.data;
-  }
-}

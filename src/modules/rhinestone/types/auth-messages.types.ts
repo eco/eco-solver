@@ -1,6 +1,12 @@
-import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
+import { z } from 'zod';
 
-import { OkActionStatusMessageSchema, OkAuthenticationMessageSchema } from './message-schemas';
+import {
+  AuthenticationMessageSchema,
+  ErrorMessageSchema,
+  HelloMessageSchema,
+  OkActionStatusMessageSchema,
+  OkAuthenticationMessageSchema,
+} from './message-schemas';
 
 /**
  * Hello message sent by server upon WebSocket connection
@@ -8,10 +14,7 @@ import { OkActionStatusMessageSchema, OkAuthenticationMessageSchema } from './me
  * Server sends this immediately after connection is established.
  * Client must respond with Authentication message within 2 seconds.
  */
-export interface HelloMessage {
-  type: RhinestoneMessageType.Hello;
-  version: string;
-}
+export type HelloMessage = z.infer<typeof HelloMessageSchema>;
 
 /**
  * Authentication message sent by client
@@ -19,32 +22,16 @@ export interface HelloMessage {
  * Must be sent within 2 seconds of receiving Hello message.
  * Contains API key for authentication.
  */
-export interface AuthenticationMessage {
-  type: RhinestoneMessageType.Authentication;
-  supportedVersion: string;
-  credentials: {
-    type: 'ApiKey';
-    apiKey: string;
-  };
-}
-
+export type AuthenticationMessage = z.infer<typeof AuthenticationMessageSchema>;
 /**
  * Ok message for successful authentication
  */
-export interface OkAuthenticationMessage {
-  type: RhinestoneMessageType.Ok;
-  context: 'authentication';
-  connectionId: string;
-}
+export type OkAuthenticationMessage = z.infer<typeof OkAuthenticationMessageSchema>;
 
 /**
  * Ok message acknowledging ActionStatus submission
  */
-export interface OkActionStatusMessage {
-  type: RhinestoneMessageType.Ok;
-  context: 'action';
-  messageId: string;
-}
+export type OkActionStatusMessage = z.infer<typeof OkActionStatusMessageSchema>;
 
 /**
  * Union of Ok message variants
@@ -57,21 +44,7 @@ export type OkMessage = OkAuthenticationMessage | OkActionStatusMessage;
  * Can be sent during authentication flow or as reply to specific messages.
  * May result in connection drop depending on error code.
  */
-export interface ErrorMessage {
-  type: RhinestoneMessageType.Error;
-  /**
-   * Optional - present when error is in response to specific client message
-   */
-  messageId?: string;
-  /**
-   * Error code indicating type of error
-   */
-  errorCode: RhinestoneErrorCode;
-  /**
-   * Human-readable error description
-   */
-  message: string;
-}
+export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
 
 /**
  * Type guard for authentication Ok messages
