@@ -3,6 +3,18 @@ import { Address, createPublicClient, createWalletClient, erc20Abi, http, parseU
 import { TEST_ACCOUNTS, TEST_RPC, TOKEN_ADDRESSES } from './test-app.helper';
 
 /**
+ * Kernel wallet address used by the executor in E2E tests
+ * This address is deterministically derived from the signer in test config
+ */
+export const KERNEL_WALLET_ADDRESS = '0x479B996F6323cf269B45DC642B2fa1722baa84c3' as Address;
+
+/**
+ * Signer address for kernel wallet (from config claimant)
+ * This address needs ETH for gas to send transactions
+ */
+export const KERNEL_SIGNER_ADDRESS = '0x256B70644f5D77bc8e2bb82C731Ddf747ecb1471' as Address;
+
+/**
  * Fund test accounts with USDC on Base and Optimism using Anvil's impersonateAccount
  *
  * This function:
@@ -36,6 +48,62 @@ export async function fundTestAccountsWithUSDC() {
   );
 
   console.log('✓ Test accounts funded with USDC');
+}
+
+/**
+ * Fund the Kernel wallet and signer with USDC and ETH
+ *
+ * The Kernel wallet needs:
+ * - USDC on both chains (for approvals and transfers)
+ * - The signer needs ETH for gas (to submit transactions)
+ */
+export async function fundKernelWallet() {
+  console.log('Funding Kernel wallet and signer for execution...');
+
+  const publicClientOptimism = createPublicClient({
+    transport: http(TEST_RPC.OPTIMISM_MAINNET),
+  });
+
+  const publicClientBase = createPublicClient({
+    transport: http(TEST_RPC.BASE_MAINNET),
+  });
+
+  // USDC whale addresses
+  const BASE_USDC_WHALE = '0x20FE51A9229EEf2cF8Ad9E89d91CAb9312cF3b7A' as Address;
+  const OP_USDC_WHALE = '0x2501c477D0A35545a387Aa4A3EEe4292A9a8B3F0' as Address;
+
+  // Fund kernel wallet with USDC on Optimism
+  await fundOnChain(
+    TEST_RPC.OPTIMISM_MAINNET,
+    TOKEN_ADDRESSES.OPTIMISM_USDC as Address,
+    OP_USDC_WHALE,
+    KERNEL_WALLET_ADDRESS,
+    parseUnits('1000000', 6), // 1M USDC
+  );
+
+  // Fund kernel wallet with USDC on Base
+  await fundOnChain(
+    TEST_RPC.BASE_MAINNET,
+    TOKEN_ADDRESSES.BASE_USDC as Address,
+    BASE_USDC_WHALE,
+    KERNEL_WALLET_ADDRESS,
+    parseUnits('1000000', 6), // 1M USDC
+  );
+
+  // Fund signer with ETH for gas on Optimism
+  await publicClientOptimism.request({
+    method: 'anvil_setBalance' as any,
+    params: [KERNEL_SIGNER_ADDRESS, '0x56bc75e2d63100000'] as any, // 100 ETH in hex
+  });
+
+  // Fund signer with ETH for gas on Base
+  await publicClientBase.request({
+    method: 'anvil_setBalance' as any,
+    params: [KERNEL_SIGNER_ADDRESS, '0x56bc75e2d63100000'] as any, // 100 ETH
+  });
+
+  console.log(`  Signer ${KERNEL_SIGNER_ADDRESS} funded with 100 ETH on both chains`);
+  console.log('✓ Kernel wallet and signer funded');
 }
 
 async function fundOnChain(

@@ -8,7 +8,7 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { IntentsService } from '@/modules/intents/intents.service';
 
-import { fundTestAccountsWithUSDC } from './helpers/fund-test-account';
+import { fundKernelWallet, fundTestAccountsWithUSDC } from './helpers/fund-test-account';
 import {
   createTestAppWithServer,
   TEST_ACCOUNTS,
@@ -62,6 +62,9 @@ describe('Intent Fulfillment', () => {
     // Fund test account with USDC
     await fundTestAccountsWithUSDC();
     console.log('✓ Test account funded\n');
+
+    // Fund Kernel wallet (used by executor)
+    await fundKernelWallet();
   }, 120000);
 
   // Teardown
