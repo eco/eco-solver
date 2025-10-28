@@ -21,7 +21,8 @@ import { ChainType } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 
-import { TEST_ACCOUNTS, TEST_CHAIN_IDS, TEST_RPC } from './test-app.helper';
+import { getPortalAddress, getProverAddress, getRpcUrl, getTokenAddress } from './e2e-config';
+import { BASE_MAINNET_CHAIN_ID, OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './test-app.helper';
 
 export interface IntentBuilderOptions {
   sourceChain: 'base' | 'optimism';
@@ -412,38 +413,34 @@ export class IntentBuilder {
   // Private helper methods
 
   private getChainId(chain: 'base' | 'optimism'): bigint {
-    return chain === 'base'
-      ? BigInt(TEST_CHAIN_IDS.BASE_MAINNET)
-      : BigInt(TEST_CHAIN_IDS.OPTIMISM_MAINNET);
+    return chain === 'base' ? BigInt(BASE_MAINNET_CHAIN_ID) : BigInt(OPTIMISM_MAINNET_CHAIN_ID);
   }
 
   private getRpcUrl(chain: 'base' | 'optimism'): string {
-    return chain === 'base' ? TEST_RPC.BASE_MAINNET : TEST_RPC.OPTIMISM_MAINNET;
+    const chainId = this.getChainId(chain);
+    return getRpcUrl(Number(chainId));
   }
 
-  private getPortalAddress(_chain: 'base' | 'optimism'): UniversalAddress {
-    // Portal address is the same on both chains
+  private getPortalAddress(chain: 'base' | 'optimism'): UniversalAddress {
+    const chainId = this.getChainId(chain);
     return AddressNormalizer.normalize(
-      '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97',
+      getPortalAddress(Number(chainId)),
       ChainType.EVM,
     ) as UniversalAddress;
   }
 
   private getTokenAddress(chain: 'base' | 'optimism'): UniversalAddress {
-    // USDC addresses from mainnet
-    const usdcBase = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
-    const usdcOptimism = '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85';
-
+    const chainId = this.getChainId(chain);
     return AddressNormalizer.normalize(
-      chain === 'base' ? usdcBase : usdcOptimism,
+      getTokenAddress(Number(chainId), 'USDC'),
       ChainType.EVM,
     ) as UniversalAddress;
   }
 
-  private getDefaultProverAddress(_chain: 'base' | 'optimism'): UniversalAddress {
-    // Hyper prover address (same on both chains from config)
+  private getDefaultProverAddress(chain: 'base' | 'optimism'): UniversalAddress {
+    const chainId = this.getChainId(chain);
     return AddressNormalizer.normalize(
-      '0x101c1d5521dc32115089d02774F5298Df13dC71f',
+      getProverAddress(Number(chainId), 'hyper'),
       ChainType.EVM,
     ) as UniversalAddress;
   }

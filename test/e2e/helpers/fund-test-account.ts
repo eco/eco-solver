@@ -1,18 +1,12 @@
 import { Address, createPublicClient, createWalletClient, erc20Abi, http, parseUnits } from 'viem';
 
-import { TEST_ACCOUNTS, TEST_RPC, TOKEN_ADDRESSES } from './test-app.helper';
-
-/**
- * Kernel wallet address used by the executor in E2E tests
- * This address is deterministically derived from the signer in test config
- */
-export const KERNEL_WALLET_ADDRESS = '0x479B996F6323cf269B45DC642B2fa1722baa84c3' as Address;
-
-/**
- * Signer address for kernel wallet (from config claimant)
- * This address needs ETH for gas to send transactions
- */
-export const KERNEL_SIGNER_ADDRESS = '0x256B70644f5D77bc8e2bb82C731Ddf747ecb1471' as Address;
+import {
+  getRpcUrl,
+  getTokenAddress,
+  KERNEL_SIGNER_ADDRESS,
+  KERNEL_WALLET_ADDRESS,
+} from './e2e-config';
+import { BASE_MAINNET_CHAIN_ID, OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './test-app.helper';
 
 /**
  * Fund test accounts with USDC on Base and Optimism using Anvil's impersonateAccount
@@ -31,8 +25,8 @@ export async function fundTestAccountsWithUSDC() {
 
   // Fund on Base
   await fundOnChain(
-    TEST_RPC.BASE_MAINNET,
-    TOKEN_ADDRESSES.BASE_USDC as Address,
+    getRpcUrl(BASE_MAINNET_CHAIN_ID),
+    getTokenAddress(BASE_MAINNET_CHAIN_ID, 'USDC'),
     BASE_USDC_WHALE,
     TEST_ACCOUNTS.ACCOUNT_0.address as Address,
     parseUnits('10000', 6), // 10,000 USDC
@@ -40,8 +34,8 @@ export async function fundTestAccountsWithUSDC() {
 
   // Fund on Optimism
   await fundOnChain(
-    TEST_RPC.OPTIMISM_MAINNET,
-    TOKEN_ADDRESSES.OPTIMISM_USDC as Address,
+    getRpcUrl(OPTIMISM_MAINNET_CHAIN_ID),
+    getTokenAddress(OPTIMISM_MAINNET_CHAIN_ID, 'USDC'),
     OP_USDC_WHALE,
     TEST_ACCOUNTS.ACCOUNT_0.address as Address,
     parseUnits('10000', 6), // 10,000 USDC
@@ -61,11 +55,11 @@ export async function fundKernelWallet() {
   console.log('Funding Kernel wallet and signer for execution...');
 
   const publicClientOptimism = createPublicClient({
-    transport: http(TEST_RPC.OPTIMISM_MAINNET),
+    transport: http(getRpcUrl(OPTIMISM_MAINNET_CHAIN_ID)),
   });
 
   const publicClientBase = createPublicClient({
-    transport: http(TEST_RPC.BASE_MAINNET),
+    transport: http(getRpcUrl(BASE_MAINNET_CHAIN_ID)),
   });
 
   // USDC whale addresses
@@ -74,8 +68,8 @@ export async function fundKernelWallet() {
 
   // Fund kernel wallet with USDC on Optimism
   await fundOnChain(
-    TEST_RPC.OPTIMISM_MAINNET,
-    TOKEN_ADDRESSES.OPTIMISM_USDC as Address,
+    getRpcUrl(OPTIMISM_MAINNET_CHAIN_ID),
+    getTokenAddress(OPTIMISM_MAINNET_CHAIN_ID, 'USDC'),
     OP_USDC_WHALE,
     KERNEL_WALLET_ADDRESS,
     parseUnits('1000000', 6), // 1M USDC
@@ -83,8 +77,8 @@ export async function fundKernelWallet() {
 
   // Fund kernel wallet with USDC on Base
   await fundOnChain(
-    TEST_RPC.BASE_MAINNET,
-    TOKEN_ADDRESSES.BASE_USDC as Address,
+    getRpcUrl(BASE_MAINNET_CHAIN_ID),
+    getTokenAddress(BASE_MAINNET_CHAIN_ID, 'USDC'),
     BASE_USDC_WHALE,
     KERNEL_WALLET_ADDRESS,
     parseUnits('1000000', 6), // 1M USDC

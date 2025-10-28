@@ -6,6 +6,8 @@ import { createPublicClient, decodeEventLog, Hex, http } from 'viem';
 import { AppModule } from '@/app.module';
 import { portalAbi } from '@/common/abis/portal.abi';
 
+import { getPortalAddress } from './e2e-config';
+
 /**
  * Create and configure a NestJS application for E2E testing
  *
@@ -153,41 +155,10 @@ export const TEST_ACCOUNTS = {
 } as const;
 
 /**
- * Helper to get RPC URLs for forked networks
+ * Chain ID constants for test readability
  */
-export const TEST_RPC = {
-  BASE_MAINNET: 'http://localhost:8545',
-  OPTIMISM_MAINNET: 'http://localhost:9545',
-} as const;
-
-/**
- * Helper to get chain IDs
- */
-export const TEST_CHAIN_IDS = {
-  BASE_MAINNET: 8453,
-  OPTIMISM_MAINNET: 10,
-} as const;
-
-/**
- * Portal contract addresses (same on both chains in V2)
- */
-export const PORTAL_ADDRESS = '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97' as const;
-
-/**
- * USDC token addresses on mainnet forks
- */
-export const TOKEN_ADDRESSES = {
-  BASE_USDC: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
-  OPTIMISM_USDC: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-} as const;
-
-/**
- * Prover contract addresses
- */
-export const PROVER_ADDRESSES = {
-  HYPER: '0x101c1d5521dc32115089d02774F5298Df13dC71f',
-  POLYMER: '0xc84beEFFc7A2d9A4a14e257c47a774728c6eDACa',
-} as const;
+export const BASE_MAINNET_CHAIN_ID = 8453;
+export const OPTIMISM_MAINNET_CHAIN_ID = 10;
 
 /**
  * Wait for a specific Portal event to be emitted
@@ -218,6 +189,10 @@ export async function waitForPortalEvent(
     transport: http(rpcUrl),
   });
 
+  // Determine chain ID from RPC URL
+  const chainId = rpcUrl.includes('8545') ? BASE_MAINNET_CHAIN_ID : OPTIMISM_MAINNET_CHAIN_ID;
+  const portalAddress = getPortalAddress(chainId);
+
   // Get the starting block if not provided
   let startBlock = fromBlock;
   if (!startBlock) {
@@ -231,7 +206,7 @@ export async function waitForPortalEvent(
 
       // Fetch logs from start block to current block
       const logs = await publicClient.getLogs({
-        address: PORTAL_ADDRESS as `0x${string}`,
+        address: portalAddress as `0x${string}`,
         event: {
           type: 'event',
           name: eventName,

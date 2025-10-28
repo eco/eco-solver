@@ -8,11 +8,12 @@ import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { IntentsService } from '@/modules/intents/intents.service';
 
+import { getTokenAddress } from './helpers/e2e-config';
 import { fundKernelWallet, fundTestAccountsWithUSDC } from './helpers/fund-test-account';
 import {
   createTestAppWithServer,
+  OPTIMISM_MAINNET_CHAIN_ID,
   TEST_ACCOUNTS,
-  TOKEN_ADDRESSES,
   waitForApp,
 } from './helpers/test-app.helper';
 import {
@@ -81,7 +82,7 @@ describe('Intent Fulfillment', () => {
     // Track recipient balance
     const balances = new BalanceTracker(
       'optimism',
-      TOKEN_ADDRESSES.OPTIMISM_USDC as Address,
+      getTokenAddress(OPTIMISM_MAINNET_CHAIN_ID, 'USDC'),
       TEST_ACCOUNTS.ACCOUNT_1.address as Address,
     );
     await balances.snapshot();
