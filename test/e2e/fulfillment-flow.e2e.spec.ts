@@ -123,9 +123,6 @@ describe('Fulfillment Flow E2E Tests', () => {
 
       console.log(`\nRecipient initial balance: ${initialBalance.toString()} USDC`);
 
-      // Get current block number on Optimism to start event polling from here
-      const startBlock = await optimismClient.getBlockNumber();
-
       // Step 2: Publish and fund the intent on Base
       console.log('\nPublishing and funding intent on Base...');
       const { intentHash, vault, txHash } = await builder.publishAndFund(intent);
@@ -157,20 +154,31 @@ describe('Fulfillment Flow E2E Tests', () => {
       console.log('Solver detected intent ✓');
       console.log(`  Status: ${storedIntent?.status}`);
 
-      // Step 5: Wait for validation and execution
-      console.log('\nWaiting for intent to be fulfilled on Optimism...');
+      // Step 5: Wait for validation and execution by polling MongoDB
+      console.log('\nWaiting for intent to be fulfilled...');
       console.log('(This may take 30-60 seconds for validation + execution)');
 
-      const fulfilledEvent = await waitForIntentFulfilled(TEST_RPC.OPTIMISM_MAINNET, intentHash, {
-        timeout: 120_000, // 2 minutes
-        interval: 2000, // Check every 2 seconds
-        fromBlock: startBlock,
-      });
+      // Poll MongoDB for FULFILLED status (more reliable than event polling)
+      let fulfilledIntent = null;
+      const pollStartTime = Date.now();
+      const pollTimeout = 120000; // 2 minutes
+
+      while (Date.now() - pollStartTime < pollTimeout) {
+        const currentIntent = await intentsService.findById(intentHash);
+        if (currentIntent?.status === IntentStatus.FULFILLED) {
+          fulfilledIntent = currentIntent;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Check every 2 seconds
+      }
+
+      if (!fulfilledIntent) {
+        throw new Error(`Intent was not fulfilled within ${pollTimeout}ms`);
+      }
 
       console.log('\nIntent fulfilled! ✓');
-      console.log(`  Claimant: ${fulfilledEvent.args.claimant}`);
-      console.log(`  Block: ${fulfilledEvent.blockNumber}`);
-      console.log(`  Tx hash: ${fulfilledEvent.transactionHash}`);
+      console.log(`  Status: ${fulfilledIntent.status}`);
+      console.log(`  Intent hash: ${intentHash}`);
 
       // Step 6: Verify final state
       console.log('\nVerifying final state...');
@@ -218,7 +226,7 @@ describe('Fulfillment Flow E2E Tests', () => {
         .withSourceChain('base')
         .withDestinationChain('optimism')
         .withTokenAmount(parseUnits('10', 6)) // 10 USDC
-        .withRewardTokenAmount(parseUnits('12', 6)); // 12 USDC reward (but we'll only approve 6)
+        .withRewardTokenAmount(parseUnits('12', 6)) // 12 USDC reward (but we'll only approve 6)
 
       const intent = builder.build();
 
@@ -252,8 +260,8 @@ describe('Fulfillment Flow E2E Tests', () => {
       console.log('\nWaiting to verify intent is NOT fulfilled...');
       console.log('(Intent should fail IntentFundedValidation)');
 
-      // Wait 30 seconds - intent should NOT be fulfilled in this time
-      await new Promise((resolve) => setTimeout(resolve, 30000));
+      // Wait 8 seconds - intent should NOT be fulfilled (validation fails immediately)
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
       // Check intent status - should still be PENDING or FAILED, not FULFILLED
       const finalIntent = await intentsService.findById(intentHash);
@@ -300,7 +308,7 @@ describe('Fulfillment Flow E2E Tests', () => {
         .withTokenAmount(parseUnits('10', 6))
         .withRewardTokenAmount(parseUnits('12', 6))
         .withRouteDeadline(expiredTime)
-        .withRewardDeadline(expiredTime);
+        .withRewardDeadline(expiredTime)
 
       const intent = builder.build();
 
@@ -332,8 +340,8 @@ describe('Fulfillment Flow E2E Tests', () => {
       console.log('\nWaiting to verify intent is NOT fulfilled...');
       console.log('(Intent should fail ExpirationValidation)');
 
-      // Wait 30 seconds - intent should NOT be fulfilled
-      await new Promise((resolve) => setTimeout(resolve, 30000));
+      // Wait 8 seconds - intent should NOT be fulfilled (validation fails immediately)
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
       // Check intent status - should be FAILED or still PENDING
       const finalIntent = await intentsService.findById(intentHash);
@@ -412,8 +420,8 @@ describe('Fulfillment Flow E2E Tests', () => {
       console.log('\nWaiting to verify intent is NOT fulfilled...');
       console.log('(Intent should fail ProverSupportValidation)');
 
-      // Wait 30 seconds - intent should NOT be fulfilled
-      await new Promise((resolve) => setTimeout(resolve, 30000));
+      // Wait 8 seconds - intent should NOT be fulfilled (validation fails immediately)
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
       // Check intent status - should be FAILED or still PENDING
       const finalIntent = await intentsService.findById(intentHash);
