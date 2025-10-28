@@ -84,12 +84,12 @@ describe('Application E2E Tests', () => {
     it('should connect to Base Mainnet fork', async () => {
       // Create a Viem client for Base Mainnet fork
       const client = createPublicClient({
-        transport: http(TEST_RPC.BASE_SEPOLIA),
+        transport: http(TEST_RPC.BASE_MAINNET),
       });
 
       // Get chain ID
       const chainId = await client.getChainId();
-      expect(chainId).toBe(TEST_CHAIN_IDS.BASE_SEPOLIA);
+      expect(chainId).toBe(TEST_CHAIN_IDS.BASE_MAINNET);
 
       // Get block number (should be > 0)
       const blockNumber = await client.getBlockNumber();
@@ -101,12 +101,12 @@ describe('Application E2E Tests', () => {
     it('should connect to Optimism Mainnet fork', async () => {
       // Create a Viem client for Optimism Mainnet fork
       const client = createPublicClient({
-        transport: http(TEST_RPC.OPTIMISM_SEPOLIA),
+        transport: http(TEST_RPC.OPTIMISM_MAINNET),
       });
 
       // Get chain ID
       const chainId = await client.getChainId();
-      expect(chainId).toBe(TEST_CHAIN_IDS.OPTIMISM_SEPOLIA);
+      expect(chainId).toBe(TEST_CHAIN_IDS.OPTIMISM_MAINNET);
 
       // Get block number (should be > 0)
       const blockNumber = await client.getBlockNumber();
@@ -121,11 +121,11 @@ describe('Application E2E Tests', () => {
 
       const walletClient = createWalletClient({
         account,
-        transport: http(TEST_RPC.BASE_SEPOLIA),
+        transport: http(TEST_RPC.BASE_MAINNET),
       });
 
       const publicClient = createPublicClient({
-        transport: http(TEST_RPC.BASE_SEPOLIA),
+        transport: http(TEST_RPC.BASE_MAINNET),
       });
 
       // Get initial balance of recipient
@@ -156,7 +156,7 @@ describe('Application E2E Tests', () => {
 
     it('should have sufficient balance in test accounts', async () => {
       const client = createPublicClient({
-        transport: http(TEST_RPC.BASE_SEPOLIA),
+        transport: http(TEST_RPC.BASE_MAINNET),
       });
 
       // Check balance of account 0 (should have 10000 ETH from Anvil)
@@ -184,8 +184,8 @@ describe('Application E2E Tests', () => {
 
       // Should include Base Mainnet and Optimism Mainnet
       const chainIds = response.body.map((chain: any) => chain.chainId);
-      expect(chainIds).toContain(TEST_CHAIN_IDS.BASE_SEPOLIA);
-      expect(chainIds).toContain(TEST_CHAIN_IDS.OPTIMISM_SEPOLIA);
+      expect(chainIds).toContain(TEST_CHAIN_IDS.BASE_MAINNET);
+      expect(chainIds).toContain(TEST_CHAIN_IDS.OPTIMISM_MAINNET);
 
       console.log(`Supported chains: ${chainIds.join(', ')}`);
     });

@@ -413,12 +413,12 @@ export class IntentBuilder {
 
   private getChainId(chain: 'base' | 'optimism'): bigint {
     return chain === 'base'
-      ? BigInt(TEST_CHAIN_IDS.BASE_SEPOLIA)
-      : BigInt(TEST_CHAIN_IDS.OPTIMISM_SEPOLIA);
+      ? BigInt(TEST_CHAIN_IDS.BASE_MAINNET)
+      : BigInt(TEST_CHAIN_IDS.OPTIMISM_MAINNET);
   }
 
   private getRpcUrl(chain: 'base' | 'optimism'): string {
-    return chain === 'base' ? TEST_RPC.BASE_SEPOLIA : TEST_RPC.OPTIMISM_SEPOLIA;
+    return chain === 'base' ? TEST_RPC.BASE_MAINNET : TEST_RPC.OPTIMISM_MAINNET;
   }
 
   private getPortalAddress(_chain: 'base' | 'optimism'): UniversalAddress {

@@ -208,7 +208,7 @@ import { TEST_RPC, TEST_ACCOUNTS } from './helpers/test-app.helper';
 
 it('should interact with Base Mainnet fork', async () => {
   const client = createPublicClient({
-    transport: http(TEST_RPC.BASE_SEPOLIA),
+    transport: http(TEST_RPC.BASE_MAINNET),
   });
 
   const balance = await client.getBalance({

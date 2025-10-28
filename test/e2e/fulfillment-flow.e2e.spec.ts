@@ -111,7 +111,7 @@ describe('Fulfillment Flow E2E Tests', () => {
 
       // Get recipient's initial USDC balance on Optimism
       const optimismClient = createPublicClient({
-        transport: http(TEST_RPC.OPTIMISM_SEPOLIA),
+        transport: http(TEST_RPC.OPTIMISM_MAINNET),
       });
 
       const initialBalance = await optimismClient.readContract({
@@ -161,8 +161,8 @@ describe('Fulfillment Flow E2E Tests', () => {
       console.log('\nWaiting for intent to be fulfilled on Optimism...');
       console.log('(This may take 30-60 seconds for validation + execution)');
 
-      const fulfilledEvent = await waitForIntentFulfilled(TEST_RPC.OPTIMISM_SEPOLIA, intentHash, {
-        timeout: 120000, // 2 minutes
+      const fulfilledEvent = await waitForIntentFulfilled(TEST_RPC.OPTIMISM_MAINNET, intentHash, {
+        timeout: 120_000, // 2 minutes
         interval: 2000, // Check every 2 seconds
         fromBlock: startBlock,
       });
@@ -262,7 +262,7 @@ describe('Fulfillment Flow E2E Tests', () => {
 
       // Verify no IntentFulfilled event was emitted
       try {
-        await waitForIntentFulfilled(TEST_RPC.OPTIMISM_SEPOLIA, intentHash, {
+        await waitForIntentFulfilled(TEST_RPC.OPTIMISM_MAINNET, intentHash, {
           timeout: 5000, // Short timeout since we expect it to fail
           interval: 1000,
         });
@@ -342,7 +342,7 @@ describe('Fulfillment Flow E2E Tests', () => {
 
       // Verify no IntentFulfilled event
       try {
-        await waitForIntentFulfilled(TEST_RPC.OPTIMISM_SEPOLIA, intentHash, {
+        await waitForIntentFulfilled(TEST_RPC.OPTIMISM_MAINNET, intentHash, {
           timeout: 5000,
           interval: 1000,
         });
@@ -422,7 +422,7 @@ describe('Fulfillment Flow E2E Tests', () => {
 
       // Verify no IntentFulfilled event
       try {
-        await waitForIntentFulfilled(TEST_RPC.OPTIMISM_SEPOLIA, intentHash, {
+        await waitForIntentFulfilled(TEST_RPC.OPTIMISM_MAINNET, intentHash, {
           timeout: 5000,
           interval: 1000,
         });

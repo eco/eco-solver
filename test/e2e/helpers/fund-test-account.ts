@@ -19,7 +19,7 @@ export async function fundTestAccountsWithUSDC() {
 
   // Fund on Base
   await fundOnChain(
-    TEST_RPC.BASE_SEPOLIA,
+    TEST_RPC.BASE_MAINNET,
     TOKEN_ADDRESSES.BASE_USDC as Address,
     BASE_USDC_WHALE,
     TEST_ACCOUNTS.ACCOUNT_0.address as Address,
@@ -28,7 +28,7 @@ export async function fundTestAccountsWithUSDC() {
 
   // Fund on Optimism
   await fundOnChain(
-    TEST_RPC.OPTIMISM_SEPOLIA,
+    TEST_RPC.OPTIMISM_MAINNET,
     TOKEN_ADDRESSES.OPTIMISM_USDC as Address,
     OP_USDC_WHALE,
     TEST_ACCOUNTS.ACCOUNT_0.address as Address,

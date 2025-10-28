@@ -140,5 +140,5 @@ For detailed documentation, see:
 E2E tests run automatically in GitHub Actions on push/PR. See `.github/workflows/e2e.yml` for the workflow configuration.
 
 Required secrets:
-- `ALCHEMY_BASE_SEPOLIA_URL` - Alchemy RPC URL for Base Sepolia fork
-- `ALCHEMY_OP_SEPOLIA_URL` - Alchemy RPC URL for Optimism Sepolia fork
+- `BASE_MAINNET_RPC_URL` - Alchemy RPC URL for Base Sepolia fork
+- `OP_MAINNET_RPC_URL` - Alchemy RPC URL for Optimism Sepolia fork

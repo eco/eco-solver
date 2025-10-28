@@ -156,16 +156,14 @@ export const TEST_ACCOUNTS = {
  * Helper to get RPC URLs for forked networks
  */
 export const TEST_RPC = {
-  BASE_SEPOLIA: 'http://localhost:8545',
-  OPTIMISM_SEPOLIA: 'http://localhost:9545',
+  BASE_MAINNET: 'http://localhost:8545',
+  OPTIMISM_MAINNET: 'http://localhost:9545',
 } as const;
 
 /**
  * Helper to get chain IDs
  */
 export const TEST_CHAIN_IDS = {
-  BASE_SEPOLIA: 8453, // Base Mainnet (keeping old name for backward compatibility)
-  OPTIMISM_SEPOLIA: 10, // Optimism Mainnet (keeping old name for backward compatibility)
   BASE_MAINNET: 8453,
   OPTIMISM_MAINNET: 10,
 } as const;
