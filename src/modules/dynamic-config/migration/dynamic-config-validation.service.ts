@@ -1,6 +1,6 @@
 import { ConfigurationSchemas } from '@/modules/dynamic-config/schemas/configuration-schemas';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { EcoError } from '@/errors/eco-error';
 import { EcoLogger } from '@/common/logging/eco-logger';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
@@ -370,8 +370,8 @@ export class DynamicConfigValidationService {
 
     try {
       // Get AWS configurations (would need to implement AWS reading logic)
-      const awsConfigs = EcoConfigService.getAWSConfigValues() || {};
-      const mongoConfigs = EcoConfigService.getMongoConfigurations();
+      const awsConfigs = ConfigFactory.getAWSConfigValues() || {};
+      const mongoConfigs = ConfigFactory.getMongoConfigurations();
 
       // Check for configurations in AWS but not in MongoDB
       for (const [key, awsValue] of Object.entries(awsConfigs)) {

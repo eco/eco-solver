@@ -14,7 +14,7 @@ import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
 import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { EventsModule } from '@/modules/events';
 import { Module } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
@@ -36,8 +36,8 @@ import { MongooseModule } from '@nestjs/mongoose';
     MongooseModule.forRootAsync({
       useFactory: async () => {
         // Use static config to get MongoDB URI (same as EcoConfigService would use)
-        await EcoConfigService.loadConfig();
-        const staticConfig = EcoConfigService.getConfig();
+        await ConfigFactory.loadConfig();
+        const staticConfig = ConfigFactory.getConfig();
         const dbConfig = staticConfig.mongodb;
         const uri = dbConfig.uri;
 

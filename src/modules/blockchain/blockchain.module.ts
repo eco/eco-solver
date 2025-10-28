@@ -1,6 +1,6 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { ConfigModule } from '@/modules/config/config.module';
 import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
@@ -22,7 +22,7 @@ import { BlockchainReaderService } from './blockchain-reader.service';
 @Module({})
 export class BlockchainModule {
   static async forRootAsync(): Promise<DynamicModule> {
-    const config = await EcoConfigService.loadConfig();
+    const config = await ConfigFactory.loadConfig();
 
     const imports = [
       ConfigModule,

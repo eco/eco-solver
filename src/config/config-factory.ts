@@ -20,8 +20,8 @@ import merge from 'lodash.merge';
  * Configuration factory that transforms environment variables to configuration
  * and optionally merges AWS secrets and YAML configuration
  */
-export class EcoConfigService {
-  private static logger = new Logger(EcoConfigService.name);
+export class ConfigFactory {
+  private static logger = new Logger(ConfigFactory.name);
   private static awsConfigValues: Record<string, any> = {};
   private static mongoConfig: Record<string, any> = {};
   private static cachedConfig: Config;
@@ -109,6 +109,67 @@ export class EcoConfigService {
     return this.cachedConfig;
   }
 
+  static async connectDynamicConfig() {
+    const moduleRef = ModuleRefProvider.getModuleRef();
+    this.configurationService = moduleRef?.get(DynamicConfigService, { strict: false });
+    this.eventEmitter = moduleRef?.get(EventEmitter2, { strict: false });
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `${ConfigFactory.name}.connectDynamicConfig`,
+        properties: {
+          isMongoConfigurationEnabled: this.isMongoConfigurationEnabled(),
+          haveEventEmitter: Boolean(this.isEventEmitterEnabled()),
+        },
+      }),
+    );
+
+    // Load MongoDB configurations if ConfigurationService is available
+    if (!this.isMongoConfigurationEnabled()) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `MongoDB configuration integration not available, using static configurations only`,
+        }),
+      );
+
+      return;
+    }
+
+    const result = await this.configurationService.getAll();
+    this.mongoConfig = result.data.reduce(
+      (acc, config) => {
+        acc[config.key] = config.value;
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `MongoDB configuration integration enabled. Loaded ${Object.keys(this.mongoConfig).length} configurations`,
+      }),
+    );
+
+    // Re-merge configurations with MongoDB values
+    this.mergeConfigurations();
+
+    // Subscribe to configuration changes for reactive updates via EventEmitter
+    this.subscribeToConfigChanges();
+  }
+
+  // Generic getter for key/val of config object
+  static get<T>(key: string): T {
+    return (this.cachedConfig as Record<string, any>)[key] as T;
+  }
+
+  static isRequestSignatureValidationEnabled(): boolean {
+    return this.get<boolean>('requestSignatureValidationEnabled');
+  }
+
+  static getAWSConfigValues(): Record<string, any> {
+    return this.awsConfigValues;
+  }
+
   private static async loadAWSConfig(config: Record<string, any>): Promise<Record<string, any>> {
     this.logger.log(
       EcoLogMessage.fromDefault({
@@ -152,54 +213,6 @@ export class EcoConfigService {
     }
 
     return config;
-  }
-
-  static async connectDynamicConfig() {
-    const moduleRef = ModuleRefProvider.getModuleRef();
-    this.configurationService = moduleRef?.get(DynamicConfigService, { strict: false });
-    this.eventEmitter = moduleRef?.get(EventEmitter2, { strict: false });
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `${EcoConfigService.name}.connectDynamicConfig`,
-        properties: {
-          isMongoConfigurationEnabled: this.isMongoConfigurationEnabled(),
-          haveEventEmitter: Boolean(this.isEventEmitterEnabled()),
-        },
-      }),
-    );
-
-    // Load MongoDB configurations if ConfigurationService is available
-    if (!this.isMongoConfigurationEnabled()) {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `MongoDB configuration integration not available, using static configurations only`,
-        }),
-      );
-
-      return;
-    }
-
-    const result = await this.configurationService.getAll();
-    this.mongoConfig = result.data.reduce(
-      (acc, config) => {
-        acc[config.key] = config.value;
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
-
-    this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `MongoDB configuration integration enabled. Loaded ${Object.keys(this.mongoConfig).length} configurations`,
-      }),
-    );
-
-    // Re-merge configurations with MongoDB values
-    this.mergeConfigurations();
-
-    // Subscribe to configuration changes for reactive updates via EventEmitter
-    this.subscribeToConfigChanges();
   }
 
   /**
@@ -246,19 +259,6 @@ export class EcoConfigService {
 
       this.mergeConfigurations();
     });
-  }
-
-  // Generic getter for key/val of config object
-  static get<T>(key: string): T {
-    return (this.cachedConfig as Record<string, any>)[key] as T;
-  }
-
-  static isRequestSignatureValidationEnabled(): boolean {
-    return this.get<boolean>('requestSignatureValidationEnabled');
-  }
-
-  static getAWSConfigValues(): Record<string, any> {
-    return this.awsConfigValues;
   }
 
   private static validateConfig(config: Record<string, any>): Config {

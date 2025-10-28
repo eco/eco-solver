@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
-import { EcoConfigService } from '@/config/eco-config.service';
+import { ConfigFactory } from '@/config/config-factory';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('DynamicConfigValidationService', () => {
   let service: DynamicConfigValidationService;
   let configurationService: jest.Mocked<DynamicConfigService>;
-  let ecoConfigService: jest.Mocked<EcoConfigService>;
+  let ecoConfigService: jest.Mocked<ConfigFactory>;
 
   const mockConfigurations = [
     {
@@ -44,13 +44,13 @@ describe('DynamicConfigValidationService', () => {
       providers: [
         DynamicConfigValidationService,
         { provide: DynamicConfigService, useValue: mockConfigurationService },
-        { provide: EcoConfigService, useValue: mockEcoConfigService },
+        { provide: ConfigFactory, useValue: mockEcoConfigService },
       ],
     }).compile();
 
     service = module.get<DynamicConfigValidationService>(DynamicConfigValidationService);
     configurationService = module.get(DynamicConfigService);
-    ecoConfigService = module.get(EcoConfigService);
+    ecoConfigService = module.get(ConfigFactory);
   });
 
   describe('validateAllConfigurations', () => {
@@ -188,12 +188,12 @@ describe('DynamicConfigValidationService', () => {
       };
 
       // ecoConfigService.get.mockReturnValue(configs)
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return configs;
       };
 
       // ecoConfigService.getMongoConfigurations.mockReturnValue(configs)
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return configs;
       };
 
@@ -214,12 +214,12 @@ describe('DynamicConfigValidationService', () => {
       };
 
       // ecoConfigService.get.mockReturnValue(awsConfigs)
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return awsConfigs;
       };
 
       // ecoConfigService.getMongoConfigurations.mockReturnValue(mongoConfigs)
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return mongoConfigs;
       };
 
@@ -241,12 +241,12 @@ describe('DynamicConfigValidationService', () => {
       };
 
       // ecoConfigService.get.mockReturnValue(awsConfigs)
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return awsConfigs;
       };
 
       // ecoConfigService.getMongoConfigurations.mockReturnValue(mongoConfigs)
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return mongoConfigs;
       };
 
@@ -269,12 +269,12 @@ describe('DynamicConfigValidationService', () => {
       };
 
       // ecoConfigService.get.mockReturnValue(awsConfigs)
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         return awsConfigs;
       };
 
       // ecoConfigService.getMongoConfigurations.mockReturnValue(mongoConfigs)
-      EcoConfigService.getMongoConfigurations = () => {
+      ConfigFactory.getMongoConfigurations = () => {
         return mongoConfigs;
       };
 
@@ -289,7 +289,7 @@ describe('DynamicConfigValidationService', () => {
     });
 
     it('should handle comparison errors gracefully', async () => {
-      EcoConfigService.getAWSConfigValues = () => {
+      ConfigFactory.getAWSConfigValues = () => {
         throw new Error('AWS access failed');
       };
 
