@@ -1,6 +1,6 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 
-import { configurationFactory } from '@/config/configuration-factory';
+import { EcoConfigService } from '@/config/eco-config.service';
 import { ConfigModule } from '@/modules/config/config.module';
 import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
@@ -22,7 +22,7 @@ import { BlockchainReaderService } from './blockchain-reader.service';
 @Module({})
 export class BlockchainModule {
   static async forRootAsync(): Promise<DynamicModule> {
-    const configFactory = await configurationFactory();
+    const config = await EcoConfigService.loadConfig();
 
     const imports = [
       ConfigModule,
@@ -36,17 +36,17 @@ export class BlockchainModule {
     ];
 
     // Only import EVM module if configured with networks
-    if (configFactory.evm?.networks?.length > 0) {
+    if (config.evm?.networks?.length > 0) {
       imports.push(EvmModule);
     }
 
     // Only import SVM module if solana config exists
-    if (configFactory.svm) {
+    if (config.svm) {
       imports.push(SvmModule);
     }
 
     // Only import TVM module if configured with networks
-    if (configFactory.tvm?.networks && configFactory.tvm.networks.length > 0) {
+    if (config.tvm?.networks && config.tvm.networks.length > 0) {
       imports.push(TvmModule);
     }
 
