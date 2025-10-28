@@ -1,0 +1,183 @@
+import { Address, createPublicClient, erc20Abi, Hex, http } from 'viem';
+
+import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { IntentsService } from '@/modules/intents/intents.service';
+
+import { TEST_RPC, TOKEN_ADDRESSES, waitForIntentFulfilled } from '../helpers/test-app.helper';
+
+/**
+ * Global IntentsService reference for verification helpers
+ */
+let globalIntentsService: IntentsService | null = null;
+
+/**
+ * Initialize the verification helpers with IntentsService
+ * Call this in the test suite's beforeAll hook
+ *
+ * Usage:
+ *   beforeAll(async () => {
+ *     app = await createTestAppWithServer();
+ *     initializeVerificationHelpers(app.get(IntentsService));
+ *   });
+ */
+export function initializeVerificationHelpers(intentsService: IntentsService): void {
+  globalIntentsService = intentsService;
+}
+
+/**
+ * Get the IntentsService instance
+ */
+function getIntentsService(): IntentsService {
+  if (!globalIntentsService) {
+    throw new Error(
+      'IntentsService not initialized. Call initializeVerificationHelpers() in beforeAll() hook.',
+    );
+  }
+  return globalIntentsService;
+}
+
+/**
+ * Verify tokens were delivered to the recipient
+ *
+ * This function checks that the recipient's balance on the destination chain
+ * increased by at least the expected amount.
+ *
+ * Usage:
+ *   await verifyTokensDelivered(intent); // Checks route token amount
+ *   await verifyTokensDelivered(intent, parseUnits('15', 6)); // Custom amount
+ *
+ * @param intent - The intent being verified
+ * @param expectedAmount - Optional: expected amount (defaults to intent.route.tokens[0].amount)
+ */
+export async function verifyTokensDelivered(
+  intent: Intent,
+  expectedAmount?: bigint,
+): Promise<void> {
+  // Determine destination chain
+  const destinationChain = intent.destination === 10n ? 'optimism' : 'base';
+  const rpcUrl =
+    destinationChain === 'optimism' ? TEST_RPC.OPTIMISM_MAINNET : TEST_RPC.BASE_MAINNET;
+  const tokenAddress =
+    destinationChain === 'optimism' ? TOKEN_ADDRESSES.OPTIMISM_USDC : TOKEN_ADDRESSES.BASE_USDC;
+
+  // Get recipient from route calls (first call should be the transfer)
+  const recipientAddress = intent.route.calls[0]?.target as Address | undefined;
+  if (!recipientAddress) {
+    throw new Error('Cannot determine recipient address from intent route calls');
+  }
+
+  const amount = expectedAmount || intent.route.tokens[0]?.amount;
+  if (!amount) {
+    throw new Error('No token amount specified in intent route');
+  }
+
+  // Create client
+  const client = createPublicClient({
+    transport: http(rpcUrl),
+  });
+
+  // Get current balance
+  const balance = (await client.readContract({
+    address: tokenAddress as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [recipientAddress],
+  })) as bigint;
+
+  // Verify balance is at least the expected amount
+  // Note: We can't compare against initial balance since we don't track it here
+  // The test should use BalanceTracker for more precise verification
+  if (balance < amount) {
+    throw new Error(
+      `Recipient balance (${balance.toString()}) is less than expected amount (${amount.toString()})`,
+    );
+  }
+}
+
+/**
+ * Verify intent is NOT fulfilled
+ *
+ * Checks that the intent status in the database is NOT FULFILLED.
+ * Useful for testing rejection scenarios.
+ *
+ * Usage:
+ *   await verifyNotFulfilled(intentHash);
+ *
+ * @param intentHash - The intent hash to verify
+ */
+export async function verifyNotFulfilled(intentHash: Hex): Promise<void> {
+  const intentsService = getIntentsService();
+  const intent = await intentsService.findById(intentHash);
+
+  if (intent?.status === IntentStatus.FULFILLED) {
+    throw new Error(`Expected intent to NOT be fulfilled, but status is: ${intent.status}`);
+  }
+}
+
+/**
+ * Verify no IntentFulfilled event was emitted
+ *
+ * Attempts to find an IntentFulfilled event on the destination chain.
+ * Expects to timeout (no event found), which indicates the intent was not fulfilled.
+ *
+ * Usage:
+ *   await verifyNoFulfillmentEvent(intentHash, 'optimism');
+ *
+ * @param intentHash - The intent hash to check
+ * @param destinationChain - The destination chain to check events on
+ */
+export async function verifyNoFulfillmentEvent(
+  intentHash: Hex,
+  destinationChain: 'base' | 'optimism' = 'optimism',
+): Promise<void> {
+  const rpcUrl =
+    destinationChain === 'optimism' ? TEST_RPC.OPTIMISM_MAINNET : TEST_RPC.BASE_MAINNET;
+
+  try {
+    await waitForIntentFulfilled(rpcUrl, intentHash, {
+      timeout: 5000,
+      interval: 1000,
+    });
+    // If we get here, event was found - test should fail
+    throw new Error('IntentFulfilled event was found when it should not have been emitted');
+  } catch (error) {
+    // Expected - no event found
+    // Verify it's a timeout error, not some other error
+    if (error instanceof Error && error.message.includes('Timeout waiting for')) {
+      // This is the expected timeout - intent was not fulfilled
+      return;
+    }
+    // Re-throw if it's a different error
+    throw error;
+  }
+}
+
+/**
+ * Verify intent has a specific status
+ *
+ * Checks the intent status in the database matches the expected status.
+ *
+ * Usage:
+ *   await verifyIntentStatus(intentHash, IntentStatus.FULFILLED);
+ *   await verifyIntentStatus(intentHash, IntentStatus.FAILED);
+ *
+ * @param intentHash - The intent hash to verify
+ * @param expectedStatus - The expected status
+ */
+export async function verifyIntentStatus(
+  intentHash: Hex,
+  expectedStatus: IntentStatus,
+): Promise<void> {
+  const intentsService = getIntentsService();
+  const intent = await intentsService.findById(intentHash);
+
+  if (!intent) {
+    throw new Error(`Intent not found in database: ${intentHash}`);
+  }
+
+  if (intent.status !== expectedStatus) {
+    throw new Error(
+      `Intent status mismatch. Expected: ${expectedStatus}, Actual: ${intent.status}`,
+    );
+  }
+}

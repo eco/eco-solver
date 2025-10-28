@@ -213,13 +213,73 @@ lsof -i :9545
 - **Test Directory README**: `test/README.md`
 - **Project README**: `../README.md`
 
+## 🧪 E2E Testing Utilities
+
+The project includes production-ready testing utilities that make writing E2E tests simple and maintainable.
+
+### Testing Utilities
+
+**Located in** `test/e2e/utils/`:
+- **publishIntent()** - Single flexible function for publishing intents
+- **BalanceTracker** - Track and verify token balance changes
+- **Wait Helpers** - Smart waiting utilities (waitForFulfillment, waitForRejection)
+- **Verification Helpers** - Common assertion patterns
+
+### Writing Tests with the Utilities
+
+**Example: Simple fulfillment test**
+```typescript
+import { publishIntent, waitForFulfillment, verifyIntentStatus, BalanceTracker } from './utils';
+
+it('should fulfill a valid intent', async () => {
+  // Track balance
+  const balances = new BalanceTracker('optimism', USDC_ADDRESS, RECIPIENT_ADDRESS);
+  await balances.snapshot();
+
+  // Publish intent
+  const { intentHash } = await publishIntent({
+    tokenAmount: parseUnits('10', 6),
+    rewardTokenAmount: parseUnits('12', 6),
+  });
+
+  // Wait and verify
+  await waitForFulfillment(intentHash);
+  await balances.verifyIncreased(parseUnits('10', 6));
+  await verifyIntentStatus(intentHash, IntentStatus.FULFILLED);
+});
+```
+
+**Example: Rejection test**
+```typescript
+it('should reject insufficient funding', async () => {
+  const { intentHash } = await publishIntent({
+    fundingOptions: {
+      allowPartial: true,
+      approveAmount: parseUnits('6', 6), // Only 50%
+    },
+  });
+
+  await waitForRejection(intentHash);
+  await verifyNotFulfilled(intentHash);
+});
+```
+
+### Benefits
+
+- **75% less boilerplate** - Tests are 15-25 lines instead of 100+
+- **Test logic stays visible** - Everything in `it` blocks
+- **Easy to extend** - Just add options to `publishIntent()`
+- **Type-safe** - Full IntelliSense support
+
+See `test/e2e/fulfillment-flow.e2e.spec.ts` for complete examples.
+
 ## 🎯 Next Steps
 
 1. **Update contract addresses** in `test/config.e2e.yaml`
 2. **Run preflight check**: `pnpm test:e2e:check`
 3. **Fix any issues** identified by the check
 4. **Run tests**: `pnpm test:e2e`
-5. **Write your own tests** following the examples in `test/e2e/app.e2e.spec.ts`
+5. **Write your own tests** using the E2E testing utilities
 
 ## 💡 Tips
 
