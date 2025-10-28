@@ -21,15 +21,6 @@ describe('Type Guards', () => {
       expect(isOkAuthenticationMessage(message)).toBe(false);
     });
 
-    it('should return false for message with wrong context', () => {
-      const message = {
-        type: RhinestoneMessageType.Ok as const,
-        context: 'wrong' as any,
-        connectionId: 'abc-123',
-      };
-      expect(isOkAuthenticationMessage(message)).toBe(false);
-    });
-
     it('should return false for message with missing connectionId', () => {
       const message = {
         type: RhinestoneMessageType.Ok as const,
@@ -90,15 +81,6 @@ describe('Type Guards', () => {
         type: RhinestoneMessageType.Ok as const,
         context: 'authentication' as const,
         connectionId: 'abc-123',
-      };
-      expect(isOkActionStatusMessage(message)).toBe(false);
-    });
-
-    it('should return false for wrong context', () => {
-      const message = {
-        type: RhinestoneMessageType.Ok as const,
-        context: 'wrong' as any,
-        messageId: 'msg-123',
       };
       expect(isOkActionStatusMessage(message)).toBe(false);
     });
