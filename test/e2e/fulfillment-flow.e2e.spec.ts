@@ -81,7 +81,7 @@ describe('Intent Fulfillment', () => {
 
     // Track recipient balance
     const balances = new BalanceTracker(
-      'optimism',
+      OPTIMISM_MAINNET_CHAIN_ID,
       getTokenAddress(OPTIMISM_MAINNET_CHAIN_ID, 'USDC'),
       TEST_ACCOUNTS.ACCOUNT_1.address as Address,
     );

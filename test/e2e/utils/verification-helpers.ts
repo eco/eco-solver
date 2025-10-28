@@ -3,7 +3,8 @@ import { Address, createPublicClient, erc20Abi, Hex, http } from 'viem';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { IntentsService } from '@/modules/intents/intents.service';
 
-import { TEST_RPC, TOKEN_ADDRESSES, waitForIntentFulfilled } from '../helpers/test-app.helper';
+import { getRpcUrl, getTokenAddress } from '../helpers/e2e-config';
+import { waitForIntentFulfilled } from '../helpers/test-app.helper';
 
 /**
  * Global IntentsService reference for verification helpers
@@ -54,11 +55,9 @@ export async function verifyTokensDelivered(
   expectedAmount?: bigint,
 ): Promise<void> {
   // Determine destination chain
-  const destinationChain = intent.destination === 10n ? 'optimism' : 'base';
-  const rpcUrl =
-    destinationChain === 'optimism' ? TEST_RPC.OPTIMISM_MAINNET : TEST_RPC.BASE_MAINNET;
-  const tokenAddress =
-    destinationChain === 'optimism' ? TOKEN_ADDRESSES.OPTIMISM_USDC : TOKEN_ADDRESSES.BASE_USDC;
+  const destinationChainId = Number(intent.destination);
+  const rpcUrl = getRpcUrl(destinationChainId);
+  const tokenAddress = getTokenAddress(destinationChainId, 'USDC');
 
   // Get recipient from route calls (first call should be the transfer)
   const recipientAddress = intent.route.calls[0]?.target as Address | undefined;
@@ -121,17 +120,16 @@ export async function verifyNotFulfilled(intentHash: Hex): Promise<void> {
  * Expects to timeout (no event found), which indicates the intent was not fulfilled.
  *
  * Usage:
- *   await verifyNoFulfillmentEvent(intentHash, 'optimism');
+ *   await verifyNoFulfillmentEvent(intentHash, 10);  // 10 = Optimism
  *
  * @param intentHash - The intent hash to check
- * @param destinationChain - The destination chain to check events on
+ * @param destinationChainId - The destination chain ID to check events on (default: 10 = Optimism)
  */
 export async function verifyNoFulfillmentEvent(
   intentHash: Hex,
-  destinationChain: 'base' | 'optimism' = 'optimism',
+  destinationChainId: number = 10,
 ): Promise<void> {
-  const rpcUrl =
-    destinationChain === 'optimism' ? TEST_RPC.OPTIMISM_MAINNET : TEST_RPC.BASE_MAINNET;
+  const rpcUrl = getRpcUrl(destinationChainId);
 
   try {
     await waitForIntentFulfilled(rpcUrl, intentHash, {

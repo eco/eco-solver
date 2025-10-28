@@ -4,15 +4,19 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 
 import { IntentBuilder } from '../helpers/intent-builder.helper';
-import { TEST_ACCOUNTS } from '../helpers/test-app.helper';
+import {
+  BASE_MAINNET_CHAIN_ID,
+  OPTIMISM_MAINNET_CHAIN_ID,
+  TEST_ACCOUNTS,
+} from '../helpers/test-app.helper';
 
 /**
  * Options for publishing an intent
  */
 export interface PublishIntentOptions {
   // Chain configuration
-  sourceChain?: 'base' | 'optimism';
-  destinationChain?: 'base' | 'optimism';
+  sourceChainId?: number;
+  destinationChainId?: number;
 
   // Token amounts
   tokenAmount?: bigint;
@@ -99,8 +103,8 @@ export async function publishIntent(
   options: PublishIntentOptions = {},
 ): Promise<PublishIntentResult> {
   const {
-    sourceChain = 'base',
-    destinationChain = 'optimism',
+    sourceChainId = BASE_MAINNET_CHAIN_ID,
+    destinationChainId = OPTIMISM_MAINNET_CHAIN_ID,
     tokenAmount = parseUnits('10', 6), // 10 USDC (within 50 USDC limit)
     rewardTokenAmount = parseUnits('12', 6), // 12 USDC reward (covers route + fees)
     recipient = TEST_ACCOUNTS.ACCOUNT_1.address as Address,
@@ -115,8 +119,8 @@ export async function publishIntent(
 
   // Build the intent using IntentBuilder
   const builder = getBuilder()
-    .withSourceChain(sourceChain)
-    .withDestinationChain(destinationChain)
+    .withSourceChain(sourceChainId)
+    .withDestinationChain(destinationChainId)
     .withTokenAmount(tokenAmount)
     .withRewardTokenAmount(rewardTokenAmount)
     .withRecipient(recipient)

@@ -25,8 +25,8 @@ import { getPortalAddress, getProverAddress, getRpcUrl, getTokenAddress } from '
 import { BASE_MAINNET_CHAIN_ID, OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './test-app.helper';
 
 export interface IntentBuilderOptions {
-  sourceChain: 'base' | 'optimism';
-  destinationChain: 'base' | 'optimism';
+  sourceChainId: number;
+  destinationChainId: number;
   tokenAmount?: bigint;
   nativeAmount?: bigint;
   rewardTokenAmount?: bigint;
@@ -44,17 +44,17 @@ export interface IntentBuilderOptions {
  * Usage:
  *   const builder = new IntentBuilder();
  *   const intent = await builder
- *     .sourceChain('base')
- *     .destinationChain('optimism')
- *     .tokenAmount(parseUnits('100', 6))
+ *     .withSourceChain(8453)  // Base
+ *     .withDestinationChain(10)  // Optimism
+ *     .withTokenAmount(parseUnits('100', 6))
  *     .build();
  *
  *   const { intentHash, vault } = await builder.publishAndFund(intent);
  */
 export class IntentBuilder {
   private options: IntentBuilderOptions = {
-    sourceChain: 'base',
-    destinationChain: 'optimism',
+    sourceChainId: BASE_MAINNET_CHAIN_ID,
+    destinationChainId: OPTIMISM_MAINNET_CHAIN_ID,
     tokenAmount: parseUnits('10', 6), // 10 USDC (within 50 USDC limit)
     nativeAmount: 0n,
     rewardTokenAmount: parseUnits('12', 6), // 12 USDC reward (covers route + fees)
@@ -69,18 +69,18 @@ export class IntentBuilder {
   private publicClient?: PublicClient;
 
   /**
-   * Set the source chain
+   * Set the source chain by chain ID
    */
-  withSourceChain(chain: 'base' | 'optimism'): this {
-    this.options.sourceChain = chain;
+  withSourceChain(chainId: number): this {
+    this.options.sourceChainId = chainId;
     return this;
   }
 
   /**
-   * Set the destination chain
+   * Set the destination chain by chain ID
    */
-  withDestinationChain(chain: 'base' | 'optimism'): this {
-    this.options.destinationChain = chain;
+  withDestinationChain(chainId: number): this {
+    this.options.destinationChainId = chainId;
     return this;
   }
 
@@ -160,14 +160,14 @@ export class IntentBuilder {
    * Build the intent object
    */
   build(): Intent {
-    const sourceChainId = this.getChainId(this.options.sourceChain);
-    const destinationChainId = this.getChainId(this.options.destinationChain);
+    const sourceChainId = BigInt(this.options.sourceChainId);
+    const destinationChainId = BigInt(this.options.destinationChainId);
 
-    const portalAddress = this.getPortalAddress(this.options.destinationChain);
-    const tokenAddress = this.getTokenAddress(this.options.destinationChain);
-    const sourceTokenAddress = this.getTokenAddress(this.options.sourceChain);
+    const portalAddress = this.getPortalAddress(this.options.destinationChainId);
+    const tokenAddress = this.getTokenAddress(this.options.destinationChainId);
+    const sourceTokenAddress = this.getTokenAddress(this.options.sourceChainId);
     const proverAddress =
-      this.options.proverAddress || this.getDefaultProverAddress(this.options.sourceChain);
+      this.options.proverAddress || this.getDefaultProverAddress(this.options.sourceChainId);
 
     // Build the route calls (simple USDC transfer to recipient)
     const transferData = encodeFunctionData({
@@ -234,8 +234,8 @@ export class IntentBuilder {
       approveTokenAmount?: bigint; // For testing insufficient funding
     },
   ): Promise<{ intentHash: Hex; vault: Address; txHash: Hex }> {
-    const sourceChain = this.options.sourceChain;
-    const rpcUrl = this.getRpcUrl(sourceChain);
+    const sourceChainId = this.options.sourceChainId;
+    const rpcUrl = this.getRpcUrl(sourceChainId);
 
     // Create clients if not already created
     if (!this.walletClient) {
@@ -252,8 +252,8 @@ export class IntentBuilder {
       });
     }
 
-    const portalAddress = this.getPortalAddress(sourceChain);
-    const tokenAddress = this.getTokenAddress(sourceChain);
+    const portalAddress = this.getPortalAddress(sourceChainId);
+    const tokenAddress = this.getTokenAddress(sourceChainId);
     const denormalizedPortal = AddressNormalizer.denormalizeToEvm(portalAddress);
     const denormalizedToken = AddressNormalizer.denormalizeToEvm(tokenAddress);
 
@@ -286,7 +286,7 @@ export class IntentBuilder {
     const allowPartial = options?.allowPartial ?? false;
     const nativeValue = intent.reward.nativeAmount;
 
-    console.log(`Publishing and funding intent on ${sourceChain}...`);
+    console.log(`Publishing and funding intent on chain ${sourceChainId}...`);
     console.log(`  Native value: ${nativeValue.toString()}`);
     console.log(`  Allow partial: ${allowPartial}`);
 
@@ -335,8 +335,8 @@ export class IntentBuilder {
     intent: Intent,
     timeoutMs: number = 10000,
   ): Promise<{ isFunded: boolean; isComplete: boolean }> {
-    const sourceChain = this.options.sourceChain;
-    const rpcUrl = this.getRpcUrl(sourceChain);
+    const sourceChainId = this.options.sourceChainId;
+    const rpcUrl = this.getRpcUrl(sourceChainId);
 
     if (!this.publicClient) {
       this.publicClient = createPublicClient({
@@ -344,7 +344,7 @@ export class IntentBuilder {
       });
     }
 
-    const portalAddress = this.getPortalAddress(sourceChain);
+    const portalAddress = this.getPortalAddress(sourceChainId);
     const denormalizedPortal = AddressNormalizer.denormalizeToEvm(portalAddress);
 
     const startTime = Date.now();
@@ -380,8 +380,8 @@ export class IntentBuilder {
    * Pre-fund an executor wallet with tokens on the destination chain
    * Uses Anvil's setBalance and deal cheats
    */
-  async setupExecutorBalances(executorAddress: Address, destinationChain: 'base' | 'optimism') {
-    const rpcUrl = this.getRpcUrl(destinationChain);
+  async setupExecutorBalances(executorAddress: Address, destinationChainId: number) {
+    const rpcUrl = this.getRpcUrl(destinationChainId);
 
     if (!this.publicClient) {
       this.publicClient = createPublicClient({
@@ -389,7 +389,7 @@ export class IntentBuilder {
       });
     }
 
-    const tokenAddress = this.getTokenAddress(destinationChain);
+    const tokenAddress = this.getTokenAddress(destinationChainId);
     const denormalizedToken = AddressNormalizer.denormalizeToEvm(tokenAddress);
 
     // Set native balance to 100 ETH
@@ -405,42 +405,34 @@ export class IntentBuilder {
       params: [denormalizedToken, executorAddress, `0x${usdcAmount.toString(16)}`],
     });
 
-    console.log(`Executor ${executorAddress} pre-funded on ${destinationChain}:`);
+    console.log(`Executor ${executorAddress} pre-funded on chain ${destinationChainId}:`);
     console.log(`  Native: 100 ETH`);
     console.log(`  USDC: 1,000,000 USDC`);
   }
 
   // Private helper methods
 
-  private getChainId(chain: 'base' | 'optimism'): bigint {
-    return chain === 'base' ? BigInt(BASE_MAINNET_CHAIN_ID) : BigInt(OPTIMISM_MAINNET_CHAIN_ID);
+  private getRpcUrl(chainId: number): string {
+    return getRpcUrl(chainId);
   }
 
-  private getRpcUrl(chain: 'base' | 'optimism'): string {
-    const chainId = this.getChainId(chain);
-    return getRpcUrl(Number(chainId));
-  }
-
-  private getPortalAddress(chain: 'base' | 'optimism'): UniversalAddress {
-    const chainId = this.getChainId(chain);
+  private getPortalAddress(chainId: number): UniversalAddress {
     return AddressNormalizer.normalize(
-      getPortalAddress(Number(chainId)),
+      getPortalAddress(chainId),
       ChainType.EVM,
     ) as UniversalAddress;
   }
 
-  private getTokenAddress(chain: 'base' | 'optimism'): UniversalAddress {
-    const chainId = this.getChainId(chain);
+  private getTokenAddress(chainId: number): UniversalAddress {
     return AddressNormalizer.normalize(
-      getTokenAddress(Number(chainId), 'USDC'),
+      getTokenAddress(chainId, 'USDC'),
       ChainType.EVM,
     ) as UniversalAddress;
   }
 
-  private getDefaultProverAddress(chain: 'base' | 'optimism'): UniversalAddress {
-    const chainId = this.getChainId(chain);
+  private getDefaultProverAddress(chainId: number): UniversalAddress {
     return AddressNormalizer.normalize(
-      getProverAddress(Number(chainId), 'hyper'),
+      getProverAddress(chainId, 'hyper'),
       ChainType.EVM,
     ) as UniversalAddress;
   }
@@ -472,8 +464,8 @@ export class IntentBuilder {
   }
 
   private async getVaultAddress(intent: Intent): Promise<Address> {
-    const sourceChain = this.options.sourceChain;
-    const rpcUrl = this.getRpcUrl(sourceChain);
+    const sourceChainId = this.options.sourceChainId;
+    const rpcUrl = this.getRpcUrl(sourceChainId);
 
     if (!this.publicClient) {
       this.publicClient = createPublicClient({
@@ -481,7 +473,7 @@ export class IntentBuilder {
       });
     }
 
-    const portalAddress = this.getPortalAddress(sourceChain);
+    const portalAddress = this.getPortalAddress(sourceChainId);
     const denormalizedPortal = AddressNormalizer.denormalizeToEvm(portalAddress);
 
     const encodedRoute = PortalEncoder.encode(intent.route, ChainType.EVM);

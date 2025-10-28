@@ -1,6 +1,6 @@
 import { Address, createPublicClient, erc20Abi, http } from 'viem';
 
-import { TEST_RPC } from '../helpers/test-app.helper';
+import { getRpcUrl } from '../helpers/e2e-config';
 
 /**
  * Balance Tracker
@@ -8,7 +8,7 @@ import { TEST_RPC } from '../helpers/test-app.helper';
  * Utility class for tracking token balance changes during E2E tests.
  *
  * Usage:
- *   const tracker = new BalanceTracker('optimism', TOKEN_ADDRESSES.OPTIMISM_USDC, recipientAddress);
+ *   const tracker = new BalanceTracker(10, tokenAddress, recipientAddress);  // 10 = Optimism
  *   await tracker.snapshot(); // Save initial balance
  *   // ... perform operations ...
  *   await tracker.verifyIncreased(parseUnits('10', 6)); // Verify balance increased by at least 10 USDC
@@ -18,11 +18,11 @@ export class BalanceTracker {
   private initialBalance: bigint | null = null;
 
   constructor(
-    private readonly chain: 'base' | 'optimism',
+    private readonly chainId: number,
     private readonly token: Address,
     private readonly address: Address,
   ) {
-    const rpcUrl = chain === 'base' ? TEST_RPC.BASE_MAINNET : TEST_RPC.OPTIMISM_MAINNET;
+    const rpcUrl = getRpcUrl(chainId);
     this.client = createPublicClient({
       transport: http(rpcUrl),
     });
