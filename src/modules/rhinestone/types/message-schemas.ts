@@ -66,37 +66,6 @@ export const ErrorMessageSchema = z.object({
   message: z.string().min(1).max(1000),
 });
 
-export function parseHelloMessage(data: unknown) {
-  return HelloMessageSchema.parse(data);
-}
-
-export function parseAuthenticationMessage(data: unknown) {
-  return AuthenticationMessageSchema.parse(data);
-}
-
-/**
- * Parse Ok message and add context discriminant
- */
-export function parseOkMessage(data: unknown) {
-  const authResult = OkAuthenticationWireSchema.safeParse(data);
-  if (authResult.success) {
-    return { ...authResult.data, context: 'authentication' as const };
-  }
-
-  const actionResult = OkActionStatusWireSchema.safeParse(data);
-  if (actionResult.success) {
-    return { ...actionResult.data, context: 'action' as const };
-  }
-
-  throw new Error(
-    `Ok message validation failed: ${authResult.error.message} AND ${actionResult.error.message}`,
-  );
-}
-
-export function parseErrorMessage(data: unknown) {
-  return ErrorMessageSchema.parse(data);
-}
-
 /**
  * Ok message wire schema (either auth or action variant)
  */
