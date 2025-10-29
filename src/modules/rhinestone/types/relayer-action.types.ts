@@ -13,33 +13,51 @@ export interface ChainCall {
 }
 
 /**
+ * Token transfer details
+ */
+export interface TokenTransfer {
+  tokenAddress: string;
+  amount: string;
+}
+
+/**
  * Fill action to execute on destination chain
  */
 export interface FillAction {
-  id: number;
   call: ChainCall;
-  eip7702Delegation?: unknown | null;
+  tokens: TokenTransfer[];
+  metadata?: {
+    settlementLayers?: string[];
+    tokensOut?: TokenTransfer[];
+  };
 }
 
 /**
  * Claim action for rewards (before or after fill)
  */
 export interface ClaimAction {
-  id: number;
   call: ChainCall;
-  eip7702Delegation?: unknown | null;
+  tokens: TokenTransfer[];
   beforeFill: boolean;
+  metadata?: {
+    tokensIn?: TokenTransfer[];
+    settlementLayer?: string;
+  };
 }
 
 /**
  * RelayerAction payload (version 1)
  */
 export interface RelayerActionV1 {
+  type: 'RelayerActionV1';
   id: string;
   timestamp: number;
   fill: FillAction;
   claims: ClaimAction[];
-  metadata?: Record<string, unknown>;
+  metadata?: {
+    dryRun?: boolean;
+    userAddress?: string;
+  };
 }
 
 /**
@@ -64,33 +82,57 @@ export const ChainCallSchema = z.object({
 });
 
 /**
+ * Token transfer schema
+ */
+const TokenTransferSchema = z.object({
+  tokenAddress: z.string(),
+  amount: z.string(),
+});
+
+/**
  * Fill action schema
  */
 export const FillActionSchema = z.object({
-  id: z.number().int(),
   call: ChainCallSchema,
-  eip7702Delegation: z.unknown().nullable(),
+  tokens: z.array(TokenTransferSchema),
+  metadata: z
+    .object({
+      settlementLayers: z.array(z.string()).optional(),
+      tokensOut: z.array(TokenTransferSchema).optional(),
+    })
+    .optional(),
 });
 
 /**
  * Claim action schema
  */
 export const ClaimActionSchema = z.object({
-  id: z.number().int(),
   call: ChainCallSchema,
-  eip7702Delegation: z.unknown().nullable(),
+  tokens: z.array(TokenTransferSchema),
   beforeFill: z.boolean(),
+  metadata: z
+    .object({
+      tokensIn: z.array(TokenTransferSchema).optional(),
+      settlementLayer: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**
  * RelayerAction V1 schema
  */
 export const RelayerActionV1Schema = z.object({
+  type: z.literal('RelayerActionV1'),
   id: z.string().min(1),
   timestamp: z.number().int().positive(),
   fill: FillActionSchema,
   claims: z.array(ClaimActionSchema),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z
+    .object({
+      dryRun: z.boolean().optional(),
+      userAddress: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**

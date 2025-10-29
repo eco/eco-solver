@@ -406,6 +406,8 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             throw new Error(`Invalid or unknown message type`);
           }
 
+          this.logger.debug(`Parsed data: ${JSON.stringify(result.data)}`);
+
           if (result.data.type === RhinestoneMessageType.Ok) {
             span.setAttribute('rhinestone.ws.ok_context', result.data.context);
           }

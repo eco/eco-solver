@@ -2,14 +2,15 @@ import { DynamicModule, Module } from '@nestjs/common';
 
 import { configurationFactory } from '@/config/configuration-factory';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
+import { QueueModule } from '@/modules/queue/queue.module';
 
-import { RhinestoneWebsocketService } from './services';
+import { RhinestoneActionProcessor, RhinestoneWebsocketService } from './services';
 
 /**
  * Rhinestone Module
  *
  * WebSocket client for Rhinestone orchestrator.
- * Handles authentication, message routing, and keepalive.
+ * Handles authentication, message routing, keepalive, and RelayerAction processing.
  *
  * Only loaded if rhinestone config exists with url and apiKey.
  */
@@ -30,8 +31,8 @@ export class RhinestoneModule {
 
     return {
       module: RhinestoneModule,
-      imports: [OpenTelemetryModule],
-      providers: [RhinestoneWebsocketService],
+      imports: [OpenTelemetryModule, QueueModule],
+      providers: [RhinestoneWebsocketService, RhinestoneActionProcessor],
       exports: [RhinestoneWebsocketService],
     };
   }
