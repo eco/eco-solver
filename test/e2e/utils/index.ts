@@ -66,8 +66,8 @@ export {
   expectTransactionSuccess,
 } from './assertions';
 
-// Chainable assertion builder
-export { expect, IntentAssertion } from './assertion-builder';
+// Chainable assertion builder (renamed to avoid conflict with Jest's expect)
+export { expectIntent, IntentAssertion } from './assertion-builder';
 
 // Polling utilities
 export {

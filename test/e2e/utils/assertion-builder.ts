@@ -4,20 +4,20 @@ import { IntentStatus } from '@/common/interfaces/intent.interface';
 
 import { E2ETestContext } from '../context/test-context';
 
-import { verifyIntentStatus, verifyNoFulfillmentEvent } from './verification-helpers';
+import { verifyNoFulfillmentEvent } from './verification-helpers';
 import { waitForFulfillment } from './wait-helpers';
 
 /**
  * Chainable Assertion Builder for Intent Testing
  *
- * Provides a fluent API for writing readable test assertions.
+ * Provides a fluent API for writing readable test assertions with Jest integration.
  *
  * Usage:
- *   await expect(intentHash, ctx)
+ *   await expectIntent(intentHash, ctx)
  *     .toHaveStatus(IntentStatus.FULFILLED)
  *     .toHaveBeenFulfilled();
  *
- *   await expect(intentHash, ctx)
+ *   await expectIntent(intentHash, ctx)
  *     .toHaveBeenRejected()
  *     .toHaveNoFulfillmentEvent();
  */
@@ -29,12 +29,17 @@ export class IntentAssertion {
 
   /**
    * Assert that the intent has a specific status
+   * Uses Jest's expect for better error diffs
    *
    * @param expectedStatus - The expected status
    * @returns this for chaining
    */
   async toHaveStatus(expectedStatus: IntentStatus): Promise<this> {
-    await verifyIntentStatus(this.intentHash, expectedStatus, this.context);
+    const intent = await this.context.intentsService.findById(this.intentHash);
+
+    expect(intent).toBeDefined();
+    expect(intent!.status).toBe(expectedStatus);
+
     return this;
   }
 
@@ -51,20 +56,15 @@ export class IntentAssertion {
 
   /**
    * Assert that the intent was rejected (NOT fulfilled)
-   * Checks the current status without waiting
+   * Uses Jest's expect for better error messages
    *
    * @returns this for chaining
    */
   async toHaveBeenRejected(): Promise<this> {
     const intent = await this.context.intentsService.findById(this.intentHash);
 
-    if (intent?.status === IntentStatus.FULFILLED) {
-      throw new Error(
-        `Expected intent to be rejected, but it was fulfilled.\n` +
-          `Intent Hash: ${this.intentHash}\n` +
-          `Status: ${intent.status}`,
-      );
-    }
+    // Use Jest's expect with custom message
+    expect(intent?.status).not.toBe(IntentStatus.FULFILLED);
 
     return this;
   }
@@ -95,19 +95,12 @@ export class IntentAssertion {
     // Get the intent to check delivery
     const intent = await this.context.intentsService.findById(this.intentHash);
 
-    if (!intent) {
-      throw new Error(`Intent not found: ${this.intentHash}`);
-    }
+    // Use Jest's expect for existence check
+    expect(intent).toBeDefined();
 
     // For now, just verify the intent is fulfilled
     // Full balance verification requires BalanceTracker
-    if (intent.status !== IntentStatus.FULFILLED) {
-      throw new Error(
-        `Cannot verify token delivery - intent not fulfilled.\n` +
-          `Intent Hash: ${this.intentHash}\n` +
-          `Status: ${intent.status}`,
-      );
-    }
+    expect(intent!.status).toBe(IntentStatus.FULFILLED);
 
     return this;
   }
@@ -116,14 +109,16 @@ export class IntentAssertion {
 /**
  * Factory function to create intent assertions
  *
+ * Note: Renamed from 'expect' to 'expectIntent' to avoid conflict with Jest's global expect
+ *
  * Usage:
- *   await expect(intentHash, ctx).toHaveStatus(IntentStatus.FULFILLED);
- *   await expect(intentHash, ctx).toHaveBeenFulfilled().toHaveDeliveredTokens(amount);
+ *   await expectIntent(intentHash, ctx).toHaveStatus(IntentStatus.FULFILLED);
+ *   await expectIntent(intentHash, ctx).toHaveBeenFulfilled().toHaveDeliveredTokens(amount);
  *
  * @param intentHash - The intent hash to assert on
  * @param context - E2E test context
  * @returns Chainable assertion builder
  */
-export function expect(intentHash: Hex, context: E2ETestContext): IntentAssertion {
+export function expectIntent(intentHash: Hex, context: E2ETestContext): IntentAssertion {
   return new IntentAssertion(intentHash, context);
 }

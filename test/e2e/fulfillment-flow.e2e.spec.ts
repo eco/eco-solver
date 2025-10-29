@@ -9,12 +9,7 @@ import { E2ETestContext, setupTestContext } from './context/test-context';
 import { getTokenAddress } from './helpers/e2e-config';
 import { fundKernelWallet, fundTestAccountsWithUSDC } from './helpers/fund-test-account';
 import { OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './helpers/test-app.helper';
-import {
-  BalanceTracker,
-  expect,
-  publishIntent,
-  waitForRejection,
-} from './utils';
+import { BalanceTracker, expectIntent, publishIntent, waitForRejection } from './utils';
 
 /**
  * Intent Fulfillment E2E Tests
@@ -72,7 +67,7 @@ describe('Intent Fulfillment', () => {
       console.log(`Intent published: ${intentHash}`);
 
       // Wait for fulfillment and verify status
-      await expect(intentHash, ctx).toHaveBeenFulfilled();
+      await expectIntent(intentHash, ctx).toHaveBeenFulfilled();
       console.log('Intent fulfilled! ✓');
 
       // Verify balance increased
@@ -103,7 +98,8 @@ describe('Intent Fulfillment', () => {
 
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
-      await expect(intentHash, ctx).toHaveBeenRejected().toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Insufficient funding test PASSED\n');
@@ -130,7 +126,8 @@ describe('Intent Fulfillment', () => {
 
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
-      await expect(intentHash, ctx).toHaveBeenRejected().toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Expired deadline test PASSED\n');
@@ -161,7 +158,8 @@ describe('Intent Fulfillment', () => {
 
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
-      await expect(intentHash, ctx).toHaveBeenRejected().toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Invalid prover test PASSED\n');
