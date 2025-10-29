@@ -28,7 +28,7 @@ function isDirectRouterCall(adapterCalldata: Hex): boolean {
  */
 function decodeOptimizedArbiterParams(encodedParams: Hex): ClaimData {
   const handlePermit2Params = parseAbiParameters(
-    'address predictedVault, (address sponsor, address recipient, uint256 nonce, uint256 expires, uint256 fillDeadline, uint256 notarizedChainId, uint256 targetChainId, uint256[2][] tokenIn, uint256[2][] tokenOut, uint256 packedGasValues, (bytes data) preClaimOps, (bytes data) targetOps, bytes qualifier) order, (bytes notarizedClaimSig, bytes preClaimSig) sigs'
+    'address predictedVault, (address sponsor, address recipient, uint256 nonce, uint256 expires, uint256 fillDeadline, uint256 notarizedChainId, uint256 targetChainId, uint256[2][] tokenIn, uint256[2][] tokenOut, uint256 packedGasValues, (bytes data) preClaimOps, (bytes data) targetOps, bytes qualifier) order, (bytes notarizedClaimSig, bytes preClaimSig) sigs',
   );
 
   const decoded = decodeAbiParameters(handlePermit2Params, encodedParams);
@@ -53,7 +53,7 @@ function decodeOptimizedArbiterParams(encodedParams: Hex): ClaimData {
     {
       notarizedClaimSig: `0x${string}`;
       preClaimSig: `0x${string}`;
-    }
+    },
   ];
 
   return {
@@ -123,7 +123,7 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
 
       throw new Error(
         `Unknown adapter function: ${adapterDecoded.functionName}. ` +
-          'Expected eco_compact_handleClaim, eco_permit2_handleClaim, or eco_permit2_handleClaim_optimized'
+          'Expected eco_compact_handleClaim, eco_permit2_handleClaim, or eco_permit2_handleClaim_optimized',
       );
     } catch (error) {
       continue;
@@ -131,7 +131,7 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
   }
 
   throw new Error(
-    'No valid adapter calldata found. All calldatas were either direct router calls or failed to decode.'
+    'No valid adapter calldata found. All calldatas were either direct router calls or failed to decode.',
   );
 }
 
@@ -153,5 +153,7 @@ export function decodeAdapterFill(data: Hex): FillData {
     return adapterDecoded.args[0] as FillData;
   }
 
-  throw new Error(`Unknown adapter function: ${adapterDecoded.functionName}. Expected eco_permit2_handleClaim_optimized`);
+  throw new Error(
+    `Unknown adapter function: ${adapterDecoded.functionName}. Expected eco_permit2_handleClaim_optimized`,
+  );
 }
