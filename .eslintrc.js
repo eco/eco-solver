@@ -17,7 +17,6 @@ module.exports = {
   },
   ignorePatterns: ['.eslintrc.js'],
   rules: {
-    '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
@@ -48,7 +47,7 @@ module.exports = {
       rules: {
         // Use simple-import-sort plugin for better import sorting
         'simple-import-sort/imports': [
-          'error',
+          'off',
           {
             groups: [
               // Node.js builtins
@@ -68,9 +67,8 @@ module.exports = {
             ],
           },
         ],
-        'simple-import-sort/exports': 'error',
+        'simple-import-sort/exports': 'off',
         'sort-imports': 'off',
-        'import/order': 'off',
       },
     },
   ],

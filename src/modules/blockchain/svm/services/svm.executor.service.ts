@@ -341,9 +341,9 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           // Get recent blockhash for the transaction
           const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
-          
+
           const wallet = this.walletManager.getWallet();
-          
+
           // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
           const transaction = new Transaction({
             blockhash,
@@ -1051,7 +1051,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           // Get recent blockhash for the transaction
           const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
-          
+
           const wallet = this.walletManager.getWallet();
           const transaction = new Transaction({
             blockhash,
