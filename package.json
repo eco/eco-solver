@@ -50,7 +50,7 @@
     "@eco-foundation/eco-kms-core": "^2.0.0",
     "@eco-foundation/eco-kms-provider-aws": "^2.0.0",
     "@eco-foundation/eco-kms-wallets": "^2.0.0",
-    "@eco-foundation/routes-ts": "^2.8.17",
+    "@eco-foundation/routes-ts": "^2.8.20",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
     "@lifi/sdk": "^3.12.6",
