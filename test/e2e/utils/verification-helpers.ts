@@ -1,41 +1,10 @@
 import { Address, createPublicClient, erc20Abi, Hex, http } from 'viem';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
-import { IntentsService } from '@/modules/intents/intents.service';
 
+import { E2ETestContext } from '../context/test-context';
 import { getRpcUrl, getTokenAddress } from '../helpers/e2e-config';
 import { waitForIntentFulfilled } from '../helpers/test-app.helper';
-
-/**
- * Global IntentsService reference for verification helpers
- */
-let globalIntentsService: IntentsService | null = null;
-
-/**
- * Initialize the verification helpers with IntentsService
- * Call this in the test suite's beforeAll hook
- *
- * Usage:
- *   beforeAll(async () => {
- *     app = await createTestAppWithServer();
- *     initializeVerificationHelpers(app.get(IntentsService));
- *   });
- */
-export function initializeVerificationHelpers(intentsService: IntentsService): void {
-  globalIntentsService = intentsService;
-}
-
-/**
- * Get the IntentsService instance
- */
-function getIntentsService(): IntentsService {
-  if (!globalIntentsService) {
-    throw new Error(
-      'IntentsService not initialized. Call initializeVerificationHelpers() in beforeAll() hook.',
-    );
-  }
-  return globalIntentsService;
-}
 
 /**
  * Verify tokens were delivered to the recipient
@@ -100,13 +69,13 @@ export async function verifyTokensDelivered(
  * Useful for testing rejection scenarios.
  *
  * Usage:
- *   await verifyNotFulfilled(intentHash);
+ *   await verifyNotFulfilled(intentHash, ctx);
  *
  * @param intentHash - The intent hash to verify
+ * @param context - E2E test context containing IntentsService
  */
-export async function verifyNotFulfilled(intentHash: Hex): Promise<void> {
-  const intentsService = getIntentsService();
-  const intent = await intentsService.findById(intentHash);
+export async function verifyNotFulfilled(intentHash: Hex, context: E2ETestContext): Promise<void> {
+  const intent = await context.intentsService.findById(intentHash);
 
   if (intent?.status === IntentStatus.FULFILLED) {
     throw new Error(`Expected intent to NOT be fulfilled, but status is: ${intent.status}`);
@@ -156,18 +125,19 @@ export async function verifyNoFulfillmentEvent(
  * Checks the intent status in the database matches the expected status.
  *
  * Usage:
- *   await verifyIntentStatus(intentHash, IntentStatus.FULFILLED);
- *   await verifyIntentStatus(intentHash, IntentStatus.FAILED);
+ *   await verifyIntentStatus(intentHash, IntentStatus.FULFILLED, ctx);
+ *   await verifyIntentStatus(intentHash, IntentStatus.FAILED, ctx);
  *
  * @param intentHash - The intent hash to verify
  * @param expectedStatus - The expected status
+ * @param context - E2E test context containing IntentsService
  */
 export async function verifyIntentStatus(
   intentHash: Hex,
   expectedStatus: IntentStatus,
+  context: E2ETestContext,
 ): Promise<void> {
-  const intentsService = getIntentsService();
-  const intent = await intentsService.findById(intentHash);
+  const intent = await context.intentsService.findById(intentHash);
 
   if (!intent) {
     throw new Error(`Intent not found in database: ${intentHash}`);

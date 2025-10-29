@@ -1,25 +1,17 @@
-import { INestApplication } from '@nestjs/common';
-
 import { Address, parseUnits } from 'viem';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
-import { IntentsService } from '@/modules/intents/intents.service';
 
+import { E2E_TIMEOUTS } from './config/timeouts';
+import { E2ETestContext, setupTestContext } from './context/test-context';
 import { getTokenAddress } from './helpers/e2e-config';
 import { fundKernelWallet, fundTestAccountsWithUSDC } from './helpers/fund-test-account';
-import {
-  createTestAppWithServer,
-  OPTIMISM_MAINNET_CHAIN_ID,
-  TEST_ACCOUNTS,
-  waitForApp,
-} from './helpers/test-app.helper';
+import { OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './helpers/test-app.helper';
 import {
   BalanceTracker,
-  initializeVerificationHelpers,
-  initializeWaitHelpers,
   publishIntent,
   verifyIntentStatus,
   verifyNoFulfillmentEvent,
@@ -41,25 +33,15 @@ import {
  * - Optimism Mainnet fork running
  */
 describe('Intent Fulfillment', () => {
-  let app: INestApplication;
-  let baseUrl: string;
+  let ctx: E2ETestContext;
 
-  // Setup: Connect to shared NestJS application
+  // Setup: Initialize test context and fund accounts
   beforeAll(async () => {
     console.log('\n=== Starting Intent Fulfillment Tests ===\n');
 
-    // Get the shared app instance (created once, reused by all test files)
-    const result = await createTestAppWithServer();
-    app = result.app;
-    baseUrl = result.baseUrl;
-
-    // Initialize framework helpers with IntentsService
-    const intentsService = app.get(IntentsService);
-    initializeWaitHelpers(intentsService);
-    initializeVerificationHelpers(intentsService);
-
-    await waitForApp(baseUrl);
-    console.log(`Application ready at ${baseUrl}\n`);
+    // Setup test context (app, services, etc.)
+    ctx = await setupTestContext();
+    console.log(`Application ready at ${ctx.baseUrl}\n`);
 
     // Fund test account with USDC
     await fundTestAccountsWithUSDC();
@@ -67,136 +49,152 @@ describe('Intent Fulfillment', () => {
 
     // Fund Kernel wallet (used by executor)
     await fundKernelWallet();
-  }, 120000);
+  }, E2E_TIMEOUTS.BEFORE_ALL);
 
   // NOTE: No afterAll cleanup - the SharedAppManager handles app cleanup automatically
 
-  it('fulfills valid cross-chain transfer', async () => {
-    console.log('\n--- Test: Valid Cross-Chain Transfer ---');
+  it(
+    'fulfills valid cross-chain transfer',
+    async () => {
+      console.log('\n--- Test: Valid Cross-Chain Transfer ---');
 
-    // Track recipient balance
-    const balances = new BalanceTracker(
-      OPTIMISM_MAINNET_CHAIN_ID,
-      getTokenAddress(OPTIMISM_MAINNET_CHAIN_ID, 'USDC'),
-      TEST_ACCOUNTS.ACCOUNT_1.address as Address,
-    );
-    await balances.snapshot();
+      // Track recipient balance
+      const balances = new BalanceTracker(
+        OPTIMISM_MAINNET_CHAIN_ID,
+        getTokenAddress(OPTIMISM_MAINNET_CHAIN_ID, 'USDC'),
+        TEST_ACCOUNTS.ACCOUNT_1.address as Address,
+      );
+      await balances.snapshot();
 
-    // Publish intent with framework
-    const { intentHash } = await publishIntent({
-      tokenAmount: parseUnits('10', 6),
-      rewardTokenAmount: parseUnits('12', 6),
-      recipient: TEST_ACCOUNTS.ACCOUNT_1.address as Address,
-    });
+      // Publish intent with framework
+      const { intentHash } = await publishIntent({
+        tokenAmount: parseUnits('10', 6),
+        rewardTokenAmount: parseUnits('12', 6),
+        recipient: TEST_ACCOUNTS.ACCOUNT_1.address as Address,
+      });
 
-    console.log(`Intent published: ${intentHash}`);
+      console.log(`Intent published: ${intentHash}`);
 
-    // Wait for fulfillment
-    await waitForFulfillment(intentHash);
-    console.log('Intent fulfilled! ✓');
+      // Wait for fulfillment
+      await waitForFulfillment(intentHash, ctx);
+      console.log('Intent fulfilled! ✓');
 
-    // Verify balance increased
-    await balances.verifyIncreased(parseUnits('10', 6));
-    console.log('Balance verified ✓');
+      // Verify balance increased
+      await balances.verifyIncreased(parseUnits('10', 6));
+      console.log('Balance verified ✓');
 
-    // Verify intent status
-    await verifyIntentStatus(intentHash, IntentStatus.FULFILLED);
-    console.log('Status verified ✓');
+      // Verify intent status
+      await verifyIntentStatus(intentHash, IntentStatus.FULFILLED, ctx);
+      console.log('Status verified ✓');
 
-    console.log('\n✅ Valid cross-chain transfer test PASSED\n');
-  }, 60_000); // Increased timeout for full cross-chain transfer flow
+      console.log('\n✅ Valid cross-chain transfer test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
 
-  it('rejects insufficient funding', async () => {
-    console.log('\n--- Test: Insufficient Funding ---');
+  it(
+    'rejects insufficient funding',
+    async () => {
+      console.log('\n--- Test: Insufficient Funding ---');
 
-    // Publish with insufficient funding (only 50% approved)
-    const { intentHash } = await publishIntent({
-      tokenAmount: parseUnits('10', 6),
-      rewardTokenAmount: parseUnits('12', 6),
-      fundingOptions: {
-        allowPartial: true,
-        approveAmount: parseUnits('6', 6), // Only 50%
-      },
-    });
+      // Publish with insufficient funding (only 50% approved)
+      const { intentHash } = await publishIntent({
+        tokenAmount: parseUnits('10', 6),
+        rewardTokenAmount: parseUnits('12', 6),
+        fundingOptions: {
+          allowPartial: true,
+          approveAmount: parseUnits('6', 6), // Only 50%
+        },
+      });
 
-    console.log(`Intent published with partial funding: ${intentHash}`);
+      console.log(`Intent published with partial funding: ${intentHash}`);
 
-    // Wait and verify NOT fulfilled
-    await waitForRejection(intentHash);
-    console.log('Intent rejected (as expected) ✓');
+      // Wait and verify NOT fulfilled
+      await waitForRejection(intentHash, ctx);
+      console.log('Intent rejected (as expected) ✓');
 
-    // Verify status
-    await verifyNotFulfilled(intentHash);
-    console.log('Status verified ✓');
+      // Verify status
+      await verifyNotFulfilled(intentHash, ctx);
+      console.log('Status verified ✓');
 
-    // Verify no fulfillment event
-    await verifyNoFulfillmentEvent(intentHash);
-    console.log('No fulfillment event ✓');
+      // Verify no fulfillment event
+      await verifyNoFulfillmentEvent(intentHash);
+      console.log('No fulfillment event ✓');
 
-    console.log('\n✅ Insufficient funding test PASSED\n');
-  }, 120000);
+      console.log('\n✅ Insufficient funding test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
 
-  it('rejects expired deadline', async () => {
-    console.log('\n--- Test: Expired Deadline ---');
+  it(
+    'rejects expired deadline',
+    async () => {
+      console.log('\n--- Test: Expired Deadline ---');
 
-    const expiredTime = BigInt(Date.now() - 3600000); // 1 hour ago
+      const expiredTime = BigInt(Date.now() - 3600000); // 1 hour ago
 
-    // Publish with expired deadlines
-    const { intentHash } = await publishIntent({
-      tokenAmount: parseUnits('10', 6),
-      rewardTokenAmount: parseUnits('12', 6),
-      routeDeadline: expiredTime,
-      rewardDeadline: expiredTime,
-    });
+      // Publish with expired deadlines
+      const { intentHash } = await publishIntent({
+        tokenAmount: parseUnits('10', 6),
+        rewardTokenAmount: parseUnits('12', 6),
+        routeDeadline: expiredTime,
+        rewardDeadline: expiredTime,
+      });
 
-    console.log(`Intent published with expired deadlines: ${intentHash}`);
+      console.log(`Intent published with expired deadlines: ${intentHash}`);
 
-    // Wait and verify NOT fulfilled
-    await waitForRejection(intentHash);
-    console.log('Intent rejected (as expected) ✓');
+      // Wait and verify NOT fulfilled
+      await waitForRejection(intentHash, ctx);
+      console.log('Intent rejected (as expected) ✓');
 
-    // Verify status
-    await verifyNotFulfilled(intentHash);
-    console.log('Status verified ✓');
+      // Verify status
+      await verifyNotFulfilled(intentHash, ctx);
+      console.log('Status verified ✓');
 
-    // Verify no fulfillment event
-    await verifyNoFulfillmentEvent(intentHash);
-    console.log('No fulfillment event ✓');
+      // Verify no fulfillment event
+      await verifyNoFulfillmentEvent(intentHash);
+      console.log('No fulfillment event ✓');
 
-    console.log('\n✅ Expired deadline test PASSED\n');
-  }, 120000);
+      console.log('\n✅ Expired deadline test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
 
-  it('rejects invalid prover', async () => {
-    console.log('\n--- Test: Invalid Prover ---');
+  it(
+    'rejects invalid prover',
+    async () => {
+      console.log('\n--- Test: Invalid Prover ---');
 
-    // Create invalid prover address
-    const invalidProverEvm = '0x1111111111111111111111111111111111111111' as Address;
-    const invalidProver = AddressNormalizer.normalize(
-      invalidProverEvm,
-      ChainType.EVM,
-    ) as UniversalAddress;
+      // Create invalid prover address
+      const invalidProverEvm = '0x1111111111111111111111111111111111111111' as Address;
+      const invalidProver = AddressNormalizer.normalize(
+        invalidProverEvm,
+        ChainType.EVM,
+      ) as UniversalAddress;
 
-    // Publish with invalid prover
-    const { intentHash } = await publishIntent({
-      tokenAmount: parseUnits('10', 6),
-      rewardTokenAmount: parseUnits('12', 6),
-      proverAddress: invalidProver,
-    });
+      // Publish with invalid prover
+      const { intentHash } = await publishIntent({
+        tokenAmount: parseUnits('10', 6),
+        rewardTokenAmount: parseUnits('12', 6),
+        proverAddress: invalidProver,
+      });
 
-    console.log(`Intent published with invalid prover: ${intentHash}`);
+      console.log(`Intent published with invalid prover: ${intentHash}`);
 
-    // Wait and verify NOT fulfilled
-    await waitForRejection(intentHash);
-    console.log('Intent rejected (as expected) ✓');
+      // Wait and verify NOT fulfilled
+      await waitForRejection(intentHash, ctx);
+      console.log('Intent rejected (as expected) ✓');
 
-    // Verify status
-    await verifyNotFulfilled(intentHash);
-    console.log('Status verified ✓');
+      // Verify status
+      await verifyNotFulfilled(intentHash, ctx);
+      console.log('Status verified ✓');
 
-    // Verify no fulfillment event
-    await verifyNoFulfillmentEvent(intentHash);
-    console.log('No fulfillment event ✓');
+      // Verify no fulfillment event
+      await verifyNoFulfillmentEvent(intentHash);
+      console.log('No fulfillment event ✓');
 
-    console.log('\n✅ Invalid prover test PASSED\n');
-  }, 120000);
+      console.log('\n✅ Invalid prover test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
 });

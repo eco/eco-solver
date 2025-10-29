@@ -5,14 +5,29 @@
  *
  * Usage:
  *   import {
+ *     setupTestContext,
  *     publishIntent,
  *     waitForFulfillment,
- *     verifyIntentStatus,
- *     BalanceTracker,
- *     initializeWaitHelpers,
- *     initializeVerificationHelpers,
- *   } from '../framework';
+ *     expect,
+ *     E2E_TIMEOUTS,
+ *   } from './utils';
+ *
+ *   let ctx: E2ETestContext;
+ *
+ *   beforeAll(async () => {
+ *     ctx = await setupTestContext();
+ *   }, E2E_TIMEOUTS.BEFORE_ALL);
+ *
+ *   it('test', async () => {
+ *     await expect(intentHash, ctx).toHaveBeenFulfilled();
+ *   });
  */
+
+// Test context (replaces global state pattern)
+export { E2ETestContext, setupTestContext } from '../context/test-context';
+
+// Timeout configuration
+export { E2E_TIMEOUTS, POLL_CONFIG } from '../config/timeouts';
 
 // Intent publishing
 export {
@@ -24,9 +39,8 @@ export {
 // Balance tracking
 export { BalanceTracker } from './balance-tracker';
 
-// Wait helpers
+// Wait helpers (now require context parameter)
 export {
-  initializeWaitHelpers,
   waitForDetection,
   waitForFulfillment,
   waitForRejection,
@@ -34,16 +48,15 @@ export {
   type WaitOptions,
 } from './wait-helpers';
 
-// Verification helpers
+// Verification helpers (now require context parameter)
 export {
-  initializeVerificationHelpers,
   verifyIntentStatus,
   verifyNoFulfillmentEvent,
   verifyNotFulfilled,
   verifyTokensDelivered,
 } from './verification-helpers';
 
-// Assertions
+// Simple assertions (now require context parameter)
 export {
   expectBalanceIncreased,
   expectDefined,
@@ -51,8 +64,10 @@ export {
   expectIntentNotFulfilled,
   expectIntentStatus,
   expectTransactionSuccess,
-  initializeAssertions,
 } from './assertions';
+
+// Chainable assertion builder
+export { expect, IntentAssertion } from './assertion-builder';
 
 // Polling utilities
 export {

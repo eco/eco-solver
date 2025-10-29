@@ -1,40 +1,28 @@
 import { Hex } from 'viem';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
-import { IntentsService } from '@/modules/intents/intents.service';
+
+import { E2ETestContext } from '../context/test-context';
 
 /**
  * Enhanced E2E Test Assertions
  *
  * Provides better error messages and context for test failures.
+ * All functions require test context to be passed explicitly.
  */
-
-let globalIntentsService: IntentsService | null = null;
-
-/**
- * Initialize assertions with IntentsService
- * Call this in beforeAll hook alongside initializeWaitHelpers
- */
-export function initializeAssertions(intentsService: IntentsService): void {
-  globalIntentsService = intentsService;
-}
-
-function getIntentsService(): IntentsService {
-  if (!globalIntentsService) {
-    throw new Error(
-      'IntentsService not initialized. Call initializeAssertions() in beforeAll() hook.',
-    );
-  }
-  return globalIntentsService;
-}
 
 /**
  * Assert that an intent was fulfilled
  * Provides detailed error message if not fulfilled
+ *
+ * Usage:
+ *   await expectIntentFulfilled(intentHash, ctx);
  */
-export async function expectIntentFulfilled(intentHash: Hex): Promise<void> {
-  const intentsService = getIntentsService();
-  const intent = await intentsService.findById(intentHash);
+export async function expectIntentFulfilled(
+  intentHash: Hex,
+  context: E2ETestContext,
+): Promise<void> {
+  const intent = await context.intentsService.findById(intentHash);
 
   if (!intent) {
     throw new Error(
@@ -57,10 +45,15 @@ export async function expectIntentFulfilled(intentHash: Hex): Promise<void> {
 /**
  * Assert that an intent was NOT fulfilled
  * Provides detailed error message if it was fulfilled
+ *
+ * Usage:
+ *   await expectIntentNotFulfilled(intentHash, ctx);
  */
-export async function expectIntentNotFulfilled(intentHash: Hex): Promise<void> {
-  const intentsService = getIntentsService();
-  const intent = await intentsService.findById(intentHash);
+export async function expectIntentNotFulfilled(
+  intentHash: Hex,
+  context: E2ETestContext,
+): Promise<void> {
+  const intent = await context.intentsService.findById(intentHash);
 
   if (intent?.status === IntentStatus.FULFILLED) {
     throw new Error(
@@ -74,13 +67,16 @@ export async function expectIntentNotFulfilled(intentHash: Hex): Promise<void> {
 
 /**
  * Assert that an intent has a specific status
+ *
+ * Usage:
+ *   await expectIntentStatus(intentHash, IntentStatus.FAILED, ctx);
  */
 export async function expectIntentStatus(
   intentHash: Hex,
   expectedStatus: IntentStatus,
+  context: E2ETestContext,
 ): Promise<void> {
-  const intentsService = getIntentsService();
-  const intent = await intentsService.findById(intentHash);
+  const intent = await context.intentsService.findById(intentHash);
 
   if (!intent) {
     throw new Error(

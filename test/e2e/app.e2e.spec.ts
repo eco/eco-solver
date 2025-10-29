@@ -1,16 +1,10 @@
-import { INestApplication } from '@nestjs/common';
-
 import request from 'supertest';
 import { createPublicClient, createWalletClient, http, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
-import {
-  createTestAppWithServer,
-  TEST_ACCOUNTS,
-  TEST_CHAIN_IDS,
-  TEST_RPC,
-  waitForApp,
-} from './helpers/test-app.helper';
+import { E2E_TIMEOUTS } from './config/timeouts';
+import { E2ETestContext, setupTestContext } from './context/test-context';
+import { TEST_ACCOUNTS, TEST_CHAIN_IDS, TEST_RPC } from './helpers/test-app.helper';
 
 /**
  * End-to-End Test Suite
@@ -25,23 +19,17 @@ import {
  * - config.e2e.yaml has been updated with connection details
  */
 describe('Application E2E Tests', () => {
-  let app: INestApplication;
-  let baseUrl: string;
+  let ctx: E2ETestContext;
 
-  // Setup: Connect to shared NestJS application
+  // Setup: Initialize test context
   beforeAll(async () => {
     console.log('Connecting to shared NestJS application for E2E tests...');
 
-    // Get the shared app instance (created once, reused by all test files)
-    const result = await createTestAppWithServer();
-    app = result.app;
-    baseUrl = result.baseUrl;
+    // Setup test context (app, services, etc.)
+    ctx = await setupTestContext();
 
-    // Wait for app to be ready
-    await waitForApp(baseUrl);
-
-    console.log(`Application ready at ${baseUrl}`);
-  }, 60000); // 60 second timeout for app startup
+    console.log(`Application ready at ${ctx.baseUrl}`);
+  }, E2E_TIMEOUTS.BEFORE_ALL);
 
   // NOTE: No afterAll cleanup - the SharedAppManager handles app cleanup automatically
 
@@ -50,21 +38,21 @@ describe('Application E2E Tests', () => {
    */
   describe('Health Endpoints', () => {
     it('GET /health should return 200 OK', async () => {
-      const response = await request(app.getHttpServer()).get('/health').expect(200);
+      const response = await request(ctx.app.getHttpServer()).get('/health').expect(200);
 
       expect(response.body).toHaveProperty('status');
       expect(response.body.status).toBe('ok');
     });
 
     it('GET /health/live should return 200 OK', async () => {
-      const response = await request(app.getHttpServer()).get('/health/live').expect(200);
+      const response = await request(ctx.app.getHttpServer()).get('/health/live').expect(200);
 
       expect(response.body).toHaveProperty('status');
       expect(response.body.status).toBe('ok');
     });
 
     it('GET /health/ready should return 200 OK', async () => {
-      const response = await request(app.getHttpServer()).get('/health/ready').expect(200);
+      const response = await request(ctx.app.getHttpServer()).get('/health/ready').expect(200);
 
       expect(response.body).toHaveProperty('status');
       expect(response.body.status).toBe('ok');
@@ -171,7 +159,7 @@ describe('Application E2E Tests', () => {
    */
   describe('API Integration', () => {
     it('GET /api/v1/blockchain/chains should return supported chains', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(ctx.app.getHttpServer())
         .get('/api/v1/blockchain/chains')
         .expect(200);
 
@@ -194,7 +182,7 @@ describe('Application E2E Tests', () => {
       // The app should have connected to MongoDB during startup
       // If this test passes, it means MongoDB is working
       // We can verify by checking the health endpoint which includes DB status
-      const response = await request(app.getHttpServer()).get('/health/ready').expect(200);
+      const response = await request(ctx.app.getHttpServer()).get('/health/ready').expect(200);
 
       expect(response.body.info).toHaveProperty('mongodb');
       expect(response.body.info.mongodb).toHaveProperty('status', 'up');
@@ -203,7 +191,7 @@ describe('Application E2E Tests', () => {
     it('should connect to Redis', async () => {
       // The app should have connected to Redis during startup
       // We can verify by checking the health endpoint which includes Redis status
-      const response = await request(app.getHttpServer()).get('/health/ready').expect(200);
+      const response = await request(ctx.app.getHttpServer()).get('/health/ready').expect(200);
 
       expect(response.body.info).toHaveProperty('redis');
       expect(response.body.info.redis).toHaveProperty('status', 'up');
