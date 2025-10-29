@@ -31,6 +31,13 @@ export interface PublishIntentOptions {
   nativeAmount?: bigint;
   rewardNativeAmount?: bigint;
 
+  // Custom overrides for testing edge cases
+  customRouteToken?: UniversalAddress;
+  customSourceToken?: UniversalAddress;
+  customCalls?: Array<{ target: UniversalAddress; value: bigint; data: Hex }>;
+  rewardTokens?: Array<{ token: UniversalAddress; amount: bigint }>;
+  allowInvalidChain?: boolean;
+
   // Funding options
   fundingOptions?: {
     allowPartial?: boolean;
@@ -114,6 +121,11 @@ export async function publishIntent(
     creatorAddress = TEST_ACCOUNTS.ACCOUNT_0.address as Address,
     nativeAmount = 0n,
     rewardNativeAmount = 0n,
+    customRouteToken,
+    customSourceToken,
+    customCalls,
+    rewardTokens,
+    allowInvalidChain,
     fundingOptions,
   } = options;
 
@@ -134,6 +146,13 @@ export async function publishIntent(
   if (proverAddress) {
     builder.withProverAddress(proverAddress);
   }
+
+  // Set custom overrides for edge case testing
+  if (customRouteToken) builder['options'].customRouteToken = customRouteToken;
+  if (customSourceToken) builder['options'].customSourceToken = customSourceToken;
+  if (customCalls) builder['options'].customCalls = customCalls;
+  if (rewardTokens) builder['options'].rewardTokens = rewardTokens;
+  if (allowInvalidChain) builder['options'].allowInvalidChain = allowInvalidChain;
 
   const intent = builder.build();
 

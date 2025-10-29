@@ -36,6 +36,12 @@ export interface IntentBuilderOptions {
   proverAddress?: UniversalAddress;
   creatorAddress?: Address;
   recipient?: Address;
+  // Custom overrides for testing edge cases
+  customRouteToken?: UniversalAddress;
+  customSourceToken?: UniversalAddress;
+  customCalls?: Array<{ target: UniversalAddress; value: bigint; data: Hex }>;
+  rewardTokens?: Array<{ token: UniversalAddress; amount: bigint }>;
+  allowInvalidChain?: boolean;
 }
 
 /**
@@ -163,18 +169,37 @@ export class IntentBuilder {
     const sourceChainId = BigInt(this.options.sourceChainId);
     const destinationChainId = BigInt(this.options.destinationChainId);
 
-    const portalAddress = this.getPortalAddress(this.options.destinationChainId);
-    const tokenAddress = this.getTokenAddress(this.options.destinationChainId);
-    const sourceTokenAddress = this.getTokenAddress(this.options.sourceChainId);
+    const portalAddress = this.options.allowInvalidChain
+      ? this.getPortalAddress(OPTIMISM_MAINNET_CHAIN_ID) // Fallback for invalid chains
+      : this.getPortalAddress(this.options.destinationChainId);
+
+    const tokenAddress =
+      this.options.customRouteToken || this.getTokenAddress(this.options.destinationChainId);
+    const sourceTokenAddress =
+      this.options.customSourceToken || this.getTokenAddress(this.options.sourceChainId);
     const proverAddress =
       this.options.proverAddress || this.getDefaultProverAddress(this.options.sourceChainId);
 
-    // Build the route calls (simple USDC transfer to recipient)
-    const transferData = encodeFunctionData({
-      abi: erc20Abi,
-      functionName: 'transfer',
-      args: [this.options.recipient!, this.options.tokenAmount!],
-    });
+    // Build the route calls - use custom if provided, else default ERC20 transfer
+    const routeCalls = this.options.customCalls || [
+      {
+        target: tokenAddress,
+        value: 0n,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [this.options.recipient!, this.options.tokenAmount!],
+        }) as Hex,
+      },
+    ];
+
+    // Build reward tokens - use custom if provided, else single token
+    const rewardTokens = this.options.rewardTokens || [
+      {
+        token: sourceTokenAddress,
+        amount: this.options.rewardTokenAmount!,
+      },
+    ];
 
     const intent: Intent = {
       intentHash: '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex, // Will be computed
@@ -191,13 +216,7 @@ export class IntentBuilder {
             amount: this.options.tokenAmount!,
           },
         ],
-        calls: [
-          {
-            target: tokenAddress,
-            value: 0n,
-            data: transferData,
-          },
-        ],
+        calls: routeCalls,
       },
       reward: {
         deadline: this.options.rewardDeadline!,
@@ -207,12 +226,7 @@ export class IntentBuilder {
         ) as UniversalAddress,
         prover: proverAddress,
         nativeAmount: this.options.rewardNativeAmount!,
-        tokens: [
-          {
-            token: sourceTokenAddress,
-            amount: this.options.rewardTokenAmount!,
-          },
-        ],
+        tokens: rewardTokens,
       },
     };
 

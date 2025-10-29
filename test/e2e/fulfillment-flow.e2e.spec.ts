@@ -6,6 +6,12 @@ import { ChainType } from '@/common/utils/chain-type-detector';
 
 import { E2E_TIMEOUTS } from './config/timeouts';
 import { E2ETestContext, setupTestContext } from './context/test-context';
+import {
+  createDuplicateRewardTokensOptions,
+  createInvalidCallsOptions,
+  createInvalidTokenOptions,
+  createUnsupportedChainOptions,
+} from './fixtures/intent-fixtures';
 import { getTokenAddress } from './helpers/e2e-config';
 import { fundKernelWallet, fundTestAccountsWithUSDC } from './helpers/fund-test-account';
 import { OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './helpers/test-app.helper';
@@ -211,6 +217,74 @@ describe('Intent Fulfillment', () => {
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Insufficient fee test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
+
+  it(
+    'rejects invalid route token',
+    async () => {
+      console.log('\n--- Test: Invalid Route Token ---');
+
+      const { intentHash } = await publishIntent(createInvalidTokenOptions());
+      console.log(`Intent published with invalid token: ${intentHash}`);
+
+      await waitForRejection(intentHash, ctx);
+      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
+
+      console.log('\n✅ Invalid route token test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
+
+  it(
+    'rejects invalid route calls',
+    async () => {
+      console.log('\n--- Test: Invalid Route Calls ---');
+
+      const { intentHash } = await publishIntent(createInvalidCallsOptions());
+      console.log(`Intent published with invalid calls: ${intentHash}`);
+
+      await waitForRejection(intentHash, ctx);
+      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
+
+      console.log('\n✅ Invalid route calls test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
+
+  it(
+    'rejects duplicate reward tokens',
+    async () => {
+      console.log('\n--- Test: Duplicate Reward Tokens ---');
+
+      const { intentHash } = await publishIntent(createDuplicateRewardTokensOptions());
+      console.log(`Intent published with duplicate reward tokens: ${intentHash}`);
+
+      await waitForRejection(intentHash, ctx);
+      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
+
+      console.log('\n✅ Duplicate reward tokens test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
+
+  it(
+    'rejects unsupported destination chain',
+    async () => {
+      console.log('\n--- Test: Unsupported Destination Chain ---');
+
+      const { intentHash } = await publishIntent(createUnsupportedChainOptions());
+      console.log(`Intent published with unsupported chain: ${intentHash}`);
+
+      await waitForRejection(intentHash, ctx);
+      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
+
+      console.log('\n✅ Unsupported chain test PASSED\n');
     },
     E2E_TIMEOUTS.TEST_CASE,
   );

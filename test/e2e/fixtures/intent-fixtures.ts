@@ -196,14 +196,19 @@ export function pastTimestamp(secondsAgo: number): bigint {
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
  */
 export function createInvalidTokenOptions(
-  _overrides: Partial<PublishIntentOptions> = {},
+  overrides: Partial<PublishIntentOptions> = {},
 ): PublishIntentOptions {
-  // TODO: This will work once IntentBuilder supports custom token addresses
-  // const invalidToken = '0x9999999999999999999999999999999999999999' as Address;
+  const invalidToken = '0x9999999999999999999999999999999999999999' as Address;
+  const invalidTokenUA = AddressNormalizer.normalize(
+    invalidToken,
+    ChainType.EVM,
+  ) as UniversalAddress;
+
   return {
     tokenAmount: parseUnits('10', 6),
     rewardTokenAmount: parseUnits('12', 6),
-    // customRouteToken: invalidToken,  // Future parameter
+    customRouteToken: invalidTokenUA,
+    ...overrides,
   };
 }
 
@@ -226,14 +231,17 @@ export function createInvalidTokenOptions(
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
  */
 export function createInvalidCallsOptions(
-  _overrides: Partial<PublishIntentOptions> = {},
+  overrides: Partial<PublishIntentOptions> = {},
 ): PublishIntentOptions {
-  // TODO: This will work once IntentBuilder supports custom calls
-  // const invalidCall = { target: portalAddress, value: 0n, data: '0x' };
+  // Invalid: calling Portal contract instead of token
+  const portalAddress = '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97' as Address;
+  const portalUA = AddressNormalizer.normalize(portalAddress, ChainType.EVM) as UniversalAddress;
+
   return {
     tokenAmount: parseUnits('10', 6),
     rewardTokenAmount: parseUnits('12', 6),
-    // customCalls: [invalidCall],  // Future parameter
+    customCalls: [{ target: portalUA, value: 0n, data: '0x' as `0x${string}` }],
+    ...overrides,
   };
 }
 
@@ -256,17 +264,21 @@ export function createInvalidCallsOptions(
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
  */
 export function createDuplicateRewardTokensOptions(
-  _overrides: Partial<PublishIntentOptions> = {},
+  overrides: Partial<PublishIntentOptions> = {},
 ): PublishIntentOptions {
-  // TODO: This will work once IntentBuilder supports multiple reward tokens
-  // const duplicateTokens = [
-  //   { token: usdcAddress, amount: parseUnits('10', 6) },
-  //   { token: usdcAddress, amount: parseUnits('2', 6) },  // Same token twice
-  // ];
+  const usdcAddress = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' as Address; // Base USDC
+  const usdcUA = AddressNormalizer.normalize(usdcAddress, ChainType.EVM) as UniversalAddress;
+
+  const duplicateTokens = [
+    { token: usdcUA, amount: parseUnits('10', 6) },
+    { token: usdcUA, amount: parseUnits('2', 6) }, // Same token twice - invalid!
+  ];
+
   return {
     tokenAmount: parseUnits('10', 6),
     rewardTokenAmount: parseUnits('12', 6),
-    // rewardTokens: duplicateTokens,  // Future parameter
+    rewardTokens: duplicateTokens,
+    ...overrides,
   };
 }
 
@@ -290,12 +302,13 @@ export function createDuplicateRewardTokensOptions(
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
  */
 export function createUnsupportedChainOptions(
-  _overrides: Partial<PublishIntentOptions> = {},
+  overrides: Partial<PublishIntentOptions> = {},
 ): PublishIntentOptions {
-  // TODO: This will work once IntentBuilder supports arbitrary chain IDs
   return {
     tokenAmount: parseUnits('10', 6),
     rewardTokenAmount: parseUnits('12', 6),
-    // destinationChainId: 999,  // Future parameter - unsupported chain
+    destinationChainId: 999, // Unsupported chain
+    allowInvalidChain: true, // Bypass IntentBuilder validation
+    ...overrides,
   };
 }
