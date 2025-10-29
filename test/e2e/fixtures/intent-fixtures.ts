@@ -171,3 +171,131 @@ export function futureTimestamp(secondsFromNow: number): bigint {
 export function pastTimestamp(secondsAgo: number): bigint {
   return BigInt(Date.now() - secondsAgo * 1000);
 }
+
+// =============================================================================
+// FUTURE TEST SCENARIOS
+// The following fixtures document validations that need IntentBuilder enhancements to test
+// =============================================================================
+
+/**
+ * Create options for an intent with invalid token address
+ *
+ * Tests: routeTokenValidation
+ * Status: NOT IMPLEMENTED
+ *
+ * Requires: IntentBuilder enhancement to accept custom token addresses
+ * Currently IntentBuilder uses getTokenAddress() which only returns whitelisted tokens
+ *
+ * Needed changes:
+ * - Add `customRouteToken?: Address` to IntentBuilderOptions
+ * - Modify build() to use customRouteToken if provided
+ *
+ * Example usage (when implemented):
+ *   const { intentHash } = await publishIntent(createInvalidTokenOptions());
+ *   await waitForRejection(intentHash, ctx);
+ *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
+ */
+export function createInvalidTokenOptions(
+  _overrides: Partial<PublishIntentOptions> = {},
+): PublishIntentOptions {
+  // TODO: This will work once IntentBuilder supports custom token addresses
+  // const invalidToken = '0x9999999999999999999999999999999999999999' as Address;
+  return {
+    tokenAmount: parseUnits('10', 6),
+    rewardTokenAmount: parseUnits('12', 6),
+    // customRouteToken: invalidToken,  // Future parameter
+  };
+}
+
+/**
+ * Create options for an intent with invalid route calls
+ *
+ * Tests: routeCallsValidation
+ * Status: NOT IMPLEMENTED
+ *
+ * Requires: IntentBuilder enhancement to accept custom call data
+ * Currently IntentBuilder generates calls automatically (ERC20 transfer)
+ *
+ * Needed changes:
+ * - Add `customCalls?: Call[]` to IntentBuilderOptions
+ * - Modify build() to use customCalls if provided
+ *
+ * Example usage (when implemented):
+ *   const { intentHash } = await publishIntent(createInvalidCallsOptions());
+ *   await waitForRejection(intentHash, ctx);
+ *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
+ */
+export function createInvalidCallsOptions(
+  _overrides: Partial<PublishIntentOptions> = {},
+): PublishIntentOptions {
+  // TODO: This will work once IntentBuilder supports custom calls
+  // const invalidCall = { target: portalAddress, value: 0n, data: '0x' };
+  return {
+    tokenAmount: parseUnits('10', 6),
+    rewardTokenAmount: parseUnits('12', 6),
+    // customCalls: [invalidCall],  // Future parameter
+  };
+}
+
+/**
+ * Create options for an intent with duplicate reward tokens
+ *
+ * Tests: duplicateRewardTokensValidation
+ * Status: NOT IMPLEMENTED
+ *
+ * Requires: IntentBuilder enhancement to support multiple reward tokens
+ * Currently IntentBuilder creates single-token reward array
+ *
+ * Needed changes:
+ * - Add `rewardTokens?: Array<{ token: Address, amount: bigint }>` to IntentBuilderOptions
+ * - Modify build() to construct reward.tokens from rewardTokens array
+ *
+ * Example usage (when implemented):
+ *   const { intentHash } = await publishIntent(createDuplicateRewardTokensOptions());
+ *   await waitForRejection(intentHash, ctx);
+ *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
+ */
+export function createDuplicateRewardTokensOptions(
+  _overrides: Partial<PublishIntentOptions> = {},
+): PublishIntentOptions {
+  // TODO: This will work once IntentBuilder supports multiple reward tokens
+  // const duplicateTokens = [
+  //   { token: usdcAddress, amount: parseUnits('10', 6) },
+  //   { token: usdcAddress, amount: parseUnits('2', 6) },  // Same token twice
+  // ];
+  return {
+    tokenAmount: parseUnits('10', 6),
+    rewardTokenAmount: parseUnits('12', 6),
+    // rewardTokens: duplicateTokens,  // Future parameter
+  };
+}
+
+/**
+ * Create options for an intent with unsupported destination chain
+ *
+ * Tests: chainSupportValidation
+ * Status: NOT IMPLEMENTED
+ *
+ * Requires: IntentBuilder enhancement to accept arbitrary chain IDs
+ * Currently IntentBuilder validates chain IDs against config
+ *
+ * Needed changes:
+ * - Remove chain ID validation in withDestinationChain()
+ * - Handle missing network config gracefully (use placeholders)
+ * - Or add `skipChainValidation: boolean` option
+ *
+ * Example usage (when implemented):
+ *   const { intentHash } = await publishIntent(createUnsupportedChainOptions());
+ *   await waitForRejection(intentHash, ctx);
+ *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
+ */
+export function createUnsupportedChainOptions(
+  _overrides: Partial<PublishIntentOptions> = {},
+): PublishIntentOptions {
+  // TODO: This will work once IntentBuilder supports arbitrary chain IDs
+  return {
+    tokenAmount: parseUnits('10', 6),
+    rewardTokenAmount: parseUnits('12', 6),
+    // destinationChainId: 999,  // Future parameter - unsupported chain
+  };
+}
