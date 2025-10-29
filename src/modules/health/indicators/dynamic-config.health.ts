@@ -11,7 +11,7 @@ export class DynamicConfigHealthIndicator extends HealthIndicator {
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
     try {
       const healthCheck = await this.dynamicConfigService.getDetailedHealthCheck();
-      
+
       if (healthCheck.healthy) {
         return this.getStatus(key, true, {
           cache: healthCheck.cache ? 'up' : 'down',
