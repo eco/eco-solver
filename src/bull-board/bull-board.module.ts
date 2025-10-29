@@ -3,7 +3,6 @@ import { BullBoardModule as BaseBullBoardModule } from '@bull-board/nestjs'
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter'
 import { ExpressAdapter } from '@bull-board/express'
 import { Queue } from 'bullmq'
-import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { RedisConnectionUtils } from '@/common/redis/redis-connection-utils'
 import { QUEUES } from '@/common/redis/constants'
@@ -14,9 +13,7 @@ import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor
 
 @Module({
   imports: [
-    EcoConfigModule,
     BaseBullBoardModule.forRootAsync({
-      imports: [EcoConfigModule],
       inject: [EcoConfigService],
       useFactory: async (configService: EcoConfigService) => {
         const redisConfig = configService.getRedis()
