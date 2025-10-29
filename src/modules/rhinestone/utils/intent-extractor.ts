@@ -1,4 +1,12 @@
-import { decodeAbiParameters, encodeFunctionData, erc20Abi, getAddress, Hex, keccak256, zeroAddress } from 'viem';
+import {
+  decodeAbiParameters,
+  encodeFunctionData,
+  erc20Abi,
+  getAddress,
+  Hex,
+  keccak256,
+  zeroAddress,
+} from 'viem';
 
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
@@ -64,7 +72,7 @@ function decodeERC7579Batch(data: Hex): Execution[] {
         ],
       },
     ],
-    executionBytes
+    executionBytes,
   )[0] as Execution[];
 }
 
@@ -145,17 +153,16 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
   const calls = [...tokenTransferCalls, ...targetCalls.slice(tokenTransferCalls.length)];
 
   // Build reward tokens
-  const rewardTokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] = order.tokenIn.map(
-    ([tokenId, amount]) => ({
+  const rewardTokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] =
+    order.tokenIn.map(([tokenId, amount]) => ({
       token: toUniversalAddress(toAddress(tokenId)),
       amount: amount,
-    })
-  );
+    }));
 
   // Compute intent hash
   const salt = `0x${order.nonce.toString(16).padStart(64, '0')}` as Hex;
   const intentHash = keccak256(
-    `0x${salt.slice(2)}${order.targetChainId.toString(16).padStart(16, '0')}${inbox.slice(2)}${claimHash.slice(2)}` as Hex
+    `0x${salt.slice(2)}${order.targetChainId.toString(16).padStart(16, '0')}${inbox.slice(2)}${claimHash.slice(2)}` as Hex,
   );
 
   return {
