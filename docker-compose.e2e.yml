@@ -50,6 +50,8 @@ services:
     container_name: anvil-base
     ports:
       - '8545:8545'
+    networks:
+      - e2e-network
     entrypoint: ['anvil']
     command:
       - --host

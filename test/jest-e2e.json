@@ -17,10 +17,11 @@
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/../src/$1"
   },
-  "testTimeout": 60000,
+  "testTimeout": 30000,
   "globalSetup": "<rootDir>/e2e/setup/globalSetup.ts",
   "globalTeardown": "<rootDir>/e2e/setup/globalTeardown.ts",
   "setupFilesAfterEnv": [],
+  "detectOpenHandles": false,
   "collectCoverageFrom": ["src/**/*.(t|j)s"],
   "coverageDirectory": "../coverage-e2e",
   "coveragePathIgnorePatterns": ["/node_modules/", "/dist/", "/test/"],

@@ -83,4 +83,4 @@ export const KERNEL_SIGNER_ADDRESS = getClaimantAddress(10);
  * Kernel wallet address (deterministically derived from signer)
  * This is the smart account address created by the Kernel wallet
  */
-export const KERNEL_WALLET_ADDRESS = '0x479B996F6323cf269B45DC642B2fa1722baa84c3' as Address;
+export const KERNEL_WALLET_ADDRESS = '0xB3729F7e1Ab0B4a50E7De5599Ecc321B8775d30d' as Address;

@@ -37,17 +37,18 @@ import {
  *
  * Prerequisites:
  * - Docker Compose has started MongoDB, Redis, and Anvil instances
- * - Base Mainnet fork running on localhost:8545
- * - Optimism Mainnet fork running on localhost:9545
+ * - Base Mainnet fork running
+ * - Optimism Mainnet fork running
  */
 describe('Intent Fulfillment', () => {
   let app: INestApplication;
   let baseUrl: string;
 
-  // Setup: Start the NestJS application
+  // Setup: Connect to shared NestJS application
   beforeAll(async () => {
     console.log('\n=== Starting Intent Fulfillment Tests ===\n');
 
+    // Get the shared app instance (created once, reused by all test files)
     const result = await createTestAppWithServer();
     app = result.app;
     baseUrl = result.baseUrl;
@@ -68,13 +69,7 @@ describe('Intent Fulfillment', () => {
     await fundKernelWallet();
   }, 120000);
 
-  // Teardown
-  afterAll(async () => {
-    if (app) {
-      await app.close();
-      console.log('\n=== Intent Fulfillment Tests Completed ===\n');
-    }
-  });
+  // NOTE: No afterAll cleanup - the SharedAppManager handles app cleanup automatically
 
   it('fulfills valid cross-chain transfer', async () => {
     console.log('\n--- Test: Valid Cross-Chain Transfer ---');
@@ -109,7 +104,7 @@ describe('Intent Fulfillment', () => {
     console.log('Status verified ✓');
 
     console.log('\n✅ Valid cross-chain transfer test PASSED\n');
-  }, 30_000);
+  }, 60_000); // Increased timeout for full cross-chain transfer flow
 
   it('rejects insufficient funding', async () => {
     console.log('\n--- Test: Insufficient Funding ---');

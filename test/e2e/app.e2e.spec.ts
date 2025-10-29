@@ -28,10 +28,11 @@ describe('Application E2E Tests', () => {
   let app: INestApplication;
   let baseUrl: string;
 
-  // Setup: Start the NestJS application
+  // Setup: Connect to shared NestJS application
   beforeAll(async () => {
-    console.log('Starting NestJS application for E2E tests...');
+    console.log('Connecting to shared NestJS application for E2E tests...');
 
+    // Get the shared app instance (created once, reused by all test files)
     const result = await createTestAppWithServer();
     app = result.app;
     baseUrl = result.baseUrl;
@@ -42,13 +43,7 @@ describe('Application E2E Tests', () => {
     console.log(`Application ready at ${baseUrl}`);
   }, 60000); // 60 second timeout for app startup
 
-  // Teardown: Close the application
-  afterAll(async () => {
-    if (app) {
-      await app.close();
-      console.log('Application closed');
-    }
-  });
+  // NOTE: No afterAll cleanup - the SharedAppManager handles app cleanup automatically
 
   /**
    * Test Suite 1: Health Endpoints

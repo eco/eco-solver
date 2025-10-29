@@ -42,3 +42,24 @@ export {
   verifyNotFulfilled,
   verifyTokensDelivered,
 } from './verification-helpers';
+
+// Assertions
+export {
+  expectBalanceIncreased,
+  expectDefined,
+  expectIntentFulfilled,
+  expectIntentNotFulfilled,
+  expectIntentStatus,
+  expectTransactionSuccess,
+  initializeAssertions,
+} from './assertions';
+
+// Polling utilities
+export {
+  createPoller,
+  type PollOptions,
+  pollUntil,
+  pollUntilChanged,
+  pollUntilDefined,
+  pollUntilTrue,
+} from './polling';

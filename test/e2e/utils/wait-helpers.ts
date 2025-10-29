@@ -3,6 +3,8 @@ import { Hex } from 'viem';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { IntentsService } from '@/modules/intents/intents.service';
 
+import { pollUntil } from './polling';
+
 /**
  * Wait options
  */
@@ -49,6 +51,8 @@ function getIntentsService(): IntentsService {
  * This function polls MongoDB until the intent appears in the database.
  * Useful for verifying that the solver has detected the IntentPublished event.
  *
+ * Now uses exponential backoff for faster and more reliable polling.
+ *
  * Usage:
  *   await waitForDetection(intentHash);
  *
@@ -56,20 +60,20 @@ function getIntentsService(): IntentsService {
  * @param options - Timeout and polling interval options
  */
 export async function waitForDetection(intentHash: Hex, options: WaitOptions = {}): Promise<void> {
-  const { timeout = 15000, interval = 1000 } = options;
+  const { timeout = 15000, interval = 100 } = options;
   const intentsService = getIntentsService();
 
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    const intent = await intentsService.findById(intentHash);
-    if (intent) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, interval));
-  }
-
-  throw new Error(`Timeout waiting for intent detection after ${timeout}ms: ${intentHash}`);
+  await pollUntil(
+    () => intentsService.findById(intentHash),
+    (intent) => intent !== null,
+    {
+      timeout,
+      interval,
+      intervalMultiplier: 1.5,
+      maxInterval: 2000,
+      timeoutMessage: `Timeout waiting for intent detection after ${timeout}ms: ${intentHash}`,
+    },
+  );
 }
 
 /**
@@ -78,8 +82,10 @@ export async function waitForDetection(intentHash: Hex, options: WaitOptions = {
  * This function polls MongoDB until the intent status changes to FULFILLED.
  * More reliable than event polling since it doesn't depend on timing of event listeners.
  *
+ * Now uses exponential backoff for faster detection and lower database load.
+ *
  * Usage:
- *   await waitForFulfillment(intentHash); // 120s timeout
+ *   await waitForFulfillment(intentHash); // 30s timeout
  *   await waitForFulfillment(intentHash, { timeout: 60000 }); // 60s timeout
  *
  * @param intentHash - The intent hash to wait for
@@ -89,20 +95,20 @@ export async function waitForFulfillment(
   intentHash: Hex,
   options: WaitOptions = {},
 ): Promise<void> {
-  const { timeout = 120000, interval = 2000 } = options;
+  const { timeout = 60000, interval = 100 } = options; // 60s for cross-chain transfers
   const intentsService = getIntentsService();
 
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    const intent = await intentsService.findById(intentHash);
-    if (intent?.status === IntentStatus.FULFILLED) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, interval));
-  }
-
-  throw new Error(`Timeout waiting for intent fulfillment after ${timeout}ms: ${intentHash}`);
+  await pollUntil(
+    () => intentsService.findById(intentHash),
+    (intent) => intent?.status === IntentStatus.FULFILLED,
+    {
+      timeout,
+      interval,
+      intervalMultiplier: 1.5,
+      maxInterval: 2000,
+      timeoutMessage: `Timeout waiting for intent fulfillment after ${timeout}ms: ${intentHash}`,
+    },
+  );
 }
 
 /**
@@ -140,6 +146,7 @@ export async function waitForRejection(intentHash: Hex, options: WaitOptions = {
  * Wait for an intent to reach a specific status
  *
  * Generic wait function that can be used for any status.
+ * Now uses exponential backoff for faster and more reliable polling.
  *
  * Usage:
  *   await waitForStatus(intentHash, IntentStatus.FAILED);
@@ -154,20 +161,18 @@ export async function waitForStatus(
   expectedStatus: IntentStatus,
   options: WaitOptions = {},
 ): Promise<void> {
-  const { timeout = 120000, interval = 2000 } = options;
+  const { timeout = 60000, interval = 100 } = options; // 60s for cross-chain transfers
   const intentsService = getIntentsService();
 
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    const intent = await intentsService.findById(intentHash);
-    if (intent?.status === expectedStatus) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, interval));
-  }
-
-  throw new Error(
-    `Timeout waiting for intent to reach status ${expectedStatus} after ${timeout}ms: ${intentHash}`,
+  await pollUntil(
+    () => intentsService.findById(intentHash),
+    (intent) => intent?.status === expectedStatus,
+    {
+      timeout,
+      interval,
+      intervalMultiplier: 1.5,
+      maxInterval: 2000,
+      timeoutMessage: `Timeout waiting for intent to reach status ${expectedStatus} after ${timeout}ms: ${intentHash}`,
+    },
   );
 }

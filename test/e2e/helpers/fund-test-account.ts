@@ -1,4 +1,12 @@
-import { Address, createPublicClient, createWalletClient, erc20Abi, http, parseUnits } from 'viem';
+import {
+  Address,
+  createPublicClient,
+  encodeAbiParameters,
+  erc20Abi,
+  http,
+  keccak256,
+  parseUnits,
+} from 'viem';
 
 import {
   getRpcUrl,
@@ -84,6 +92,18 @@ export async function fundKernelWallet() {
     parseUnits('1000000', 6), // 1M USDC
   );
 
+  // Fund Kernel wallet with ETH for gas on Optimism
+  await publicClientOptimism.request({
+    method: 'anvil_setBalance' as any,
+    params: [KERNEL_WALLET_ADDRESS, '0x56bc75e2d63100000'] as any, // 100 ETH in hex
+  });
+
+  // Fund Kernel wallet with ETH for gas on Base
+  await publicClientBase.request({
+    method: 'anvil_setBalance' as any,
+    params: [KERNEL_WALLET_ADDRESS, '0x56bc75e2d63100000'] as any, // 100 ETH
+  });
+
   // Fund signer with ETH for gas on Optimism
   await publicClientOptimism.request({
     method: 'anvil_setBalance' as any,
@@ -96,6 +116,7 @@ export async function fundKernelWallet() {
     params: [KERNEL_SIGNER_ADDRESS, '0x56bc75e2d63100000'] as any, // 100 ETH
   });
 
+  console.log(`  Kernel wallet ${KERNEL_WALLET_ADDRESS} funded with 100 ETH on both chains`);
   console.log(`  Signer ${KERNEL_SIGNER_ADDRESS} funded with 100 ETH on both chains`);
   console.log('✓ Kernel wallet and signer funded');
 }
@@ -111,35 +132,28 @@ async function fundOnChain(
     transport: http(rpcUrl),
   });
 
-  // Step 1: Impersonate the whale address
+  // Use anvil_setStorageAt to directly set the token balance
+  // This is more reliable than transferring from a whale (which can be drained by previous tests)
+
+  // ERC20 balance storage slot is keccak256(abi.encode(address, uint256(balanceSlot)))
+  // For most USDC implementations, balance slot is 9
+  const balanceSlot = 9n; // USDC uses slot 9 for balances
+
+  // Calculate storage slot: keccak256(abi.encode(recipient, balanceSlot))
+  const storageSlot = keccak256(
+    encodeAbiParameters(
+      [
+        { name: 'account', type: 'address' },
+        { name: 'slot', type: 'uint256' },
+      ],
+      [recipient, balanceSlot],
+    ),
+  );
+
+  // Set the balance using anvil_setStorageAt
   await publicClient.request({
-    method: 'anvil_impersonateAccount' as any,
-    params: [whaleAddress] as any,
-  });
-
-  // Step 2: Create a wallet client with the whale address
-  const whaleClient = createWalletClient({
-    account: whaleAddress,
-    transport: http(rpcUrl),
-  });
-
-  // Step 3: Transfer USDC to recipient
-  const txHash = await whaleClient.writeContract({
-    chain: null,
-    account: whaleAddress,
-    address: tokenAddress,
-    abi: erc20Abi,
-    functionName: 'transfer',
-    args: [recipient, amount],
-  });
-
-  // Wait for transaction
-  await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-  // Step 4: Stop impersonating
-  await publicClient.request({
-    method: 'anvil_stopImpersonatingAccount' as any,
-    params: [whaleAddress] as any,
+    method: 'anvil_setStorageAt' as any,
+    params: [tokenAddress, storageSlot, `0x${amount.toString(16).padStart(64, '0')}` as any] as any,
   });
 
   // Verify balance

@@ -44,6 +44,9 @@ export default async function globalTeardown(): Promise<void> {
       const _setupState = JSON.parse(stateContent);
     }
 
+    // Note: SharedAppManager handles app cleanup automatically via exit handlers
+    // No need to explicitly close the app here
+
     // Stop Anvil instances
     console.log('🧹 Step 1: Stopping Anvil instances...');
     const anvilManager = new AnvilManager(getDefaultAnvilConfigs());

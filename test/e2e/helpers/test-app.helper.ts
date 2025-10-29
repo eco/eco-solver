@@ -1,73 +1,22 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
 
 import { createPublicClient, decodeEventLog, Hex, http } from 'viem';
 
-import { AppModule } from '@/app.module';
 import { portalAbi } from '@/common/abis/portal.abi';
 
 import { getPortalAddress } from './e2e-config';
+import { SharedAppManager } from './shared-app-manager';
 
 /**
- * Create and configure a NestJS application for E2E testing
+ * Get or create the shared test application
  *
- * This helper function:
- * 1. Creates a NestJS testing module with the full AppModule
- * 2. Applies the same configuration as the production app (validation pipes, etc.)
- * 3. Initializes the app without starting the HTTP server
+ * This function returns a singleton app instance that is shared across all test files.
+ * The app is created once on first access and reused by all subsequent calls.
  *
- * Usage:
- *   let app: INestApplication;
- *
- *   beforeAll(async () => {
- *     app = await createTestApp();
- *   });
- *
- *   afterAll(async () => {
- *     await app.close();
- *   });
- */
-export async function createTestApp(): Promise<INestApplication> {
-  // Create testing module with full AppModule
-  const moduleFixture: TestingModule = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
-
-  // Create app instance
-  const app = moduleFixture.createNestApplication();
-
-  // Apply same configuration as production app
-  // (from src/main.ts)
-
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-
-  // Enable CORS for testing
-  app.enableCors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  });
-
-  // Initialize the app (but don't start listening)
-  await app.init();
-
-  return app;
-}
-
-/**
- * Create and start a NestJS application with HTTP server for E2E testing
- *
- * This helper function creates a full app and starts the HTTP server on the
- * configured port (from config.e2e.yaml - default: 3001).
+ * IMPORTANT:
+ * - DO NOT call app.close() in test files - the SharedAppManager handles cleanup
+ * - The same app instance is returned to all test files
+ * - Tests can inject services directly from the app
  *
  * Usage:
  *   let app: INestApplication;
@@ -79,26 +28,14 @@ export async function createTestApp(): Promise<INestApplication> {
  *     baseUrl = result.baseUrl;
  *   });
  *
- *   afterAll(async () => {
- *     await app.close();
- *   });
+ *   // DO NOT add afterAll with app.close() - cleanup is automatic
  */
 export async function createTestAppWithServer(): Promise<{
   app: INestApplication;
   baseUrl: string;
 }> {
-  // Create app
-  const app = await createTestApp();
-
-  // Get port from config (defaults to 3001 for E2E tests)
-  const port = process.env.PORT || 3001;
-
-  // Start listening
-  await app.listen(port);
-
-  const baseUrl = `http://localhost:${port}`;
-
-  return { app, baseUrl };
+  // Get the shared app instance from the manager
+  return await SharedAppManager.getApp();
 }
 
 /**
@@ -159,6 +96,22 @@ export const TEST_ACCOUNTS = {
  */
 export const BASE_MAINNET_CHAIN_ID = 8453;
 export const OPTIMISM_MAINNET_CHAIN_ID = 10;
+
+/**
+ * Test chain IDs
+ */
+export const TEST_CHAIN_IDS = {
+  BASE_MAINNET: BASE_MAINNET_CHAIN_ID,
+  OPTIMISM_MAINNET: OPTIMISM_MAINNET_CHAIN_ID,
+} as const;
+
+/**
+ * Test RPC URLs
+ */
+export const TEST_RPC = {
+  BASE_MAINNET: 'http://localhost:8545',
+  OPTIMISM_MAINNET: 'http://localhost:9545',
+} as const;
 
 /**
  * Wait for a specific Portal event to be emitted
