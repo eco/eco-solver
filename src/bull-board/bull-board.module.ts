@@ -11,7 +11,6 @@ import { IntentFulfillmentQueue } from '@/intent-fulfillment/queues/intent-fulfi
 import { LiquidityManagerQueue } from '@/liquidity-manager/queues/liquidity-manager.queue'
 import { CheckBalancesQueue } from '@/liquidity-manager/queues/check-balances.queue'
 import { IntentProcessorQueue } from '@/intent-processor/queues/intent-processor.queue'
-import { getCurrentEnvironment } from '@/analytics/utils'
 
 @Module({
   imports: [
@@ -97,17 +96,13 @@ import { getCurrentEnvironment } from '@/analytics/utils'
           }),
         )
 
-        // Determine if we should be in read-only mode
-        const environment = getCurrentEnvironment()
-        const isReadOnly = environment === 'production' || environment === 'green-production'
-
         return {
           route: '/admin/queues',
           adapter: ExpressAdapter,
           queues: queues.map((queue) => ({
             name: queue.name,
             adapter: BullMQAdapter,
-            options: { readOnlyMode: isReadOnly },
+            options: { readOnlyMode: true },
           })),
           boardOptions: {
             uiConfig: {
