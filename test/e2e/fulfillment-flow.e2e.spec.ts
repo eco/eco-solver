@@ -1,6 +1,5 @@
 import { Address, parseUnits } from 'viem';
 
-import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
@@ -12,11 +11,8 @@ import { fundKernelWallet, fundTestAccountsWithUSDC } from './helpers/fund-test-
 import { OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './helpers/test-app.helper';
 import {
   BalanceTracker,
+  expect,
   publishIntent,
-  verifyIntentStatus,
-  verifyNoFulfillmentEvent,
-  verifyNotFulfilled,
-  waitForFulfillment,
   waitForRejection,
 } from './utils';
 
@@ -75,17 +71,13 @@ describe('Intent Fulfillment', () => {
 
       console.log(`Intent published: ${intentHash}`);
 
-      // Wait for fulfillment
-      await waitForFulfillment(intentHash, ctx);
+      // Wait for fulfillment and verify status
+      await expect(intentHash, ctx).toHaveBeenFulfilled();
       console.log('Intent fulfilled! ✓');
 
       // Verify balance increased
       await balances.verifyIncreased(parseUnits('10', 6));
       console.log('Balance verified ✓');
-
-      // Verify intent status
-      await verifyIntentStatus(intentHash, IntentStatus.FULFILLED, ctx);
-      console.log('Status verified ✓');
 
       console.log('\n✅ Valid cross-chain transfer test PASSED\n');
     },
@@ -109,17 +101,10 @@ describe('Intent Fulfillment', () => {
 
       console.log(`Intent published with partial funding: ${intentHash}`);
 
-      // Wait and verify NOT fulfilled
+      // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
-      console.log('Intent rejected (as expected) ✓');
-
-      // Verify status
-      await verifyNotFulfilled(intentHash, ctx);
-      console.log('Status verified ✓');
-
-      // Verify no fulfillment event
-      await verifyNoFulfillmentEvent(intentHash);
-      console.log('No fulfillment event ✓');
+      await expect(intentHash, ctx).toHaveBeenRejected().toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Insufficient funding test PASSED\n');
     },
@@ -143,17 +128,10 @@ describe('Intent Fulfillment', () => {
 
       console.log(`Intent published with expired deadlines: ${intentHash}`);
 
-      // Wait and verify NOT fulfilled
+      // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
-      console.log('Intent rejected (as expected) ✓');
-
-      // Verify status
-      await verifyNotFulfilled(intentHash, ctx);
-      console.log('Status verified ✓');
-
-      // Verify no fulfillment event
-      await verifyNoFulfillmentEvent(intentHash);
-      console.log('No fulfillment event ✓');
+      await expect(intentHash, ctx).toHaveBeenRejected().toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Expired deadline test PASSED\n');
     },
@@ -181,17 +159,10 @@ describe('Intent Fulfillment', () => {
 
       console.log(`Intent published with invalid prover: ${intentHash}`);
 
-      // Wait and verify NOT fulfilled
+      // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
-      console.log('Intent rejected (as expected) ✓');
-
-      // Verify status
-      await verifyNotFulfilled(intentHash, ctx);
-      console.log('Status verified ✓');
-
-      // Verify no fulfillment event
-      await verifyNoFulfillmentEvent(intentHash);
-      console.log('No fulfillment event ✓');
+      await expect(intentHash, ctx).toHaveBeenRejected().toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Invalid prover test PASSED\n');
     },
