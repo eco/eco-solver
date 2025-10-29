@@ -166,4 +166,52 @@ describe('Intent Fulfillment', () => {
     },
     E2E_TIMEOUTS.TEST_CASE,
   );
+
+  it(
+    'rejects excessive route amount',
+    async () => {
+      console.log('\n--- Test: Excessive Route Amount ---');
+
+      // Publish with amount exceeding configured limit (50 USDC)
+      const { intentHash } = await publishIntent({
+        tokenAmount: parseUnits('60', 6), // Exceeds 50 USDC limit
+        rewardTokenAmount: parseUnits('62', 6), // Reward covers route + fees
+      });
+
+      console.log(`Intent published with excessive amount: ${intentHash}`);
+
+      // Wait and verify rejection with chainable assertions
+      await waitForRejection(intentHash, ctx);
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
+
+      console.log('\n✅ Excessive route amount test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
+
+  it(
+    'rejects insufficient fee',
+    async () => {
+      console.log('\n--- Test: Insufficient Fee ---');
+
+      // Publish with reward equal to route amount (no fees)
+      const { intentHash } = await publishIntent({
+        tokenAmount: parseUnits('10', 6),
+        rewardTokenAmount: parseUnits('10', 6), // Same as route = no fees
+      });
+
+      console.log(`Intent published with insufficient fee: ${intentHash}`);
+
+      // Wait and verify rejection with chainable assertions
+      await waitForRejection(intentHash, ctx);
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
+      console.log('Intent rejected and verified ✓');
+
+      console.log('\n✅ Insufficient fee test PASSED\n');
+    },
+    E2E_TIMEOUTS.TEST_CASE,
+  );
 });
