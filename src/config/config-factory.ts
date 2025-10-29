@@ -43,7 +43,7 @@ export class ConfigFactory {
   }
 
   /**
-   * Check if MongoDB configuration integration is active
+   * Check if EventEmitter is enabled for configuration change events
    */
   static isEventEmitterEnabled(): boolean {
     return Boolean(this.eventEmitter);

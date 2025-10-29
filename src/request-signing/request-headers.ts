@@ -15,10 +15,18 @@ export class RequestHeaders {
   }
 
   getSignatureValidationData(): SignatureValidationData {
+    const signature = this.getSignature();
+    const address = this.getAddress();
+    const expire = this.getExpire();
+
+    if (!signature || !address || !expire) {
+      throw new Error('Missing or invalid signature headers');
+    }
+
     return {
-      signature: this.getSignature(),
-      address: this.getAddress(),
-      expire: this.getExpire(),
+      signature,
+      address,
+      expire,
     };
   }
 
@@ -38,20 +46,25 @@ export class RequestHeaders {
     return this.headers;
   }
 
-  getUserAgent(): string {
-    return this.getHeader('user-agent') as string;
+  getUserAgent(): string | undefined {
+    return this.getHeader('user-agent');
   }
 
-  getSignature(): Hex {
-    return this.getHeader(SIGNATURE_HEADER) as Hex;
+  getSignature(): Hex | undefined {
+    return this.getHeader(SIGNATURE_HEADER);
   }
 
-  getAddress(): Address {
-    return this.getHeader(SIGNATURE_ADDRESS_HEADER) as Address;
+  getAddress(): Address | undefined {
+    return this.getHeader(SIGNATURE_ADDRESS_HEADER);
   }
 
   getExpire(): number {
     const raw = this.getHeader(SIGNATURE_EXPIRE_HEADER);
+
+    if (!raw) {
+      return raw;
+    }
+
     const n = typeof raw === 'string' ? Number(raw) : raw;
     return Number.isFinite(n) ? (n as number) : NaN;
   }

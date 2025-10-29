@@ -472,6 +472,61 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Detailed health check with service status for monitoring
+   * Use this for comprehensive health monitoring and alerting on change stream status
+   */
+  async getDetailedHealthCheck(): Promise<{
+    healthy: boolean;
+    repository: boolean;
+    cache: boolean;
+    changeStreams: {
+      enabled: boolean;
+      active: boolean;
+      mode: 'real-time' | 'polling' | 'hybrid';
+    };
+    metrics: {
+      cacheSize: number;
+      refreshInterval: number;
+    };
+  }> {
+    try {
+      const repoHealthy = await this.healthCheck();
+      const status = this.getServiceStatus();
+
+      return {
+        healthy: repoHealthy && this.cacheInitialized,
+        repository: repoHealthy,
+        cache: this.cacheInitialized,
+        changeStreams: {
+          enabled: status.changeStreamsEnabled,
+          active: status.changeStreamsActive,
+          mode: status.mode,
+        },
+        metrics: {
+          cacheSize: status.cacheSize,
+          refreshInterval: status.cacheRefreshInterval,
+        },
+      };
+    } catch (ex) {
+      EcoError.logError(ex, `Detailed health check failed`, this.logger);
+      return {
+        healthy: false,
+        repository: false,
+        cache: false,
+        changeStreams: {
+          enabled: false,
+          active: false,
+          mode: 'polling',
+        },
+        metrics: {
+          cacheSize: 0,
+          refreshInterval: 0,
+        },
+      };
+    }
+  }
+
+  /**
    * Load all configurations into cache
    */
   private async loadDynamicConfigIntoCache(): Promise<void> {
@@ -533,13 +588,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       description: config.description,
       lastModified: config.updatedAt,
     };
-  }
-
-  /**
-   * Mask secret values for security
-   */
-  private maskSecretValue(): string {
-    return '***MASKED***';
   }
 
   /**
@@ -669,6 +717,16 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Start MongoDB Change Streams monitoring for real-time configuration updates
+   *
+   * Requirements:
+   * - MongoDB >= 6.0 for reliable pre-image support
+   * - Pre-images must be enabled on the collection/database
+   * - Replica set or sharded cluster (change streams don't work on standalone)
+   *
+   * Fallback behavior:
+   * - If change streams fail to start, falls back to polling-only mode
+   * - If change streams disconnect, automatically attempts reconnection
+   * - Polling frequency increases when change streams are unavailable
    */
   private async startChangeStreamMonitoring(): Promise<void> {
     try {
@@ -902,6 +960,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Get configuration service status information
+   * Use this for monitoring and alerting on change stream health
    */
   getServiceStatus(): {
     changeStreamsEnabled: boolean;

@@ -17,22 +17,22 @@ export class RequestSignatureGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const requestHeaders = new RequestHeaders(request.headers);
-
-    const {
-      signature,
-      address: claimedAddress,
-      expire: expiry,
-    } = requestHeaders.getSignatureValidationData();
-
-    if (!signature || !expiry) {
-      return false;
-    }
-
-    const payload = request.body;
-
     try {
+      const request = context.switchToHttp().getRequest();
+      const requestHeaders = new RequestHeaders(request.headers);
+
+      const {
+        signature,
+        address: claimedAddress,
+        expire: expiry,
+      } = requestHeaders.getSignatureValidationData();
+
+      if (!signature || !expiry) {
+        return false;
+      }
+
+      const payload = request.body;
+
       const { error } = await this.signatureVerificationService.verifySignature(
         payload,
         signature,
