@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
+import { Hex, keccak256 } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -10,6 +11,8 @@ import { IQueueService } from '@/modules/queue/interfaces/queue-service.interfac
 
 import { ActionStatusError } from '../types/action-status.types';
 import { RelayerActionV1 } from '../types/relayer-action.types';
+import { decodeAdapterClaim } from '../utils/decoder';
+import { extractIntent } from '../utils/intent-extractor';
 
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service';
 
@@ -105,15 +108,33 @@ export class RhinestoneActionProcessor {
   /**
    * Extract intent from RelayerAction
    *
-   * REFERENCE: Solver V1 implementation at:
-   * - /Users/elio/Documents/eco-solver/src/rhinestone/services/rhinestone-validator.service.ts
-   * - /Users/elio/Documents/eco-solver/src/rhinestone/utils/intent-extractor.ts
-   * - /Users/elio/Documents/eco-solver/src/rhinestone/utils/decoder.ts
-   *
-   * TODO: Port V1 intent extraction logic
-   * For now, always returns error to trigger Error ActionStatus response
+   * Process flow:
+   * 1. Find the claim with beforeFill=true (reward claim)
+   * 2. Decode the adapter call data to extract ClaimData
+   * 3. Compute claim hash from the call data
+   * 4. Extract Intent from ClaimData using intent-extractor
    */
-  private async extractIntent(_action: RelayerActionV1): Promise<Intent> {
-    throw new Error('Intent extraction not yet implemented');
+  private async extractIntent(action: RelayerActionV1): Promise<Intent> {
+    // Find the beforeFill claim (this contains the reward/order data)
+    const beforeFillClaim = action.claims.find((claim) => claim.beforeFill === true);
+
+    if (!beforeFillClaim) {
+      throw new Error('No beforeFill claim found in RelayerAction');
+    }
+
+    // Decode the adapter claim to get ClaimData
+    const claimCallData = beforeFillClaim.call.data as Hex;
+    const claimData = decodeAdapterClaim(claimCallData);
+
+    // Compute claim hash (hash of the raw call data)
+    const claimHash = keccak256(claimCallData);
+
+    // Extract source chain from the claim call
+    const sourceChainId = beforeFillClaim.call.chainId;
+
+    // Extract intent using our utility
+    const intent = extractIntent(claimData, claimHash, sourceChainId);
+
+    return intent;
   }
 }
