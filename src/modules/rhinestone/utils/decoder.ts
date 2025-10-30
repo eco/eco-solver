@@ -124,7 +124,7 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
 
       throw new Error(
         `Unknown adapter function: ${adapterDecoded.functionName}. ` +
-          'Expected eco_compact_handleClaim, eco_permit2_handleClaim, eco_permit2_handleClaim_optimized, or eco_across_handleClaim_optimized',
+          'Expected eco_compact_handleClaim, eco_permit2_handleClaim, or eco_permit2_handleClaim_optimized',
       );
     } catch (error) {
       continue;
