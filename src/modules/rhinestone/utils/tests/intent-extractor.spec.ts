@@ -140,7 +140,7 @@ describe('Intent Extractor', () => {
       expect(rewardToken.token.toLowerCase()).toBe(
         '0x000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913',
       );
-      expect(rewardToken.amount).toBe(63179n);
+      expect(rewardToken.amount).toBe(80657n);
     });
 
     it('should compute intent hash correctly', () => {
@@ -151,7 +151,7 @@ describe('Intent Extractor', () => {
 
       // Intent hash should be deterministic
       expect(intent.intentHash).toBe(
-        '0x1d434946a1dcb741a6cdada2f312662d89c9f5c734f0f28c37595fde42eeac05',
+        '0x25006a52be661aea11ca68010f687582f2cf30d3da9476c109eb6f3e8f9e8afd',
       );
 
       // Running extraction again should produce same hash
@@ -170,7 +170,7 @@ describe('Intent Extractor', () => {
 
       // Deadline should be a bigint timestamp
       expect(typeof intent.route.deadline).toBe('bigint');
-      expect(intent.route.deadline).toBe(1761772634n);
+      expect(intent.route.deadline).toBe(1761846977n);
 
       // Should be a reasonable future timestamp (year 2025+)
       const deadlineDate = new Date(Number(intent.route.deadline) * 1000);

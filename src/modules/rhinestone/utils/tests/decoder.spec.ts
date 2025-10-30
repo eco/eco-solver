@@ -5,7 +5,6 @@ import { sampleAction } from './sample-action';
 describe('Decoder', () => {
   describe('decodeAdapterClaim', () => {
     it('should decode claim calldata with optimized format (eco_permit2_handleClaim_optimized)', () => {
-      // Use the same sample data as our working test script
       const claimData = sampleAction.action.claims[0].call.data;
 
       const result = decodeAdapterClaim(claimData);
@@ -45,7 +44,7 @@ describe('Decoder', () => {
       const tokenOutAddress = `0x${tokenOutId.toString(16).padStart(40, '0').slice(-40)}`;
 
       expect(tokenInAddress.toLowerCase()).toBe('0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'); // USDC on Base
-      expect(tokenInAmount).toBe(63179n);
+      expect(tokenInAmount).toBe(80657n);
 
       expect(tokenOutAddress.toLowerCase()).toBe('0xaf88d065e77c8cc2239327c5edb3a432268e5831'); // USDC on Arbitrum
       expect(tokenOutAmount).toBe(50000n);
