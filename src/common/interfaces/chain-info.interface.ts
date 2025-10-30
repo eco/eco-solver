@@ -4,9 +4,16 @@ export interface WalletInfo {
   metadata?: Record<string, string>;
 }
 
+export interface TokenInfo {
+  address: string;
+  decimals: number;
+  symbol: string;
+}
+
 export interface ChainInfo {
   chainId: number;
   chainName?: string;
   chainType: 'EVM' | 'SVM' | 'TVM';
   wallets: WalletInfo[];
+  tokens: TokenInfo[];
 }

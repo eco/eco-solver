@@ -64,11 +64,18 @@ export class EvmReaderService extends BaseChainReader {
       }
     }
 
+    const tokens = this.evmConfigService.getSupportedTokens(chainId);
+
     return {
       chainId,
       chainName: getChainName(chainId, ChainType.EVM),
       chainType: 'EVM',
       wallets,
+      tokens: tokens.map((token) => ({
+        address: AddressNormalizer.denormalize(token.address, ChainType.EVM),
+        decimals: token.decimals,
+        symbol: token.symbol,
+      })),
     };
   }
 

@@ -80,9 +80,7 @@ export class QuotesService {
     // Get portal address for a destination chain
     const sourcePortalAddressUA = this.blockchainConfigService.getPortalAddress(sourceChainId);
     if (!sourcePortalAddressUA) {
-      throw new BadRequestException(
-        `Portal address not configured for chain ${destinationChainId}`,
-      );
+      throw new BadRequestException(`Portal address not configured for chain ${sourceChainId}`);
     }
 
     // Validate contracts if provided in the request
