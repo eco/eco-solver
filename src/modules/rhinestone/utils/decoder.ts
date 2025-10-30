@@ -8,6 +8,7 @@ import { ClaimData, FillData } from '../types/rhinestone-order.types';
 const ROUTER_DIRECT_SELECTORS = {
   singleCall: '0x9280836c',
   multiCall: '0xac9650d8',
+  routeClaim: '0x0fbb12dc', // Nested routeClaim should be skipped
 };
 
 export function decodeRouterCall(data: Hex) {
@@ -84,10 +85,13 @@ function decodeOptimizedArbiterParams(encodedParams: Hex): ClaimData {
 }
 
 export function decodeAdapterClaim(data: Hex): ClaimData {
+  console.log('data:', data);
   const routerDecoded = decodeFunctionData({
     abi: rhinestoneRouterAbi,
     data,
   });
+
+  console.log('routerDecoded:', routerDecoded);
 
   if (routerDecoded.functionName !== 'routeClaim') {
     throw new Error(`Expected routeClaim, got ${routerDecoded.functionName}`);
@@ -103,10 +107,14 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
     }
 
     try {
+      console.log(`Trying to decode calldata ${i + 1} with selector:`, calldata.slice(0, 10));
+
       const adapterDecoded = decodeFunctionData({
         abi: ecoAdapterAbi,
         data: calldata,
       });
+
+      console.log('adapterDecoded.functionName:', adapterDecoded.functionName);
 
       if (adapterDecoded.functionName === 'eco_compact_handleClaim') {
         return adapterDecoded.args[0] as ClaimData;
@@ -121,9 +129,14 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
         return decodeOptimizedArbiterParams(encodedParams);
       }
 
+      if (adapterDecoded.functionName === 'eco_across_handleClaim_optimized') {
+        const encodedParams = adapterDecoded.args[0] as Hex;
+        return decodeOptimizedArbiterParams(encodedParams);
+      }
+
       throw new Error(
         `Unknown adapter function: ${adapterDecoded.functionName}. ` +
-          'Expected eco_compact_handleClaim, eco_permit2_handleClaim, or eco_permit2_handleClaim_optimized',
+          'Expected eco_compact_handleClaim, eco_permit2_handleClaim, eco_permit2_handleClaim_optimized, or eco_across_handleClaim_optimized',
       );
     } catch (error) {
       continue;
