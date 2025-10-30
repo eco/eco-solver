@@ -119,7 +119,7 @@ describe('Intent Fulfillment', () => {
     async () => {
       console.log('\n--- Test: Expired Deadline ---');
 
-      const expiredTime = BigInt(Date.now() - 3600000); // 1 hour ago
+      const expiredTime = BigInt(Math.floor(Date.now() / 1000) - 3600); // 1 hour ago in SECONDS
 
       // Publish with expired deadlines
       const { intentHash } = await publishIntent({

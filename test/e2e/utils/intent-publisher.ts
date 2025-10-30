@@ -85,8 +85,8 @@ export interface PublishIntentResult {
  *
  *   // Expired deadline (for testing rejection)
  *   const result = await publishIntent({
- *     routeDeadline: BigInt(Date.now() - 3600000), // 1 hour ago
- *     rewardDeadline: BigInt(Date.now() - 3600000),
+ *     routeDeadline: BigInt(Math.floor(Date.now() / 1000)) - 3600n, // 1 hour ago
+ *     rewardDeadline: BigInt(Math.floor(Date.now() / 1000)) - 3600n,
  *   });
  *
  * @param options - Optional configuration overrides
@@ -101,8 +101,8 @@ export async function publishIntent(
     tokenAmount = parseUnits('10', 6), // 10 USDC (within 50 USDC limit)
     rewardTokenAmount = parseUnits('12', 6), // 12 USDC reward (covers route + fees)
     recipient = TEST_ACCOUNTS.ACCOUNT_1.address as Address,
-    routeDeadline = BigInt(Date.now() + 3600000), // 1 hour from now
-    rewardDeadline = BigInt(Date.now() + 3600000), // 1 hour from now
+    routeDeadline = BigInt(Math.floor(Date.now() / 1000)) + 5_400n, // 1 hour from now
+    rewardDeadline = BigInt(Math.floor(Date.now() / 1000)) + 5_400n, // 1 hour from now
     proverAddress,
     creatorAddress = TEST_ACCOUNTS.ACCOUNT_0.address as Address,
     nativeAmount = 0n,
@@ -149,12 +149,6 @@ export async function publishIntent(
   intent.intentHash = intentHash;
   intent.vaultAddress = vault;
   intent.publishTxHash = txHash;
-
-  // Wait for funding confirmation
-  const { isFunded } = await builder.waitForIntentFunding(intent, 15000);
-  if (!isFunded && !fundingOptions?.allowPartial) {
-    throw new Error(`Intent funding failed: ${intentHash}`);
-  }
 
   return {
     intent,

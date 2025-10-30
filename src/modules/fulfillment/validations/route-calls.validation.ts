@@ -4,6 +4,8 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -53,12 +55,18 @@ export class RouteCallsValidation implements Validation {
           span?.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
 
           if (!isValidTokenTransferCall) {
-            throw new Error(`Invalid token transfer call for target ${call.target}`);
+            throw new ValidationError(
+              `Invalid token transfer call for target ${call.target}`,
+              ValidationErrorType.PERMANENT,
+              'RouteCallsValidation',
+            );
           }
         } catch (error) {
           span?.setAttribute(`route.call.${i}.validationError`, (error as Error).message);
-          throw new Error(
+          throw new ValidationError(
             `Invalid route call for target ${call.target} on chain ${intent.destination}: ${(error as Error).message}`,
+            ValidationErrorType.PERMANENT,
+            'RouteCallsValidation',
           );
         }
       }

@@ -21,6 +21,8 @@ import { ChainType } from '@/common/utils/chain-type-detector';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 
+import { PublishIntentOptions } from '../utils';
+
 import { getPortalAddress, getProverAddress, getRpcUrl, getTokenAddress } from './e2e-config';
 import { BASE_MAINNET_CHAIN_ID, OPTIMISM_MAINNET_CHAIN_ID, TEST_ACCOUNTS } from './test-app.helper';
 
@@ -243,10 +245,7 @@ export class IntentBuilder {
    */
   async publishAndFund(
     intent: Intent,
-    options?: {
-      allowPartial?: boolean;
-      approveTokenAmount?: bigint; // For testing insufficient funding
-    },
+    options?: PublishIntentOptions['fundingOptions'],
   ): Promise<{ intentHash: Hex; vault: Address; txHash: Hex }> {
     const sourceChainId = this.options.sourceChainId;
     const rpcUrl = this.getRpcUrl(sourceChainId);
@@ -273,7 +272,7 @@ export class IntentBuilder {
 
     // Step 1: Approve tokens if there are reward tokens
     if (intent.reward.tokens.length > 0) {
-      const approvalAmount = options?.approveTokenAmount || intent.reward.tokens[0].amount;
+      const approvalAmount = options?.approveAmount || intent.reward.tokens[0].amount;
 
       console.log(
         `Approving ${approvalAmount.toString()} tokens to Portal ${denormalizedPortal}...`,
@@ -342,88 +341,6 @@ export class IntentBuilder {
     return { intentHash, vault, txHash: publishTxHash };
   }
 
-  /**
-   * Wait for an intent to be funded on-chain
-   */
-  async waitForIntentFunding(
-    intent: Intent,
-    timeoutMs: number = 10000,
-  ): Promise<{ isFunded: boolean; isComplete: boolean }> {
-    const sourceChainId = this.options.sourceChainId;
-    const rpcUrl = this.getRpcUrl(sourceChainId);
-
-    if (!this.publicClient) {
-      this.publicClient = createPublicClient({
-        transport: http(rpcUrl),
-      });
-    }
-
-    const portalAddress = this.getPortalAddress(sourceChainId);
-    const denormalizedPortal = AddressNormalizer.denormalizeToEvm(portalAddress);
-
-    const startTime = Date.now();
-
-    const encodedRoute = PortalEncoder.encode(intent.route, ChainType.EVM);
-    const rewardStruct = this.buildRewardStruct(intent);
-
-    while (Date.now() - startTime < timeoutMs) {
-      try {
-        // Use isIntentFunded function
-        const isFunded = (await this.publicClient.readContract({
-          address: denormalizedPortal,
-          abi: portalAbi,
-          functionName: 'isIntentFunded',
-          args: [BigInt(intent.destination), encodedRoute, rewardStruct],
-        })) as boolean;
-
-        if (isFunded) {
-          return { isFunded: true, isComplete: true };
-        }
-      } catch (error) {
-        console.warn(`Error checking intent funding status:`, error);
-      }
-
-      // Wait 500ms before checking again
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-
-    return { isFunded: false, isComplete: false };
-  }
-
-  /**
-   * Pre-fund an executor wallet with tokens on the destination chain
-   * Uses Anvil's setBalance and deal cheats
-   */
-  async setupExecutorBalances(executorAddress: Address, destinationChainId: number) {
-    const rpcUrl = this.getRpcUrl(destinationChainId);
-
-    if (!this.publicClient) {
-      this.publicClient = createPublicClient({
-        transport: http(rpcUrl),
-      });
-    }
-
-    const tokenAddress = this.getTokenAddress(destinationChainId);
-    const denormalizedToken = AddressNormalizer.denormalizeToEvm(tokenAddress);
-
-    // Set native balance to 100 ETH
-    await this.publicClient.request({
-      method: 'anvil_setBalance' as any,
-      params: [executorAddress, '0x56bc75e2d63100000'], // 100 ETH in hex
-    });
-
-    // Deal 1000000 USDC (1M USDC) to executor
-    const usdcAmount = parseUnits('1000000', 6); // 1M USDC
-    await this.publicClient.request({
-      method: 'anvil_deal' as any,
-      params: [denormalizedToken, executorAddress, `0x${usdcAmount.toString(16)}`],
-    });
-
-    console.log(`Executor ${executorAddress} pre-funded on chain ${destinationChainId}:`);
-    console.log(`  Native: 100 ETH`);
-    console.log(`  USDC: 1,000,000 USDC`);
-  }
-
   // Private helper methods
 
   private getRpcUrl(chainId: number): string {
@@ -479,9 +396,9 @@ export class IntentBuilder {
 
   private async getVaultAddress(intent: Intent): Promise<Address> {
     const sourceChainId = this.options.sourceChainId;
-    const rpcUrl = this.getRpcUrl(sourceChainId);
 
     if (!this.publicClient) {
+      const rpcUrl = this.getRpcUrl(sourceChainId);
       this.publicClient = createPublicClient({
         transport: http(rpcUrl),
       });
@@ -493,13 +410,11 @@ export class IntentBuilder {
     const encodedRoute = PortalEncoder.encode(intent.route, ChainType.EVM);
     const rewardStruct = this.buildRewardStruct(intent);
 
-    const vault = (await this.publicClient.readContract({
+    return this.publicClient.readContract({
       address: denormalizedPortal,
       abi: portalAbi,
       functionName: 'intentVaultAddress',
       args: [BigInt(intent.destination), encodedRoute, rewardStruct],
-    })) as Address;
-
-    return vault;
+    });
   }
 }
