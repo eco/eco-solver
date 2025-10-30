@@ -73,6 +73,7 @@ config/*
 !config/development.ts
 !config/staging.ts
 !config/staging-bg.ts
+!config/blue-staging.ts
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts

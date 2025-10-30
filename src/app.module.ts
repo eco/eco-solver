@@ -50,7 +50,7 @@ import { ModuleRefProvider } from '@/common/services/module-ref-provider'
     }),
     BalanceModule,
     ChainMonitorModule,
-    EcoConfigModule.withAWS(),
+    EcoConfigModule.withAll(),
     FeeModule,
     FlagsModule,
     HealthModule,
