@@ -1,5 +1,4 @@
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { EcoResponse } from '@/common/eco-response'
 import { Queue, JobSchedulerTemplateOptions, Job } from 'bullmq'
 
@@ -14,7 +13,7 @@ interface JobTemplate {
  * Provides methods to start, stop, and manage job scheduling.
  */
 export class EcoCronJobManager {
-  private logger: EcoLogger
+  private logger: LiquidityManagerLogger
   private started: boolean = false
   private stopRequested: boolean = false
 
@@ -22,7 +21,7 @@ export class EcoCronJobManager {
     private readonly jobName: string,
     private readonly jobIDPrefix: string,
   ) {
-    this.logger = new EcoLogger(`${EcoCronJobManager.name}-${jobName}`)
+    this.logger = new LiquidityManagerLogger(`${EcoCronJobManager.name}-${jobName}`)
   }
 
   /**
@@ -34,9 +33,12 @@ export class EcoCronJobManager {
   async start(queue: Queue, interval: number, walletAddress: string): Promise<void> {
     if (this.started) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `start() called again while already running for walletAddress: ${walletAddress} — ignoring`,
-        }),
+        {
+          rebalanceId: 'cron-manager',
+          walletAddress,
+          strategy: 'check-balances',
+        },
+        `start() called again while already running for walletAddress: ${walletAddress} — ignoring`,
       )
       return
     }
@@ -45,16 +47,19 @@ export class EcoCronJobManager {
     this.stopRequested = false
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `start: walletAddress: ${walletAddress}`,
-        properties: {
-          queueName: queue.name,
-          queuePrefix: (queue as any)?.opts?.prefix,
-          interval,
-          jobSchedulerId: this.jobIDPrefix,
-          workerName: 'CheckBalancesProcessor',
-        },
-      }),
+      {
+        rebalanceId: this.jobIDPrefix,
+        walletAddress,
+        strategy: 'check-balances',
+      },
+      `start: walletAddress: ${walletAddress}`,
+      {
+        queueName: queue.name,
+        queuePrefix: (queue as any)?.opts?.prefix,
+        interval,
+        jobSchedulerId: this.jobIDPrefix,
+        workerName: 'CheckBalancesProcessor',
+      },
     )
 
     setImmediate(async () => {
@@ -67,9 +72,12 @@ export class EcoCronJobManager {
         }
 
         this.logger.log(
-          EcoLogMessage.fromDefault({
-            message: `stopped for walletAddress: ${walletAddress}`,
-          }),
+          {
+            rebalanceId: this.jobIDPrefix,
+            walletAddress,
+            strategy: 'check-balances',
+          },
+          `stopped for walletAddress: ${walletAddress}`,
         )
       } finally {
         this.started = false
@@ -114,29 +122,34 @@ export class EcoCronJobManager {
       })
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `checkAndEmitDeduped: job added walletAddress: ${walletAddress}`,
-          properties: {
-            jobId: job.id,
-            queue: queue.name,
-            queuePrefix: (queue as any)?.opts?.prefix,
-            jobSchedulerId: this.jobIDPrefix,
-            workerName: 'CheckBalancesProcessor',
-          },
-        }),
+        {
+          rebalanceId: this.jobIDPrefix,
+          walletAddress,
+          strategy: 'check-balances',
+        },
+        `checkAndEmitDeduped: job added walletAddress: ${walletAddress}`,
+        {
+          jobId: job.id,
+          queue: queue.name,
+          queuePrefix: (queue as any)?.opts?.prefix,
+          jobSchedulerId: this.jobIDPrefix,
+          workerName: 'CheckBalancesProcessor',
+        },
       )
 
       return { response: job }
     } catch (ex) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `checkAndEmitDeduped: error adding job`,
-          properties: {
-            walletAddress,
-            queue: queue.name,
-            error: ex.message || ex,
-          },
-        }),
+        {
+          rebalanceId: this.jobIDPrefix,
+          walletAddress,
+          strategy: 'check-balances',
+        },
+        `checkAndEmitDeduped: error adding job`,
+        ex,
+        {
+          queue: queue.name,
+        },
       )
 
       return { error: ex }

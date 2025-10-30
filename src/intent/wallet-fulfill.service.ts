@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import {
   Call,
   encodeAbiParameters,
@@ -9,10 +9,11 @@ import {
   zeroAddress,
 } from 'viem'
 import { IMessageBridgeProverAbi, InboxAbi } from '@eco-foundation/routes-ts'
+import { IntentOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext, LogSubOperation } from '@/common/logging/decorators'
 import { TransactionTargetData, UtilsIntentService } from './utils-intent.service'
 import { CallDataInterface, getERC20Selector } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { FeeService } from '@/fee/fee.service'
@@ -38,7 +39,7 @@ import { EcoAnalyticsService } from '@/analytics'
  */
 @Injectable()
 export class WalletFulfillService implements IFulfillService {
-  private logger = new Logger(WalletFulfillService.name)
+  private logger = new IntentOperationLogger('WalletFulfillService')
 
   constructor(
     private readonly kernelAccountClientService: KernelAccountClientService,
@@ -57,7 +58,8 @@ export class WalletFulfillService implements IFulfillService {
    * @param {Solver} solver - The solver object used to determine the transaction executor and chain-specific configurations.
    * @return {Promise<void>} Resolves with no value. Throws an error if the intent fulfillment fails.
    */
-  async fulfill(model: IntentSourceModel, solver: Solver): Promise<Hex> {
+  @LogOperation('wallet_fulfillment', IntentOperationLogger)
+  async fulfill(@LogContext model: IntentSourceModel, @LogContext solver: Solver): Promise<Hex> {
     const startTime = Date.now()
 
     const kernelAccountClient = await this.kernelAccountClientService.getClient(solver.chainID)
@@ -75,13 +77,6 @@ export class WalletFulfillService implements IFulfillService {
 
     // Combine all transactions
     const transactions = [...targetSolveTxs, fulfillTx]
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Fulfilling transaction`,
-        properties: { transactions },
-      }),
-    )
 
     try {
       await this.finalFeasibilityCheck(model.intent)
@@ -101,17 +96,6 @@ export class WalletFulfillService implements IFulfillService {
       }
       model.status = 'SOLVED'
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `Fulfilled transactionHash ${receipt.transactionHash}`,
-          properties: {
-            userOPHash: receipt,
-            destinationChainID: model.intent.route.destination,
-            sourceChainID: IntentSourceModel.getSource(model),
-          },
-        }),
-      )
-
       const processingTime = Date.now() - startTime
       this.ecoAnalytics.trackIntentFulfillmentSuccess(model, solver, receipt, processingTime)
 
@@ -119,18 +103,6 @@ export class WalletFulfillService implements IFulfillService {
     } catch (e) {
       model.status = 'FAILED'
       model.receipt = model.receipt ? { previous: model.receipt, current: e } : e
-
-      this.logger.error(
-        EcoLogMessage.withError({
-          message: `fulfillIntent: Invalid transaction`,
-          error: EcoError.FulfillIntentBatchError,
-          properties: {
-            model: model,
-            flatExecuteData: transactions,
-            errorPassed: e,
-          },
-        }),
-      )
 
       const processingTime = Date.now() - startTime
       this.ecoAnalytics.trackIntentFulfillmentFailed(model, solver, e, processingTime)
@@ -150,7 +122,8 @@ export class WalletFulfillService implements IFulfillService {
    * Throws an error if the intent is not feasible.
    * @param intent the intent to check
    */
-  async finalFeasibilityCheck(intent: IntentDataModel) {
+  @LogSubOperation('feasibility_check')
+  async finalFeasibilityCheck(@LogContext intent: IntentDataModel) {
     const { error } = await this.feeService.isRouteFeasible(intent)
     if (error) {
       this.ecoAnalytics.trackIntentFeasibilityCheckFailed(intent, error)
@@ -168,7 +141,12 @@ export class WalletFulfillService implements IFulfillService {
    * @param target the target ERC20 address
    * @returns
    */
-  handleErc20(tt: TransactionTargetData, solver: Solver, target: Hex): Call[] {
+  @LogSubOperation('erc20_handling')
+  handleErc20(
+    @LogContext tt: TransactionTargetData,
+    @LogContext solver: Solver,
+    @LogContext target: Hex,
+  ): Call[] {
     switch (tt.selector) {
       case getERC20Selector('transfer'):
         const dstAmount = tt.decodedFunctionData.args?.[1] as bigint
@@ -196,7 +174,11 @@ export class WalletFulfillService implements IFulfillService {
    * @param {Solver} solver - The solver instance used to resolve transaction target data and relevant configurations.
    * @return {Array} An array of generated transactions based on the intent targets. Returns an empty array if no valid transactions are created.
    */
-  private getTransactionsForTargets(model: IntentSourceModel, solver: Solver) {
+  @LogSubOperation('transaction_target_generation')
+  private getTransactionsForTargets(
+    @LogContext model: IntentSourceModel,
+    @LogContext solver: Solver,
+  ) {
     const functionCalls = getFunctionCalls(model.intent.route.calls)
 
     // Create transactions for intent targets
@@ -204,15 +186,6 @@ export class WalletFulfillService implements IFulfillService {
       const tt = getTransactionTargetData(solver, call)
       if (tt === null) {
         this.ecoAnalytics.trackTransactionTargetGenerationError(model, solver, call)
-        this.logger.error(
-          EcoLogMessage.withError({
-            message: `fulfillIntent: Invalid transaction data`,
-            error: EcoError.FulfillIntentNoTransactionError,
-            properties: {
-              model: model,
-            },
-          }),
-        )
         return []
       }
 
@@ -239,7 +212,11 @@ export class WalletFulfillService implements IFulfillService {
    * @param nativeCalls - The calls that have native value transfers (from getNativeCalls)
    * @returns A Call object that transfers the total native value to the inbox contract
    */
-  private getNativeFulfill(solver: Solver, nativeCalls: CallDataInterface[]): Call {
+  @LogSubOperation('native_fulfill_calculation')
+  private getNativeFulfill(
+    @LogContext solver: Solver,
+    @LogContext nativeCalls: CallDataInterface[],
+  ): Call {
     return {
       to: solver.inboxAddress,
       value: getNativeFulfill(nativeCalls),
@@ -253,9 +230,10 @@ export class WalletFulfillService implements IFulfillService {
    * @param model
    * @private
    */
+  @LogSubOperation('fulfill_tx_construction')
   private async getFulfillIntentTx(
-    inboxAddress: Hex,
-    model: IntentSourceModel,
+    @LogContext inboxAddress: Hex,
+    @LogContext model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
     const claimant = this.ecoConfigService.getEth().claimant
 
@@ -444,11 +422,12 @@ export class WalletFulfillService implements IFulfillService {
    * @param messageData - The message data to send
    * @return {Promise<bigint>} A promise that resolves to the fee amount
    */
+  @LogSubOperation('prover_fee_calculation')
   private async getProverFee(
-    model: IntentSourceModel,
-    claimant: Hex,
-    proverAddr: Hex,
-    messageData: Hex,
+    @LogContext model: IntentSourceModel,
+    @LogContext claimant: Hex,
+    @LogContext proverAddr: Hex,
+    @LogContext messageData: Hex,
   ): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(
       Number(model.intent.route.destination),

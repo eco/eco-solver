@@ -1,5 +1,4 @@
 import { BalanceService, TokenFetchAnalysis } from '@/balance/balance.service'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { CallDataInterface, getERC20Selector, isERC20Target } from '@/contracts'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import {
@@ -21,12 +20,13 @@ import {
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteError } from '@/quote/errors'
 import { Mathb } from '@/utils/bigint'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { getAddress, Hex, zeroAddress } from 'viem'
 import * as _ from 'lodash'
 import { QuoteRouteDataInterface } from '@/quote/dto/quote.route.data.dto'
 import { hasDuplicateStrings } from '@/common/utils/strings'
 import { EcoAnalyticsService } from '@/analytics'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 
 /**
  * The base decimal number for erc20 tokens.
@@ -41,7 +41,7 @@ type RouteTuple = {
 }
 @Injectable()
 export class FeeService implements OnModuleInit {
-  private logger = new Logger(FeeService.name)
+  private logger = new GenericOperationLogger('FeeService')
   private intentConfigs: IntentConfig
   private whitelist: WhitelistFeeRecord
 
@@ -95,12 +95,14 @@ export class FeeService implements OnModuleInit {
       const tuple = this.extractRouteTuple(intent)
       if (!tuple) {
         this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: 'No tuple found for intent',
-            properties: {
-              intent,
-            },
-          }),
+          {
+            operationType: 'fee_configuration',
+            status: 'warning',
+          },
+          'No tuple found for intent',
+          {
+            intent,
+          },
         )
         return feeConfig
       }
@@ -151,19 +153,21 @@ export class FeeService implements OnModuleInit {
         }
       }
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Fee Config',
-          properties: {
-            feeSource,
-            isNonSwap,
-            dstTokenSource,
-            srcChainId: tuple?.srcChainId,
-            dstChainId: tuple?.dstChainId,
-            srcTokens: tuple?.srcTokens,
-            dstToken: tuple?.dstToken,
-            feeConfig,
-          },
-        }),
+        {
+          operationType: 'fee_configuration',
+          status: 'completed',
+        },
+        'Fee Config',
+        {
+          feeSource,
+          isNonSwap,
+          dstTokenSource,
+          srcChainId: tuple?.srcChainId,
+          dstChainId: tuple?.dstChainId,
+          srcTokens: tuple?.srcTokens,
+          dstToken: tuple?.dstToken,
+          feeConfig,
+        },
       )
     }
     return feeConfig
@@ -218,10 +222,12 @@ export class FeeService implements OnModuleInit {
         throw QuoteError.InvalidSolverAlgorithm(route.destination, solverFee.algorithm)
     }
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: 'Fee Calculation',
-        properties: { feeConfig, fee },
-      }),
+      {
+        operationType: 'fee_calculation',
+        status: 'completed',
+      },
+      'Fee Calculation',
+      { feeConfig, fee },
     )
 
     return fee
@@ -508,14 +514,16 @@ export class FeeService implements OnModuleInit {
       }
 
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: error!.message,
-          properties: {
-            error,
-            source,
-            solver,
-          },
-        }),
+        {
+          operationType: 'token_calculation',
+          status: 'failed',
+        },
+        error!.message,
+        error!,
+        {
+          source,
+          solver,
+        },
       )
       return { error }
     }
@@ -732,14 +740,16 @@ export class FeeService implements OnModuleInit {
         if (!isERC20Target(ttd, getERC20Selector('transfer'))) {
           const err = QuoteError.NonERC20TargetInCalls()
           this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: err.message,
-              properties: {
-                error: err,
-                call,
-                ttd,
-              },
-            }),
+            {
+              operationType: 'call_validation',
+              status: 'failed',
+            },
+            err.message,
+            err,
+            {
+              call,
+              ttd,
+            },
           )
           throw err
         }
@@ -769,14 +779,16 @@ export class FeeService implements OnModuleInit {
           )
 
           this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: QuoteError.SolverLacksLiquidity.name,
-              properties: {
-                error: err,
-                quote,
-                callTarget,
-              },
-            }),
+            {
+              operationType: 'liquidity_check',
+              status: 'failed',
+            },
+            'Solver lacks sufficient liquidity for transfer',
+            err,
+            {
+              quote,
+              callTarget,
+            },
           )
           throw err
         }

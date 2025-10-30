@@ -64,6 +64,7 @@ describe('WatchIntentService', () => {
     jest.restoreAllMocks()
     mockLogDebug.mockClear()
     mockLogLog.mockClear()
+    mockLogError.mockClear()
   })
 
   describe('on lifecycle', () => {
@@ -158,23 +159,34 @@ describe('WatchIntentService', () => {
 
     beforeEach(async () => {
       mockQueueAdd = jest.spyOn(queue, 'add')
-      await watchIntentService.addJob(s)([log])
+      // Call the decorated method and await the returned function
+      const addJobFunction = await watchIntentService.addJob(s)
+      await addJobFunction([log])
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
     })
     it('should convert all bigints to strings', async () => {
-      expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
-        expect.objectContaining(serialize(log)),
+      // The logger now logs individual fields instead of a createIntent object
+      // to prevent OOM issues with large hex data
+      const loggedData = mockLogDebug.mock.calls[0][0]
+      expect(loggedData).toEqual(
+        expect.objectContaining({
+          message: 'Intent created event processed',
+          intentHash: log.args.hash,
+          logIdx: log.logIndex,
+        }),
       )
+      // Verify that BigInt values are NOT present (should be converted or handled)
+      expect(typeof loggedData.chain).not.toBe('bigint')
     })
 
     it('should should attach source chainID and network', async () => {
-      expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
-        expect.objectContaining(
-          serialize({
-            sourceChainID: s.chainID,
-            sourceNetwork: s.network,
-          }),
-        ),
+      // The logger now logs individual fields, including chain and network
+      const loggedData = mockLogDebug.mock.calls[0][0]
+      expect(loggedData).toEqual(
+        expect.objectContaining({
+          chain: String(s.chainID),
+          network: s.network,
+        }),
       )
     })
 
@@ -189,7 +201,9 @@ describe('WatchIntentService', () => {
 
     it('tracks analytics when job is queued successfully', async () => {
       const spy = jest.spyOn(ecoAnalyticsService, 'trackWatchCreateIntentJobQueued')
-      await watchIntentService.addJob(s)([log])
+      // Call the decorated method and await the returned function
+      const addJobFunction = await watchIntentService.addJob(s)
+      await addJobFunction([log])
       expect(spy).toHaveBeenCalledWith(expect.any(Object), expect.any(String), s)
     })
 
@@ -202,7 +216,9 @@ describe('WatchIntentService', () => {
       const allSettledSpy = jest.spyOn(Promise, 'allSettled')
 
       // The method completes successfully despite the queue error being thrown internally
-      await expect(watchIntentService.addJob(s)([log])).resolves.not.toThrow()
+      // Call the decorated method and await the returned function
+      const addJobFunction = await watchIntentService.addJob(s)
+      await expect(addJobFunction([log])).resolves.not.toThrow()
 
       // Verify that Promise.allSettled was used (proves resilient error handling)
       expect(allSettledSpy).toHaveBeenCalled()
@@ -250,6 +266,9 @@ describe('WatchIntentService', () => {
     it('should unsubscribe to every unwatch and catch any throws', async () => {
       const e = new Error('test')
       mockUnwatch1.mockImplementation(() => {
+        throw e
+      })
+      mockUnwatch2.mockImplementation(() => {
         throw e
       })
       await watchIntentService.unsubscribe()

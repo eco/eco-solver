@@ -12,6 +12,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { QUEUES } from '@/common/redis/constants'
 import { CheckOFTDeliveryJobData } from '@/liquidity-manager/jobs/check-oft-delivery.job'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { USDT0ChainConfig } from '@/eco-configs/eco-config.types'
@@ -34,7 +35,7 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
     private readonly kernel: LmTxGatedKernelAccountClientService,
     private readonly publicClient: MultichainPublicClientService,
     private readonly rebalanceRepository: RebalanceRepository,
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(QUEUES.LIQUIDITY_MANAGER.queue)
     private readonly queue: LiquidityManagerQueueType,
   ) {}
 

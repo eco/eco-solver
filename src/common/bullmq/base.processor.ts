@@ -1,7 +1,7 @@
-import { Logger } from '@nestjs/common'
 import { Job as BullMQJob } from 'bullmq'
 import { OnWorkerEvent, WorkerHost } from '@nestjs/bullmq'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { BaseJobManager } from '@/common/bullmq/base-job'
 
 /**
@@ -13,7 +13,7 @@ export abstract class BaseProcessor<
   Job extends BullMQJob,
   JobManager extends BaseJobManager<Job> = BaseJobManager<Job>,
 > extends WorkerHost {
-  public readonly logger: Logger
+  public readonly logger: GenericOperationLogger
 
   /**
    * Constructs a new BaseProcessor.
@@ -25,7 +25,7 @@ export abstract class BaseProcessor<
     protected readonly jobManagers: JobManager[],
   ) {
     super()
-    this.logger = new Logger(name)
+    this.logger = new GenericOperationLogger(name)
   }
 
   /**
@@ -33,14 +33,13 @@ export abstract class BaseProcessor<
    * @param job - The job to process.
    * @returns The result of the job execution.
    */
-  process(job: Job) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${this.name}.process()`,
-        properties: {
-          jobName: job.name,
-        },
-      }),
+  @LogOperation('processor_execution', GenericOperationLogger)
+  process(@LogContext job: Job) {
+    // Business event logging for job processing
+    this.logger.logProcessorJobStart(
+      this.name,
+      job.id || 'unknown',
+      job.data?.intentHash || 'unknown',
     )
 
     return this.execute(job, 'process')
@@ -52,14 +51,13 @@ export abstract class BaseProcessor<
    * @returns The result of the onCompleted hook from the job type.
    */
   @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${this.name}.onComplete()`,
-        properties: {
-          jobName: job.name,
-        },
-      }),
+  @LogOperation('processor_job_complete', GenericOperationLogger)
+  onCompleted(@LogContext job: Job) {
+    // Business event logging for job completion
+    this.logger.logProcessorJobComplete(
+      this.name,
+      job.id || 'unknown',
+      Date.now() - (job.timestamp || 0),
     )
 
     return this.execute(job, 'onComplete')
@@ -72,15 +70,10 @@ export abstract class BaseProcessor<
    * @returns The result of the onFailed hook from the job type.
    */
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${this.name}.onFailed()`,
-        properties: {
-          jobName: job.name,
-        },
-      }),
-    )
+  @LogOperation('processor_job_failed', GenericOperationLogger)
+  onFailed(@LogContext job: Job, error: Error) {
+    // Business event logging for job failure
+    this.logger.logProcessorJobFailed(this.name, job.id || 'unknown', error)
 
     return this.execute(job, 'onFailed', error)
   }
@@ -100,14 +93,10 @@ export abstract class BaseProcessor<
       }
     }
 
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${this.name}: Unknown job type`,
-        properties: {
-          jobName: job.name,
-          method,
-        },
-      }),
+    this.logger.warn(
+      { operationType: 'processor_unknown_job', status: 'warning' },
+      `${this.name}: Unknown job type`,
+      { jobName: job.name, method, jobId: job.id },
     )
 
     return undefined

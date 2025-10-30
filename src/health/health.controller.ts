@@ -1,15 +1,16 @@
-import { Controller, Get, Logger } from '@nestjs/common'
+import { Controller, Get } from '@nestjs/common'
 import { HealthCheck } from '@nestjs/terminus'
 import { HealthPath } from './constants'
 import { HealthService } from './health.service'
 import { API_ROOT } from '../common/routes/constants'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { HealthOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
 @Controller(API_ROOT)
 export class HealthController {
-  private logger = new Logger(HealthController.name)
+  private logger = new HealthOperationLogger('HealthController')
   constructor(
     private healthService: HealthService,
     private readonly ecoAnalytics: EcoAnalyticsService,
@@ -17,14 +18,9 @@ export class HealthController {
 
   @Get(HealthPath)
   @HealthCheck()
+  @LogOperation('health_check', HealthOperationLogger)
   async check() {
     const startTime = Date.now()
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `HealthController`,
-      }),
-    )
 
     this.ecoAnalytics.trackHealthRequestReceived(ANALYTICS_EVENTS.HEALTH.CHECK_REQUEST, {})
 

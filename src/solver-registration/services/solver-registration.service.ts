@@ -10,7 +10,6 @@ import { CrossChainRoutesConfigDTO } from '@/solver-registration/dtos/cross-chai
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, OnApplicationBootstrap, OnModuleInit } from '@nestjs/common'
@@ -25,6 +24,8 @@ import { ModuleRef } from '@nestjs/core'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SigningService } from '../../request-signing/signing.service'
+import { LogOperation } from '@/common/logging/decorators'
+import { GenericOperationLogger } from '@/common/logging/loggers'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 import * as _ from 'lodash'
 
@@ -45,6 +46,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     private readonly moduleRef: ModuleRef,
   ) {}
 
+  @LogOperation('module_init', GenericOperationLogger)
   onModuleInit() {
     this.serverConfig = this.ecoConfigService.getServer()
     this.solverRegistrationConfig = this.ecoConfigService.getSolverRegistrationConfig()
@@ -60,19 +62,16 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       this.solverRegistrationConfig.apiOptions,
       this.logger,
     )
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `${SolverRegistrationService.name}.onModuleInit()`,
-      }),
-    )
   }
 
+  @LogOperation('application_bootstrap', GenericOperationLogger)
   async onApplicationBootstrap() {
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `${SolverRegistrationService.name}.onApplicationBootstrap()`,
-      }),
+      {
+        service: 'solver-registration-service',
+        operation: 'application_bootstrap',
+      },
+      `${SolverRegistrationService.name}.onApplicationBootstrap()`,
     )
 
     setImmediate(() => this.tryRegisterWithBackoff())
@@ -83,6 +82,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     return this.signingService.getHeaders(payload, expiryTime)
   }
 
+  @LogOperation('register_solver', GenericOperationLogger)
   async registerSolver(): Promise<EcoResponse<void>> {
     try {
       const solverRegistrationDTO = this.getSolverRegistrationDTO()
@@ -95,35 +95,34 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       })
 
       if (error) {
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `Error registering solver`,
-            properties: {
-              error,
-            },
-          }),
-        )
+        this.logger.error(`Error registering solver`, {
+          service: 'solver-registration-service',
+          operation: 'register_solver',
+          error: error,
+          quotes_url: this.quotesConfig
+            ? `${this.serverConfig.url}${API_ROOT}${QUOTE_ROUTE}`
+            : undefined,
+        })
 
         return { error }
       }
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `registerSolver: Solver has been registered`,
-          properties: { response },
-        }),
+        {
+          service: 'solver-registration-service',
+          operation: 'register_solver',
+        },
+        'registerSolver: Solver has been registered',
+        { response },
       )
 
       return {}
     } catch (ex) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Exception registering solver`,
-          properties: {
-            error: ex.message,
-          },
-        }),
-      )
+      this.logger.error(`Exception registering solver`, {
+        service: 'solver-registration-service',
+        operation: 'register_solver',
+        error: ex.message,
+      })
 
       return { error: EcoError.SolverRegistrationError }
     }
@@ -182,9 +181,12 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
       if (destinationTokens.length === 0) {
         this.logger.warn(
-          EcoLogMessage.fromDefault({
-            message: `getCrossChainRoutesConfig: No targets configured for solver destinationChainID ${destinationChainID}, skipping`,
-          }),
+          {
+            service: 'solver-registration-service',
+            operation: 'get_cross_chain_routes',
+          },
+          'getCrossChainRoutesConfig: No targets configured for solver destinationChainID, skipping',
+          { destinationChainID },
         )
         continue
       }
@@ -220,9 +222,12 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     if (_.isEmpty(sourceTokens)) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `getRouteTokensDTOs: No tokens configured for intentSourceChainID ${intentSourceChainID}, skipping`,
-        }),
+        {
+          service: 'solver-registration-service',
+          operation: 'get_route_tokens',
+        },
+        'getRouteTokensDTOs: No tokens configured for intentSourceChainID, skipping',
+        { intentSourceChainID },
       )
       return []
     }
@@ -238,9 +243,12 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
 
     if (!intentSource) {
       this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `getSourceTokensForChain: No intent source found for chainID ${chainID}`,
-        }),
+        {
+          service: 'solver-registration-service',
+          operation: 'get_source_tokens',
+        },
+        'getSourceTokensForChain: No intent source found for chainID',
+        { chainID },
       )
 
       return []
@@ -264,9 +272,12 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     }
 
     this.logger.error(
-      EcoLogMessage.fromDefault({
-        message: `tryRegisterWithBackoff: Solver registration failed after ${max} retries`,
-      }),
+      {
+        service: 'solver-registration-service',
+        operation: 'register_with_backoff',
+      },
+      'tryRegisterWithBackoff: Solver registration failed after retries',
+      { max },
     )
   }
 

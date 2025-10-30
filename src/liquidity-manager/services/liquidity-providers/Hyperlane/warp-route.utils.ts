@@ -1,5 +1,4 @@
 import { Logger } from '@nestjs/common'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 
 export interface RetryConfig {
   maxRetries: number
@@ -50,14 +49,16 @@ export async function withRetry<T>(
 
       if (logger) {
         logger.debug(
-          EcoLogMessage.withId({
-            message: `Retrying operation after error. Attempt ${attempt + 1}/${finalConfig.maxRetries}`,
-            properties: {
-              error: error.message,
-              delay,
-              ...context,
-            },
-          }),
+          `Retrying operation after error. Attempt ${attempt + 1}/${finalConfig.maxRetries}`,
+          {
+            service: 'hyperlane-warp-route-utils',
+            operation: 'retry_operation',
+            attempt: attempt + 1,
+            maxRetries: finalConfig.maxRetries,
+            error: error.message,
+            delay,
+            ...context,
+          },
         )
       }
 

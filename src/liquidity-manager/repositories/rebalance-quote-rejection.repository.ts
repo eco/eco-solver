@@ -1,6 +1,6 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import { LiquidityManagerLogger } from '@/common/logging/loggers'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import {
@@ -49,7 +49,7 @@ export interface CreateRejectionData {
  */
 @Injectable()
 export class RebalanceQuoteRejectionRepository {
-  private logger = new Logger(RebalanceQuoteRejectionRepository.name)
+  private logger = new LiquidityManagerLogger('RebalanceQuoteRejectionRepository')
 
   constructor(
     @InjectModel(RebalanceQuoteRejectionModel.name)
@@ -70,43 +70,50 @@ export class RebalanceQuoteRejectionRepository {
   ): Promise<EcoResponse<RebalanceQuoteRejectionModel>> {
     try {
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Persisting quote rejection',
-          properties: {
-            rebalanceId: rejectionData.rebalanceId,
-            strategy: rejectionData.strategy,
-            reason: rejectionData.reason,
-            tokenInChain: rejectionData.tokenIn.chainId,
-            tokenOutChain: rejectionData.tokenOut.chainId,
-          },
-        }),
+        {
+          rebalanceId: rejectionData.rebalanceId,
+          walletAddress: rejectionData.walletAddress || 'system',
+          strategy: rejectionData.strategy,
+          sourceChainId: rejectionData.tokenIn.chainId,
+          destinationChainId: rejectionData.tokenOut.chainId,
+        },
+        'Persisting quote rejection',
+        {
+          reason: rejectionData.reason,
+          tokenInChain: rejectionData.tokenIn.chainId,
+          tokenOutChain: rejectionData.tokenOut.chainId,
+        },
       )
 
       const rejectionModel = await this.model.create(rejectionData)
 
       this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: 'Quote rejection persisted successfully',
-          properties: {
-            rejectionId: rejectionModel._id,
-            rebalanceId: rejectionData.rebalanceId,
-          },
-        }),
+        {
+          rebalanceId: rejectionData.rebalanceId,
+          walletAddress: rejectionData.walletAddress || 'system',
+          strategy: rejectionData.strategy,
+        },
+        'Quote rejection persisted successfully',
+        {
+          rejectionId: rejectionModel._id,
+        },
       )
 
       return { response: rejectionModel }
     } catch (error) {
       // Non-blocking: log error but don't throw to avoid breaking quote operations
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to persist quote rejection - continuing with quote operation',
-          properties: {
-            rebalanceId: rejectionData.rebalanceId,
-            strategy: rejectionData.strategy,
-            reason: rejectionData.reason,
-            error: error.message,
-          },
-        }),
+        {
+          rebalanceId: rejectionData.rebalanceId,
+          walletAddress: rejectionData.walletAddress || 'system',
+          strategy: rejectionData.strategy,
+        },
+        'Failed to persist quote rejection - continuing with quote operation',
+        error,
+        {
+          reason: rejectionData.reason,
+          errorMessage: error.message,
+        },
       )
 
       return { error }
@@ -130,10 +137,17 @@ export class RebalanceQuoteRejectionRepository {
       return count > 0
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to check rejections in last hour',
-          properties: { error: error.message },
-        }),
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to check rejections in last hour',
+        error,
+        {
+          operation: 'check_recent_rejections',
+          errorMessage: error.message,
+        },
       )
       return false
     }
@@ -156,10 +170,18 @@ export class RebalanceQuoteRejectionRepository {
       })
     } catch (error) {
       this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: 'Failed to get recent rejection count',
-          properties: { timeRangeMinutes, error: error.message },
-        }),
+        {
+          rebalanceId: 'system-check',
+          walletAddress: 'system',
+          strategy: 'health-check',
+        },
+        'Failed to get recent rejection count',
+        error,
+        {
+          operation: 'get_rejection_count',
+          timeRangeMinutes,
+          errorMessage: error.message,
+        },
       )
       return 0
     }

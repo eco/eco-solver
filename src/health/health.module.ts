@@ -10,9 +10,10 @@ import { EcoRedisHealthIndicator } from '@/health/indicators/eco-redis.indicator
 import { GitCommitHealthIndicator } from '@/health/indicators/git-commit.indicator'
 import { MongoDBHealthIndicator } from '@/health/indicators/mongodb.indicator'
 import { RebalanceHealthIndicator } from '@/health/indicators/rebalance-health.indicator'
+import { LoggingMetricsController } from '@/health/logging-metrics.controller'
 @Module({
   imports: [TransactionModule, RedisHealthModule, TerminusModule, LiquidityManagerModule],
-  controllers: [HealthController],
+  controllers: [HealthController, LoggingMetricsController],
   providers: [
     HealthService,
     BalanceHealthIndicator,

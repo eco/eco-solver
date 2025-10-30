@@ -1,11 +1,12 @@
 import { EcoError } from '@/common/errors/eco-error'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation } from '@/common/logging/decorators'
 import { obscureCenter } from '@/common/utils/strings'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { Signer } from '@eco-foundation/eco-kms-core'
 import { KMSProviderAWS } from '@eco-foundation/eco-kms-provider-aws'
 import { KMSWallets } from '@eco-foundation/eco-kms-wallets'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { getAddress as viemGetAddress, Hex } from 'viem'
 
 /**
@@ -14,12 +15,13 @@ import { getAddress as viemGetAddress, Hex } from 'viem'
  */
 @Injectable()
 export class KmsService implements OnModuleInit {
-  private logger = new Logger(KmsService.name)
+  private logger = new GenericOperationLogger('KmsService')
   private keyID: string
   wallets: KMSWallets
   signer: Signer
   constructor(private readonly ecoConfigService: EcoConfigService) {}
 
+  @LogOperation('module_init', GenericOperationLogger)
   async onModuleInit() {
     const kmsConfig = this.ecoConfigService.getKmsConfig()
     if (!kmsConfig) {
@@ -37,13 +39,15 @@ export class KmsService implements OnModuleInit {
     this.signer = new Signer(this.wallets) //, chainId)
 
     this.logger.log(
-      EcoLogMessage.fromDefault({
-        message: `KmsService initialized`,
-        properties: {
-          kmsAddress: await this.getAddress(),
-          kmsKeyId: obscureCenter(this.getKmsKeyId()),
-        },
-      }),
+      {
+        operationType: 'kms_initialization',
+        status: 'completed',
+      },
+      'KmsService initialized',
+      {
+        kmsAddress: await this.getAddress(),
+        kmsKeyId: obscureCenter(this.getKmsKeyId()),
+      },
     )
   }
 

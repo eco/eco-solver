@@ -1,5 +1,7 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectQueue, Processor } from '@nestjs/bullmq'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
 import { IntentProcessorJob } from '@/intent-processor/jobs/intent-processor.job'
 import { IntentProcessorService } from '@/intent-processor/services/intent-processor.service'
 import { ExecuteWithdrawsJobManager } from '@/intent-processor/jobs/execute-withdraws.job'
@@ -7,9 +9,9 @@ import { CheckSendBatchCronJobManager } from '@/intent-processor/jobs/send-batch
 import { CheckWithdrawalsCronJobManager } from '@/intent-processor/jobs/withdraw-rewards-cron.job'
 import {
   IntentProcessorJobName,
-  IntentProcessorQueue,
   IntentProcessorQueueType,
 } from '@/intent-processor/queues/intent-processor.queue'
+import { QUEUES } from '@/common/redis/constants'
 import { GroupedJobsProcessor } from '@/common/bullmq/grouped-jobs.processor'
 import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send-batch.job'
 
@@ -18,11 +20,12 @@ import { ExecuteSendBatchJobManager } from '@/intent-processor/jobs/execute-send
  * Extends the GroupedJobsProcessor to ensure jobs in the same group are not processed concurrently.
  */
 @Injectable()
-@Processor(IntentProcessorQueue.queueName, { concurrency: 10 })
+@Processor(QUEUES.INTENT_PROCESSOR.queue, { concurrency: 10 })
 export class IntentProcessor
   extends GroupedJobsProcessor<IntentProcessorJob>
   implements OnApplicationBootstrap
 {
+  private businessLogger = new GenericOperationLogger('IntentProcessor')
   protected appReady = false
 
   private readonly nonConcurrentJobs: IntentProcessorJobName[] = [
@@ -31,7 +34,7 @@ export class IntentProcessor
   ]
 
   constructor(
-    @InjectQueue(IntentProcessorQueue.queueName)
+    @InjectQueue(QUEUES.INTENT_PROCESSOR.queue)
     public readonly queue: IntentProcessorQueueType,
     public readonly intentProcessorService: IntentProcessorService,
   ) {
@@ -43,20 +46,31 @@ export class IntentProcessor
     ])
   }
 
-  async process(job: IntentProcessorJob) {
+  @LogOperation('processor_job_start', GenericOperationLogger)
+  async process(@LogContext job: IntentProcessorJob) {
     if (await this.avoidConcurrency(job)) {
-      this.logger.warn('Skipping job execution, queue is not empty.')
+      // Log business event for job skipping due to concurrency
+      this.businessLogger.logQueueProcessing('IntentProcessorQueue', 1, 'waiting')
       return
     }
+
+    // Log business event for job processing start
+    this.businessLogger.logProcessorJobStart(
+      'IntentProcessor',
+      job.id || 'unknown',
+      job.name || 'unknown',
+    )
 
     return super.process(job)
   }
 
+  @LogOperation('processor_execution', GenericOperationLogger)
   onApplicationBootstrap(): void {
     this.appReady = true
   }
 
-  protected async avoidConcurrency(job: IntentProcessorJob): Promise<boolean> {
+  @LogOperation('processor_execution', GenericOperationLogger)
+  protected async avoidConcurrency(@LogContext job: IntentProcessorJob): Promise<boolean> {
     if (!this.nonConcurrentJobs.includes(job.name)) {
       return false
     }
@@ -66,10 +80,10 @@ export class IntentProcessor
 
     if (waitingCount > 0 || activeCount > 1) {
       if (activeCount <= this.nonConcurrentJobs.length) {
-        const activeJobs: IntentProcessorJob[] = await this.queue.getActive(
+        const activeJobs = (await this.queue.getActive(
           0,
           this.nonConcurrentJobs.length,
-        )
+        )) as IntentProcessorJob[]
         const jobNames = activeJobs.map((job) => job.name)
         return !jobNames.every((jobName) => this.nonConcurrentJobs.includes(jobName))
       }

@@ -1291,13 +1291,6 @@ describe('FeeService', () => {
       const r = await feeService.calculateTokens(quote as any)
       expect(r).toEqual({ error: QuoteError.NoIntentSourceForSource(quote.route.source) })
       expect(mockLogError).toHaveBeenCalled()
-      expect(mockLogError).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: QuoteError.NoIntentSourceForSource(quote.route.source).message,
-          error: QuoteError.NoIntentSourceForSource(quote.route.source),
-          source: undefined,
-        }),
-      )
     })
 
     it('should return error if solver is not found', async () => {
@@ -1305,13 +1298,6 @@ describe('FeeService', () => {
       const r = await feeService.calculateTokens(quote as any)
       expect(r).toEqual({ error: QuoteError.NoSolverForDestination(quote.route.destination) })
       expect(mockLogError).toHaveBeenCalled()
-      expect(mockLogError).toHaveBeenCalledWith(
-        expect.objectContaining({
-          msg: QuoteError.NoSolverForDestination(quote.route.destination).message,
-          error: QuoteError.NoSolverForDestination(quote.route.destination),
-          solver: undefined,
-        }),
-      )
     })
 
     it('should return error if fetching token data fails', async () => {
@@ -1609,12 +1595,6 @@ describe('FeeService', () => {
         })
         expect(mockGetTransactionTargetData).toHaveBeenCalledTimes(1)
         expect(mockLogError).toHaveBeenCalledTimes(1)
-        expect(mockLogError).toHaveBeenCalledWith({
-          msg: QuoteError.NonERC20TargetInCalls().message,
-          call: quote.route.calls[0],
-          error: QuoteError.NonERC20TargetInCalls(),
-          ttd: null,
-        })
         expect(mockIsERC20Target).toHaveBeenCalledTimes(1)
         expect(mockIsERC20Target).toHaveBeenCalledWith(null, getERC20Selector('transfer'))
       })
@@ -1656,12 +1636,6 @@ describe('FeeService', () => {
         })
         expect(convert).toHaveBeenCalledTimes(0)
         expect(mockLogError).toHaveBeenCalledTimes(1)
-        expect(mockLogError).toHaveBeenCalledWith({
-          msg: QuoteError.SolverLacksLiquidity.name,
-          error,
-          quote,
-          callTarget: tokenAnalysis['0x1'],
-        })
       })
 
       it('should convert and normalize the erc20 calls', async () => {

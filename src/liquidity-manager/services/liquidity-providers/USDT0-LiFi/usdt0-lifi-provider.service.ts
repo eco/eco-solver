@@ -15,6 +15,7 @@ import {
   LiquidityManagerQueue,
   LiquidityManagerQueueType,
 } from '@/liquidity-manager/queues/liquidity-manager.queue'
+import { LIQUIDITY_MANAGER_QUEUE_NAME } from '@/liquidity-manager/constants/queue.constants'
 import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/LiFi/lifi-provider.service'
 import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
 import { USDT0LiFiRoutePlanner, RouteStep } from './utils/route-planner'
@@ -36,7 +37,7 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly rebalanceRepository: RebalanceRepository,
-    @InjectQueue(LiquidityManagerQueue.queueName)
+    @InjectQueue(LIQUIDITY_MANAGER_QUEUE_NAME)
     private readonly queue: LiquidityManagerQueueType,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {

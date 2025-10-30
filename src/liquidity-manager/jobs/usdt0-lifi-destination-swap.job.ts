@@ -1,5 +1,4 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
 import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
 import {
@@ -65,29 +64,27 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
       job.data
 
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFiDestinationSwapJob: process start',
-        id,
-        properties: {
-          destinationChainId,
-          walletAddress,
-          fromToken: destinationSwapQuote?.fromToken?.address,
-          toToken: destinationSwapQuote?.toToken?.address,
-        },
-      }),
+      { operationType: 'job_execution', status: 'started' },
+      'USDT0LiFiDestinationSwapJob: process start',
+      {
+        jobId: id,
+        destinationChainId,
+        walletAddress,
+        fromToken: destinationSwapQuote?.fromToken?.address,
+        toToken: destinationSwapQuote?.toToken?.address,
+      },
     )
 
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFi: DestinationSwapJob: Starting execution',
-        id,
-        properties: {
-          destinationChainId,
-          walletAddress,
-          originalTokenOut,
-          destinationSwapQuote,
-        },
-      }),
+      { operationType: 'job_execution' },
+      'USDT0LiFi: DestinationSwapJob: Starting execution',
+      {
+        jobId: id,
+        destinationChainId,
+        walletAddress,
+        originalTokenOut,
+        destinationSwapQuote,
+      },
     )
 
     try {
@@ -99,25 +96,22 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
       )
 
       processor.logger.debug(
-        EcoLogMessage.withId({
-          message: 'USDT0LiFi: DestinationSwapJob: Completed successfully',
-          id,
-          properties: { swapTxHash: result.txHash, finalAmount: result.finalAmount },
-        }),
+        { operationType: 'job_execution', status: 'completed' },
+        'USDT0LiFi: DestinationSwapJob: Completed successfully',
+        { jobId: id, swapTxHash: result.txHash, finalAmount: result.finalAmount },
       )
 
       return result
     } catch (error) {
       processor.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error,
-          message: 'USDT0LiFi: DestinationSwapJob: Execution failed',
-          id,
-          properties: {
-            destinationChainId,
-            walletAddress,
-          },
-        }),
+        { operationType: 'job_execution', status: 'error' },
+        'USDT0LiFi: DestinationSwapJob: Execution failed',
+        error as Error,
+        {
+          jobId: id,
+          destinationChainId,
+          walletAddress,
+        },
       )
       throw error
     }
@@ -130,18 +124,14 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     destinationChainId: number,
   ): Promise<{ txHash: Hex; finalAmount: string }> {
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFiDestinationSwapJob: executeDestinationSwap start',
-        id: destinationSwapQuote.id,
-        properties: { destinationChainId, walletAddress },
-      }),
+      { operationType: 'job_execution' },
+      'USDT0LiFiDestinationSwapJob: executeDestinationSwap start',
+      { jobId: destinationSwapQuote.id, destinationChainId, walletAddress },
     )
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFi: DestinationSwapJob: Executing destination swap',
-        id: destinationSwapQuote.id,
-        properties: { destinationSwapQuote, walletAddress, destinationChainId },
-      }),
+      { operationType: 'job_execution' },
+      'USDT0LiFi: DestinationSwapJob: Executing destination swap',
+      { jobId: destinationSwapQuote.id, destinationSwapQuote, walletAddress, destinationChainId },
     )
 
     const tempQuote = {
@@ -190,11 +180,9 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     )
 
     processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFiDestinationSwapJob: executeDestinationSwap completed',
-        id: destinationSwapQuote.id,
-        properties: { execResult },
-      }),
+      { operationType: 'job_execution', status: 'completed' },
+      'USDT0LiFiDestinationSwapJob: executeDestinationSwap completed',
+      { jobId: destinationSwapQuote.id, execResult },
     )
 
     return {
@@ -211,18 +199,17 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     const { groupID, rebalanceJobID } = jobData
 
     processor.logger.log(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFi: DestinationSwapJob: Completed',
-        id: job.data.id,
-        properties: {
-          groupID,
-          rebalanceJobID,
-          txHash: job.returnvalue?.txHash,
-          finalAmount: job.returnvalue?.finalAmount,
-          destinationChainId: job.data.destinationChainId,
-          walletAddress: job.data.walletAddress,
-        },
-      }),
+      { operationType: 'job_execution', status: 'completed' },
+      'USDT0LiFi: DestinationSwapJob: Completed',
+      {
+        jobId: job.data.id,
+        groupID,
+        rebalanceJobID,
+        txHash: job.returnvalue?.txHash,
+        finalAmount: job.returnvalue?.finalAmount,
+        destinationChainId: job.data.destinationChainId,
+        walletAddress: job.data.walletAddress,
+      },
     )
 
     await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
@@ -242,16 +229,15 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     }
 
     processor.logger.error(
-      EcoLogMessage.withErrorAndId({
-        message: isFinal
-          ? 'USDT0LiFi: DestinationSwapJob: FINAL FAILURE'
-          : 'USDT0LiFi: DestinationSwapJob: Failed: Retrying...',
-        id: job.data.id,
-        error: error as any,
-        properties: {
-          data: job.data,
-        },
-      }),
+      { operationType: 'job_execution', status: 'error' },
+      isFinal
+        ? 'USDT0LiFi: DestinationSwapJob: FINAL FAILURE'
+        : 'USDT0LiFi: DestinationSwapJob: Failed: Retrying...',
+      error as Error,
+      {
+        jobId: job.data.id,
+        data: job.data,
+      },
     )
   }
 }

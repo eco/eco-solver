@@ -5,7 +5,6 @@ import { QUEUES } from '@/common/redis/constants'
 import { InjectQueue } from '@nestjs/bullmq'
 import { getIntentJobId } from '@/common/utils/strings'
 import { IntentSource } from '@/eco-configs/eco-config.types'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentCreatedLog } from '@/contracts'
 import { Log, PublicClient } from 'viem'
@@ -14,6 +13,9 @@ import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { LogOperation, LogSubOperation } from '@/common/logging/decorators/log-operation.decorator'
+import { LogContext } from '@/common/logging/decorators/log-context.decorator'
+import { IntentOperationLogger } from '@/common/logging/loggers/intent-operation-logger'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
@@ -38,6 +40,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
    * filtering on the prover addresses and destination chain ids. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */
+  @LogOperation('intent_creation_subscription', IntentOperationLogger)
   async subscribe(): Promise<void> {
     const sources = this.ecoConfigService.getIntentSources()
 
@@ -67,20 +70,16 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   /**
    * Unsubscribes from all IntentSource contracts. It closes all clients in {@link onModuleDestroy}
    */
-  async unsubscribe() {
+  @LogSubOperation('unsubscribe')
+  async unsubscribe(): Promise<void> {
     super.unsubscribe()
   }
 
-  async subscribeTo(client: PublicClient, source: IntentSource) {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `watch create intent: subscribeToSource`,
-        properties: {
-          source,
-        },
-      }),
-    )
-
+  @LogSubOperation('subscribe_to_source')
+  async subscribeTo(
+    @LogContext client: PublicClient,
+    @LogContext source: IntentSource,
+  ): Promise<void> {
     this.unwatch[source.chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
@@ -93,11 +92,15 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
-      onLogs: this.addJob(source),
+      onLogs: async (logs) => {
+        const addJobFunction = await this.addJob(source)
+        await addJobFunction(logs)
+      },
     })
   }
 
-  addJob(source: IntentSource): (logs: Log[]) => Promise<void> {
+  @LogSubOperation('process_intent_created_logs')
+  addJob(@LogContext source: IntentSource): (logs: Log[]) => Promise<void> {
     return async (logs: IntentCreatedLog[]) => {
       // Track batch of events detected
       if (logs.length > 0) {
@@ -117,12 +120,25 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
             createIntent.args.hash,
             createIntent.logIndex,
           )
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `watch intent`,
-              properties: { createIntent, jobId },
-            }),
-          )
+
+          // Log the processed intent for debugging - with safe truncation for large hex data
+          // Note: Using debug with truncated data to prevent OOM from logging massive objects
+          this.logger.debug({
+            message: 'Intent created event processed',
+            intentHash: createIntent.args?.hash,
+            txHash: createIntent.transactionHash,
+            blockNum: createIntent.blockNumber,
+            logIdx: createIntent.logIndex,
+            chain: String(source.chainID),
+            network: source.network,
+            // Truncate large hex data to prevent memory issues
+            dataPreview: createIntent.data
+              ? `${createIntent.data.substring(0, 100)}...`
+              : undefined,
+            dataLen: createIntent.data?.length,
+          })
+
+          // Intent job creation context automatically captured by parent operation decorator
 
           try {
             // add to processing queue

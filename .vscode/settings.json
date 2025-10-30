@@ -1,0 +1,17 @@
+{
+  // Convert all ESLint errors to warnings (yellow underlines instead of red)
+  "eslint.rules.customizations": [{ "rule": "*", "severity": "warn" }]
+
+  // Alternative options (uncomment to use instead):
+
+  // Option 2: Completely disable ESLint diagnostics in the editor
+  // "eslint.enable": false,
+
+  // Option 3: Keep ESLint enabled but suppress all diagnostic output
+  // "eslint.quiet": true,
+
+  // Option 4: Only disable error-level diagnostics, keep warnings
+  // "eslint.rules.customizations": [
+  //   { "rule": "*", "severity": "off", "fixable": true }
+  // ]
+}

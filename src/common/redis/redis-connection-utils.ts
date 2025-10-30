@@ -2,7 +2,6 @@ import { Logger } from '@nestjs/common'
 import { RegisterQueueOptions } from '@nestjs/bullmq'
 import * as Redis from 'ioredis'
 import { EcoError } from '../errors/eco-error'
-import { EcoLogMessage } from '../logging/eco-log-message'
 import { QueueMetadata } from './constants'
 import { RedisConfig } from '../../eco-configs/eco-config.types'
 import { RedlockRedisClient } from '../../nest-redlock/nest-redlock.service'
@@ -81,11 +80,13 @@ export class RedisConnectionUtils {
     redisConfig: RedisConfig,
   ): RegisterQueueOptions {
     // Setup a cluster.
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `getQueueOptionsForCluster: Setting up a redis cluster`,
-      }),
-    )
+    this.logger.debug(`getQueueOptionsForCluster: Setting up a redis cluster`, {
+      service: 'redis-connection-utils',
+      operation: 'get_queue_options_for_cluster',
+      queue_name: name,
+      queue_prefix: prefix,
+      connection_count: connection.length,
+    })
 
     return {
       name,

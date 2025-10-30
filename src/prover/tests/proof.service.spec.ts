@@ -103,10 +103,15 @@ describe('ProofService', () => {
 
     it('should should log', async () => {
       expect(mockLogDebug).toHaveBeenCalledTimes(1)
-      expect(mockLogDebug).toHaveBeenCalledWith({
-        msg: 'loadProofTypes loaded all the proof types',
-        proofs: proofService['provers'],
-      })
+      expect(mockLogDebug).toHaveBeenCalledWith(
+        'loadProofTypes loaded all the proof types',
+        expect.objectContaining({
+          service: 'proof-service',
+          operation: 'load_proof_types',
+          prover_count: proofService['provers'].length,
+          proof_types: expect.any(Array),
+        }),
+      )
     })
   })
 

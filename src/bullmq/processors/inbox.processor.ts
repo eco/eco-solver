@@ -1,76 +1,45 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { FulfillmentLog } from '@/contracts/inbox'
-import { Injectable, Logger } from '@nestjs/common'
 import { IntentFulfilledService } from '@/intent/intent-fulfilled.service'
-import { Job } from 'bullmq'
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { QUEUES } from '@/common/redis/constants'
+import { Injectable } from '@nestjs/common'
+import { Job } from 'bullmq'
+import { GenericOperationLogger } from '@/common/logging/loggers'
+import { LogOperation, LogContext } from '@/common/logging/decorators'
+import { FulfillmentLog } from '@/contracts/inbox'
 
 @Injectable()
 @Processor(QUEUES.INBOX.queue)
 export class InboxProcessor extends WorkerHost {
-  private logger = new Logger(InboxProcessor.name)
+  private logger = new GenericOperationLogger('InboxProcessor')
   constructor(private readonly intentFulfilledService: IntentFulfilledService) {
     super()
   }
 
+  @LogOperation('processor_job_start', GenericOperationLogger)
   async process(
-    job: Job<any, any, string>,
+    @LogContext job: Job<any, any, string>,
     processToken?: string | undefined, // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<any> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `InboxProcessor: process`,
-        properties: {
-          job: job.name,
-        },
-      }),
-    )
-
     switch (job.name) {
       case QUEUES.INBOX.jobs.fulfillment:
         return await this.intentFulfilledService.processFulfilled(job.data as FulfillmentLog)
       default:
-        this.logger.error(
-          EcoLogMessage.fromDefault({
-            message: `InboxProcessor: Invalid job type ${job.name}`,
-          }),
-        )
-        return Promise.reject('Invalid job type')
+        throw new Error(`Unknown job type: ${job.name}`)
     }
   }
 
   @OnWorkerEvent('failed')
-  onJobFailed(job: Job<any, any, string>, error: Error) {
-    this.logger.error(
-      EcoLogMessage.withError({
-        message: `InboxProcessor: Error processing job`,
-        error,
-        properties: { job },
-      }),
-    )
-  }
+  @LogOperation('processor_job_failed', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onJobFailed(@LogContext job: Job<any, any, string>, error: Error) {}
 
   @OnWorkerEvent('stalled')
-  onStalled(jobId: string, prev?: string) {
-    this.logger.warn(
-      EcoLogMessage.fromDefault({
-        message: `InboxProcessor: Job stalled`,
-        properties: {
-          jobId,
-          prev,
-        },
-      }),
-    )
-  }
+  @LogOperation('processor_stalled', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onStalled(@LogContext jobId: string, prev?: string) {}
 
   @OnWorkerEvent('error')
-  onWorkerError(error: Error) {
-    this.logger.error(
-      EcoLogMessage.withError({
-        message: `InboxProcessor: Worker error`,
-        error,
-      }),
-    )
-  }
+  @LogOperation('processor_error', GenericOperationLogger)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onWorkerError(error: Error) {}
 }
