@@ -122,11 +122,6 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
         return decodeOptimizedArbiterParams(encodedParams);
       }
 
-      if (adapterDecoded.functionName === 'eco_across_handleClaim_optimized') {
-        const encodedParams = adapterDecoded.args[0] as Hex;
-        return decodeOptimizedArbiterParams(encodedParams);
-      }
-
       throw new Error(
         `Unknown adapter function: ${adapterDecoded.functionName}. ` +
           'Expected eco_compact_handleClaim, eco_permit2_handleClaim, eco_permit2_handleClaim_optimized, or eco_across_handleClaim_optimized',
