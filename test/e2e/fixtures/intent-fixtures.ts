@@ -40,7 +40,7 @@ export function createValidIntentOptions(
 export function createExpiredIntentOptions(
   overrides: Partial<PublishIntentOptions> = {},
 ): PublishIntentOptions {
-  const expiredTime = BigInt(Date.now() - 3600000); // 1 hour ago
+  const expiredTime = BigInt(Math.floor(Date.now() / 1000) - 3600); // 1 hour ago in seconds
 
   return {
     tokenAmount: parseUnits('10', 6),
@@ -162,14 +162,14 @@ export function createCustomDeadlineOptions(
  * Helper: Create future timestamp (X seconds from now)
  */
 export function futureTimestamp(secondsFromNow: number): bigint {
-  return BigInt(Date.now() + secondsFromNow * 1000);
+  return BigInt(Math.floor(Date.now() / 1000) + secondsFromNow);
 }
 
 /**
  * Helper: Create past timestamp (X seconds ago)
  */
 export function pastTimestamp(secondsAgo: number): bigint {
-  return BigInt(Date.now() - secondsAgo * 1000);
+  return BigInt(Math.floor(Date.now() / 1000) - secondsAgo);
 }
 
 // =============================================================================

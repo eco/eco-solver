@@ -241,33 +241,6 @@ it('should interact with Base Mainnet fork', async () => {
 3. Clean up old containers: `docker system prune`
 4. Verify Testcontainers can access Docker socket
 
-### Port Conflicts ⚠️ Most Common Issue
-
-**Symptom**: "Address already in use (os error 48)" errors
-
-**Quick Fix**:
-```bash
-# Run the cleanup script
-pnpm test:e2e:cleanup
-
-# Then run tests
-pnpm test:e2e:services
-```
-
-**Why it happens**: Anvil processes from previous test runs may not have been killed properly, especially when tests are interrupted or fail.
-
-**What the cleanup script does**:
-- Kills all Anvil processes system-wide
-- Frees up ports 8545 and 9545
-- Stops all E2E Docker containers
-- Removes temporary test files
-
-**Manual Solutions** (if cleanup script doesn't work):
-1. Kill all Anvil processes: `pkill -9 anvil`
-2. Kill processes on specific ports: `lsof -ti:8545,9545 | xargs kill -9`
-3. Check if ports are free: `lsof -i :8545 && lsof -i :9545`
-4. Change ports in `test/config.e2e.yaml` if needed
-
 ### Test Timeout
 
 **Symptom**: Tests exceed 60 second timeout

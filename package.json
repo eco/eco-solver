@@ -20,9 +20,6 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "NODE_ENV=test CONFIG_FILES=test/config.e2e.yaml jest --config ./test/jest-e2e-compose.json --runInBand --forceExit",
     "test:e2e:ci": "NODE_ENV=test CONFIG_FILES=test/config.e2e.yaml jest --config ./test/jest-e2e.json --runInBand --forceExit",
-    "test:e2e:check": "ts-node test/e2e/setup/preflight-check.ts",
-    "test:e2e:cleanup": "./scripts/cleanup-e2e.sh",
-    "test:e2e:services": "./scripts/e2e-test.sh",
     "secrets:scan": "secretlint \"**/*\"",
     "prepare": "husky"
   },

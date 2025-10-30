@@ -50,75 +50,6 @@ docker-compose -f docker-compose.e2e.yml down
 
 **Important**: Use `pnpm test:e2e` (not `test:e2e`) when using Docker Compose to skip the globalSetup container management.
 
----
-
-## 🔧 Alternative: One-Command Test Runner
-
-Use the automated test runner script:
-
-```bash
-# Start services, run tests, optionally cleanup
-pnpm test:e2e:services
-```
-
-This script will:
-1. ✅ Start all services automatically
-2. ✅ Wait for services to be ready
-3. ✅ Run E2E tests
-4. ✅ Ask if you want to stop services
-
----
-
-## 🆘 If You Hit Port Conflicts
-
-If you see **"Address already in use (os error 48)"**:
-
-```bash
-# Run cleanup script (fixes 99% of issues)
-pnpm test:e2e:cleanup
-
-# Then try again
-docker-compose -f docker-compose.e2e.yml up -d
-pnpm test:e2e
-```
-
-**Why this happens**: Anvil processes from previous runs didn't exit cleanly.
-
-**What cleanup does**: Kills all Anvil processes, frees ports, removes containers.
-
----
-
-## ✅ Environment Check (Optional)
-
-Run the preflight check to verify all prerequisites:
-
-```bash
-pnpm test:e2e:check
-```
-
-This verifies:
-- ✅ Node.js 20+
-- ✅ pnpm installed
-- ✅ Docker running
-- ✅ Foundry/Anvil installed
-- ✅ Configuration files exist
-- ✅ Dependencies installed
-
-## 📋 Prerequisites Checklist
-
-Before running tests, ensure you have:
-
-- [ ] **Node.js 20+** installed
-- [ ] **pnpm** installed (`npm install -g pnpm`)
-- [ ] **Docker** running (Docker Desktop on macOS/Windows)
-- [ ] **Foundry** installed:
-  ```bash
-  curl -L https://foundry.paradigm.xyz | bash
-  foundryup
-  ```
-- [ ] **Dependencies** installed (`pnpm install`)
-- [ ] **Contract addresses** updated in `test/config.e2e.yaml`
-
 ## 🔧 What Happens When You Run Tests
 
 1. **Global Setup** (automatic):
@@ -153,25 +84,6 @@ Before running tests, ensure you have:
 - Configures test environment
 
 ## 🐛 Troubleshooting
-
-### Port Already in Use ⚠️ (Most Common Issue)
-If you see "Address already in use (os error 48)", run the cleanup script:
-
-```bash
-# Quick fix - cleanup all E2E resources
-pnpm test:e2e:cleanup
-
-# Then run tests again
-pnpm test:e2e:services
-```
-
-**Why this happens**: Anvil processes from previous test runs may not have been killed properly.
-
-**What the cleanup does**:
-- Kills all Anvil processes
-- Frees up ports 8545 and 9545
-- Stops Docker containers
-- Removes temporary files
 
 ### Docker Not Running
 ```bash
@@ -276,16 +188,12 @@ See `test/e2e/fulfillment-flow.e2e.spec.ts` for complete examples.
 ## 🎯 Next Steps
 
 1. **Update contract addresses** in `test/config.e2e.yaml`
-2. **Run preflight check**: `pnpm test:e2e:check`
-3. **Fix any issues** identified by the check
 4. **Run tests**: `pnpm test:e2e`
 5. **Write your own tests** using the E2E testing utilities
 
 ## 💡 Tips
 
-- Run preflight check first: `pnpm test:e2e:check`
 - Tests run sequentially to avoid conflicts
-- Each test file gets a fresh app instance
 - Use existing deployed contracts (no deployment needed)
 - Check Anvil logs if tests fail: `anvil-base.log`, `anvil-op.log`
 
