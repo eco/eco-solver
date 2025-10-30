@@ -74,6 +74,7 @@ evm:
       rpc:
         urls:
           - 'http://localhost:9545'
+        pollingInterval: 100  # Fast polling for E2E tests (default is 4000ms)
       claimant: '0x256B70644f5D77bc8e2bb82C731Ddf747ecb1471'
       contracts:
         portal: '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97'
@@ -110,6 +111,7 @@ evm:
       rpc:
         urls:
           - 'http://localhost:8545'
+        pollingInterval: 100  # Fast polling for E2E tests (default is 4000ms)
       contracts:
         portal: '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97'
         ecdsaExecutor: '0x4ea1e4ee9f7b840bb0987a2f4cc504bce37f6ba6'
