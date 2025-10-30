@@ -304,11 +304,17 @@ export function createDuplicateRewardTokensOptions(
 export function createUnsupportedChainOptions(
   overrides: Partial<PublishIntentOptions> = {},
 ): PublishIntentOptions {
+  // Need to provide custom tokens since chain 999 has no config
+  const usdcAddress = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' as Address; // Base USDC
+  const usdcUA = AddressNormalizer.normalize(usdcAddress, ChainType.EVM) as UniversalAddress;
+
   return {
     tokenAmount: parseUnits('10', 6),
     rewardTokenAmount: parseUnits('12', 6),
     destinationChainId: 999, // Unsupported chain
     allowInvalidChain: true, // Bypass IntentBuilder validation
+    customRouteToken: usdcUA, // Must provide token since chain has no config
+    customSourceToken: usdcUA, // Must provide source token too
     ...overrides,
   };
 }

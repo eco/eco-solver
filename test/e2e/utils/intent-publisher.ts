@@ -56,24 +56,10 @@ export interface PublishIntentResult {
 }
 
 /**
- * Global intent builder instance for managing test account state
- */
-let globalBuilder: IntentBuilder | null = null;
-
-/**
- * Get or create the global intent builder instance
- */
-function getBuilder(): IntentBuilder {
-  if (!globalBuilder) {
-    globalBuilder = new IntentBuilder();
-  }
-  return globalBuilder;
-}
-
-/**
  * Publish an intent with sensible defaults
  *
- * This function wraps IntentBuilder with a clean, simple API and sensible defaults:
+ * This function creates a fresh IntentBuilder instance to avoid state pollution
+ * between test invocations, then wraps it with a clean, simple API and sensible defaults:
  * - Source: Base Mainnet
  * - Destination: Optimism Mainnet
  * - Token amount: 10 USDC
@@ -129,8 +115,8 @@ export async function publishIntent(
     fundingOptions,
   } = options;
 
-  // Build the intent using IntentBuilder
-  const builder = getBuilder()
+  // Build the intent using a fresh IntentBuilder instance
+  const builder = new IntentBuilder()
     .withSourceChain(sourceChainId)
     .withDestinationChain(destinationChainId)
     .withTokenAmount(tokenAmount)
