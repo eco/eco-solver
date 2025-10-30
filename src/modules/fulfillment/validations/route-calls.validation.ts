@@ -48,23 +48,26 @@ export class RouteCallsValidation implements Validation {
           [`route.call.${i}.value`]: call.value?.toString() || '0',
         });
 
+        let isValidTokenTransferCall: boolean;
         try {
-          const isValidTokenTransferCall =
-            await this.blockchainReaderService.validateTokenTransferCall(intent.destination, call);
-
-          span?.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
-
-          if (!isValidTokenTransferCall) {
-            throw new ValidationError(
-              `Invalid token transfer call for target ${call.target}`,
-              ValidationErrorType.PERMANENT,
-              'RouteCallsValidation',
-            );
-          }
+          isValidTokenTransferCall = await this.blockchainReaderService.validateTokenTransferCall(
+            intent.destination,
+            call,
+          );
         } catch (error) {
           span?.setAttribute(`route.call.${i}.validationError`, (error as Error).message);
           throw new ValidationError(
             `Invalid route call for target ${call.target} on chain ${intent.destination}: ${(error as Error).message}`,
+            ValidationErrorType.PERMANENT,
+            'RouteCallsValidation',
+          );
+        }
+
+        span?.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
+
+        if (!isValidTokenTransferCall) {
+          throw new ValidationError(
+            `Invalid token transfer call for target ${call.target}`,
             ValidationErrorType.PERMANENT,
             'RouteCallsValidation',
           );
