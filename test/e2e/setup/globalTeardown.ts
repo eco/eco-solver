@@ -1,6 +1,4 @@
 import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
 
 import { AnvilManager, getDefaultAnvilConfigs } from './anvil-manager';
 import { TestContainersManager } from './test-containers';
@@ -36,14 +34,6 @@ export default async function globalTeardown(): Promise<void> {
   console.log('╚═══════════════════════════════════════════════════════════╝\n');
 
   try {
-    // Read setup state
-    const setupStatePath = path.join(__dirname, '..', '..', '.e2e-setup-state.json');
-
-    if (fs.existsSync(setupStatePath)) {
-      const stateContent = fs.readFileSync(setupStatePath, 'utf-8');
-      const _setupState = JSON.parse(stateContent);
-    }
-
     // Note: SharedAppManager handles app cleanup automatically via exit handlers
     // No need to explicitly close the app here
 
@@ -59,13 +49,6 @@ export default async function globalTeardown(): Promise<void> {
     console.log('\n🧹 Step 2: Stopping database containers...');
     const containersManager = new TestContainersManager();
     await containersManager.stop();
-
-    // Clean up setup state file
-    console.log('\n🧹 Step 3: Cleaning up temporary files...');
-    if (fs.existsSync(setupStatePath)) {
-      fs.unlinkSync(setupStatePath);
-      console.log('  ✓ Removed setup state file');
-    }
 
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
     console.log('║          E2E Environment Cleaned Up                       ║');

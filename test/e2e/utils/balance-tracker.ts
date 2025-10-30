@@ -14,7 +14,7 @@ import { getRpcUrl } from '../helpers/e2e-config';
  *   await tracker.verifyIncreased(parseUnits('10', 6)); // Verify balance increased by at least 10 USDC
  */
 export class BalanceTracker {
-  private client;
+  private readonly client: ReturnType<typeof createPublicClient>;
   private initialBalance: bigint | null = null;
 
   constructor(
@@ -32,14 +32,12 @@ export class BalanceTracker {
    * Get current balance
    */
   async getBalance(): Promise<bigint> {
-    const balance = (await this.client.readContract({
+    return this.client.readContract({
       address: this.token as `0x${string}`,
       abi: erc20Abi,
       functionName: 'balanceOf',
       args: [this.address],
-    })) as bigint;
-
-    return balance;
+    });
   }
 
   /**

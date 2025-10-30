@@ -57,17 +57,15 @@ export class IntentAssertion {
   }
 
   /**
-   * Assert that the intent was rejected (NOT fulfilled)
+   * Assert that the intent was rejected
    * Uses Jest's expect for better error messages
    *
    * @returns this for chaining
    */
   async toHaveBeenRejected(): Promise<this> {
     const intent = await this.context.intentsService.findById(this.intentHash);
-
-    // Use Jest's expect with custom message
-    expect(intent?.status).not.toBe(IntentStatus.FULFILLED);
-
+    expect(intent).toBeDefined();
+    expect(intent!.status).toBe(IntentStatus.FAILED);
     return this;
   }
 
@@ -108,30 +106,6 @@ export class IntentAssertion {
     // Now verify the error message contains the expected reason
     const intent = await this.context.intentsService.findById(this.intentHash);
     expect(intent?.lastError?.message).toContain(expectedReason);
-
-    return this;
-  }
-
-  /**
-   * Assert that tokens were delivered to the recipient
-   *
-   * @param expectedAmount - The expected token amount
-   * @param tokenSymbol - Token symbol for error messages
-   * @returns this for chaining
-   */
-  async toHaveDeliveredTokens(
-    expectedAmount: bigint,
-    _tokenSymbol: string = 'USDC',
-  ): Promise<this> {
-    // Get the intent to check delivery
-    const intent = await this.context.intentsService.findById(this.intentHash);
-
-    // Use Jest's expect for existence check
-    expect(intent).toBeDefined();
-
-    // For now, just verify the intent is fulfilled
-    // Full balance verification requires BalanceTracker
-    expect(intent!.status).toBe(IntentStatus.FULFILLED);
 
     return this;
   }

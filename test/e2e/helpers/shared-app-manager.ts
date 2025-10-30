@@ -63,12 +63,12 @@ class SharedAppManager {
     }).compile();
 
     // Create app instance
-    this.app = moduleFixture.createNestApplication();
+    const app = moduleFixture.createNestApplication();
 
     // Apply same configuration as production app (from src/main.ts)
 
     // Global validation pipe
-    this.app.useGlobalPipes(
+    app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
         transform: true,
@@ -77,7 +77,7 @@ class SharedAppManager {
     );
 
     // Enable CORS for testing
-    this.app.enableCors({
+    app.enableCors({
       origin: true,
       credentials: true,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
@@ -90,17 +90,14 @@ class SharedAppManager {
 
     // Start listening (catch EADDRINUSE in case port is already bound)
     try {
-      await this.app.listen(port);
+      await app.listen(port);
     } catch (error: any) {
-      // If port is already in use, it means another test file already started the app
-      // This is expected when running multiple test files - just reuse the existing instance
-      if (error.code === 'EADDRINUSE') {
-        console.log(`ℹ️  Port ${port} already in use - reusing existing app instance`);
-      } else {
-        throw error;
-      }
+      await app.close();
+      this.initPromise = null;
+      throw error;
     }
 
+    this.app = app;
     this.baseUrl = `http://localhost:${port}`;
     this.isInitialized = true;
 
@@ -140,33 +137,6 @@ class SharedAppManager {
       await cleanup();
       process.exit(0);
     });
-  }
-
-  /**
-   * Manually close the app (for globalTeardown or special cases)
-   */
-  static async closeApp(): Promise<void> {
-    if (this.app && this.isInitialized) {
-      await this.app.close();
-      this.app = null;
-      this.baseUrl = null;
-      this.isInitialized = false;
-      this.initPromise = null;
-    }
-  }
-
-  /**
-   * Check if app is ready
-   */
-  static isReady(): boolean {
-    return this.isInitialized && this.app !== null && this.baseUrl !== null;
-  }
-
-  /**
-   * Get the base URL (if app is initialized)
-   */
-  static getBaseUrl(): string | null {
-    return this.baseUrl;
   }
 }
 

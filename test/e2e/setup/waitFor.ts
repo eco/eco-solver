@@ -16,7 +16,13 @@ export async function waitForHttp(
 
   while (Date.now() - startTime < timeout) {
     try {
-      const response = await fetch(url, { method: 'GET' });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       if (response.ok) {
         return; // Service is available
       }

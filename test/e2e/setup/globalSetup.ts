@@ -1,6 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
 import { AnvilManager, getDefaultAnvilConfigs } from './anvil-manager';
 import { TestContainersManager } from './test-containers';
 import { waitForAllServices } from './waitFor';
@@ -43,8 +40,8 @@ export default async function globalSetup(): Promise<void> {
       redisHost: containerConfig.redisHost,
       redisPort: containerConfig.redisPort,
       anvilInstances: [
-        { name: 'Base Sepolia', url: 'http://localhost:8545' },
-        { name: 'Optimism Sepolia', url: 'http://localhost:9545' },
+        { name: 'Base Mainnet', url: 'http://localhost:8545' },
+        { name: 'Optimism Mainnet', url: 'http://localhost:9545' },
       ],
       skipDbChecks: true, // Trust Testcontainers health checks
     });
@@ -57,18 +54,6 @@ export default async function globalSetup(): Promise<void> {
     process.env.REDIS_PORT = containerConfig.redisPort.toString();
     console.log('  ✓ Environment variables set');
 
-    // Save setup state for teardown
-    const setupState = {
-      isCI: containersManager.isRunningInCI(),
-      mongoUri: containerConfig.mongoUri,
-      redisHost: containerConfig.redisHost,
-      redisPort: containerConfig.redisPort,
-      timestamp: Date.now(),
-    };
-
-    const setupStatePath = path.join(__dirname, '..', '..', '.e2e-setup-state.json');
-    fs.writeFileSync(setupStatePath, JSON.stringify(setupState, null, 2));
-
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
     console.log('║          E2E Environment Ready                            ║');
     console.log('╚═══════════════════════════════════════════════════════════╝\n');
@@ -76,8 +61,8 @@ export default async function globalSetup(): Promise<void> {
     console.log('Services:');
     console.log(`  MongoDB:   ${containerConfig.mongoUri}`);
     console.log(`  Redis:     ${containerConfig.redisHost}:${containerConfig.redisPort}`);
-    console.log(`  Base RPC:  http://localhost:8545 (Chain ID: 84532)`);
-    console.log(`  OP RPC:    http://localhost:9545 (Chain ID: 11155420)`);
+    console.log(`  Base RPC:  http://localhost:8545 (Chain ID: 8453)`);
+    console.log(`  OP RPC:    http://localhost:9545 (Chain ID: 10)`);
     console.log('\n  Environment variables set for NestJS app to use dynamic ports');
     console.log('');
   } catch (error) {

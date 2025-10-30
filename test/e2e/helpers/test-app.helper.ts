@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 
-import { createPublicClient, decodeEventLog, Hex, http } from 'viem';
+import { createPublicClient, Hex, http } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 
@@ -158,45 +158,19 @@ export async function waitForPortalEvent(
       const currentBlock = await publicClient.getBlockNumber();
 
       // Fetch logs from start block to current block
-      const logs = await publicClient.getLogs({
+      const [event] = await publicClient.getContractEvents({
         address: portalAddress as `0x${string}`,
-        event: {
-          type: 'event',
-          name: eventName,
-          inputs: [],
-        },
+        abi: portalAbi,
+        eventName,
         fromBlock: startBlock,
         toBlock: currentBlock,
+        strict: true,
       });
 
       // Parse logs and find matching event
-      for (const log of logs) {
-        try {
-          const eventAbi = portalAbi.find(
-            (item) => item.type === 'event' && item.name === eventName,
-          );
-          if (!eventAbi) continue;
-
-          const decoded = decodeEventLog({
-            abi: [eventAbi],
-            data: log.data,
-            topics: log.topics,
-          });
-
-          const eventData = {
-            ...decoded,
-            blockNumber: log.blockNumber,
-            transactionHash: log.transactionHash,
-          };
-
-          if (filter(eventData)) {
-            console.log(`Found ${eventName} event:`, eventData);
-            return eventData;
-          }
-        } catch (error) {
-          // Skip logs that don't match
-          continue;
-        }
+      if (event && filter(event)) {
+        console.log(`Found ${eventName} event:`, event);
+        return event;
       }
 
       // Update start block for next iteration to avoid re-processing

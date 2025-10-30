@@ -173,24 +173,21 @@ export function pastTimestamp(secondsAgo: number): bigint {
 }
 
 // =============================================================================
-// FUTURE TEST SCENARIOS
-// The following fixtures document validations that need IntentBuilder enhancements to test
+// ADVANCED VALIDATION TEST SCENARIOS
+// The following fixtures test edge cases and validation failures using
+// IntentBuilder's customization options (customRouteToken, customCalls, etc.)
 // =============================================================================
 
 /**
  * Create options for an intent with invalid token address
  *
  * Tests: routeTokenValidation
- * Status: NOT IMPLEMENTED
+ * Status: IMPLEMENTED
  *
- * Requires: IntentBuilder enhancement to accept custom token addresses
- * Currently IntentBuilder uses getTokenAddress() which only returns whitelisted tokens
+ * Uses IntentBuilder's `customRouteToken` option to specify a non-whitelisted
+ * token address (0x9999...9999) that should be rejected by route token validation.
  *
- * Needed changes:
- * - Add `customRouteToken?: Address` to IntentBuilderOptions
- * - Modify build() to use customRouteToken if provided
- *
- * Example usage (when implemented):
+ * Example usage:
  *   const { intentHash } = await publishIntent(createInvalidTokenOptions());
  *   await waitForRejection(intentHash, ctx);
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
@@ -216,16 +213,13 @@ export function createInvalidTokenOptions(
  * Create options for an intent with invalid route calls
  *
  * Tests: routeCallsValidation
- * Status: NOT IMPLEMENTED
+ * Status: IMPLEMENTED
  *
- * Requires: IntentBuilder enhancement to accept custom call data
- * Currently IntentBuilder generates calls automatically (ERC20 transfer)
+ * Uses IntentBuilder's `customCalls` option to specify a call to the Portal
+ * contract instead of the token contract, which should be rejected by route
+ * calls validation.
  *
- * Needed changes:
- * - Add `customCalls?: Call[]` to IntentBuilderOptions
- * - Modify build() to use customCalls if provided
- *
- * Example usage (when implemented):
+ * Example usage:
  *   const { intentHash } = await publishIntent(createInvalidCallsOptions());
  *   await waitForRejection(intentHash, ctx);
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
@@ -249,16 +243,13 @@ export function createInvalidCallsOptions(
  * Create options for an intent with duplicate reward tokens
  *
  * Tests: duplicateRewardTokensValidation
- * Status: NOT IMPLEMENTED
+ * Status: IMPLEMENTED
  *
- * Requires: IntentBuilder enhancement to support multiple reward tokens
- * Currently IntentBuilder creates single-token reward array
+ * Uses IntentBuilder's `rewardTokens` option to specify an array with the
+ * same token (USDC) appearing twice in the reward tokens list, which should
+ * be rejected by duplicate reward tokens validation.
  *
- * Needed changes:
- * - Add `rewardTokens?: Array<{ token: Address, amount: bigint }>` to IntentBuilderOptions
- * - Modify build() to construct reward.tokens from rewardTokens array
- *
- * Example usage (when implemented):
+ * Example usage:
  *   const { intentHash } = await publishIntent(createDuplicateRewardTokensOptions());
  *   await waitForRejection(intentHash, ctx);
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();
@@ -286,17 +277,14 @@ export function createDuplicateRewardTokensOptions(
  * Create options for an intent with unsupported destination chain
  *
  * Tests: chainSupportValidation
- * Status: NOT IMPLEMENTED
+ * Status: IMPLEMENTED
  *
- * Requires: IntentBuilder enhancement to accept arbitrary chain IDs
- * Currently IntentBuilder validates chain IDs against config
+ * Uses IntentBuilder's `allowInvalidChain` option to bypass chain validation,
+ * allowing the creation of an intent with an unsupported chain ID (999).
+ * Requires `customRouteToken` and `customSourceToken` since the unsupported
+ * chain has no configuration. Should be rejected by chain support validation.
  *
- * Needed changes:
- * - Remove chain ID validation in withDestinationChain()
- * - Handle missing network config gracefully (use placeholders)
- * - Or add `skipChainValidation: boolean` option
- *
- * Example usage (when implemented):
+ * Example usage:
  *   const { intentHash } = await publishIntent(createUnsupportedChainOptions());
  *   await waitForRejection(intentHash, ctx);
  *   await expectIntent(intentHash, ctx).toHaveBeenRejected();

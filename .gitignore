@@ -20,7 +20,6 @@ lerna-debug.log*
 /.nyc_output
 
 # E2E Test Runtime Files
-test/.e2e-setup-state.json
 anvil-*.log
 anvil-*.pid
 
