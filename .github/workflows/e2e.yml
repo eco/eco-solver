@@ -42,6 +42,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.BASE_MAINNET_RPC_URL }}" ]; then
+            echo "ERROR: BASE_MAINNET_RPC_URL secret is not set"
+            echo "Please configure this secret in repository settings"
+            exit 1
+          fi
+          if [ -z "${{ secrets.OP_MAINNET_RPC_URL }}" ]; then
+            echo "ERROR: OP_MAINNET_RPC_URL secret is not set"
+            echo "Please configure this secret in repository settings"
+            exit 1
+          fi
+          echo "✓ All required secrets are configured"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -67,6 +81,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Cache Foundry
+        uses: actions/cache@v4
+        with:
+          path: ~/.foundry
+          key: ${{ runner.os }}-foundry-${{ hashFiles('foundry.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
 
       - name: Setup Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -106,19 +128,19 @@ jobs:
 
       - name: Wait for Anvil instances to be ready
         run: |
-          echo "Waiting for Base Mainnet fork..."
-          timeout 60 bash -c 'until curl -s -f -X POST \
-            -H "Content-Type: application/json" \
-            -d '"'"'{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'"'"' \
-            http://localhost:8545 > /dev/null; do sleep 1; done'
-          echo "✓ Base Mainnet fork ready"
+          wait_for_anvil() {
+            local port=$1
+            local name=$2
+            echo "Waiting for $name on port $port..."
+            timeout 60 bash -c "until curl -s -f -X POST \
+              -H 'Content-Type: application/json' \
+              -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}' \
+              http://localhost:$port > /dev/null; do sleep 1; done"
+            echo "✓ $name ready"
+          }
 
-          echo "Waiting for Optimism Mainnet fork..."
-          timeout 60 bash -c 'until curl -s -f -X POST \
-            -H "Content-Type: application/json" \
-            -d '"'"'{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'"'"' \
-            http://localhost:9545 > /dev/null; do sleep 1; done'
-          echo "✓ Optimism Mainnet fork ready"
+          wait_for_anvil 8545 "Base Mainnet fork"
+          wait_for_anvil 9545 "Optimism Mainnet fork"
 
       - name: Set environment variables for CI
         run: |
@@ -135,14 +157,37 @@ jobs:
           NODE_ENV: test
           CI: true
 
-      - name: Display Anvil logs on failure
+      - name: Collect logs on failure
         if: failure()
         run: |
+          mkdir -p test-logs
+
           echo "=== Base Mainnet Anvil Logs ==="
           cat anvil-base.log || echo "No Base Mainnet logs found"
+          cp anvil-base.log test-logs/ 2>/dev/null || true
+
           echo ""
           echo "=== Optimism Mainnet Anvil Logs ==="
           cat anvil-op.log || echo "No Optimism Mainnet logs found"
+          cp anvil-op.log test-logs/ 2>/dev/null || true
+
+          echo ""
+          echo "=== MongoDB Logs ==="
+          docker logs mongodb > test-logs/mongodb.log 2>&1 || echo "Could not retrieve MongoDB logs"
+          tail -100 test-logs/mongodb.log 2>/dev/null || true
+
+          echo ""
+          echo "=== Redis Logs ==="
+          docker logs redis > test-logs/redis.log 2>&1 || echo "Could not retrieve Redis logs"
+          tail -100 test-logs/redis.log 2>/dev/null || true
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs
+          path: test-logs/
+          retention-days: 7
 
       - name: Stop Anvil instances
         if: always()
@@ -162,7 +207,5 @@ jobs:
         if: always()
         with:
           name: e2e-test-results
-          path: |
-            coverage-e2e/
-            anvil-*.log
+          path: coverage-e2e/
           retention-days: 7
