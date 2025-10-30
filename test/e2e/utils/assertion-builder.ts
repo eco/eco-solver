@@ -2,8 +2,10 @@ import { Hex } from 'viem';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 
+import { E2E_TIMEOUTS, POLL_CONFIG } from '../config/timeouts';
 import { E2ETestContext } from '../context/test-context';
 
+import { pollUntil } from './polling';
 import { verifyNoFulfillmentEvent } from './verification-helpers';
 import { waitForFulfillment } from './wait-helpers';
 
@@ -84,13 +86,27 @@ export class IntentAssertion {
   /**
    * Assert that the intent was rejected with a specific error message
    * Validates that lastError.message contains the expected reason
+   * Polls until lastError is populated or timeout is reached
    *
    * @param expectedReason - The expected substring in the rejection message
    * @returns this for chaining
    */
   async toHaveRejectionReason(expectedReason: string): Promise<this> {
-    const intent = await this.context.intentsService.findById(this.intentHash);
+    // Poll until lastError is populated
+    await pollUntil(
+      () => this.context.intentsService.findById(this.intentHash),
+      (intent) => intent?.lastError?.message !== undefined,
+      {
+        timeout: E2E_TIMEOUTS.REJECTION,
+        interval: POLL_CONFIG.INITIAL_INTERVAL,
+        intervalMultiplier: POLL_CONFIG.INTERVAL_MULTIPLIER,
+        maxInterval: POLL_CONFIG.MAX_INTERVAL,
+        timeoutMessage: `Timeout waiting for lastError to be populated for intent: ${this.intentHash}`,
+      },
+    );
 
+    // Now verify the error message contains the expected reason
+    const intent = await this.context.intentsService.findById(this.intentHash);
     expect(intent?.lastError?.message).toContain(expectedReason);
 
     return this;

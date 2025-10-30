@@ -78,7 +78,7 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
                   retryCount: job.attemptsMade + 1,
                   lastError: {
                     message: error.message,
-                    type: error.type,
+                    errorType: error.type,
                     timestamp: new Date(),
                   },
                   lastProcessedAt: new Date(),
