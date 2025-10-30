@@ -105,6 +105,7 @@ describe('Intent Fulfillment', () => {
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
       await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('is not funded');
       await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
@@ -133,6 +134,7 @@ describe('Intent Fulfillment', () => {
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
       await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('has expired');
       await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
@@ -165,6 +167,7 @@ describe('Intent Fulfillment', () => {
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
       await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('Prover validation failed');
       await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
@@ -178,7 +181,8 @@ describe('Intent Fulfillment', () => {
     async () => {
       console.log('\n--- Test: Excessive Route Amount ---');
 
-      // Publish with amount exceeding configured limit (50 USDC)
+      // NOTE: This test requires solver config with max route amount = 50 USDC
+      // If config changes, this test may produce false positives/negatives
       const { intentHash } = await publishIntent({
         tokenAmount: parseUnits('60', 6), // Exceeds 50 USDC limit
         rewardTokenAmount: parseUnits('62', 6), // Reward covers route + fees
@@ -186,9 +190,10 @@ describe('Intent Fulfillment', () => {
 
       console.log(`Intent published with excessive amount: ${intentHash}`);
 
-      // Wait and verify rejection with chainable assertions
+      // Wait and verify rejection
       await waitForRejection(intentHash, ctx);
       await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('exceeds route limit');
       await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
@@ -213,6 +218,7 @@ describe('Intent Fulfillment', () => {
       // Wait and verify rejection with chainable assertions
       await waitForRejection(intentHash, ctx);
       await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('exceeds maximum');
       await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
@@ -230,7 +236,9 @@ describe('Intent Fulfillment', () => {
       console.log(`Intent published with invalid token: ${intentHash}`);
 
       await waitForRejection(intentHash, ctx);
-      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('is not supported');
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Invalid route token test PASSED\n');
@@ -247,7 +255,9 @@ describe('Intent Fulfillment', () => {
       console.log(`Intent published with invalid calls: ${intentHash}`);
 
       await waitForRejection(intentHash, ctx);
-      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('Invalid route call');
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Invalid route calls test PASSED\n');
@@ -264,7 +274,9 @@ describe('Intent Fulfillment', () => {
       console.log(`Intent published with duplicate reward tokens: ${intentHash}`);
 
       await waitForRejection(intentHash, ctx);
-      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('Duplicate reward tokens found');
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Duplicate reward tokens test PASSED\n');
@@ -281,7 +293,9 @@ describe('Intent Fulfillment', () => {
       console.log(`Intent published with unsupported chain: ${intentHash}`);
 
       await waitForRejection(intentHash, ctx);
-      await (await expectIntent(intentHash, ctx).toHaveBeenRejected()).toHaveNoFulfillmentEvent();
+      await expectIntent(intentHash, ctx).toHaveBeenRejected();
+      await expectIntent(intentHash, ctx).toHaveRejectionReason('is not supported');
+      await expectIntent(intentHash, ctx).toHaveNoFulfillmentEvent();
       console.log('Intent rejected and verified ✓');
 
       console.log('\n✅ Unsupported chain test PASSED\n');

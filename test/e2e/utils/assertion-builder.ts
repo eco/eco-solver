@@ -82,6 +82,21 @@ export class IntentAssertion {
   }
 
   /**
+   * Assert that the intent was rejected with a specific error message
+   * Validates that lastError.message contains the expected reason
+   *
+   * @param expectedReason - The expected substring in the rejection message
+   * @returns this for chaining
+   */
+  async toHaveRejectionReason(expectedReason: string): Promise<this> {
+    const intent = await this.context.intentsService.findById(this.intentHash);
+
+    expect(intent?.lastError?.message).toContain(expectedReason);
+
+    return this;
+  }
+
+  /**
    * Assert that tokens were delivered to the recipient
    *
    * @param expectedAmount - The expected token amount
