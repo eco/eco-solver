@@ -85,13 +85,10 @@ function decodeOptimizedArbiterParams(encodedParams: Hex): ClaimData {
 }
 
 export function decodeAdapterClaim(data: Hex): ClaimData {
-  console.log('data:', data);
   const routerDecoded = decodeFunctionData({
     abi: rhinestoneRouterAbi,
     data,
   });
-
-  console.log('routerDecoded:', routerDecoded);
 
   if (routerDecoded.functionName !== 'routeClaim') {
     throw new Error(`Expected routeClaim, got ${routerDecoded.functionName}`);
@@ -107,14 +104,10 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
     }
 
     try {
-      console.log(`Trying to decode calldata ${i + 1} with selector:`, calldata.slice(0, 10));
-
       const adapterDecoded = decodeFunctionData({
         abi: ecoAdapterAbi,
         data: calldata,
       });
-
-      console.log('adapterDecoded.functionName:', adapterDecoded.functionName);
 
       if (adapterDecoded.functionName === 'eco_compact_handleClaim') {
         return adapterDecoded.args[0] as ClaimData;
