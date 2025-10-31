@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
 
+import { RelayerActionEnvelopeSchema } from './relayer-action.types';
+
 /**
  * Hello message schema
  */
@@ -66,4 +68,5 @@ export const RhinestoneInboundMessageSchema = z.union([
   HelloMessageSchema,
   OkMessageWireSchema,
   ErrorMessageSchema,
+  RelayerActionEnvelopeSchema,
 ]);

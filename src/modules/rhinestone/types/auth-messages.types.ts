@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import type { ActionStatusMessage } from './action-status.types';
 import {
   AuthenticationMessageSchema,
   ErrorMessageSchema,
@@ -68,5 +69,4 @@ export type AuthMessage = HelloMessage | AuthenticationMessage | OkMessage | Err
 /**
  * Union type of all outbound messages sent by client
  */
-export type OutboundMessage = AuthenticationMessage;
-// Future: Add ActionStatusMessage when implementing Milestone 2
+export type OutboundMessage = AuthenticationMessage | ActionStatusMessage;
