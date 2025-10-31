@@ -34,7 +34,10 @@ export interface ISvmWallet {
 
   /**
    * Gets the underlying keypair (for signing)
+   * Note: Some implementations (e.g., VaultWallet) may throw an error as they don't expose keypairs.
+   * Private keys remain in secure storage (e.g., HashiCorp Vault) for enhanced security.
    * @returns The wallet's keypair
+   * @throws Error if the wallet implementation does not expose keypairs
    */
   getKeypair(): Keypair;
 

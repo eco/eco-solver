@@ -82,12 +82,6 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       return; // Already listening
     }
 
-    // Check if Solana configuration exists
-    if (!this.solanaConfigService.secretKey) {
-      this.logger.log('Solana configuration not found, skipping SVM listeners');
-      return;
-    }
-
     const chainId = this.solanaConfigService.chainId;
 
     // Create a new logger instance for the listener to avoid context pollution

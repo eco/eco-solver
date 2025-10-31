@@ -14,12 +14,14 @@ import { SvmReaderService } from './services/svm.reader.service';
 import { SvmHyperProver } from './services/svm-hyper.prover';
 import { SvmWalletManagerService } from './services/svm-wallet-manager.service';
 import { BasicWalletModule } from './wallets/basic-wallet';
+import { VaultWalletModule } from './wallets/vault-wallet';
 
 @Module({
   imports: [
     ConfigModule,
     LoggingModule,
     BasicWalletModule,
+    VaultWalletModule,
     EventsModule,
     OpenTelemetryModule,
     RedisModule,

@@ -32,9 +32,17 @@ export class BasicWalletFactory {
    * @returns A BasicWallet instance
    */
   create(_chainId?: number | string): ISvmWallet {
-    const secretKey = this.solanaConfigService.secretKey;
+    const walletConfig = this.solanaConfigService.wallets.basic;
+
+    if (walletConfig.type !== 'basic') {
+      throw new Error(
+        'BasicWalletFactory requires basic wallet configuration, got: ' + walletConfig.type,
+      );
+    }
+
+    const secretKey = walletConfig.secretKey;
     if (!secretKey) {
-      throw new Error('Solana secret key not configured');
+      throw new Error('Solana secret key not configured for basic wallet');
     }
 
     try {
