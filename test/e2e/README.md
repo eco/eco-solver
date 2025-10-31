@@ -4,7 +4,7 @@
 
 ```bash
 # 1. Start Docker (required for MongoDB, Redis, and Anvil forks)
-docker-compose up -d
+docker-compose -f docker-compose.e2e.yml up
 
 # 2. Run all E2E tests
 pnpm test:e2e
@@ -13,7 +13,7 @@ pnpm test:e2e
 pnpm test:e2e --testPathPattern=fulfillment-flow
 
 # 4. Clean up after tests
-docker-compose down
+docker-compose -f docker-compose -f docker-compose.e2e.yml down
 ```
 
 ## Overview
