@@ -1,5 +1,5 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job, Queue } from 'bullmq';
 
@@ -17,7 +17,7 @@ import { WithdrawalService } from './withdrawal.service';
 @Processor(QueueNames.INTENT_WITHDRAWAL, {
   prefix: `{${QueueNames.INTENT_WITHDRAWAL}}`,
 })
-export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
+export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
     @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     private withdrawalService: WithdrawalService,
@@ -42,6 +42,15 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
         this.worker.opts.telemetry = telemetry;
         this.logger.log('Added BullMQOtel telemetry to WithdrawalProcessor worker');
       }
+    }
+  }
+
+  async onModuleDestroy() {
+    // Close the worker to ensure clean shutdown
+    if (this.worker) {
+      this.logger.log('Closing WithdrawalProcessor worker...');
+      await this.worker.close();
+      this.logger.log('WithdrawalProcessor worker closed');
     }
   }
 

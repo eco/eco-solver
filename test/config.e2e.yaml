@@ -1,0 +1,121 @@
+# E2E Test Configuration
+# This file is used by the E2E test suite
+#
+# IMPORTANT: This configuration uses existing contracts deployed on Base Mainnet and
+# Optimism Mainnet. Update the contract addresses below with your deployed contracts.
+#
+# NOTE: MongoDB and Redis connection details are set via environment variables by globalSetup.
+# The values below are defaults that will be overridden when using Testcontainers.
+
+# Application Configuration
+app:
+  port: 3001 # Different port from dev to avoid conflicts
+  env: test
+
+# MongoDB Configuration
+# Override with MONGODB_URI environment variable (set by globalSetup for Testcontainers)
+# When using Docker Compose, it runs on port 27018 (different from dev port 27017)
+mongodb:
+  uri: 'mongodb://localhost:27018/intent-solver-e2e'
+
+# Redis Configuration
+# Override with REDIS_HOST and REDIS_PORT environment variables (set by globalSetup for Testcontainers)
+# When using Docker Compose, it runs on port 6380 (different from dev port 6379)
+redis:
+  host: 'localhost'
+  port: 6380
+  password: '' # No password for test environment
+
+# Fulfillment Configuration
+fulfillment:
+  defaultFee:
+    tokens:
+      flatFee: '0.001'
+      scalarBps: 100
+    nonSwapTokens:
+      flatFee: '0.001'
+      scalarBps: 100
+    native:
+      flatFee: '1000000000000000'
+      scalarBps: 100
+
+# EVM Configuration
+evm:
+  listenersEnabled: true # Enable for fulfillment flow E2E tests
+  # Wallet configuration
+  wallets:
+    # Basic EOA wallet (test key - NEVER use in production)
+    # This is Anvil's default test account #0
+    basic:
+      privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+    # Kernel smart account wallet
+    kernel:
+      signer:
+        type: eoa
+        privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+
+  networks:
+    # Optimism
+    - chainId: 10
+      rpc:
+        urls:
+          - 'http://localhost:9545'
+        pollingInterval: 100 # Fast polling for E2E tests (default is 4000ms)
+      claimant: '0x256B70644f5D77bc8e2bb82C731Ddf747ecb1471'
+      contracts:
+        portal: '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97'
+        ecdsaExecutor: '0x4ea1e4ee9f7b840bb0987a2f4cc504bce37f6ba6'
+      defaultProver: 'hyper'
+      provers:
+        hyper: '0x101c1d5521dc32115089d02774F5298Df13dC71f'
+        polymer: '0xc84beEFFc7A2d9A4a14e257c47a774728c6eDACa'
+      tokens:
+        - address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
+          decimals: 6
+          symbol: 'USDC'
+          limit: 50
+        - address: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58'
+          decimals: 6
+          symbol: 'USDT'
+          limit: 50
+        - address: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607'
+          decimals: 6
+          symbol: 'USDC.e'
+          limit: 50
+        - address: '0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189'
+          decimals: 6
+          symbol: 'oUSDT'
+          limit: 50
+        - address: '0x01bff41798a0bcf287b996046ca68b395dbc1071'
+          decimals: 6
+          symbol: 'USDT0'
+          limit: 50
+
+    # Base
+    - chainId: 8453
+      claimant: '0x256B70644f5D77bc8e2bb82C731Ddf747ecb1471'
+      rpc:
+        urls:
+          - 'http://localhost:8545'
+        pollingInterval: 100 # Fast polling for E2E tests (default is 4000ms)
+      contracts:
+        portal: '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97'
+        ecdsaExecutor: '0x4ea1e4ee9f7b840bb0987a2f4cc504bce37f6ba6'
+      defaultProver: 'hyper'
+      provers:
+        hyper: '0x101c1d5521dc32115089d02774F5298Df13dC71f'
+        polymer: '0xc84beEFFc7A2d9A4a14e257c47a774728c6eDACa'
+      tokens:
+        - address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'
+          decimals: 6
+          symbol: 'USDC'
+          limit: 50
+
+# OpenTelemetry (disabled for tests)
+opentelemetry:
+  enabled: false
+
+# Withdrawal Configuration
+withdrawal:
+  enabled: false
+  schedule: '*/5 * * * *'

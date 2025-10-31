@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job, UnrecoverableError } from 'bullmq';
 
@@ -20,7 +20,7 @@ import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 @Processor(QueueNames.INTENT_FULFILLMENT, {
   prefix: `{${QueueNames.INTENT_FULFILLMENT}}`,
 })
-export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
+export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
     private fulfillmentService: FulfillmentService,
     private intentsService: IntentsService,
@@ -40,6 +40,15 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
         this.worker.opts.telemetry = telemetry;
         this.logger.log('Added BullMQOtel telemetry to FulfillmentProcessor worker');
       }
+    }
+  }
+
+  async onModuleDestroy() {
+    // Close the worker to ensure clean shutdown
+    if (this.worker) {
+      this.logger.log('Closing FulfillmentProcessor worker...');
+      await this.worker.close();
+      this.logger.log('FulfillmentProcessor worker closed');
     }
   }
 
@@ -78,7 +87,7 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
                   retryCount: job.attemptsMade + 1,
                   lastError: {
                     message: error.message,
-                    type: error.type,
+                    errorType: error.type,
                     timestamp: new Date(),
                   },
                   lastProcessedAt: new Date(),
