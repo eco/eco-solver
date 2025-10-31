@@ -34,28 +34,7 @@ function decodeOptimizedArbiterParams(encodedParams: Hex): ClaimData {
 
   const decoded = decodeAbiParameters(handlePermit2Params, encodedParams);
 
-  const [predictedVault, order, userSigs] = decoded as [
-    `0x${string}`,
-    {
-      sponsor: `0x${string}`;
-      recipient: `0x${string}`;
-      nonce: bigint;
-      expires: bigint;
-      fillDeadline: bigint;
-      notarizedChainId: bigint;
-      targetChainId: bigint;
-      tokenIn: readonly [bigint, bigint][];
-      tokenOut: readonly [bigint, bigint][];
-      packedGasValues: bigint;
-      preClaimOps: { data: `0x${string}` };
-      targetOps: { data: `0x${string}` };
-      qualifier: `0x${string}`;
-    },
-    {
-      notarizedClaimSig: `0x${string}`;
-      preClaimSig: `0x${string}`;
-    },
-  ];
+  const [predictedVault, order, userSigs] = decoded;
 
   return {
     predictedVault,
@@ -81,7 +60,7 @@ function decodeOptimizedArbiterParams(encodedParams: Hex): ClaimData {
     elementIndex: 0n,
     otherElements: [],
     allocatorData: '0x',
-  } as ClaimData;
+  };
 }
 
 export function decodeAdapterClaim(data: Hex): ClaimData {
@@ -151,7 +130,7 @@ export function decodeAdapterFill(data: Hex): FillData {
   });
 
   if (adapterDecoded.functionName === 'eco_permit2_handleClaim_optimized') {
-    return adapterDecoded.args[0] as FillData;
+    return adapterDecoded.args[0];
   }
 
   throw new Error(
