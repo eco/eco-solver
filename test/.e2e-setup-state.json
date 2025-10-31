@@ -1,7 +1,0 @@
-{
-  "isCI": false,
-  "mongoUri": "mongodb://localhost:55002",
-  "redisHost": "localhost",
-  "redisPort": 55001,
-  "timestamp": 1761672626258
-}
