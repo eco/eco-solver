@@ -328,6 +328,11 @@ export const ecoAdapterAbi = [
             ],
           },
           {
+            name: 'recipient',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
             name: 'rewardHash',
             type: 'bytes32',
             internalType: 'bytes32',
@@ -338,7 +343,7 @@ export const ecoAdapterAbi = [
             internalType: 'bytes32',
           },
           {
-            name: 'nativeTokenAmount',
+            name: 'nonce',
             type: 'uint256',
             internalType: 'uint256',
           },
