@@ -28,25 +28,11 @@ redis:
 
 # Fulfillment Configuration
 fulfillment:
-  defaultStrategy: standard
-  deadlineDuration: 7200
-  strategies:
-    standard:
-      enabled: true
-    crowdLiquidity:
-      enabled: true
-    nativeIntents:
-      enabled: true
-    negativeIntents:
-      enabled: false
-    rhinestone:
-      enabled: false
-  validations:
-    routeLimits:
-      default: '10000000000000000000'
-    expirationBuffer: 300000
   defaultFee:
     tokens:
+      flatFee: '0.001'
+      scalarBps: 100
+    nonSwapTokens:
       flatFee: '0.001'
       scalarBps: 100
     native:
@@ -55,7 +41,7 @@ fulfillment:
 
 # EVM Configuration
 evm:
-  listenersEnabled: true  # Enable for fulfillment flow E2E tests
+  listenersEnabled: true # Enable for fulfillment flow E2E tests
   # Wallet configuration
   wallets:
     # Basic EOA wallet (test key - NEVER use in production)
@@ -74,7 +60,7 @@ evm:
       rpc:
         urls:
           - 'http://localhost:9545'
-        pollingInterval: 100  # Fast polling for E2E tests (default is 4000ms)
+        pollingInterval: 100 # Fast polling for E2E tests (default is 4000ms)
       claimant: '0x256B70644f5D77bc8e2bb82C731Ddf747ecb1471'
       contracts:
         portal: '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97'
@@ -111,7 +97,7 @@ evm:
       rpc:
         urls:
           - 'http://localhost:8545'
-        pollingInterval: 100  # Fast polling for E2E tests (default is 4000ms)
+        pollingInterval: 100 # Fast polling for E2E tests (default is 4000ms)
       contracts:
         portal: '0x399Dbd5DF04f83103F77A58cBa2B7c4d3cdede97'
         ecdsaExecutor: '0x4ea1e4ee9f7b840bb0987a2f4cc504bce37f6ba6'
@@ -125,24 +111,6 @@ evm:
           symbol: 'USDC'
           limit: 50
 
-# Queue Configuration
-queue:
-  concurrency: 2
-  retryAttempts: 1
-  retryDelay: 1000
-
-# Leader Election (disabled for tests)
-leaderElection:
-  enabled: false
-
-# Bull Board (disabled for tests)
-bullBoard:
-  enabled: false
-
-# DataDog (disabled for tests)
-datadog:
-  enabled: false
-
 # OpenTelemetry (disabled for tests)
 opentelemetry:
   enabled: false
@@ -151,12 +119,3 @@ opentelemetry:
 withdrawal:
   enabled: false
   schedule: '*/5 * * * *'
-
-# Quotes API Configuration
-quotes:
-  maxIntentsPerRequest: 10
-  validationTimeout: 30000
-  registration:
-    enabled: false
-    baseUrl: 'http://localhost:3000'
-    privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
