@@ -1,10 +1,10 @@
 import { isAddress } from 'viem';
 
-export function isValidEthereumAddress(address: string): boolean {
+export function isValidEthereumAddress(address: string): address is `0x${string}` {
   return isAddress(address);
 }
 
-export function isValidHexData(data: string): boolean {
+export function isValidHexData(data: string): data is `0x${string}` {
   return /^0x([a-fA-F0-9]{2})*$/.test(data);
 }
 
