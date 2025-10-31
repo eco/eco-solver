@@ -24,7 +24,6 @@ export class BalanceTracker {
   ) {
     const rpcUrl = getRpcUrl(chainId);
     this.client = createPublicClient({
-      chain: getViemChain(chainId),
       transport: http(rpcUrl),
     });
   }
