@@ -1,6 +1,8 @@
+import { isAddress } from 'viem';
 import { z } from 'zod';
 
 import { RhinestoneMessageType } from '../enums';
+import { isValidBigInt, isValidHexData } from '../utils/validation';
 
 /**
  * Chain call details for execution
@@ -76,9 +78,16 @@ export interface RelayerActionEnvelope {
  */
 export const ChainCallSchema = z.object({
   chainId: z.number().int().positive(),
-  to: z.string().min(1),
-  data: z.string(),
-  value: z.string(),
+  to: z.string().refine((val) => isAddress(val), {
+    message: 'Invalid Ethereum address (must be valid checksum)',
+  }),
+  data: z.string().refine((val) => isValidHexData(val), {
+    message:
+      'Invalid hex data (must start with 0x and contain only hex characters with even length)',
+  }),
+  value: z.string().refine((val) => isValidBigInt(val), {
+    message: 'Invalid value (must be a non-negative integer as decimal or 0x-prefixed hex string)',
+  }),
 });
 
 /**

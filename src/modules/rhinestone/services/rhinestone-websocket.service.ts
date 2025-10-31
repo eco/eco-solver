@@ -59,7 +59,9 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       this.logger.error(
         `Initial connect failed: ${error instanceof Error ? error.message : String(error)}`,
       );
-      this.eventsService.emit(RHINESTONE_EVENTS.ERROR, { error: error as Error });
+      this.eventsService.emit(RHINESTONE_EVENTS.ERROR, {
+        error: error as Error,
+      });
 
       // Manually trigger reconnect since close event won't fire on init failure
       const config = this.configService.websocket;
@@ -406,8 +408,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
             throw new Error(`Invalid or unknown message type`);
           }
 
-          this.logger.debug(`Parsed data: ${JSON.stringify(result.data)}`);
-
+          this.logger.debug(`Parsed message type: ${result.data.type}`);
           if (result.data.type === RhinestoneMessageType.Ok) {
             span.setAttribute('rhinestone.ws.ok_context', result.data.context);
           }

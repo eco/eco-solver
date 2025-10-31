@@ -1,4 +1,31 @@
+import { isAddress } from 'viem';
 import { z } from 'zod';
+
+/**
+ * Rhinestone contract addresses for a specific chain
+ */
+const RhinestoneContractsSchema = z.object({
+  /**
+   * Rhinestone router contract address
+   */
+  router: z.string().refine((val) => isAddress(val), {
+    message: 'Invalid Ethereum address (must be valid checksum)',
+  }),
+
+  /**
+   * ECO adapter contract address
+   */
+  ecoAdapter: z.string().refine((val) => isAddress(val), {
+    message: 'Invalid Ethereum address (must be valid checksum)',
+  }),
+
+  /**
+   * ECO arbiter contract address
+   */
+  ecoArbiter: z.string().refine((val) => isAddress(val), {
+    message: 'Invalid Ethereum address (must be valid checksum)',
+  }),
+});
 
 /**
  * Rhinestone WebSocket configuration schema
@@ -44,7 +71,12 @@ const RhinestoneWebSocketSchema = z.object({
 export const RhinestoneSchema = z
   .object({
     websocket: RhinestoneWebSocketSchema,
+    /**
+     * Contract addresses (same across all chains)
+     */
+    contracts: RhinestoneContractsSchema.optional(),
   })
   .optional();
 
 export type RhinestoneConfig = z.infer<typeof RhinestoneSchema>;
+export type RhinestoneContractsConfig = z.infer<typeof RhinestoneContractsSchema>;

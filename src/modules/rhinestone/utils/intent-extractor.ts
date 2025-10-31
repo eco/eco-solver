@@ -31,6 +31,9 @@ type Execution = {
 };
 
 function toAddress(id: bigint): `0x${string}` {
+  if (id < 0n) {
+    throw new RangeError('id must be a non-negative bigint');
+  }
   return getAddress(`0x${id.toString(16).padStart(40, '0').slice(-40)}`);
 }
 
@@ -152,12 +155,22 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
   const targetCalls = encodeTargetExecutions(tokenTransferCalls.length, order);
   const calls = [...tokenTransferCalls, ...targetCalls.slice(tokenTransferCalls.length)];
 
-  // Build reward tokens
-  const rewardTokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] =
-    order.tokenIn.map(([tokenId, amount]) => ({
-      token: toUniversalAddress(toAddress(tokenId)),
-      amount: amount,
-    }));
+  // Build reward tokens and accumulate native amount
+  const rewardTokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] = [];
+  let rewardNativeAmount = 0n;
+
+  for (const [tokenId, amount] of order.tokenIn) {
+    const tokenAddress = toAddress(tokenId);
+
+    if (tokenAddress === NATIVE_TOKEN) {
+      rewardNativeAmount += amount;
+    } else {
+      rewardTokens.push({
+        token: toUniversalAddress(tokenAddress),
+        amount: amount,
+      });
+    }
+  }
 
   // Compute intent hash
   const salt = `0x${order.nonce.toString(16).padStart(64, '0')}` as Hex;
@@ -181,7 +194,7 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
       deadline: order.fillDeadline,
       creator: toUniversalAddress(order.sponsor),
       prover: toUniversalAddress(prover),
-      nativeAmount: 0n,
+      nativeAmount: rewardNativeAmount,
       tokens: rewardTokens,
     },
   };
