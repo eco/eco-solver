@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
-import { getAddress, Hex, keccak256 } from 'viem';
+import { getAddress, keccak256 } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { RhinestoneConfigService } from '@/modules/config/services/rhinestone-config.service';
@@ -14,6 +14,7 @@ import { ActionStatusError } from '../types/action-status.types';
 import { RelayerActionV1 } from '../types/relayer-action.types';
 import { decodeAdapterClaim } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
+import { isValidHexData, normalizeError } from '../utils/validation';
 
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service';
 
@@ -57,6 +58,10 @@ export class RhinestoneActionProcessor {
             throw new Error('No beforeFill claim found in RelayerAction');
           }
 
+          if (!payload.action.fill) {
+            throw new Error('No fill found in RelayerAction');
+          }
+
           this.validateSettlementLayer(beforeFillClaim);
           this.validateActionIntegrity(payload.action, beforeFillClaim);
 
@@ -81,7 +86,7 @@ export class RhinestoneActionProcessor {
             this.logger.error(`Failed to send error ActionStatus: ${sendError}`);
           }
 
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setAttribute('rhinestone.processing_duration_ms', duration);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
         } finally {
@@ -174,7 +179,12 @@ export class RhinestoneActionProcessor {
       throw new Error('Claim call data is missing');
     }
 
-    const claimCallData = beforeFillClaim.call.data as Hex;
+    const claimCallData = beforeFillClaim.call.data;
+
+    if (!isValidHexData(claimCallData)) {
+      throw new Error('Claim call data is not a valid hex string');
+    }
+
     const claimData = decodeAdapterClaim(claimCallData);
     const claimHash = keccak256(claimCallData);
     const sourceChainId = beforeFillClaim.call.chainId;

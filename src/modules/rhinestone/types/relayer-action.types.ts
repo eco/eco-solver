@@ -2,7 +2,7 @@ import { isAddress } from 'viem';
 import { z } from 'zod';
 
 import { RhinestoneMessageType } from '../enums';
-import { isValidBigInt, isValidHexData } from '../utils/validation';
+import { isValidBigInt, isValidEthereumAddress, isValidHexData } from '../utils/validation';
 
 /**
  * Chain call details for execution
@@ -94,8 +94,12 @@ export const ChainCallSchema = z.object({
  * Token transfer schema
  */
 const TokenTransferSchema = z.object({
-  tokenAddress: z.string(),
-  amount: z.string(),
+  tokenAddress: z.string().refine((val) => isValidEthereumAddress(val), {
+    message: 'Invalid Ethereum address',
+  }),
+  amount: z.string().refine((val) => isValidBigInt(val), {
+    message: 'Invalid value (must be a non-negative integer as decimal or 0x-prefixed hex string)',
+  }),
 });
 
 /**
@@ -139,7 +143,12 @@ export const RelayerActionV1Schema = z.object({
   metadata: z
     .object({
       dryRun: z.boolean().optional(),
-      userAddress: z.string().optional(),
+      userAddress: z
+        .string()
+        .refine((val) => isValidEthereumAddress(val), {
+          message: 'Invalid Ethereum address',
+        })
+        .optional(),
     })
     .optional(),
 });
@@ -152,10 +161,3 @@ export const RelayerActionEnvelopeSchema = z.object({
   messageId: z.string().min(1).max(200),
   action: RelayerActionV1Schema,
 });
-
-/**
- * Parse and validate RelayerAction message
- */
-export function parseRelayerAction(data: unknown): RelayerActionEnvelope {
-  return RelayerActionEnvelopeSchema.parse(data);
-}

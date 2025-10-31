@@ -16,3 +16,28 @@ export function isValidBigInt(value: string): boolean {
     return false;
   }
 }
+
+/**
+ * Normalizes a caught value to a proper Error instance
+ * @param error - The caught value to normalize
+ * @returns A proper Error instance
+ */
+export function normalizeError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  if (typeof error === 'string') {
+    return new Error(error);
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    try {
+      return new Error(JSON.stringify(error));
+    } catch {
+      return new Error(String(error));
+    }
+  }
+
+  return new Error(String(error));
+}

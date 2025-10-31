@@ -5,6 +5,8 @@ import { rhinestoneRouterAbi } from '@/common/abis/rhinestone-router.abi';
 
 import { ClaimData, FillData } from '../types/rhinestone-order.types';
 
+import { isValidHexData } from './validation';
+
 const ROUTER_DIRECT_SELECTORS = {
   singleCall: '0x9280836c',
   multiCall: '0xac9650d8',
@@ -73,12 +75,12 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
     throw new Error(`Expected routeClaim, got ${routerDecoded.functionName}`);
   }
 
-  const adapterCalldatas = routerDecoded.args[1] as readonly Hex[];
+  const adapterCalldatas = routerDecoded.args[1];
 
   for (let i = 0; i < adapterCalldatas.length; i++) {
     const calldata = adapterCalldatas[i];
 
-    if (isDirectRouterCall(calldata)) {
+    if (!isValidHexData(calldata) || isDirectRouterCall(calldata)) {
       continue;
     }
 

@@ -1,5 +1,6 @@
-import { isAddress } from 'viem';
 import { z } from 'zod';
+
+import { isValidEthereumAddress } from '@/modules/rhinestone/utils/validation';
 
 /**
  * Rhinestone contract addresses for a specific chain
@@ -8,22 +9,22 @@ const RhinestoneContractsSchema = z.object({
   /**
    * Rhinestone router contract address
    */
-  router: z.string().refine((val) => isAddress(val), {
-    message: 'Invalid Ethereum address (must be valid checksum)',
+  router: z.string().refine((val) => isValidEthereumAddress(val), {
+    message: 'Invalid Ethereum address',
   }),
 
   /**
    * ECO adapter contract address
    */
-  ecoAdapter: z.string().refine((val) => isAddress(val), {
-    message: 'Invalid Ethereum address (must be valid checksum)',
+  ecoAdapter: z.string().refine((val) => isValidEthereumAddress(val), {
+    message: 'Invalid Ethereum address',
   }),
 
   /**
    * ECO arbiter contract address
    */
-  ecoArbiter: z.string().refine((val) => isAddress(val), {
-    message: 'Invalid Ethereum address (must be valid checksum)',
+  ecoArbiter: z.string().refine((val) => isValidEthereumAddress(val), {
+    message: 'Invalid Ethereum address',
   }),
 });
 

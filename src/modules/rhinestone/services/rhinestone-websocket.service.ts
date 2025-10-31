@@ -21,6 +21,7 @@ import {
 import { RHINESTONE_EVENTS } from '../types/events.types';
 import { RhinestoneInboundMessageSchema } from '../types/message-schemas';
 import { RelayerActionEnvelope } from '../types/relayer-action.types';
+import { normalizeError } from '../utils/validation';
 
 /**
  * Manages WebSocket connection to Rhinestone orchestrator
@@ -60,7 +61,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         `Initial connect failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       this.eventsService.emit(RHINESTONE_EVENTS.ERROR, {
-        error: error as Error,
+        error: normalizeError(error),
       });
 
       // Manually trigger reconnect since close event won't fire on init failure
@@ -133,7 +134,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           this.logger.error(`Failed to create WebSocket connection: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -190,7 +191,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           this.logger.error(`Error during disconnect: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -242,7 +243,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           this.logger.error(`Failed to send ActionStatus for ${messageId}: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -313,7 +314,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       } catch (error) {
         this.logger.error(`Failed to parse message: ${error}`);
         this.eventsService.emit(RHINESTONE_EVENTS.ERROR, {
-          error: error as Error,
+          error: normalizeError(error),
         });
       }
     });
@@ -417,7 +418,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           return result.data;
         } catch (error) {
           this.logger.error(`Error parsing message: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -450,7 +451,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     this.sendAuthentication().catch((error) => {
       this.logger.error(`Error sending authentication: ${error}`);
       this.eventsService.emit(RHINESTONE_EVENTS.ERROR, {
-        error: error as Error,
+        error: normalizeError(error),
       });
       this.ws?.close();
     });
@@ -494,7 +495,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           this.logger.error(`Failed to send authentication: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           this.ws?.close();
           throw error;
@@ -565,7 +566,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           });
         } catch (error) {
           this.logger.error(`Error handling Ok message: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -639,7 +640,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           });
         } catch (error) {
           this.logger.error(`Error handling Error message: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -676,7 +677,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           this.logger.error(`Error handling RelayerAction: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
@@ -815,7 +816,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           this.logger.error(`Error during reconnect attempt: ${error}`);
-          span.recordException(error as Error);
+          span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {

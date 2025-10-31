@@ -124,6 +124,7 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
   // Build tokens and calls for route
   const tokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] = [];
   const tokenTransferCalls: Call[] = [];
+  let routeNativeAmount = 0n;
 
   for (const [tokenId, amount] of order.tokenOut) {
     const tokenAddress = toAddress(tokenId);
@@ -144,6 +145,7 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
         }),
       });
     } else {
+      routeNativeAmount += amount;
       tokenTransferCalls.push({
         target: toUniversalAddress(order.recipient),
         value: amount,
@@ -186,7 +188,7 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
       salt,
       deadline: order.fillDeadline,
       portal: toUniversalAddress(inbox),
-      nativeAmount: 0n,
+      nativeAmount: routeNativeAmount,
       tokens,
       calls,
     },
