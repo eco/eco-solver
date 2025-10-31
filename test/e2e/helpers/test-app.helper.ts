@@ -125,7 +125,7 @@ export async function waitForPortalEvent(
       const currentBlock = await publicClient.getBlockNumber();
 
       // Fetch logs from start block to current block
-      const [event] = await publicClient.getContractEvents({
+      const events = await publicClient.getContractEvents({
         address: portalAddress as `0x${string}`,
         abi: portalAbi,
         eventName,
@@ -134,10 +134,11 @@ export async function waitForPortalEvent(
         strict: true,
       });
 
-      // Parse logs and find matching event
-      if (event && filter(event)) {
-        console.log(`Found ${eventName} event:`, event);
-        return event;
+      // Find the first matching event
+      const matchedEvent = events.find(filter);
+      if (matchedEvent) {
+        console.log(`Found ${eventName} event:`, matchedEvent);
+        return matchedEvent;
       }
 
       // Update start block for next iteration to avoid re-processing
