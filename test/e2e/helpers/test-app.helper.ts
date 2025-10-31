@@ -110,7 +110,7 @@ export async function waitForPortalEvent(
   });
 
   // Determine chain ID from RPC URL
-  const chainId = rpcUrl.includes('8545') ? BASE_MAINNET_CHAIN_ID : OPTIMISM_MAINNET_CHAIN_ID;
+  const chainId = await publicClient.getChainId();
   const portalAddress = getPortalAddress(chainId);
 
   // Get the starting block if not provided

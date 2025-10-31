@@ -14,7 +14,8 @@ This directory contains all test files for the blockchain intent-solver applicat
 
 - Full application integration tests
 - Uses real databases (MongoDB, Redis) and forked blockchain networks
-- Run with: `pnpm test:e2e`
+- Run with: `pnpm test:e2e` (uses Docker Compose) or `pnpm test:e2e:ci` (uses Testcontainers)
+- See [test/e2e/README.md](./e2e/README.md) for comprehensive E2E testing guide
 
 ## E2E Test Setup
 
@@ -43,10 +44,31 @@ This directory contains all test files for the blockchain intent-solver applicat
    pnpm test:e2e
    ```
 
+### Test Execution Modes
+
+E2E tests support two execution modes:
+
+1. **Docker Compose Mode (Default)**
+   - Command: `pnpm test:e2e`
+   - Uses `jest-e2e-compose.json` configuration
+   - Requires Docker Compose for MongoDB and Redis
+   - Best for local development
+   - Faster startup with pre-configured services
+
+2. **Testcontainers Mode (CI)**
+   - Command: `pnpm test:e2e:ci`
+   - Uses `jest-e2e.json` configuration
+   - Uses Testcontainers library for MongoDB and Redis
+   - Best for CI environments
+   - Automatic container management and cleanup
+
+Both modes use Anvil for blockchain forks and share the same test configuration (`config.e2e.yaml`).
+
 ### Configuration Files
 
 - `config.e2e.yaml` - E2E test configuration (YAML format, aligns with production config)
-- `jest-e2e.json` - Jest configuration for E2E tests
+- `jest-e2e.json` - Jest configuration for E2E tests (Testcontainers mode for CI)
+- `jest-e2e-compose.json` - Jest configuration for E2E tests (Docker Compose mode, default)
 
 ### Test Structure
 
@@ -54,17 +76,36 @@ This directory contains all test files for the blockchain intent-solver applicat
 test/
 ├── e2e/
 │   ├── setup/
-│   │   ├── globalSetup.ts        # Starts services before all tests
-│   │   ├── globalTeardown.ts     # Cleans up after all tests
-│   │   ├── anvil-manager.ts      # Manages Anvil blockchain forks
-│   │   ├── test-containers.ts    # Manages Docker containers
-│   │   └── waitFor.ts            # Health check utilities
+│   │   ├── globalSetup.ts               # Starts services before all tests (Testcontainers)
+│   │   ├── globalSetup.compose.ts       # Starts services before all tests (Docker Compose)
+│   │   ├── globalTeardown.ts            # Cleans up after all tests (Testcontainers)
+│   │   ├── globalTeardown.compose.ts    # Cleans up after all tests (Docker Compose)
+│   │   ├── anvil-manager.ts             # Manages Anvil blockchain forks
+│   │   ├── test-containers.ts           # Manages Docker containers
+│   │   └── waitFor.ts                   # Health check utilities
 │   ├── helpers/
-│   │   └── test-app.helper.ts    # NestJS app bootstrap helpers
-│   └── *.e2e.spec.ts             # E2E test files
-├── config.e2e.yaml               # E2E configuration
-├── jest-e2e.json                 # Jest E2E config
-└── README.md                     # This file
+│   │   ├── test-app.helper.ts           # NestJS app bootstrap helpers
+│   │   ├── e2e-config.ts                # E2E configuration loader
+│   │   ├── fund-test-account.ts         # Test account funding utilities
+│   │   └── intent-builder.helper.ts     # Intent construction helper
+│   ├── context/
+│   │   └── test-context.ts              # Test context setup and management
+│   ├── config/
+│   │   └── timeouts.ts                  # E2E timeout constants
+│   ├── fixtures/
+│   │   └── intent-fixtures.ts           # Pre-configured test data and intent options
+│   ├── utils/
+│   │   ├── balance-tracker.ts           # Balance tracking utilities
+│   │   ├── polling.ts                   # Polling utilities for async operations
+│   │   ├── assertions.ts                # Custom test assertions
+│   │   ├── wait-helpers.ts              # Wait for specific conditions
+│   │   └── verification.ts              # Intent verification helpers
+│   ├── README.md                        # Comprehensive E2E testing guide
+│   └── *.e2e.spec.ts                    # E2E test files
+├── config.e2e.yaml                      # E2E configuration
+├── jest-e2e.json                        # Jest E2E config (Testcontainers)
+├── jest-e2e-compose.json                # Jest E2E config (Docker Compose, default)
+└── README.md                            # This file
 ```
 
 ## Writing Tests
@@ -92,30 +133,31 @@ describe('MyService', () => {
 ### E2E Test Example
 
 ```typescript
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { createTestAppWithServer, waitForApp } from './helpers/test-app.helper';
+import { E2ETestContext, setupTestContext } from './context/test-context';
+import { E2E_TIMEOUTS } from './config/timeouts';
 
 describe('My E2E Test', () => {
-  let app: INestApplication;
-  let baseUrl: string;
+  let ctx: E2ETestContext;
+  let cleanup: () => Promise<void>;
 
   beforeAll(async () => {
-    const result = await createTestAppWithServer();
-    app = result.app;
-    baseUrl = result.baseUrl;
-    await waitForApp(baseUrl);
-  }, 60000);
+    const result = await setupTestContext();
+    ctx = result.context;
+    cleanup = result.cleanup;
+  }, E2E_TIMEOUTS.BEFORE_ALL);
 
   afterAll(async () => {
-    await app.close();
-  });
+    await cleanup();
+  }, E2E_TIMEOUTS.AFTER_ALL);
 
   it('should test endpoint', async () => {
+    const { app } = ctx;
     await request(app.getHttpServer()).get('/health').expect(200);
   });
 });
 ```
+
+**Note:** For detailed examples including intent publishing, validation, and advanced patterns, see [test/e2e/README.md](./e2e/README.md).
 
 ## Troubleshooting
 
@@ -139,7 +181,8 @@ describe('My E2E Test', () => {
 
 For detailed documentation, see:
 
-- [E2E Setup Guide](../docs/e2e-setup.md) - Comprehensive setup and troubleshooting
+- **[test/e2e/README.md](./e2e/README.md)** - **Comprehensive E2E testing guide** (fixtures, utilities, polling, assertions, best practices)
+- [E2E Setup Guide](../docs/e2e-setup.md) - Infrastructure setup and troubleshooting
 - [Project README](../README.md) - Project overview and architecture
 
 ## CI/CD

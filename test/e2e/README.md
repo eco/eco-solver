@@ -1,8 +1,57 @@
 # E2E Testing Guide
 
+## Quick Start
+
+```bash
+# 1. Start Docker (required for MongoDB, Redis, and Anvil forks)
+docker-compose up -d
+
+# 2. Run all E2E tests
+pnpm test:e2e
+
+# 3. Run specific test file
+pnpm test:e2e --testPathPattern=fulfillment-flow
+
+# 4. Clean up after tests
+docker-compose down
+```
+
 ## Overview
 
 This directory contains end-to-end tests for the blockchain intent solver. Tests run against forked mainnet chains (Base and Optimism) using Anvil, with real smart contracts and blockchain interactions.
+
+### Key Characteristics
+
+- **Real blockchain interactions**: Uses Anvil forks of Base and Optimism mainnet
+- **Sequential execution**: Tests run one at a time in alphabetical order
+- **Persistent state**: Database and blockchain state accumulate during test run
+- **Per-file app instances**: Each test file creates its own NestJS app
+- **Full integration**: Tests the entire system end-to-end (listeners, queues, executors)
+
+## Directory Structure
+
+```
+test/e2e/
+├── README.md                    # This file
+├── config/
+│   └── timeouts.ts              # Timeout constants
+├── context/
+│   └── test-context.ts          # App setup and context creation
+├── fixtures/
+│   └── intent-fixtures.ts       # Pre-configured intent options
+├── helpers/
+│   ├── intent.helper.ts         # Intent publishing and building
+│   ├── test-app.helper.ts       # App initialization
+│   └── verification.helper.ts   # Assertion helpers
+├── utils/
+│   ├── balance-tracker.ts       # Balance verification
+│   ├── index.ts                 # Exported utilities
+│   ├── polling.utils.ts         # Polling functions
+│   └── wait.utils.ts            # Wait helpers
+├── globalSetup.ts               # Pre-test infrastructure setup
+├── globalTeardown.ts            # Post-test cleanup
+└── *.e2e-spec.ts                # Test files (run alphabetically)
+```
 
 ## Architecture
 
@@ -21,9 +70,19 @@ Each E2E test file creates its **own NestJS application instance** for better te
 
 Tests run **sequentially** (not in parallel):
 - Jest is configured with `maxWorkers: 1`
-- Tests execute in alphabetical order
-- State persists across tests (by design)
-- No database/state cleanup between tests
+- Test files execute in alphabetical order by filename
+- This ensures predictable execution and easier debugging
+- Parallel execution is disabled due to shared blockchain state and database
+
+### State Persistence
+
+**Important**: State persists across test files:
+- **Blockchain state**: Anvil forks persist transactions between tests
+- **Database state**: MongoDB data is NOT cleared between test files
+- **Intent history**: Previously published intents remain in the database
+- **Account balances**: Change as tests execute transactions
+
+This is **by design** to simulate a real-world environment where state accumulates. Tests should be written to handle existing state (e.g., check balance increases rather than absolute values).
 
 ## Writing Tests
 
@@ -167,6 +226,61 @@ await publishIntent({
 });
 ```
 
+### Creating New Fixtures
+
+To add new intent fixture functions:
+
+1. Add function to `test/e2e/fixtures/intent-fixtures.ts`
+2. Follow naming convention: `create<Scenario>Options()`
+3. Return partial `PublishIntentOptions` object
+4. Document the expected behavior in comments
+
+Example:
+```typescript
+/**
+ * Creates options for an intent with multiple tokens
+ * Expected behavior: Should be fulfilled successfully
+ */
+export function createMultiTokenIntentOptions(): Partial<PublishIntentOptions> {
+  return {
+    routeTokens: [
+      { address: USDC_BASE, amount: parseUnits('10', 6) },
+      { address: WETH_BASE, amount: parseUnits('0.1', 18) },
+    ],
+    // ... other overrides
+  };
+}
+```
+
+## Test Data Management
+
+### Resetting Test Data
+
+Test data persists across runs. To reset:
+
+```bash
+# Stop all services
+docker-compose down
+
+# Remove volumes (clears MongoDB and Redis data)
+docker-compose down -v
+
+# Restart for clean state
+docker-compose up -d
+```
+
+### Managing Blockchain State
+
+Anvil forks start from the same block each time, but transactions persist during a test run:
+- **Between tests in same file**: State accumulates
+- **Between different test files**: State accumulates
+- **Between test runs**: Reset (Anvil restarts)
+
+To work with accumulated state:
+- Use relative assertions (balance increased by X)
+- Don't assume specific absolute values
+- Check existence before creating test data
+
 ## Test Infrastructure
 
 ### Global Setup (`globalSetup.ts`)
@@ -184,28 +298,38 @@ Runs once after all tests:
 2. Stops database containers
 3. Cleans up temporary files
 
-Note: Each test file handles its own app cleanup via `afterAll()` hooks.
+**Cleanup Behavior:**
+- Each test file handles its own app cleanup via `afterAll()` hooks
+- If a test file crashes or times out, the app may not close properly
+- This can cause port conflicts for subsequent test runs
+- Use `lsof -ti:3001 | xargs kill -9` to clean up stale processes
+- Global teardown (`globalTeardown.ts`) always runs to clean up Anvil and containers
 
 ### Test Configuration
 
 Two Jest configurations available:
 
-1. **jest-e2e.json** - Uses Testcontainers (for local development)
-   ```bash
-   pnpm test:e2e:ci
-   ```
+1. **jest-e2e-compose.json** - Uses Docker Compose (default, recommended for local development)
+   - Command: `pnpm test:e2e`
+   - Services managed by `docker-compose.yml`
+   - Predictable ports and setup
+   - Best for local development
 
-2. **jest-e2e-compose.json** - Uses Docker Compose (default)
-   ```bash
-   pnpm test:e2e
-   ```
+2. **jest-e2e.json** - Uses Testcontainers (for CI/automated environments)
+   - Command: `pnpm test:e2e:ci`
+   - Services auto-provisioned via Testcontainers
+   - Dynamic ports assigned automatically
+   - Best for CI pipelines and isolated environments
 
 ## Running Tests
 
 ### Prerequisites
 
-1. Docker running (for Testcontainers or Docker Compose)
-2. Environment configured in `test/config.e2e.yaml`
+1. **Docker Desktop** running (required for MongoDB, Redis, and Anvil)
+2. **Node.js** and **pnpm** installed
+3. **Configuration file**: `test/config.e2e.yaml` at the project root
+4. **Environment variables**: Set automatically by `globalSetup.ts`
+5. **Foundry/Anvil**: Installed for blockchain forking (usually via Foundry CLI)
 
 ### Run All E2E Tests
 
@@ -234,6 +358,25 @@ pnpm test:e2e --detectOpenHandles
 
 # Run single test
 pnpm test:e2e --testNamePattern="fulfills valid cross-chain transfer"
+
+# Inspect app logs during tests
+# Logs are output to console during test execution
+
+# Check Anvil blockchain state
+# Anvil runs at http://localhost:8545 (Base) and http://localhost:9545 (Optimism)
+cast block-number --rpc-url http://localhost:8545
+
+# Check MongoDB data
+# Connect to MongoDB at the URI shown in test output
+mongosh <MONGODB_URI_FROM_TEST_OUTPUT>
+
+# Check Redis data
+redis-cli -h localhost -p <REDIS_PORT_FROM_TEST_OUTPUT>
+
+# Debug failed intent
+# Check intent status in database
+# Check blockchain event logs
+# Verify account balances
 ```
 
 ## Test Helpers Reference
@@ -247,8 +390,10 @@ pnpm test:e2e --testNamePattern="fulfills valid cross-chain transfer"
 
 ### Intent Helpers
 
-- `publishIntent(options)` - Publish and fund an intent on-chain
+- `publishIntent(options)` - Publish and fund an intent on-chain (high-level, recommended)
 - `IntentBuilder` - Low-level builder for custom intent construction
+  - Use when you need fine-grained control over intent parameters
+  - Use `publishIntent()` for most test scenarios
 
 ### Wait Helpers
 
@@ -269,13 +414,33 @@ pnpm test:e2e --testNamePattern="fulfills valid cross-chain transfer"
 ```typescript
 import { BalanceTracker } from './utils';
 
-const tracker = new BalanceTracker(chainId, tokenAddress, recipientAddress);
+// Create tracker with chain ID, token address, and wallet address
+const tracker = new BalanceTracker(
+  10n,                    // chainId (bigint): Chain to check balance on
+  '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', // tokenAddress: ERC20 token to track
+  '0x...'                 // walletAddress: Address to monitor
+);
+
 await tracker.snapshot(); // Save initial balance
 
 // ... execute intent ...
 
-await tracker.verifyIncreased(expectedAmount); // Assert balance increased
+await tracker.verifyIncreased(expectedAmount); // Assert balance increased by expected amount
 ```
+
+### Helper Selection Guide
+
+**When to use each helper:**
+
+- **`publishIntent()`** - Most common, use for standard intent publishing
+- **`IntentBuilder`** - Only when you need custom intent construction not supported by publishIntent
+- **`waitForFulfillment()`** - When you expect the intent to succeed
+- **`waitForRejection()`** - When you expect the intent to fail validation
+- **`waitForStatus()`** - When you need to wait for a specific status (e.g., FAILED, PENDING)
+- **`expectIntentFulfilled()`** - For final assertions on successful intents
+- **`expectIntentNotFulfilled()`** - For final assertions on failed intents
+- **`BalanceTracker`** - When you need to verify token transfers occurred
+- **`pollUntil*()`** - For custom polling scenarios not covered by wait helpers
 
 ## Troubleshooting
 
@@ -287,9 +452,14 @@ If you see port 3001 conflicts:
 
 ### Tests Timing Out
 
-- Default timeout is now 30 seconds (reduced from 120s)
-- Polling uses exponential backoff (starts at 100ms)
+- Check `test/e2e/config/timeouts.ts` for current timeout values
+- Polling uses exponential backoff (starts at 100ms, doubles each attempt)
 - Individual tests can override: `it('test', async () => { ... }, 60000)`
+- Common causes:
+  - Blockchain listener not detecting events (check logs)
+  - Queue processor not running (verify Redis connection)
+  - Anvil fork issues (restart Anvil processes)
+  - Intent validation failing silently (check validation logs)
 
 ### Database Connection Errors
 
@@ -311,8 +481,48 @@ pkill -9 anvil
 ### Test Fails Only in CI
 
 Check if CI environment variables are set correctly:
-- GitHub Actions uses service containers
-- TestContainersManager auto-detects CI and adapts
+- GitHub Actions uses service containers or Testcontainers
+- TestContainersManager auto-detects CI environment
+- Verify CI has access to required Docker images
+- Check CI logs for service startup errors
+
+## CI/CD Integration
+
+### GitHub Actions Setup
+
+E2E tests can run in CI using either approach:
+
+**Option 1: Service Containers** (faster)
+```yaml
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+  redis:
+    image: redis:latest
+    ports:
+      - 6379:6379
+```
+
+**Option 2: Testcontainers** (more isolated)
+```yaml
+- run: pnpm test:e2e:ci
+```
+
+### Required Environment Variables
+
+CI must set these environment variables:
+- `CI=true` - Enables CI-specific behavior
+- Database/Redis URLs (if using service containers)
+- Foundry/Anvil must be available in CI environment
+
+### CI Differences from Local
+
+- **Dynamic ports**: Testcontainers assigns random ports
+- **No Docker Compose**: Uses Testcontainers instead
+- **Cleanup**: Automatic container cleanup after tests
+- **Timeouts**: May need longer timeouts for cold starts
 
 ## Best Practices
 
@@ -324,13 +534,19 @@ Check if CI environment variables are set correctly:
 - ✅ Write descriptive test names
 - ✅ Add console logging for debugging
 - ✅ Test both success and failure paths
+- ✅ Use relative balance assertions (increased by X, not equals X)
+- ✅ Name test files with descriptive names (they run alphabetically)
+- ✅ Reset test data when needed (`docker-compose down -v`)
 
 ### DON'T:
 - ❌ Don't forget to call cleanup in `afterAll()`
 - ❌ Don't create app instances manually (use `setupTestContext()`)
-- ❌ Don't use hard-coded `setTimeout` - use polling
-- ❌ Don't assume test order (even though sequential)
-- ❌ Don't commit changes to `config.e2e.yaml` with local addresses
+- ❌ Don't use hard-coded `setTimeout` - use polling utilities
+- ❌ Don't assume test file execution order (use alphabetical naming)
+- ❌ Don't commit changes to `config.e2e.yaml` with local addresses or secrets
+- ❌ Don't assume absolute balance values (state accumulates)
+- ❌ Don't rely on database being empty (handle existing data)
+- ❌ Don't run tests in parallel (configured for sequential execution)
 
 ## Adding New Test Files
 
@@ -400,21 +616,39 @@ Future coverage needed:
 
 ## Configuration
 
-### Test Configuration (`test/config.e2e.yaml`)
+### Test Configuration File
 
-- App port: 3001 (different from dev: 3000)
-- MongoDB: Dynamic port from Testcontainers
-- Redis: Dynamic port from Testcontainers
-- Anvil forks: Base (8545), Optimism (9545)
-- Listeners: Enabled for fulfillment flow tests
+**Location**: `test/config.e2e.yaml` (in the project root's `test/` directory)
+
+This file configures all E2E test settings:
+- **App port**: 3001 (different from dev: 3000)
+- **MongoDB**: Connection URI (set dynamically by globalSetup)
+- **Redis**: Host and port (set dynamically by globalSetup)
+- **Anvil forks**: Base (8545), Optimism (9545)
+- **Listeners**: Enabled for blockchain event detection
+- **Wallets**: Test executor wallets (basic, kernel)
+- **Provers**: Prover contracts and configurations
+
+**Important**: Do NOT commit changes to `config.e2e.yaml` with local addresses or secrets.
 
 ### Environment Variables
 
-Set by `globalSetup.ts`:
-- `MONGODB_URI` - Dynamic MongoDB connection
-- `REDIS_HOST` - Dynamic Redis host
+These are set automatically by `globalSetup.ts`:
+- `MONGODB_URI` - Dynamic MongoDB connection string
+- `REDIS_HOST` - Redis hostname (usually localhost)
 - `REDIS_PORT` - Dynamic Redis port
 - `PORT` - App server port (3001)
+
+The configuration system merges:
+1. Base config from `config.e2e.yaml`
+2. Environment variables (set by globalSetup)
+3. Any test-specific overrides
+
+### Configuration Precedence
+
+1. Environment variables (highest priority)
+2. `config.e2e.yaml` settings
+3. Default values from config schemas
 
 ## Links
 
