@@ -31,14 +31,11 @@ import { BalanceTracker, expectIntent, publishIntent, waitForRejection } from '.
  */
 describe('Intent Fulfillment', () => {
   let ctx: E2ETestContext;
+  let cleanup: () => Promise<void>;
 
   // Setup: Initialize test context and fund accounts
   beforeAll(async () => {
     console.log('\n=== Starting Intent Fulfillment Tests ===\n');
-
-    // Setup test context (app, services, etc.)
-    ctx = await setupTestContext();
-    console.log(`Application ready at ${ctx.baseUrl}\n`);
 
     // Fund test account with USDC
     await fundTestAccountsWithUSDC();
@@ -46,9 +43,18 @@ describe('Intent Fulfillment', () => {
 
     // Fund Kernel wallet (used by executor)
     await fundKernelWallet();
+
+    // Setup test context (app, services, etc.)
+    const result = await setupTestContext();
+    ctx = result.context;
+    cleanup = result.cleanup;
+    console.log(`Application ready at ${ctx.baseUrl}\n`);
   }, E2E_TIMEOUTS.BEFORE_ALL);
 
-  // NOTE: No afterAll cleanup - the SharedAppManager handles app cleanup automatically
+  // Cleanup: Close the app after all tests finish
+  afterAll(async () => {
+    await cleanup();
+  }, E2E_TIMEOUTS.AFTER_ALL);
 
   it(
     'fulfills valid cross-chain transfer',

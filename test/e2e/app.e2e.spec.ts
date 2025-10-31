@@ -20,18 +20,24 @@ import { TEST_ACCOUNTS, TEST_CHAIN_IDS, TEST_RPC } from './helpers/test-app.help
  */
 describe('Application E2E Tests', () => {
   let ctx: E2ETestContext;
+  let cleanup: () => Promise<void>;
 
   // Setup: Initialize test context
   beforeAll(async () => {
-    console.log('Connecting to shared NestJS application for E2E tests...');
+    console.log('Creating NestJS application for E2E tests...');
 
     // Setup test context (app, services, etc.)
-    ctx = await setupTestContext();
+    const result = await setupTestContext();
+    ctx = result.context;
+    cleanup = result.cleanup;
 
     console.log(`Application ready at ${ctx.baseUrl}`);
   }, E2E_TIMEOUTS.BEFORE_ALL);
 
-  // NOTE: No afterAll cleanup - the SharedAppManager handles app cleanup automatically
+  // Cleanup: Close the app after all tests finish
+  afterAll(async () => {
+    await cleanup();
+  }, E2E_TIMEOUTS.AFTER_ALL);
 
   /**
    * Test Suite 1: Health Endpoints

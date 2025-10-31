@@ -34,7 +34,7 @@ export default async function globalTeardown(): Promise<void> {
   console.log('╚═══════════════════════════════════════════════════════════╝\n');
 
   try {
-    // Note: SharedAppManager handles app cleanup automatically via exit handlers
+    // Note: Each test file handles its own app cleanup via afterAll hooks
     // No need to explicitly close the app here
 
     // Stop Anvil instances

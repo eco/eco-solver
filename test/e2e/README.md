@@ -6,16 +6,16 @@ This directory contains end-to-end tests for the blockchain intent solver. Tests
 
 ## Architecture
 
-### Shared App Instance Pattern
+### Per-File App Instance Pattern
 
-All E2E test files share a **single NestJS application instance** to prevent port conflicts and improve test performance:
+Each E2E test file creates its **own NestJS application instance** for better test isolation:
 
-- App is created once by the `SharedAppManager` singleton
-- First test file to run triggers app initialization
-- Subsequent test files reuse the same app instance
-- Automatic cleanup in `globalTeardown.ts`
+- App is created once per test file in `beforeAll()`
+- App is explicitly closed in `afterAll()` after tests complete
+- Each test file is independent and manages its own lifecycle
+- Tests within a file share the same app instance for performance
 
-**Important**: Do NOT call `app.close()` in individual test files - cleanup is automatic!
+**Important**: Always call the cleanup function in `afterAll()` to properly close the app!
 
 ### Test Execution Order
 
@@ -30,32 +30,28 @@ Tests run **sequentially** (not in parallel):
 ### Basic Test Structure
 
 ```typescript
-import { INestApplication } from '@nestjs/common';
-import { createTestAppWithServer, waitForApp } from './helpers/test-app.helper';
-import { IntentsService } from '@/modules/intents/intents.service';
-import { initializeWaitHelpers } from './utils';
+import { E2ETestContext, setupTestContext } from './context/test-context';
+import { E2E_TIMEOUTS } from './config/timeouts';
 
 describe('My E2E Test Suite', () => {
-  let app: INestApplication;
-  let baseUrl: string;
+  let ctx: E2ETestContext;
+  let cleanup: () => Promise<void>;
 
   beforeAll(async () => {
-    // Get the shared app instance
-    const result = await createTestAppWithServer();
-    app = result.app;
-    baseUrl = result.baseUrl;
+    // Create app instance and get cleanup function
+    const result = await setupTestContext();
+    ctx = result.context;
+    cleanup = result.cleanup;
+  }, E2E_TIMEOUTS.BEFORE_ALL);
 
-    // Wait for app readiness
-    await waitForApp(baseUrl);
-
-    // Optional: Initialize helpers if needed
-    const intentsService = app.get(IntentsService);
-    initializeWaitHelpers(intentsService);
-  }, 60000);
-
-  // NO afterAll - cleanup is automatic!
+  // Always cleanup after tests
+  afterAll(async () => {
+    await cleanup();
+  }, E2E_TIMEOUTS.AFTER_ALL);
 
   it('should do something', async () => {
+    // Access app, services, etc. via ctx
+    const { app, baseUrl, intentsService } = ctx;
     // Your test code
   });
 });
@@ -184,10 +180,11 @@ Runs once before all tests:
 ### Global Teardown (`globalTeardown.ts`)
 
 Runs once after all tests:
-1. Closes the shared NestJS app
-2. Stops Anvil instances
-3. Stops database containers
-4. Cleans up temporary files
+1. Stops Anvil instances
+2. Stops database containers
+3. Cleans up temporary files
+
+Note: Each test file handles its own app cleanup via `afterAll()` hooks.
 
 ### Test Configuration
 
@@ -243,7 +240,7 @@ pnpm test:e2e --testNamePattern="fulfills valid cross-chain transfer"
 
 ### Core Helpers
 
-- `createTestAppWithServer()` - Get shared app instance
+- `setupTestContext()` - Create app instance and return context with cleanup function
 - `waitForApp(baseUrl)` - Wait for app to be ready
 - `fundTestAccountsWithUSDC()` - Fund test accounts with USDC
 - `fundKernelWallet()` - Fund the executor's Kernel wallet
@@ -285,8 +282,8 @@ await tracker.verifyIncreased(expectedAmount); // Assert balance increased
 ### Port Already in Use
 
 If you see port 3001 conflicts:
-1. Kill all background processes: `./scripts/cleanup-e2e.sh`
-2. The SharedAppManager should prevent this issue
+1. Ensure previous test runs properly closed the app (check `afterAll()` hooks)
+2. Kill any stale processes: `lsof -ti:3001 | xargs kill -9`
 
 ### Tests Timing Out
 
@@ -320,7 +317,8 @@ Check if CI environment variables are set correctly:
 ## Best Practices
 
 ### DO:
-- ✅ Use `SharedAppManager` pattern (via `createTestAppWithServer()`)
+- ✅ Use `setupTestContext()` pattern with cleanup function
+- ✅ Always call cleanup in `afterAll()` hooks
 - ✅ Use fixtures for common test scenarios
 - ✅ Use polling utilities instead of `setTimeout`
 - ✅ Write descriptive test names
@@ -328,8 +326,8 @@ Check if CI environment variables are set correctly:
 - ✅ Test both success and failure paths
 
 ### DON'T:
-- ❌ Don't call `app.close()` in test files
-- ❌ Don't create multiple app instances
+- ❌ Don't forget to call cleanup in `afterAll()`
+- ❌ Don't create app instances manually (use `setupTestContext()`)
 - ❌ Don't use hard-coded `setTimeout` - use polling
 - ❌ Don't assume test order (even though sequential)
 - ❌ Don't commit changes to `config.e2e.yaml` with local addresses
@@ -339,33 +337,33 @@ Check if CI environment variables are set correctly:
 Template for new test file:
 
 ```typescript
-import { INestApplication } from '@nestjs/common';
-import {
-  createTestAppWithServer,
-  waitForApp,
-} from './helpers/test-app.helper';
+import { E2ETestContext, setupTestContext } from './context/test-context';
+import { E2E_TIMEOUTS } from './config/timeouts';
 
 describe('My New Test Suite', () => {
-  let app: INestApplication;
-  let baseUrl: string;
+  let ctx: E2ETestContext;
+  let cleanup: () => Promise<void>;
 
   beforeAll(async () => {
-    const result = await createTestAppWithServer();
-    app = result.app;
-    baseUrl = result.baseUrl;
-    await waitForApp(baseUrl);
+    const result = await setupTestContext();
+    ctx = result.context;
+    cleanup = result.cleanup;
 
-    // Initialize any services/helpers needed
-  }, 60000);
+    // Initialize any additional helpers or perform setup
+  }, E2E_TIMEOUTS.BEFORE_ALL);
 
-  // No afterAll needed!
+  afterAll(async () => {
+    await cleanup();
+  }, E2E_TIMEOUTS.AFTER_ALL);
 
   describe('Feature Area', () => {
     it('should handle valid scenario', async () => {
+      const { app, baseUrl, intentsService } = ctx;
       // Test code
     });
 
     it('should reject invalid scenario', async () => {
+      const { app, baseUrl, intentsService } = ctx;
       // Test code
     });
   });
@@ -376,7 +374,7 @@ describe('My New Test Suite', () => {
 
 1. **Use fixtures** - Pre-configured options reduce boilerplate
 2. **Polling efficiency** - Exponential backoff reduces database queries
-3. **Shared app** - App starts once, not per test file
+3. **Shared app within file** - App starts once per file, shared by all tests in that file
 4. **Parallel assertions** - Use `Promise.all()` where possible
 5. **Smart timeouts** - Override defaults only when needed
 

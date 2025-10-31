@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
@@ -16,7 +16,7 @@ import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.inter
 @Processor(QueueNames.INTENT_EXECUTION, {
   prefix: `{${QueueNames.INTENT_EXECUTION}}`,
 })
-export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
+export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   private chainLocks: Map<string, Promise<void>> = new Map();
   constructor(
     private blockchainService: BlockchainExecutorService,
@@ -40,6 +40,15 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
         this.worker.opts.telemetry = telemetry;
         this.logger.log('Added BullMQOtel telemetry to BlockchainProcessor worker');
       }
+    }
+  }
+
+  async onModuleDestroy() {
+    // Close the worker to ensure clean shutdown
+    if (this.worker) {
+      this.logger.log('Closing BlockchainProcessor worker...');
+      await this.worker.close();
+      this.logger.log('BlockchainProcessor worker closed');
     }
   }
 

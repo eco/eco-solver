@@ -37,6 +37,12 @@ export const E2E_TIMEOUTS = {
   BEFORE_ALL: 120_000,
 
   /**
+   * Timeout for Jest afterAll hooks
+   * Time needed to gracefully close the app
+   */
+  AFTER_ALL: 60_000,
+
+  /**
    * Timeout for individual test cases
    * Should be longer than FULFILLMENT timeout
    */

@@ -1,46 +1,13 @@
-import { INestApplication } from '@nestjs/common';
-
 import { createPublicClient, Hex, http } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 
 import { getPortalAddress } from './e2e-config';
-import { SharedAppManager } from './shared-app-manager';
-
-/**
- * Get or create the shared test application
- *
- * This function returns a singleton app instance that is shared across all test files.
- * The app is created once on first access and reused by all subsequent calls.
- *
- * IMPORTANT:
- * - DO NOT call app.close() in test files - the SharedAppManager handles cleanup
- * - The same app instance is returned to all test files
- * - Tests can inject services directly from the app
- *
- * Usage:
- *   let app: INestApplication;
- *   let baseUrl: string;
- *
- *   beforeAll(async () => {
- *     const result = await createTestAppWithServer();
- *     app = result.app;
- *     baseUrl = result.baseUrl;
- *   });
- *
- *   // DO NOT add afterAll with app.close() - cleanup is automatic
- */
-export async function createTestAppWithServer(): Promise<{
-  app: INestApplication;
-  baseUrl: string;
-}> {
-  // Get the shared app instance from the manager
-  return await SharedAppManager.getApp();
-}
 
 /**
  * Wait for the app to be ready
- * Polls the health endpoint until it returns 200
+ * Polls the readiness endpoint which verifies MongoDB and Redis connections
+ * This ensures critical dependencies are initialized before tests start
  */
 export async function waitForApp(
   baseUrl: string,
@@ -51,7 +18,7 @@ export async function waitForApp(
 ): Promise<void> {
   const { timeout = 30000, interval = 500 } = options;
   const startTime = Date.now();
-  const healthUrl = `${baseUrl}/health/live`;
+  const healthUrl = `${baseUrl}/health/ready`;
 
   while (Date.now() - startTime < timeout) {
     try {
