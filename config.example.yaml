@@ -67,6 +67,43 @@ fulfillment:
     tokens:
       flatFee: 0.001 # Decimal amount (normalized to 18 decimals internally)
       scalarBps: 100 # 1% (100 basis points)
+    nonSwapTokens:
+      flatFee: 0.008
+      scalarBps: 0.8
+
+  # Route-level per-pair overrides (OC-25)
+  # Exact match only: sourceChainId+sourceToken -> destinationChainId+destinationToken
+  # Example: treat USDC on OP to USDC on ETH as same-asset (nonSwapTokens); WETH->USDC as tokens
+  routeFeeOverrides:
+    - sourceChainId: '10'     # Optimism
+      destinationChainId: '1' # Ethereum
+      sourceToken: '0x0000000000000000000000000000000000000001'      # OP USDC (example)
+      destinationToken: '0x0000000000000000000000000000000000000002' # ETH USDC (example)
+      fee:
+        tokens:
+          flatFee: 0.005
+          scalarBps: 0.5
+        nonSwapTokens:
+          flatFee: 0.003      # Lower for same-asset
+          scalarBps: 0.3
+        native:
+          flatFee: 0.02
+          scalarBps: 1.5
+
+    - sourceChainId: '1'      # Ethereum
+      destinationChainId: '10' # Optimism
+      sourceToken: '0x0000000000000000000000000000000000000003'      # WETH (example)
+      destinationToken: '0x0000000000000000000000000000000000000004' # USDC (example)
+      fee:
+        tokens:
+          flatFee: 0.02
+          scalarBps: 3.0
+        nonSwapTokens:
+          flatFee: 0.02
+          scalarBps: 3.0
+        native:
+          flatFee: 0.02
+          scalarBps: 1.5
 
 # EVM configuration
 evm:
@@ -110,16 +147,20 @@ evm:
       #   - address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'  # USDC
       #     decimals: 6
       #     symbol: USDC
+      #     nonSwapGroups: [ 'usdc' ]
       #     limit: 1000000000000  # Max 1M USDC
 
       # Network-specific fee configuration (optional - overrides default)
       # fee:
       #   tokens:
-      #     flatFee: 1000000000000000  # 0.001 ETH
+      #     flatFee: 0.02  # 0.02 USD
       #     scalarBps: 100  # 1%
       #   native:
       #     flatFee: 1000000000000000
       #     scalarBps: 100
+      #   nonSwapTokens:
+      #     flatFee: 0.02
+      #     scalarBps: 3.0
 
     # Example: Optimism network
     - chainId: 10

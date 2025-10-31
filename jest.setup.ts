@@ -1,5 +1,6 @@
-const dotenv = require('dotenv');
-const path = require('path');
+import path from 'path';
+
+import dotenv from 'dotenv';
 
 // Load test environment variables
 dotenv.config({ path: path.resolve(__dirname, '.env.test') });
@@ -18,7 +19,9 @@ if (process.env.NODE_ENV === 'test' && !process.env.SHOW_TEST_LOGS) {
 
 // Mock problematic modules that have issues in test environment
 // Only mock if not already mocked in the test file
-if (!jest.isMockFunction(require('@zerodev/sdk').createKernelAccount)) {
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const zerodevSdk = require('@zerodev/sdk');
+if (!jest.isMockFunction(zerodevSdk.createKernelAccount)) {
   jest.mock('@zerodev/sdk', () => ({
     createKernelAccount: jest.fn().mockResolvedValue({
       address: '0x1234567890123456789012345678901234567890',

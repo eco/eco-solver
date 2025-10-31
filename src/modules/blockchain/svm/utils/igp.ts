@@ -99,12 +99,14 @@ export async function simulateQuoteGasPayment(
   feePayer?: PublicKey,
 ): Promise<bigint> {
   try {
-    const { blockhash } = await connection.getLatestBlockhash();
+    // Use 'processed' for simulation to get the freshest blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('processed');
     const dummyFeePayer = feePayer || new PublicKey('11111111111111111111111111111112');
 
     // Create a transaction with the quote instruction
     const transaction = new Transaction({
-      recentBlockhash: blockhash,
+      blockhash,
+      lastValidBlockHeight,
       feePayer: dummyFeePayer,
     });
 
