@@ -14,10 +14,10 @@ import {
   ExpirationValidation,
   IntentFundedValidation,
   ProverSupportValidation,
+  RhinestoneValidation,
   RouteAmountLimitValidation,
   RouteEnabledValidation,
   RouteTokenValidation,
-  StandardFeeValidation,
   Validation,
 } from '@/modules/fulfillment/validations';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -47,7 +47,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     private readonly routeEnabledValidation: RouteEnabledValidation,
     private readonly proverSupportValidation: ProverSupportValidation,
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
-    private readonly standardFeeValidation: StandardFeeValidation,
+    private readonly rhinestoneValidation: RhinestoneValidation,
   ) {
     super(blockchainExecutor, blockchainReader, otelService);
     // Define immutable validations for this strategy (skips route calls validation)
@@ -62,7 +62,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
       this.routeEnabledValidation,
       this.proverSupportValidation,
       this.executorBalanceValidation,
-      this.standardFeeValidation,
+      this.rhinestoneValidation,
     ]);
   }
 

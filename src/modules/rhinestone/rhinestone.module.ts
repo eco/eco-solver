@@ -1,19 +1,22 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Global, Module } from '@nestjs/common';
 
 import { configurationFactory } from '@/config/configuration-factory';
+import { EvmCoreModule } from '@/modules/blockchain/evm/evm-core.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
 import { QueueModule } from '@/modules/queue/queue.module';
 
-import { RhinestoneActionProcessor, RhinestoneWebsocketService } from './services';
+import {
+  RhinestoneActionProcessor,
+  RhinestoneContractsService,
+  RhinestoneValidationService,
+  RhinestoneWebsocketService,
+} from './services';
 
 /**
- * Rhinestone Module
- *
- * WebSocket client for Rhinestone orchestrator.
- * Handles authentication, message routing, keepalive, and RelayerAction processing.
- *
- * Only loaded if rhinestone config exists with url and apiKey.
+ * Rhinestone WebSocket client for orchestrator integration.
+ * Global module - conditionally loaded if rhinestone config exists.
  */
+@Global()
 @Module({})
 export class RhinestoneModule {
   static async forRootAsync(): Promise<DynamicModule> {
@@ -22,6 +25,7 @@ export class RhinestoneModule {
     // Only load if config exists (schema validates url/apiKey)
     if (!config.rhinestone) {
       return {
+        global: true,
         module: RhinestoneModule,
         imports: [],
         providers: [],
@@ -30,10 +34,20 @@ export class RhinestoneModule {
     }
 
     return {
+      global: true,
       module: RhinestoneModule,
-      imports: [OpenTelemetryModule, QueueModule],
-      providers: [RhinestoneWebsocketService, RhinestoneActionProcessor],
-      exports: [RhinestoneWebsocketService],
+      imports: [OpenTelemetryModule, QueueModule, EvmCoreModule],
+      providers: [
+        RhinestoneContractsService,
+        RhinestoneValidationService,
+        RhinestoneWebsocketService,
+        RhinestoneActionProcessor,
+      ],
+      exports: [
+        RhinestoneContractsService,
+        RhinestoneValidationService,
+        RhinestoneWebsocketService,
+      ],
     };
   }
 }

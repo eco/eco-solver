@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
-import { getAddress, keccak256 } from 'viem';
+import { keccak256 } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { RhinestoneConfigService } from '@/modules/config/services/rhinestone-config.service';
@@ -16,6 +16,7 @@ import { decodeAdapterClaim } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
 import { isValidHexData, normalizeError } from '../utils/validation';
 
+import { RhinestoneValidationService } from './rhinestone-validation.service';
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service';
 
 /**
@@ -30,6 +31,7 @@ export class RhinestoneActionProcessor {
     @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     private readonly otelService: OpenTelemetryService,
     private readonly rhinestoneConfig: RhinestoneConfigService,
+    private readonly validationService: RhinestoneValidationService,
   ) {}
 
   /**
@@ -62,8 +64,11 @@ export class RhinestoneActionProcessor {
             throw new Error('No fill found in RelayerAction');
           }
 
-          this.validateSettlementLayer(beforeFillClaim);
-          this.validateActionIntegrity(payload.action, beforeFillClaim);
+          this.validationService.validateSettlementLayerFromMetadata(beforeFillClaim.metadata);
+          this.validationService.validateActionIntegrity(
+            beforeFillClaim.call,
+            payload.action.fill.call,
+          );
 
           const intent = this.extractIntent(beforeFillClaim);
           this.logger.log(`Extracted intent: ${intent.intentHash}`);
@@ -94,81 +99,6 @@ export class RhinestoneActionProcessor {
         }
       },
     );
-  }
-
-  /**
-   * Validate settlement layer is ECO (only supported layer)
-   */
-  private validateSettlementLayer(beforeFillClaim: RelayerActionV1['claims'][0]): void {
-    const settlementLayer = beforeFillClaim.metadata?.settlementLayer;
-
-    if (!settlementLayer) {
-      throw new Error('Settlement layer not specified in claim metadata');
-    }
-
-    if (settlementLayer !== 'ECO') {
-      throw new Error(`Unsupported settlement layer: ${settlementLayer}. Only 'ECO' is supported.`);
-    }
-  }
-
-  /**
-   * Validate action integrity (router addresses, zero values, cross-chain)
-   */
-  private validateActionIntegrity(
-    action: RelayerActionV1,
-    beforeFillClaim: RelayerActionV1['claims'][0],
-  ): void {
-    const contracts = this.rhinestoneConfig.getContracts();
-
-    const claimRouterAddress = getAddress(beforeFillClaim.call.to);
-    const fillRouterAddress = getAddress(action.fill.call.to);
-    const expectedRouter = getAddress(contracts.router);
-
-    if (claimRouterAddress !== expectedRouter) {
-      throw new Error(
-        `Invalid router address in claim. Expected ${expectedRouter}, got ${claimRouterAddress}`,
-      );
-    }
-
-    if (fillRouterAddress !== expectedRouter) {
-      throw new Error(
-        `Invalid router address in fill. Expected ${expectedRouter}, got ${fillRouterAddress}`,
-      );
-    }
-
-    const claimValue = beforeFillClaim.call.value;
-    const fillValue = action.fill.call.value;
-
-    let claimValueBigInt: bigint;
-    try {
-      claimValueBigInt = BigInt(claimValue);
-    } catch (error) {
-      throw new Error(`Invalid claim value format: ${claimValue}. Must be a valid numeric string.`);
-    }
-
-    let fillValueBigInt: bigint;
-    try {
-      fillValueBigInt = BigInt(fillValue);
-    } catch (error) {
-      throw new Error(`Invalid fill value format: ${fillValue}. Must be a valid numeric string.`);
-    }
-
-    if (claimValueBigInt !== 0n) {
-      throw new Error(`Router call in claim must have zero value. Got ${claimValue}`);
-    }
-
-    if (fillValueBigInt !== 0n) {
-      throw new Error(`Router call in fill must have zero value. Got ${fillValue}`);
-    }
-
-    const sourceChainId = beforeFillClaim.call.chainId;
-    const destinationChainId = action.fill.call.chainId;
-
-    if (sourceChainId === destinationChainId) {
-      throw new Error(
-        `Source and destination chains must be different. Both are chain ${sourceChainId}`,
-      );
-    }
   }
 
   /**

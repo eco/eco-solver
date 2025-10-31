@@ -19,26 +19,51 @@ export class RhinestoneConfigService {
   }
 
   /**
-   * Get contract addresses (same across all chains)
+   * Get contract addresses for a specific chain
+   * @param chainId Chain ID to get contracts for
    * @returns Contract addresses including router, ECO adapter, and ECO arbiter
-   * @throws {Error} If contracts are not configured
+   * @throws {Error} If chain is not configured
    */
-  getContracts(): RhinestoneContractsConfig {
+  getContracts(chainId: number): RhinestoneContractsConfig {
     const config = this.configService.get<RhinestoneConfig>('rhinestone');
 
     if (!config) {
       throw new Error('Rhinestone configuration is missing from config.yaml');
     }
 
-    const contracts = config.contracts;
-
-    if (!contracts) {
+    if (!config.chains) {
       throw new Error(
-        'Rhinestone contracts not configured. ' +
-          'Please add rhinestone.contracts section to config.yaml',
+        'Rhinestone chains not configured. ' +
+          'Please add rhinestone.chains section to config.yaml',
       );
     }
 
-    return contracts;
+    const chainConfig = config.chains[chainId];
+
+    if (!chainConfig) {
+      throw new Error(
+        `Rhinestone chain ${chainId} not configured. ` +
+          `Available chains: ${Object.keys(config.chains).join(', ')}`,
+      );
+    }
+
+    return chainConfig.contracts;
+  }
+
+  /**
+   * Check if a chain is configured for Rhinestone
+   */
+  isChainSupported(chainId: number): boolean {
+    const config = this.configService.get<RhinestoneConfig>('rhinestone');
+    return !!(config?.chains && config.chains[chainId]);
+  }
+
+  /**
+   * Get all configured chain IDs
+   */
+  getSupportedChains(): number[] {
+    const config = this.configService.get<RhinestoneConfig>('rhinestone');
+    if (!config?.chains) return [];
+    return Object.keys(config.chains).map(Number);
   }
 }
