@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
+import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -13,17 +14,20 @@ const toUniversalAddress = (address: string): UniversalAddress => address as Uni
 
 describe('StandardFeeValidation', () => {
   let validation: StandardFeeValidation;
-  let feeResolverService: jest.Mocked<FeeResolverService>;
+  let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
   beforeEach(async () => {
-    const mockFeeResolverService = {
-      resolveFee: jest.fn(),
+    const mockBlockchainConfigService = {
+      getFeeLogic: jest.fn(),
     };
 
-    const mockTokenConfigService = {
+    const mockFulfillmentConfigService = {
       normalize: jest.fn((chainId: any, tokens: any) => {
         // Simulate normalization from 6 to 18 decimals (multiply by 10^12)
-        return tokens.map((token: any) => ({ ...token, amount: token.amount * 10n ** 12n }));
+        return tokens.map((token: any) => ({
+          ...token,
+          amount: token.amount * 10n ** 12n,
+        }));
       }),
     };
 
@@ -46,12 +50,38 @@ describe('StandardFeeValidation', () => {
       providers: [
         StandardFeeValidation,
         {
+          provide: BlockchainConfigService,
+          useValue: mockBlockchainConfigService,
+        },
+        {
           provide: FeeResolverService,
-          useValue: mockFeeResolverService,
+          useValue: {
+            // Bridge to old behavior: pull tokens from getFeeLogic
+            resolveTokenFee: jest.fn((destinationChainId: any) => {
+              const logic = mockBlockchainConfigService.getFeeLogic(destinationChainId);
+              return logic?.tokens;
+            }),
+          },
         },
         {
           provide: TokenConfigService,
-          useValue: mockTokenConfigService,
+          useValue: {
+            normalize: jest.fn((chainId: any, tokens: any) => {
+              // Simulate normalization from 6 to 18 decimals (multiply by 10^12)
+              if (Array.isArray(tokens)) {
+                return tokens.map((t: any) => ({
+                  ...t,
+                  decimals: 18,
+                  amount: t.amount * 10n ** 12n,
+                }));
+              }
+              return { ...tokens, decimals: 18, amount: tokens.amount * 10n ** 12n };
+            }),
+          },
+        },
+        {
+          provide: FulfillmentConfigService,
+          useValue: mockFulfillmentConfigService,
         },
         {
           provide: OpenTelemetryService,
@@ -61,7 +91,7 @@ describe('StandardFeeValidation', () => {
     }).compile();
 
     validation = module.get<StandardFeeValidation>(StandardFeeValidation);
-    feeResolverService = module.get(FeeResolverService);
+    blockchainConfigService = module.get(BlockchainConfigService);
   });
 
   describe('validate', () => {
@@ -73,14 +103,18 @@ describe('StandardFeeValidation', () => {
         flatFee: 0.01, // 0.01 USDC flat fee (will be parsed with parseUnits)
         scalarBps: 1, // 1 = 100 bps = 1%, but actual calculation: (1 * 10000) / (10000 * 10000) = 0.01%
       },
+      nonSwapTokens: {
+        flatFee: 0.01,
+        scalarBps: 1,
+      },
       native: {
         flatFee: 0.1, // 0.1 native flat fee (not used in token tests)
         scalarBps: 1, // 1 = 100 bps = 1%, but actual calculation: (1 * 10000) / (10000 * 10000) = 0.01%
       },
-    };
+    } as any;
 
     beforeEach(() => {
-      feeResolverService.resolveFee.mockReturnValue(mockFeeLogic);
+      blockchainConfigService.getFeeLogic.mockReturnValue(mockFeeLogic);
     });
 
     describe('fee calculation', () => {
@@ -104,7 +138,7 @@ describe('StandardFeeValidation', () => {
         expect(result).toBe(true);
       });
 
-      it('should throw error when route has multiple tokens', async () => {
+      it('should calculate percentage fee from route tokens only (single route token)', async () => {
         const intentWithMultipleValues = createMockIntent({
           reward: {
             ...mockIntent.reward,
@@ -124,22 +158,21 @@ describe('StandardFeeValidation', () => {
                 token: toUniversalAddress(
                   '0x0000000000000000000000001111111111111111111111111111111111111111',
                 ),
-                amount: BigInt(200000),
-              }, // 0.2 USDC (6 decimals)
-              {
-                token: toUniversalAddress(
-                  '0x0000000000000000000000002222222222222222222222222222222222222222',
-                ),
-                amount: BigInt(100000),
-              }, // 0.1 USDC (6 decimals)
+                amount: BigInt(300000),
+              }, // 0.3 USDC (6 decimals)
             ],
           },
         });
 
-        // Standard fee validation only supports single token routes
-        await expect(validation.validate(intentWithMultipleValues, mockContext)).rejects.toThrow(
-          'Standard fee validation only supports single token routes, but found 2 tokens',
-        );
+        // Route tokens value: 0.3 USDC (normalized to 18 decimals: 300000000000000000)
+        // Base fee: 0.01 USDC (normalized: 10000000000000000)
+        // Percentage fee: 1% of 0.3 USDC = 0.003 USDC (normalized: 3000000000000000)
+        // Total fee: 0.013 USDC (normalized: 13000000000000000)
+        // Reward tokens: 0.5 USDC (normalized: 500000000000000000) > Total fee
+
+        const result = await validation.validate(intentWithMultipleValues, mockContext);
+
+        expect(result).toBe(true);
       });
 
       it('should handle percentage fee calculation with precision', async () => {
@@ -334,17 +367,61 @@ describe('StandardFeeValidation', () => {
     });
 
     describe('different fee configurations', () => {
+      it('should use resolver-provided fee (nonSwapTokens) when returned', async () => {
+        const overrideResolver = {
+          resolveTokenFee: jest.fn(() => ({ flatFee: 0.02, scalarBps: 0 })),
+        } as unknown as FeeResolverService;
+        (validation as any).feeResolverService = overrideResolver;
+        blockchainConfigService.getFeeLogic.mockReturnValueOnce({
+          tokens: { flatFee: 0, scalarBps: 0 },
+          nonSwapTokens: { flatFee: 0, scalarBps: 0 },
+          native: { flatFee: 0, scalarBps: 0 },
+        } as any);
+
+        const intent = createMockIntent({
+          reward: {
+            ...createMockIntent().reward,
+            tokens: [
+              {
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001234567890123456789012345678901234567890',
+                ),
+                amount: BigInt('200000'), // 0.2 USDC to cover 0.02 override fee + route
+              },
+            ],
+          },
+          route: {
+            ...createMockIntent().route,
+            tokens: [
+              {
+                token: toUniversalAddress(
+                  '0x0000000000000000000000001234567890123456789012345678901234567890',
+                ),
+                amount: BigInt('180000'), // 0.18 USDC route cost
+              },
+            ],
+          },
+        });
+
+        const result = await validation.validate(intent, mockContext);
+        expect(result).toBe(true);
+        expect(overrideResolver.resolveTokenFee).toHaveBeenCalled();
+      });
       it('should handle zero base fee', async () => {
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 2, // 2% = 200 bps
+          },
+          nonSwapTokens: {
+            flatFee: 0,
+            scalarBps: 2,
           },
           native: {
             flatFee: 0,
             scalarBps: 2, // 2% = 200 bps
           },
-        });
+        } as any);
 
         const intentWithTokens = createMockIntent({
           reward: {
@@ -383,16 +460,20 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle zero percentage fee', async () => {
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0.05, // 0.05 USDC normalized to 18 decimals
+            scalarBps: 0,
+          },
+          nonSwapTokens: {
+            flatFee: 0.05,
             scalarBps: 0,
           },
           native: {
             flatFee: 0.05, // 0.05 USDC normalized to 18 decimals
             scalarBps: 0,
           },
-        });
+        } as any);
 
         const intentWithTokens = createMockIntent({
           reward: {
@@ -420,8 +501,12 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle both zero fees with tokens present', async () => {
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
+            flatFee: 0,
+            scalarBps: 0,
+          },
+          nonSwapTokens: {
             flatFee: 0,
             scalarBps: 0,
           },
@@ -429,7 +514,7 @@ describe('StandardFeeValidation', () => {
             flatFee: 0,
             scalarBps: 0,
           },
-        });
+        } as any);
 
         // Intent should have both route and reward tokens even with zero fees
         // With zero fees, still need to cover the route tokens amount
@@ -453,16 +538,20 @@ describe('StandardFeeValidation', () => {
       });
 
       it('should handle high percentage fees', async () => {
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0,
             scalarBps: 50, // 50% = 5000 bps
+          },
+          nonSwapTokens: {
+            flatFee: 0,
+            scalarBps: 50,
           },
           native: {
             flatFee: 0,
             scalarBps: 50, // 50% = 5000 bps
           },
-        });
+        } as any);
 
         const highFeeIntent = createMockIntent({
           reward: {
@@ -527,16 +616,20 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 10, // 10 USDC normalized to 18 decimals
             scalarBps: 1, // 1% = 100 bps
+          },
+          nonSwapTokens: {
+            flatFee: 10,
+            scalarBps: 1,
           },
           native: {
             flatFee: 10, // 10 USDC normalized to 18 decimals
             scalarBps: 1, // 1% = 100 bps
           },
-        });
+        } as any);
 
         // Route tokens value: 5000 USDC (normalized: 5000000000000000000000)
         // Base fee: 10 USDC (normalized: 10000000000000000000)
@@ -569,8 +662,12 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
+            flatFee: 0,
+            scalarBps: 0,
+          },
+          nonSwapTokens: {
             flatFee: 0,
             scalarBps: 0,
           },
@@ -578,7 +675,7 @@ describe('StandardFeeValidation', () => {
             flatFee: 0,
             scalarBps: 0,
           },
-        });
+        } as any);
 
         await expect(validation.validate(noRouteTokensIntent, mockContext)).rejects.toThrow(
           'No route tokens found',
@@ -593,8 +690,12 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
+            flatFee: 0,
+            scalarBps: 0,
+          },
+          nonSwapTokens: {
             flatFee: 0,
             scalarBps: 0,
           },
@@ -602,7 +703,7 @@ describe('StandardFeeValidation', () => {
             flatFee: 0,
             scalarBps: 0,
           },
-        });
+        } as any);
 
         await expect(validation.validate(noRewardTokensIntent, mockContext)).rejects.toThrow(
           'No reward tokens found',
@@ -635,16 +736,20 @@ describe('StandardFeeValidation', () => {
           },
         });
 
-        feeResolverService.resolveFee.mockReturnValue({
+        blockchainConfigService.getFeeLogic.mockReturnValue({
           tokens: {
             flatFee: 0.01, // 0.01 USDC normalized
             scalarBps: 1, // 1% = 100 bps
+          },
+          nonSwapTokens: {
+            flatFee: 0.01,
+            scalarBps: 1,
           },
           native: {
             flatFee: 0.01, // 0.01 USDC normalized
             scalarBps: 1, // 1% = 100 bps
           },
-        });
+        } as any);
 
         // Route value: 333 * 10^12 = 333000000000000
         // Base fee: parseUnits('0.01', 18) = 10000000000000000
@@ -689,12 +794,16 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized) base fee
           scalarBps: 0.01, // 0.01 * 10000 = 100 / 10000 = 0.01 = 1 bps
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0.001,
+          scalarBps: 0.01,
+        },
+      } as any);
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
@@ -749,12 +858,16 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0,
           scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0,
+          scalarBps: 0.0005,
+        },
+      } as any);
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
@@ -809,12 +922,16 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.002,
           scalarBps: 0,
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0.002,
+          scalarBps: 0,
+        },
+      } as any);
 
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
@@ -871,24 +988,32 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.0015,
           scalarBps: 0.0005, // 0.0005 * 10000 = 5 / 10000 = 0.0005 = 0.05 bps
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0.0015,
+          scalarBps: 0.0005,
+        },
+      } as any);
 
       // Calculate fee details
       const feeDetails = await (validation as any).calculateFee(intent, mockContext);
 
       // Reset mocks to ensure validate uses fresh calls
       jest.clearAllMocks();
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.0015,
           scalarBps: 0.0005,
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0.0015,
+          scalarBps: 0.0005,
+        },
+      } as any);
 
       // Validate should pass because currentReward >= totalRequiredFee
       const isValid = await validation.validate(intent, mockContext);
@@ -931,16 +1056,21 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized)
           scalarBps: 0.01, // 1 bps = 0.01%
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0.001,
+          scalarBps: 0.01,
+        },
+      } as any);
 
       const result = await validation.validate(intent, mockContext);
 
       expect(result).toBe(true);
+      expect(blockchainConfigService.getFeeLogic).toHaveBeenCalledWith(BigInt(10));
     });
 
     it('should throw error when reward does not cover the fee using calculateFee', async () => {
@@ -969,12 +1099,16 @@ describe('StandardFeeValidation', () => {
         },
       });
 
-      feeResolverService.resolveFee.mockReturnValue({
+      blockchainConfigService.getFeeLogic.mockReturnValue({
         tokens: {
           flatFee: 0.001, // 0.001 USDC (normalized)
           scalarBps: 1, // 100 bps = 1%
         },
-      });
+        nonSwapTokens: {
+          flatFee: 0.001,
+          scalarBps: 1,
+        },
+      } as any);
 
       // Reward: 500 * 10^12 = 500000000000000
       // Route: 1000000 * 10^12 = 1000000000000000000
