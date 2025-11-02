@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
 import Redis, { Cluster } from 'ioredis';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { RedisConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 
 /**
@@ -14,12 +14,11 @@ import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 @Injectable()
 export class RedisConnectionFactory {
   constructor(
-    private redisConfig: RedisConfigService,
-    private logger: SystemLoggerService,
-    private bullMQOtelFactory: BullMQOtelFactory,
-  ) {
-    this.logger.setContext(RedisConnectionFactory.name);
-  }
+    @InjectPinoLogger(RedisConnectionFactory.name)
+    private readonly logger: PinoLogger,
+    private readonly redisConfig: RedisConfigService,
+    private readonly bullMQOtelFactory: BullMQOtelFactory,
+  ) {}
 
   /**
    * Creates a Redis connection for BullMQ workers.
@@ -47,7 +46,7 @@ export class RedisConnectionFactory {
     };
 
     if (this.redisConfig.enableCluster) {
-      this.logger.log(`Configuring ${queueName} queue with Redis cluster`);
+      this.logger.info(`Configuring ${queueName} queue with Redis cluster`);
       config.connection = this.createClusterConnection();
     }
 
@@ -68,7 +67,7 @@ export class RedisConnectionFactory {
     };
 
     if (this.redisConfig.enableCluster) {
-      this.logger.log(`Configuring ${queueName} processor with Redis cluster`);
+      this.logger.info(`Configuring ${queueName} processor with Redis cluster`);
       config.connection = this.createClusterConnection();
     }
 
@@ -80,7 +79,7 @@ export class RedisConnectionFactory {
       { host: this.redisConfig.host, port: this.redisConfig.port },
     ];
 
-    this.logger.log(
+    this.logger.info(
       `Creating Redis cluster connection with ${clusterNodes.length} nodes: ${JSON.stringify(
         clusterNodes,
       )}`,
@@ -89,7 +88,7 @@ export class RedisConnectionFactory {
     // Check if we're using TLS (ElastiCache in-transit encryption)
     const isTLS = Boolean(this.redisConfig.tls);
     if (isTLS) {
-      this.logger.log('TLS configuration detected for Redis cluster');
+      this.logger.info('TLS configuration detected for Redis cluster');
     }
 
     // ElastiCache specific cluster configuration
@@ -137,7 +136,7 @@ export class RedisConnectionFactory {
     });
 
     cluster.on('+node', (node) => {
-      this.logger.log(`Redis cluster node added: ${node.options.host}:${node.options.port}`);
+      this.logger.info(`Redis cluster node added: ${node.options.host}:${node.options.port}`);
     });
 
     cluster.on('-node', (node) => {
@@ -148,7 +147,7 @@ export class RedisConnectionFactory {
   }
 
   private createStandaloneConnection(): Redis {
-    this.logger.log(
+    this.logger.info(
       `Creating Redis standalone connection at ${this.redisConfig.host}:${this.redisConfig.port}`,
     );
 

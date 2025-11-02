@@ -8,6 +8,7 @@ import {
   EvmSchema,
   FulfillmentSchema,
   LeaderElectionSchema,
+  LoggerSchema,
   MongoDBSchema,
   OpenTelemetrySchema,
   QueueSchema,
@@ -27,6 +28,7 @@ export {
   EvmSchema,
   FulfillmentSchema,
   LeaderElectionSchema,
+  LoggerSchema,
   MongoDBSchema,
   OpenTelemetrySchema,
   QueueSchema,
@@ -57,6 +59,7 @@ export const ConfigSchema = z
     bullBoard: BullBoardSchema.optional(),
     quotes: QuotesSchema.optional(),
     leaderElection: LeaderElectionSchema.optional(),
+    logger: LoggerSchema,
   })
   .extend(BaseSchema.shape);
 

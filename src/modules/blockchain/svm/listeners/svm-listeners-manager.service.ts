@@ -1,14 +1,12 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { Logger } from 'winston';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { SolanaConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
@@ -21,29 +19,27 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   private isListening = false;
 
   constructor(
+    @InjectPinoLogger(SvmListenersManagerService.name)
+    private readonly logger: PinoLogger,
     private solanaConfigService: SolanaConfigService,
     private eventsService: EventsService,
     private fulfillmentService: FulfillmentService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
     private readonly queueService: QueueService,
-  ) {
-    this.logger.setContext(SvmListenersManagerService.name);
-  }
+  ) {}
 
   async onModuleInit(): Promise<void> {
     // Check if listeners are enabled
     if (!this.solanaConfigService.listenersEnabled) {
-      this.logger.log('SVM listeners are disabled via configuration');
+      this.logger.info('SVM listeners are disabled via configuration');
       return;
     }
 
     // If leader election is enabled, wait for leadership
     if (this.leaderElectionService) {
       if (!this.leaderElectionService.isCurrentLeader()) {
-        this.logger.log('SVM listeners waiting for leadership');
+        this.logger.info('SVM listeners waiting for leadership');
         return;
       }
     }
@@ -57,7 +53,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   @OnEvent('leader.gained')
   async onLeadershipGained() {
     if (this.solanaConfigService.listenersEnabled && !this.isListening) {
-      this.logger.log('Leadership gained - starting SVM listeners');
+      this.logger.info('Leadership gained - starting SVM listeners');
       await this.initializeListeners();
     }
   }
@@ -68,7 +64,7 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   @OnEvent('leader.lost')
   async onLeadershipLost() {
     if (this.isListening) {
-      this.logger.log('Leadership lost - stopping SVM listeners');
+      this.logger.info('Leadership lost - stopping SVM listeners');
       await this.stopAllListeners();
     }
   }
@@ -84,27 +80,19 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
     // Check if Solana configuration exists
     if (!this.solanaConfigService.secretKey) {
-      this.logger.log('Solana configuration not found, skipping SVM listeners');
+      this.logger.info('Solana configuration not found, skipping SVM listeners');
       return;
     }
 
     const chainId = this.solanaConfigService.chainId;
 
-    // Create a new logger instance for the listener to avoid context pollution
-    const listenerLogger = new SystemLoggerService(this.winstonLogger);
-    listenerLogger.setContext(`SolanaListener:${chainId}`);
-
     try {
-      const listener = new SolanaListener(
-        this.solanaConfigService,
-        listenerLogger,
-        this.queueService,
-      );
+      const listener = new SolanaListener(this.logger, this.solanaConfigService, this.queueService);
 
       await listener.start();
       this.listeners.set(chainId, listener);
 
-      this.logger.log(`Started SVM listener for chain ${chainId}`);
+      this.logger.info(`Started SVM listener for chain ${chainId}`);
       this.isListening = true;
     } catch (error) {
       this.logger.error(`Unable to start listener for ${chainId}: ${getErrorMessage(error)}`);
@@ -119,6 +107,6 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     await Promise.all(Array.from(this.listeners.values()).map((listener) => listener.stop()));
     this.listeners.clear();
     this.isListening = false;
-    this.logger.log('Stopped all SVM listeners');
+    this.logger.info('Stopped all SVM listeners');
   }
 }

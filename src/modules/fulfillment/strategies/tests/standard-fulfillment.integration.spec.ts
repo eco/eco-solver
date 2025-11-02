@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -31,7 +32,6 @@ import {
   StandardFeeValidation,
 } from '@/modules/fulfillment/validations';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
@@ -542,7 +542,7 @@ describe.skip('StandardFulfillmentStrategy Integration Tests', () => {
   let mockBlockchainReader: jest.Mocked<BlockchainReaderService>;
   let mockBlockchainExecutor: jest.Mocked<BlockchainExecutorService>;
   let mockProverService: jest.Mocked<ProverService>;
-  let mockLogger: jest.Mocked<SystemLoggerService>;
+  let mockLogger: jest.Mocked<Logger>;
   let mockOtelService: jest.Mocked<OpenTelemetryService>;
   let mockFulfillmentConfigService: jest.Mocked<FulfillmentConfigService>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
@@ -575,7 +575,7 @@ describe.skip('StandardFulfillmentStrategy Integration Tests', () => {
     mockBlockchainExecutor =
       createMockBlockchainExecutor() as unknown as jest.Mocked<BlockchainExecutorService>;
     mockProverService = createMockProverService() as unknown as jest.Mocked<ProverService>;
-    mockLogger = createMockLogger() as unknown as jest.Mocked<SystemLoggerService>;
+    mockLogger = createMockLogger() as unknown as jest.Mocked<Logger>;
     mockOtelService =
       createMockOpenTelemetryService() as unknown as jest.Mocked<OpenTelemetryService>;
     queueService = createMockQueueService() as unknown as jest.Mocked<IQueueService>;
@@ -611,7 +611,7 @@ describe.skip('StandardFulfillmentStrategy Integration Tests', () => {
           useValue: mockProverService,
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: mockLogger,
         },
         {

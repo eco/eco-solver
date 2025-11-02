@@ -2,6 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
@@ -13,7 +14,6 @@ import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -23,15 +23,13 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
   private readonly queues: Map<string, Queue>;
 
   constructor(
-    private readonly logger: SystemLoggerService,
+    @InjectPinoLogger(QueueService.name) private readonly logger: PinoLogger,
     private readonly queueConfig: QueueConfigService,
     @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
     @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     @InjectQueue(QueueNames.BLOCKCHAIN_EVENTS) private blockchainEventsQueue: Queue,
   ) {
-    this.logger.setContext(QueueService.name);
-
     // Initialize queue map for easier management
     this.queues = new Map([
       [QueueNames.INTENT_FULFILLMENT, this.fulfillmentQueue],
@@ -42,16 +40,16 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
   }
 
   async onApplicationBootstrap() {
-    this.logger.log('Checking queue states on startup...');
+    this.logger.info('Checking queue states on startup...');
 
     // Check and resume all queues if paused
     for (const [queueName, queue] of this.queues) {
       const isPaused = await queue.isPaused();
       if (isPaused) {
         await queue.resume();
-        this.logger.log(`Resumed paused ${queueName} queue on startup`);
+        this.logger.info(`Resumed paused ${queueName} queue on startup`);
       } else {
-        this.logger.log(`${queueName} queue is already running`);
+        this.logger.info(`${queueName} queue is already running`);
       }
     }
   }
@@ -202,7 +200,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
   }
 
   async onModuleDestroy() {
-    this.logger.log('Gracefully shutting down queues...');
+    this.logger.info('Gracefully shutting down queues...');
 
     try {
       // Pause all queues to prevent new jobs from being processed
@@ -229,7 +227,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       // Close all queue connections
       await Promise.all(Array.from(this.queues.values()).map((queue) => queue.close()));
 
-      this.logger.log('Queues shutdown completed');
+      this.logger.info('Queues shutdown completed');
     } catch (error) {
       this.logger.error('Error during queue shutdown:', toError(error));
     }

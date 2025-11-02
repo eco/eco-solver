@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
@@ -5,13 +6,12 @@ import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 describe('IntentFulfilledHandler', () => {
   let handler: IntentFulfilledHandler;
   let intentsService: jest.Mocked<IntentsService>;
-  let logger: jest.Mocked<SystemLoggerService>;
+  let logger: jest.Mocked<Logger>;
   let otelService: jest.Mocked<OpenTelemetryService>;
 
   beforeEach(async () => {
@@ -25,7 +25,7 @@ describe('IntentFulfilledHandler', () => {
           },
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: {
             setContext: jest.fn(),
             log: jest.fn(),
@@ -56,7 +56,7 @@ describe('IntentFulfilledHandler', () => {
 
     handler = module.get<IntentFulfilledHandler>(IntentFulfilledHandler);
     intentsService = module.get(IntentsService);
-    logger = module.get(SystemLoggerService);
+    logger = module.get(Logger);
     otelService = module.get(OpenTelemetryService);
   });
 

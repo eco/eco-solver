@@ -1,11 +1,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { SolanaConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 
@@ -20,15 +21,14 @@ export class SvmWalletManagerService implements OnModuleInit {
   private wallets: Map<number, Map<SvmWalletType, ISvmWallet>> = new Map();
 
   constructor(
+    @InjectPinoLogger(SvmWalletManagerService.name)
+    private readonly logger: PinoLogger,
     private readonly basicWalletFactory: BasicWalletFactory,
     private readonly solanaConfigService: SolanaConfigService,
-    private readonly logger: SystemLoggerService,
-  ) {
-    this.logger.setContext(SvmWalletManagerService.name);
-  }
+  ) {}
 
   async onModuleInit() {
-    this.logger.log('Initializing SVM wallets from configuration');
+    this.logger.info('Initializing SVM wallets from configuration');
 
     // Initialize wallets for the configured Solana chain
     if (this.solanaConfigService.isConfigured()) {

@@ -1,6 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import { SpanStatusCode } from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -9,7 +10,6 @@ import { getErrorMessage } from '@/common/utils/error-handler';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
@@ -23,13 +23,12 @@ export class BlockchainExecutorService {
   constructor(
     private blockchainConfigService: BlockchainConfigService,
     private intentsService: IntentsService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @InjectPinoLogger(BlockchainExecutorService.name) private readonly logger: PinoLogger,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
     @Optional() private tvmExecutor?: TvmExecutorService,
   ) {
-    this.logger.setContext(BlockchainExecutorService.name);
     this.initializeExecutors();
   }
 
@@ -89,7 +88,7 @@ export class BlockchainExecutorService {
 
           if (result.success) {
             await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
-            this.logger.log(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
+            this.logger.info(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
 
             span.setAttributes({
               'intent.tx_hash': result.txHash,

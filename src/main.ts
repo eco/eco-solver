@@ -1,9 +1,8 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
-import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 
 import helmet from 'helmet';
-import { WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
+import { Logger as PinoLogger, LoggerErrorInterceptor } from 'nestjs-pino';
 
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
@@ -17,39 +16,14 @@ import { DataDogInterceptor } from '@/modules/datadog';
 import { TraceInterceptor } from '@/modules/opentelemetry';
 
 async function bootstrap() {
-  // Determine environment for winston configuration
-  const env = process.env.ENV || process.env.NODE_ENV || 'development';
-  const isProduction = env !== 'development';
-
-  // Configure winston transports
-  const format = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json(),
-  );
-
-  const transports: winston.transport[] = [
-    new winston.transports.Console({
-      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-    }),
-  ];
-
-  // Create winston logger configuration
-  const loggerConfig = {
-    level: isProduction ? 'info' : 'debug',
-    format,
-    defaultMeta: {
-      service: 'blockchain-intent-solver',
-      environment: env,
-    },
-    transports,
-    exitOnError: false,
-  };
-
-  // Create app with winston logger
+  // Create app with Pino logger
   const app = await NestFactory.create(AppModule, {
-    logger: WinstonModule.createLogger(loggerConfig),
+    bufferLogs: true,
   });
+
+  // Replace default logger with Pino
+  app.useLogger(app.get(PinoLogger));
+  app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
   const logger = new Logger('Bootstrap');
 
@@ -61,7 +35,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: true, // Configure based on environment
+    origin: true,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     preflightContinue: false,
@@ -76,9 +50,9 @@ async function bootstrap() {
     }),
   );
 
-  // Global exception filter
-  const httpAdapter = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new GlobalExceptionFilter(httpAdapter));
+  // Global exception filter - get it from DI container to ensure proper logger injection
+  const exceptionFilter = app.get(GlobalExceptionFilter);
+  app.useGlobalFilters(exceptionFilter);
 
   // Global interceptors
   const interceptors = [];
@@ -110,9 +84,86 @@ async function bootstrap() {
   // Setup Swagger documentation
   SwaggerConfig.setup(app);
 
+  // Setup graceful shutdown handlers
+  setupProcessHandlers(app);
+
   await app.listen(port);
   logger.log(`Application is running on: ${await app.getUrl()}`);
   logger.log(`Swagger documentation available at: ${await app.getUrl()}/api-docs`);
 }
 
-bootstrap();
+/**
+ * Setup process handlers for graceful shutdown
+ */
+function setupProcessHandlers(app: INestApplication) {
+  const pinoLogger = app.get(PinoLogger);
+  let isShuttingDown = false;
+
+  const logError = (message: string, error: unknown) => {
+    const asError =
+      error instanceof Error ? { msg: message, err: error } : { msg: message, err: String(error) };
+    pinoLogger.error(asError);
+  };
+
+  const drainStreams = async () => {
+    try {
+      await Promise.all([
+        new Promise((resolve) => process.stdout.write('', () => resolve(null))),
+        new Promise((resolve) => process.stderr.write('', () => resolve(null))),
+      ]);
+    } catch {
+      // ignore
+    }
+  };
+
+  const flushLogger = async () => {
+    try {
+      const pinoLike: any = (pinoLogger as any)?.logger ?? (pinoLogger as any);
+      if (pinoLike && typeof pinoLike.flush === 'function') {
+        pinoLike.flush();
+      }
+    } catch {
+      // ignore
+    }
+    await drainStreams();
+  };
+
+  const shutdown = async (reason: string, error?: unknown, exitCode: number = 1) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    try {
+      if (error !== undefined) {
+        logError(`[process] ${reason}`, error);
+      } else {
+        pinoLogger.warn({ msg: `[process] ${reason}` });
+      }
+      await app.close();
+    } catch (closeError) {
+      logError('[process] error during graceful shutdown', closeError);
+    } finally {
+      // Ensure logs are flushed before exiting
+      await flushLogger();
+      process.exit(exitCode);
+    }
+  };
+
+  process.on('uncaughtException', (error: Error) => {
+    void shutdown('uncaughtException', error);
+  });
+
+  process.on('unhandledRejection', (reason: unknown) => {
+    void shutdown('unhandledRejection', reason);
+  });
+
+  // Graceful signal handling
+  const handleSignal = (signal: NodeJS.Signals) => {
+    void shutdown(`received ${signal}`, undefined, 0);
+  };
+  process.on('SIGTERM', handleSignal);
+  process.on('SIGINT', handleSignal);
+}
+
+bootstrap().catch((err) => {
+  console.error('[bootstrap] failed to start application', err);
+  process.exit(1);
+});

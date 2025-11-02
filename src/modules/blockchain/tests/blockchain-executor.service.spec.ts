@@ -10,7 +10,6 @@ import {
 } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BlockchainExecutorService } from '../blockchain-executor.service';

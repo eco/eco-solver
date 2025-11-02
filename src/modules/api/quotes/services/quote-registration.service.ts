@@ -3,6 +3,7 @@ import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 
 import { AxiosError } from 'axios';
 import canonicalize from 'canonicalize';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { firstValueFrom } from 'rxjs';
 import { Address, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -17,26 +18,24 @@ import {
   SolverRegistrationResponseBody,
 } from '@/modules/api/quotes/types/quote-registration.types';
 import { BlockchainConfigService, QuotesConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
 
 import { QUOTES_ENDPOINT } from '../constants/endpoint';
 
 @Injectable()
 export class QuoteRegistrationService implements OnApplicationBootstrap {
   constructor(
+    @InjectPinoLogger(QuoteRegistrationService.name)
+    private readonly logger: PinoLogger,
     private readonly httpService: HttpService,
-    private readonly logger: SystemLoggerService,
     private readonly quotesConfigService: QuotesConfigService,
     private readonly blockchainConfigService: BlockchainConfigService,
-  ) {
-    this.logger.setContext(QuoteRegistrationService.name);
-  }
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     // Perform solver registration if enabled
     if (this.quotesConfigService.registrationEnabled) {
       try {
-        this.logger.log('Initiating solver registration on quote server...');
+        this.logger.info('Initiating solver registration on quote server...');
         await this.register();
       } catch (error) {
         this.logger.error(`Failed to register solver to quote server: ${getErrorMessage(error)}`);
@@ -49,7 +48,7 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
    */
   async register(): Promise<void> {
     if (!this.quotesConfigService.registrationEnabled) {
-      this.logger.log('Registration is disabled');
+      this.logger.info('Registration is disabled');
       return;
     }
 
@@ -66,7 +65,9 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
       );
 
       if ('quotesUrl' in response.data.data) {
-        this.logger.log(`Successfully registered with ID: ${response.data.data.solverID || 'N/A'}`);
+        this.logger.info(
+          `Successfully registered with ID: ${response.data.data.solverID || 'N/A'}`,
+        );
       } else {
         this.logger.error(`Registration failed`);
       }

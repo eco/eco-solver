@@ -1,6 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Address, decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
@@ -16,7 +17,6 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmReward } from '@/common/utils/intent-converter';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from './evm-transport.service';
@@ -24,15 +24,18 @@ import { EvmWalletManager } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmReaderService extends BaseChainReader {
+  protected readonly logger: PinoLogger;
+
   constructor(
+    @InjectPinoLogger(EvmReaderService.name)
+    logger: PinoLogger,
     private transportService: EvmTransportService,
     private evmConfigService: EvmConfigService,
-    protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     @Optional() private evmWalletManager?: EvmWalletManager,
   ) {
     super();
-    this.logger.setContext(EvmReaderService.name);
+    this.logger = logger;
   }
 
   async getChainInfo(chainId: number): Promise<ChainInfo> {

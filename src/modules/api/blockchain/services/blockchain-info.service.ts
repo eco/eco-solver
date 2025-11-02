@@ -1,21 +1,20 @@
 import { Injectable } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { ChainsResponse } from '../schemas/chains-response.schema';
 
 @Injectable()
 export class BlockchainInfoService {
   constructor(
+    @InjectPinoLogger(BlockchainInfoService.name) private readonly logger: PinoLogger,
     private readonly blockchainReaderService: BlockchainReaderService,
     private readonly blockchainConfigService: BlockchainConfigService,
-    private readonly logger: SystemLoggerService,
-  ) {
-    this.logger.setContext(BlockchainInfoService.name);
-  }
+  ) {}
 
   async getAllChains(): Promise<ChainsResponse> {
     const chains: ChainInfo[] = [];

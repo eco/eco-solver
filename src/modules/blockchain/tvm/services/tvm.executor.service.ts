@@ -1,6 +1,7 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 import { erc20Abi, maxUint256 } from 'viem';
 
@@ -16,7 +17,6 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { TvmReaderService } from '@/modules/blockchain/tvm/services/tvm.reader.service';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
@@ -29,17 +29,17 @@ import { TvmWalletManagerService, TvmWalletType } from './tvm-wallet-manager.ser
 @Injectable()
 export class TvmExecutorService extends BaseChainExecutor {
   constructor(
+    @InjectPinoLogger(TvmExecutorService.name)
+    private readonly logger: PinoLogger,
     private tvmConfigService: TvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private walletManager: TvmWalletManagerService,
     @Inject(forwardRef(() => ProverService))
     private proverService: ProverService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly tvmReaderService: TvmReaderService,
   ) {
     super();
-    this.logger.setContext(TvmExecutorService.name);
   }
 
   /**
@@ -386,7 +386,7 @@ export class TvmExecutorService extends BaseChainExecutor {
               ] as const;
             });
 
-          this.logger.log(
+          this.logger.info(
             `Executing batchWithdraw on TVM chain ${chainId} for ${withdrawalData.destinations.length} intents`,
           );
 
@@ -416,7 +416,7 @@ export class TvmExecutorService extends BaseChainExecutor {
             'tvm.status': 'success',
           });
 
-          this.logger.log(
+          this.logger.info(
             `Successfully executed batchWithdraw on TVM chain ${chainId}. TxHash: ${txHash}`,
           );
 

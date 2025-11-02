@@ -4,7 +4,6 @@ import { ProverType } from '@/common/interfaces/prover.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { ProverService } from '../prover.service';
 import { DummyProver } from '../provers/dummy.prover';

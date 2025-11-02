@@ -1,7 +1,8 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job, UnrecoverableError } from 'bullmq';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
@@ -10,7 +11,6 @@ import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregat
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -20,16 +20,15 @@ import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 @Processor(QueueNames.INTENT_FULFILLMENT, {
   prefix: `{${QueueNames.INTENT_FULFILLMENT}}`,
 })
-export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
+export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
+    @InjectPinoLogger(FulfillmentProcessor.name) private readonly logger: PinoLogger,
     private fulfillmentService: FulfillmentService,
     private intentsService: IntentsService,
-    private readonly logger: SystemLoggerService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
     private readonly otelService: OpenTelemetryService,
   ) {
     super();
-    this.logger.setContext(FulfillmentProcessor.name);
   }
 
   onModuleInit() {
@@ -38,8 +37,17 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
       const telemetry = this.bullMQOtelFactory.getInstance();
       if (telemetry && !this.worker.opts.telemetry) {
         this.worker.opts.telemetry = telemetry;
-        this.logger.log('Added BullMQOtel telemetry to FulfillmentProcessor worker');
+        this.logger.info('Added BullMQOtel telemetry to FulfillmentProcessor worker');
       }
+    }
+  }
+
+  async onModuleDestroy() {
+    // Close the worker to ensure clean shutdown
+    if (this.worker) {
+      this.logger.info('Closing FulfillmentProcessor worker...');
+      await this.worker.close();
+      this.logger.info('FulfillmentProcessor worker closed');
     }
   }
 
@@ -47,7 +55,7 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
     if (job.name === 'process-intent') {
       const jobData = BigintSerializer.deserialize<FulfillmentJobData>(job.data);
 
-      this.logger.log(
+      this.logger.info(
         `Processing intent ${jobData.intent.intentHash} with strategy ${jobData.strategy} (attempt ${job.attemptsMade + 1}/${job.opts.attempts})`,
       );
 
@@ -105,7 +113,7 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit {
               }
 
               // For TEMPORARY errors, re-throw to allow BullMQ retry with backoff
-              this.logger.log(
+              this.logger.info(
                 `Temporary validation failure for intent ${jobData.intent.intentHash} - will retry with backoff`,
               );
               throw error;

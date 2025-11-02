@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { BaseConfig } from '@/config/schemas';
+import { BaseConfig, LoggerConfig } from '@/config/schemas';
 
 @Injectable()
 export class AppConfigService {
@@ -13,5 +13,9 @@ export class AppConfigService {
 
   get env(): BaseConfig['env'] {
     return this.configService.get<BaseConfig['env']>('env', 'development');
+  }
+
+  getLoggerConfig(): LoggerConfig {
+    return this.configService.get<LoggerConfig>('logger')!;
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Address, encodeFunctionData, erc20Abi, Hex, pad } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
@@ -15,7 +16,6 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmRoute } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
@@ -26,16 +26,16 @@ import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
   constructor(
+    @InjectPinoLogger(EvmExecutorService.name)
+    private readonly logger: PinoLogger,
     private evmConfigService: EvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private transportService: EvmTransportService,
     private walletManager: EvmWalletManager,
     private proverService: ProverService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {
     super();
-    this.logger.setContext(EvmExecutorService.name);
   }
 
   async fulfill(intent: Intent, walletId: WalletType): Promise<ExecutionResult> {
@@ -262,7 +262,7 @@ export class EvmExecutorService extends BaseChainExecutor {
             args: [destinations, routeHashes, rewards],
           });
 
-          this.logger.log(
+          this.logger.info(
             `Executing batchWithdraw on chain ${chainId} for ${withdrawalData.destinations.length} intents`,
           );
 
@@ -277,7 +277,7 @@ export class EvmExecutorService extends BaseChainExecutor {
             'evm.status': 'success',
           });
 
-          this.logger.log(
+          this.logger.info(
             `Successfully executed batchWithdraw on chain ${chainId}. TxHash: ${txHash}`,
           );
 

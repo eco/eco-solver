@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { ITvmWallet } from '@/common/interfaces/tvm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { SystemLoggerService } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 
@@ -12,11 +13,10 @@ export type TvmWalletType = 'basic'; // Can be extended in the future
 @Injectable()
 export class TvmWalletManagerService {
   constructor(
+    @InjectPinoLogger(TvmWalletManagerService.name)
+    private readonly logger: PinoLogger,
     private readonly basicWalletFactory: BasicWalletFactory,
-    private readonly logger: SystemLoggerService,
-  ) {
-    this.logger.setContext(TvmWalletManagerService.name);
-  }
+  ) {}
 
   /**
    * Creates a wallet instance for the specified chain and type
@@ -26,7 +26,7 @@ export class TvmWalletManagerService {
    * @throws Error if wallet type is not supported
    */
   createWallet(chainId: number | string, walletType: TvmWalletType): ITvmWallet {
-    this.logger.log(`Creating TVM wallet of type ${walletType} for chain ${chainId}`);
+    this.logger.info(`Creating TVM wallet of type ${walletType} for chain ${chainId}`);
 
     switch (walletType) {
       case 'basic':

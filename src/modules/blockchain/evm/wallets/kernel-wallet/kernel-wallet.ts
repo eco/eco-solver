@@ -2,6 +2,7 @@ import * as api from '@opentelemetry/api';
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
 import { createKernelAccount, KernelV3AccountAbi, KernelValidator } from '@zerodev/sdk';
 import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import {
   Address,
   Chain,
@@ -32,7 +33,6 @@ import {
   encodeKernelExecuteCallData,
   encodeKernelExecuteParams,
 } from '@/modules/blockchain/evm/wallets/kernel-wallet/utils/encode-transactions';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { constructInitDataWithHook } from './utils/encode-module';
@@ -52,12 +52,13 @@ export class KernelWallet extends BaseEvmWallet {
   private executorEnabled = false;
 
   constructor(
+    @InjectPinoLogger(KernelWallet.name)
+    private readonly logger: PinoLogger,
     private readonly chainId: number,
     private readonly signer: LocalAccount,
     private readonly kernelWalletConfig: KernelWalletConfig,
     private readonly networkConfig: EvmNetworkConfig,
     private readonly transportService: EvmTransportService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly evmWalletManager: EvmWalletManager,
   ) {
@@ -83,7 +84,6 @@ export class KernelWallet extends BaseEvmWallet {
 
     this.signerWalletClient = signerWalletClient;
     this.publicClient = this.transportService.getPublicClient(chainId);
-    this.logger.setContext(KernelWallet.name);
   }
 
   async init() {
@@ -104,7 +104,7 @@ export class KernelWallet extends BaseEvmWallet {
       },
       async (span: api.Span) => {
         try {
-          this.logger.log('Initializing kernel wallet', {
+          this.logger.info('Initializing kernel wallet', {
             chainId: this.chainId,
             signerAddress: this.signer.address,
           });
@@ -141,7 +141,7 @@ export class KernelWallet extends BaseEvmWallet {
           }
 
           span.setAttribute('kernel.account_address', this.kernelAccount.address);
-          this.logger.log('Kernel account created', {
+          this.logger.info('Kernel account created', {
             accountAddress: this.kernelAccount.address,
           });
 
@@ -157,10 +157,10 @@ export class KernelWallet extends BaseEvmWallet {
           span.setAttribute('kernel.is_deployed', isDeployed);
 
           if (!isDeployed) {
-            this.logger.log('Kernel account not deployed, deploying now...');
+            this.logger.info('Kernel account not deployed, deploying now...');
             await this.deploy(this.kernelAccount);
           } else {
-            this.logger.log('Kernel account already deployed', {
+            this.logger.info('Kernel account already deployed', {
               accountAddress: this.kernelAccount.address,
             });
           }
@@ -171,7 +171,7 @@ export class KernelWallet extends BaseEvmWallet {
           this.initialized = true;
           span.setAttribute('kernel.executor_enabled', this.executorEnabled);
 
-          this.logger.log('Kernel wallet initialization complete', {
+          this.logger.info('Kernel wallet initialization complete', {
             executorEnabled: this.executorEnabled,
           });
 
@@ -224,7 +224,7 @@ export class KernelWallet extends BaseEvmWallet {
           }
 
           span.setAttribute('kernel.factory_address', factory);
-          this.logger.log('Deploying kernel account', {
+          this.logger.info('Deploying kernel account', {
             accountAddress: kernelAccount.address,
             factory,
           });
@@ -236,7 +236,7 @@ export class KernelWallet extends BaseEvmWallet {
           } as any);
 
           span.setAttribute('kernel.deployment_tx_hash', hash);
-          this.logger.log('Deployment transaction sent', { transactionHash: hash });
+          this.logger.info('Deployment transaction sent', { transactionHash: hash });
 
           const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
@@ -245,7 +245,7 @@ export class KernelWallet extends BaseEvmWallet {
             'kernel.deployment_status': 'success',
           });
 
-          this.logger.log('Kernel account deployed successfully', {
+          this.logger.info('Kernel account deployed successfully', {
             transactionHash: hash,
             gasUsed: receipt.gasUsed?.toString(),
           });
@@ -387,7 +387,7 @@ export class KernelWallet extends BaseEvmWallet {
           span.setAttribute('kernel.tx_hash', hash);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.log('Transaction sent via signer', { transactionHash: hash });
+          this.logger.info('Transaction sent via signer', { transactionHash: hash });
 
           span.end();
           return [hash];
@@ -540,7 +540,7 @@ export class KernelWallet extends BaseEvmWallet {
           });
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.log('Transaction sent via executor', {
+          this.logger.info('Transaction sent via executor', {
             transactionHash: hash,
             nonce: nonce.toString(),
             expiration: expiration.toString(),
@@ -582,7 +582,7 @@ export class KernelWallet extends BaseEvmWallet {
       },
       async (span: api.Span) => {
         try {
-          this.logger.log('Checking ECDSA executor module installation', {
+          this.logger.info('Checking ECDSA executor module installation', {
             executorAddress: this.ecdsaExecutorAddr,
           });
 
@@ -608,13 +608,13 @@ export class KernelWallet extends BaseEvmWallet {
           span.setAttribute('kernel.module_already_installed', isInstalled);
 
           if (isInstalled) {
-            this.logger.log('ECDSA executor module already installed');
+            this.logger.info('ECDSA executor module already installed');
             this.executorEnabled = true;
             span.setStatus({ code: api.SpanStatusCode.OK });
             return;
           }
 
-          this.logger.log('Installing ECDSA executor module', {
+          this.logger.info('Installing ECDSA executor module', {
             moduleType,
             moduleAddress: this.ecdsaExecutorAddr,
             owner: this.signer.address,
@@ -633,7 +633,7 @@ export class KernelWallet extends BaseEvmWallet {
           this.executorEnabled = true;
           span.setAttribute('kernel.module_installed', true);
 
-          this.logger.log('ECDSA executor module installed successfully');
+          this.logger.info('ECDSA executor module installed successfully');
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           span.recordException(toError(error));
@@ -707,7 +707,7 @@ export class KernelWallet extends BaseEvmWallet {
           } as any);
 
           span.setAttribute('kernel.install_tx_hash', hash);
-          this.logger.log('Module installation transaction sent', { transactionHash: hash });
+          this.logger.info('Module installation transaction sent', { transactionHash: hash });
 
           // Wait for transaction confirmation
           const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
@@ -718,7 +718,7 @@ export class KernelWallet extends BaseEvmWallet {
               'kernel.install_status': 'success',
             });
 
-            this.logger.log('Module installed successfully', {
+            this.logger.info('Module installed successfully', {
               transactionHash: hash,
               gasUsed: receipt.gasUsed?.toString(),
               moduleType,

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { EventParser } from '@coral-xyz/anchor';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
@@ -16,7 +17,6 @@ import {
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SvmEventParser } from '@/modules/blockchain/svm/utils/svm-event-parser';
 import { SolanaConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
 @Injectable()
@@ -27,12 +27,12 @@ export class SolanaListener extends BaseChainListener {
   private parser: EventParser;
 
   constructor(
+    @InjectPinoLogger(SolanaListener.name)
+    private readonly logger: PinoLogger,
     private solanaConfigService: SolanaConfigService,
-    private readonly logger: SystemLoggerService,
     private readonly queueService: QueueService,
   ) {
     super();
-    this.logger.setContext(SolanaListener.name);
 
     this.parser = new EventParser(
       new PublicKey(this.solanaConfigService.portalProgramId),
@@ -63,7 +63,7 @@ export class SolanaListener extends BaseChainListener {
 
     // TODO: Listen to IntentProven events on the prover programs
 
-    this.logger.log(
+    this.logger.info(
       `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished, IntentFulfilled, IntentProven, and IntentWithdrawn events.`,
     );
   }
@@ -72,7 +72,7 @@ export class SolanaListener extends BaseChainListener {
     if (this.subscriptionId && this.connection) {
       await this.connection.removeOnLogsListener(this.subscriptionId);
     }
-    this.logger.log('Solana listener stopped');
+    this.logger.info('Solana listener stopped');
   }
 
   private async handleProgramLogs(logs: Logs): Promise<void> {

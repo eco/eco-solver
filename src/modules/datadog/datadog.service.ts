@@ -1,22 +1,20 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { StatsD } from 'hot-shots';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 import { DataDogConfigService } from '@/modules/config/services/datadog-config.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
 export class DataDogService implements OnModuleInit {
   private statsD: StatsD;
-
   constructor(
+    @InjectPinoLogger(DataDogService.name)
+    private readonly logger: PinoLogger,
     private readonly dataDogConfig: DataDogConfigService,
-    private readonly logger: SystemLoggerService,
     private readonly appConfig?: AppConfigService,
-  ) {
-    this.logger.setContext(DataDogService.name);
-  }
+  ) {}
 
   onModuleInit() {
     // Initialize StatsD client for DataDog
@@ -37,11 +35,11 @@ export class DataDogService implements OnModuleInit {
     });
 
     if (this.dataDogConfig.enabled) {
-      this.logger.log(
+      this.logger.info(
         `DataDog StatsD client initialized at ${this.dataDogConfig.host}:${this.dataDogConfig.port}`,
       );
     } else {
-      this.logger.log('DataDog running in mock mode (metrics disabled)');
+      this.logger.info('DataDog running in mock mode (metrics disabled)');
     }
   }
 

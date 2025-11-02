@@ -4,7 +4,6 @@ import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 // Mock the wallet factories to prevent NestJS from trying to instantiate them
 jest.mock('../../wallets/basic-wallet', () => ({

@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 
 import { Connection, Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { SolanaConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BasicWallet } from './basic-wallet';
@@ -18,11 +18,10 @@ export class BasicWalletFactory {
   private connection: Connection;
 
   constructor(
+    @InjectPinoLogger(BasicWalletFactory.name) private readonly logger: PinoLogger,
     private readonly solanaConfigService: SolanaConfigService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {
-    this.logger.setContext(BasicWalletFactory.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
   }
 
@@ -42,7 +41,7 @@ export class BasicWalletFactory {
       const secretKeyArray = bs58.decode(secretKey);
       const keypair = Keypair.fromSecretKey(secretKeyArray);
 
-      this.logger.log(`Created BasicWallet for address ${keypair.publicKey.toString()}`);
+      this.logger.info(`Created BasicWallet for address ${keypair.publicKey.toString()}`);
       return new BasicWallet(this.connection, keypair, this.otelService);
     } catch (error) {
       throw new Error(

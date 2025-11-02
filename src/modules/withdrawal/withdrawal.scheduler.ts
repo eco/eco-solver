@@ -1,27 +1,25 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { toError } from '@/common/utils/error-handler';
 import { WithdrawalConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 
 @Injectable()
-export class WithdrawalScheduler implements OnModuleInit {
+export class WithdrawalScheduler implements OnModuleInit, OnModuleDestroy {
   constructor(
-    @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
-    private readonly logger: SystemLoggerService,
+    @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private readonly withdrawalQueue: Queue,
     private readonly withdrawalConfigService: WithdrawalConfigService,
-  ) {
-    this.logger.setContext(WithdrawalScheduler.name);
-  }
+    @InjectPinoLogger(WithdrawalScheduler.name) private readonly logger: PinoLogger,
+  ) {}
 
   async onModuleInit() {
     // Create a job scheduler for checking proven intents
     try {
-      this.logger.log(`Starting withdrawal job scheduler...`);
+      this.logger.info(`Starting withdrawal job scheduler...`);
 
       const intervalMinutes = this.withdrawalConfigService.checkIntervalMinutes;
       const cronPattern = `*/${intervalMinutes} * * * *`;
@@ -50,11 +48,22 @@ export class WithdrawalScheduler implements OnModuleInit {
         },
       );
 
-      this.logger.log(
+      this.logger.info(
         `Withdrawal job scheduler created successfully (checking every ${intervalMinutes} minutes)`,
       );
     } catch (error) {
       this.logger.error('Failed to create withdrawal job scheduler', toError(error));
+    }
+  }
+
+  async onModuleDestroy() {
+    // Remove the job scheduler to ensure clean shutdown
+    try {
+      this.logger.info('Removing withdrawal job scheduler...');
+      await this.withdrawalQueue.removeJobScheduler('check-proven-intents');
+      this.logger.info('Withdrawal job scheduler removed');
+    } catch (error) {
+      this.logger.error('Failed to remove withdrawal job scheduler', toError(error));
     }
   }
 }

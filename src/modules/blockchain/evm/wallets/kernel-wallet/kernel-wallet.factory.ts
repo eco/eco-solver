@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Hex, LocalAccount } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
@@ -9,7 +10,6 @@ import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-facto
 import { KernelWallet } from '@/modules/blockchain/evm/wallets/kernel-wallet/kernel-wallet';
 import { kmsToAccount } from '@/modules/blockchain/evm/wallets/kernel-wallet/kms/kms-account';
 import { EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../../services/evm-transport.service';
@@ -22,15 +22,14 @@ export class KernelWalletFactory implements IWalletFactory {
   private kernelWalletConfig: KernelWalletConfig;
 
   constructor(
+    @InjectPinoLogger(KernelWalletFactory.name)
+    private readonly logger: PinoLogger,
     private evmConfigService: EvmConfigService,
     private transportService: EvmTransportService,
-    private logger: SystemLoggerService,
     private otelService: OpenTelemetryService,
     @Inject(forwardRef(() => EvmWalletManager))
     private evmWalletManager: EvmWalletManager,
   ) {
-    this.logger.setContext(KernelWalletFactory.name);
-
     const kernelWalletConfig = this.evmConfigService.getKernelWalletConfig();
     if (!kernelWalletConfig) {
       throw new Error('Kernel config required');
@@ -48,12 +47,12 @@ export class KernelWalletFactory implements IWalletFactory {
     const signer = await this.signerPromise;
 
     const kernelWallet = new KernelWallet(
+      this.logger,
       chainId,
       signer,
       this.kernelWalletConfig,
       this.evmConfigService.getChain(chainId),
       this.transportService,
-      this.logger,
       this.otelService,
       this.evmWalletManager,
     );

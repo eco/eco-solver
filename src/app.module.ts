@@ -1,7 +1,8 @@
-import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 
+import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
 import { RequestIdMiddleware } from '@/common/middleware/request-id.middleware';
 import { ApiModule } from '@/modules/api/api.module';
 import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
@@ -49,7 +50,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     ApiModule,
     HealthModule,
   ],
-  providers: [Logger],
+  providers: [GlobalExceptionFilter],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

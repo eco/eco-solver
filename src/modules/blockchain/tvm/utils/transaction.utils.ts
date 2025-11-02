@@ -1,8 +1,8 @@
+import { PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 
 import { toError } from '@/common/utils/error-handler';
 import { TvmTransactionSettings } from '@/config/schemas';
-import { SystemLoggerService } from '@/modules/logging';
 
 import { TvmTransactionError } from '../errors';
 
@@ -22,7 +22,7 @@ export class TvmTransactionUtils {
     client: TronWeb,
     txId: string,
     settings: TvmTransactionSettings,
-    logger?: SystemLoggerService,
+    logger?: PinoLogger,
   ): Promise<boolean> {
     for (let i = 0; i < settings.maxTransactionAttempts; i++) {
       try {
@@ -64,7 +64,7 @@ export class TvmTransactionUtils {
     client: TronWeb,
     txIds: string[],
     settings: TvmTransactionSettings,
-    logger?: SystemLoggerService,
+    logger?: PinoLogger,
   ): Promise<void> {
     const results = await Promise.all(
       txIds.map((txId) => this.waitForTransaction(client, txId, settings, logger)),

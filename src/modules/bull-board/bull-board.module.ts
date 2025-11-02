@@ -9,11 +9,11 @@ import {
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 import { BullBoardModule } from '@bull-board/nestjs';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { ConfigModule } from '@/modules/config/config.module';
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 import { BullBoardConfigService } from '@/modules/config/services/bull-board-config.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 
 import { BasicAuthMiddleware } from './middleware/basic-auth.middleware';
@@ -23,12 +23,15 @@ import { createBullBoardAdapter } from './authenticated-express-adapter';
 export class BullBoardDashboardModule implements NestModule, OnModuleInit {
   private static readOnlyMode: boolean | undefined;
   private bullBoardConfig: BullBoardConfigService;
+  private readonly loggerService: PinoLogger;
 
   constructor(
+    @InjectPinoLogger(BullBoardDashboardModule.name)
+    logger: PinoLogger,
     private readonly bullBoardConfigService?: BullBoardConfigService,
-    private readonly loggerService?: SystemLoggerService,
     private readonly appConfigService?: AppConfigService,
   ) {
+    this.loggerService = logger;
     if (bullBoardConfigService) {
       this.bullBoardConfig = bullBoardConfigService;
     }
@@ -100,11 +103,11 @@ export class BullBoardDashboardModule implements NestModule, OnModuleInit {
       if (this.bullBoardConfigService.isEnabled) {
         const readOnlyStatus =
           this.appConfigService.env !== 'development' ? ' (read-only mode)' : '';
-        this.loggerService.log(
+        this.loggerService.info(
           `Bull Board dashboard enabled at /admin/queues (auth required: ${this.bullBoardConfigService.requiresAuth})${readOnlyStatus}`,
         );
       } else {
-        this.loggerService.log('Bull Board dashboard disabled');
+        this.loggerService.info('Bull Board dashboard disabled');
       }
     }
   }

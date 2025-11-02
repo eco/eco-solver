@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -8,7 +9,6 @@ import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BatchWithdrawData } from './interfaces/withdrawal-job.interface';
@@ -16,13 +16,12 @@ import { BatchWithdrawData } from './interfaces/withdrawal-job.interface';
 @Injectable()
 export class WithdrawalService {
   constructor(
+    @InjectPinoLogger(WithdrawalService.name)
+    private readonly logger: PinoLogger,
     private readonly intentsService: IntentsService,
     private readonly blockchainExecutor: BlockchainExecutorService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-  ) {
-    this.logger.setContext(WithdrawalService.name);
-  }
+  ) {}
 
   /**
    * Find all proven intents that haven't been withdrawn yet
@@ -44,7 +43,7 @@ export class WithdrawalService {
             'withdrawal.intent_count': intents.length,
           });
 
-          this.logger.log(
+          this.logger.info(
             `Found ${intents.length} proven intents for withdrawal${
               sourceChainId ? ` on chain ${sourceChainId}` : ''
             }`,
@@ -97,7 +96,9 @@ export class WithdrawalService {
       },
       async (span) => {
         try {
-          this.logger.log(`Executing withdrawal for ${intents.length} intents on chain ${chainId}`);
+          this.logger.info(
+            `Executing withdrawal for ${intents.length} intents on chain ${chainId}`,
+          );
 
           const withdrawalData = this.prepareWithdrawalData(intents);
 
@@ -111,7 +112,7 @@ export class WithdrawalService {
             'withdrawal.tx_hash': txHash,
           });
 
-          this.logger.log(
+          this.logger.info(
             `Successfully executed withdrawal for ${intents.length} intents on chain ${chainId}. TxHash: ${txHash}`,
           );
 

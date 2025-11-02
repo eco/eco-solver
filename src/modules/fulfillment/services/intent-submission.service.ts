@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { toError } from '@/common/utils/error-handler';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -17,12 +17,10 @@ import { IQueueService } from '@/modules/queue/interfaces/queue-service.interfac
 @Injectable()
 export class IntentSubmissionService {
   constructor(
-    private readonly logger: SystemLoggerService,
+    @InjectPinoLogger(IntentSubmissionService.name) private readonly logger: PinoLogger,
     @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     private readonly otelService: OpenTelemetryService,
-  ) {
-    this.logger.setContext(IntentSubmissionService.name);
-  }
+  ) {}
 
   /**
    * Submit an intent for processing
@@ -48,7 +46,7 @@ export class IntentSubmissionService {
           span.setAttribute('submission.success', true);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.log(`Intent submitted successfully: ${intent.intentHash}`, {
+          this.logger.info(`Intent submitted successfully: ${intent.intentHash}`, {
             intentHash: intent.intentHash,
             strategy: strategyName,
             sourceChain: intent.sourceChainId.toString(),

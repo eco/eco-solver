@@ -2,9 +2,9 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import Redis, { Cluster } from 'ioredis';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { LeaderElectionConfigService } from '@/modules/config/services/leader-election-config.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RedisService } from './redis.service';
@@ -33,13 +33,13 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
   private isEnabled: boolean;
 
   constructor(
-    private readonly logger: SystemLoggerService,
+    @InjectPinoLogger(LeaderElectionService.name)
+    private readonly logger: PinoLogger,
     private readonly otelService: OpenTelemetryService,
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderElectionConfig: LeaderElectionConfigService,
     private readonly redisService: RedisService,
   ) {
-    this.logger.setContext(LeaderElectionService.name);
     // Generate unique instance ID
     this.instanceId = `instance-${process.pid}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
@@ -48,13 +48,13 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
     this.isEnabled = this.leaderElectionConfig.enabled;
 
     if (!this.isEnabled) {
-      this.logger.log('Leader election is disabled via configuration');
+      this.logger.info('Leader election is disabled via configuration');
       return;
     }
 
     // Get Redis client from the service
     this.redis = this.redisService.getClient();
-    this.logger.log('Leader election using shared Redis connection');
+    this.logger.info('Leader election using shared Redis connection');
 
     // Start election process
     await this.startElection();
@@ -151,7 +151,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
             // We successfully became the leader
             if (!this.isLeader) {
               this.isLeader = true;
-              this.logger.log(`Instance ${this.instanceId} became the leader`);
+              this.logger.info(`Instance ${this.instanceId} became the leader`);
 
               // Emit leadership gained event
               this.eventEmitter.emit('leader.gained', { instanceId: this.instanceId });
@@ -280,7 +280,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
   private handleLeadershipLoss() {
     if (this.isLeader) {
       this.isLeader = false;
-      this.logger.log(`Instance ${this.instanceId} lost leadership`);
+      this.logger.info(`Instance ${this.instanceId} lost leadership`);
 
       // Clear heartbeat
       if (this.heartbeatInterval) {
@@ -330,7 +330,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
           );
 
           if (result === 1) {
-            this.logger.log(`Instance ${this.instanceId} released leadership`);
+            this.logger.info(`Instance ${this.instanceId} released leadership`);
             span.setAttributes({ 'release.success': true });
           }
 

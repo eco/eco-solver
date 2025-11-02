@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { StrategyManagementService } from './strategy-management.service';
@@ -18,13 +18,12 @@ import { StrategyManagementService } from './strategy-management.service';
 @Injectable()
 export class IntentProcessingService {
   constructor(
-    private readonly logger: SystemLoggerService,
+    @InjectPinoLogger(IntentProcessingService.name)
+    private readonly logger: PinoLogger,
     private readonly strategyManagement: StrategyManagementService,
     private readonly intentsService: IntentsService,
     private readonly otelService: OpenTelemetryService,
-  ) {
-    this.logger.setContext(IntentProcessingService.name);
-  }
+  ) {}
 
   /**
    * Process an intent using the specified strategy
@@ -128,7 +127,7 @@ export class IntentProcessingService {
           span.setAttribute('processing.success', true);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.log(`Intent processed successfully: ${intent.intentHash}`, {
+          this.logger.info(`Intent processed successfully: ${intent.intentHash}`, {
             intentHash: intent.intentHash,
             strategy: strategyName,
           });

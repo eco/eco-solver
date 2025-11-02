@@ -1,12 +1,12 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job, Queue } from 'bullmq';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -17,17 +17,16 @@ import { WithdrawalService } from './withdrawal.service';
 @Processor(QueueNames.INTENT_WITHDRAWAL, {
   prefix: `{${QueueNames.INTENT_WITHDRAWAL}}`,
 })
-export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
+export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
+    @InjectPinoLogger(WithdrawalProcessor.name) private readonly logger: PinoLogger,
     @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     private withdrawalService: WithdrawalService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
   ) {
     super();
-    this.logger.setContext(WithdrawalProcessor.name);
   }
 
   onModuleInit() {
@@ -40,8 +39,17 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
       const telemetry = this.bullMQOtelFactory.getInstance();
       if (telemetry && !this.worker.opts.telemetry) {
         this.worker.opts.telemetry = telemetry;
-        this.logger.log('Added BullMQOtel telemetry to WithdrawalProcessor worker');
+        this.logger.info('Added BullMQOtel telemetry to WithdrawalProcessor worker');
       }
+    }
+  }
+
+  async onModuleDestroy() {
+    // Close the worker to ensure clean shutdown
+    if (this.worker) {
+      this.logger.info('Closing WithdrawalProcessor worker...');
+      await this.worker.close();
+      this.logger.info('WithdrawalProcessor worker closed');
     }
   }
 
@@ -62,13 +70,13 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
       // Otherwise, it's a regular withdrawal job
       const { chainId, intents, walletId } = jobData;
 
-      this.logger.log(`Processing withdrawal for chain ${chainId} with ${intents.length} intents`);
+      this.logger.info(`Processing withdrawal for chain ${chainId} with ${intents.length} intents`);
 
       try {
         // Execute the withdrawal
         const txHash = await this.withdrawalService.executeWithdrawal(chainId, intents, walletId);
 
-        this.logger.log(
+        this.logger.info(
           `Successfully processed withdrawal for chain ${chainId}. TxHash: ${txHash}`,
         );
 
@@ -93,19 +101,19 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
       'withdrawal.processor.processScheduledCheck',
       async (span) => {
         try {
-          this.logger.log('Running scheduled check for proven intents');
+          this.logger.info('Running scheduled check for proven intents');
 
           // Find all proven intents that haven't been withdrawn
           const intents = await this.withdrawalService.findIntentsForWithdrawal();
 
           if (intents.length === 0) {
-            this.logger.log('No proven intents found for withdrawal');
+            this.logger.info('No proven intents found for withdrawal');
             span.setAttribute('withdrawal.intents_found', 0);
             span.setStatus({ code: 1 });
             return;
           }
 
-          this.logger.log(`Found ${intents.length} proven intents for withdrawal`);
+          this.logger.info(`Found ${intents.length} proven intents for withdrawal`);
           span.setAttribute('withdrawal.intents_found', intents.length);
 
           // Group intents by chain
@@ -140,7 +148,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
 
           await this.withdrawalQueue.addBulk(bulkJobs);
 
-          this.logger.log(
+          this.logger.info(
             `Created ${jobs.length} withdrawal jobs for chains: ${chainsToProcess.join(', ')}`,
           );
 

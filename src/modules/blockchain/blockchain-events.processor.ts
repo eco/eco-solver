@@ -1,8 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Job } from 'bullmq';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
@@ -12,7 +13,6 @@ import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-e
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -20,16 +20,15 @@ import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 @Processor(QueueNames.BLOCKCHAIN_EVENTS, {
   prefix: `{${QueueNames.BLOCKCHAIN_EVENTS}}`,
 })
-export class BlockchainEventsProcessor extends WorkerHost implements OnModuleInit {
+export class BlockchainEventsProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
+    @InjectPinoLogger(BlockchainEventsProcessor.name) private readonly logger: PinoLogger,
     private fulfillmentService: FulfillmentService,
     private eventsService: EventsService,
-    private readonly logger: SystemLoggerService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
     private readonly otelService: OpenTelemetryService,
   ) {
     super();
-    this.logger.setContext(BlockchainEventsProcessor.name);
   }
 
   onModuleInit() {
@@ -38,8 +37,17 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
       const telemetry = this.bullMQOtelFactory.getInstance();
       if (telemetry && !this.worker.opts.telemetry) {
         this.worker.opts.telemetry = telemetry;
-        this.logger.log('Added BullMQOtel telemetry to BlockchainEventsProcessor worker');
+        this.logger.info('Added BullMQOtel telemetry to BlockchainEventsProcessor worker');
       }
+    }
+  }
+
+  async onModuleDestroy() {
+    // Close the worker to ensure clean shutdown
+    if (this.worker) {
+      this.logger.info('Closing BlockchainEventsProcessor worker...');
+      await this.worker.close();
+      this.logger.info('BlockchainEventsProcessor worker closed');
     }
   }
 
@@ -47,7 +55,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     if (job.name === 'process-blockchain-event') {
       const jobData = BigintSerializer.deserialize<BlockchainEventJob>(job.data);
 
-      this.logger.log(
+      this.logger.info(
         `Processing blockchain event: ${jobData.contractName}-${jobData.eventType} for intent ${jobData.intentHash} from ${jobData.chainType} chain ${jobData.chainId}`,
       );
 
@@ -138,7 +146,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     // Submit intent to fulfillment service
     try {
       await this.fulfillmentService.submitIntent(intent);
-      this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+      this.logger.info(`Intent ${intent.intentHash} submitted to fulfillment queue`);
     } catch (error) {
       this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
       throw error;
@@ -169,7 +177,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.funded', event);
-    this.logger.log(`IntentFunded event emitted for intent ${jobData.intentHash}`);
+    this.logger.info(`IntentFunded event emitted for intent ${jobData.intentHash}`);
   }
 
   private async handleIntentFulfilled(jobData: BlockchainEventJob): Promise<void> {
@@ -195,7 +203,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.fulfilled', event);
-    this.logger.log(`IntentFulfilled event emitted for intent ${jobData.intentHash}`);
+    this.logger.info(`IntentFulfilled event emitted for intent ${jobData.intentHash}`);
   }
 
   private async handleIntentWithdrawn(jobData: BlockchainEventJob): Promise<void> {
@@ -221,7 +229,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.withdrawn', event);
-    this.logger.log(`IntentWithdrawn event emitted for intent ${jobData.intentHash}`);
+    this.logger.info(`IntentWithdrawn event emitted for intent ${jobData.intentHash}`);
   }
 
   private async handleIntentProven(jobData: BlockchainEventJob): Promise<void> {
@@ -247,7 +255,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.proven', event);
-    this.logger.log(
+    this.logger.info(
       `IntentProven event emitted for intent ${jobData.intentHash} from ${jobData.metadata.proverType || 'unknown'} prover`,
     );
   }

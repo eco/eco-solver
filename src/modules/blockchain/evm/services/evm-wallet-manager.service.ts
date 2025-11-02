@@ -1,12 +1,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
 import { EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 import { KernelWalletFactory } from '../wallets/kernel-wallet/kernel-wallet.factory';
@@ -20,17 +20,17 @@ export class EvmWalletManager implements OnModuleInit {
   private readonly walletFactories: IWalletFactory[];
 
   constructor(
+    @InjectPinoLogger(EvmWalletManager.name)
+    private readonly logger: PinoLogger,
     private evmConfigService: EvmConfigService,
     private basicWalletFactory: BasicWalletFactory,
     private kernelWalletFactory: KernelWalletFactory,
-    private readonly logger: SystemLoggerService,
   ) {
-    this.logger.setContext(EvmWalletManager.name);
     this.walletFactories = [this.basicWalletFactory, this.kernelWalletFactory];
   }
 
   async onModuleInit() {
-    this.logger.log('Initializing EVM wallets from configuration');
+    this.logger.info('Initializing EVM wallets from configuration');
 
     // Initialize wallets for each supported chain
     const initRequests = this.evmConfigService.supportedChainIds.map((chainId) =>

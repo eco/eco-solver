@@ -1,12 +1,10 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { Logger } from 'winston';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { TvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
@@ -17,29 +15,30 @@ import { TronListener } from './tron.listener';
 export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy {
   private listeners: TronListener[] = [];
   private isListening = false;
+  private readonly logger: PinoLogger;
 
   constructor(
+    @InjectPinoLogger(TvmListenersManagerService.name)
+    logger: PinoLogger,
     private readonly tvmConfigService: TvmConfigService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
     private readonly queueService: QueueService,
   ) {
-    this.logger.setContext(TvmListenersManagerService.name);
+    this.logger = logger;
   }
 
   async onModuleInit(): Promise<void> {
     // Check if listeners are enabled
     if (!this.tvmConfigService.listenersEnabled) {
-      this.logger.log('TVM listeners are disabled via configuration');
+      this.logger.info('TVM listeners are disabled via configuration');
       return;
     }
 
     // If leader election is enabled, wait for leadership
     if (this.leaderElectionService) {
       if (!this.leaderElectionService.isCurrentLeader()) {
-        this.logger.log('TVM listeners waiting for leadership');
+        this.logger.info('TVM listeners waiting for leadership');
         return;
       }
     }
@@ -54,7 +53,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   @OnEvent('leader.gained')
   async onLeadershipGained() {
     if (this.tvmConfigService.listenersEnabled && !this.isListening) {
-      this.logger.log('Leadership gained - starting TVM listeners');
+      this.logger.info('Leadership gained - starting TVM listeners');
       await this.initializeListeners();
     }
   }
@@ -62,7 +61,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   @OnEvent('leader.lost')
   async onLeadershipLost() {
     if (this.isListening) {
-      this.logger.log('Leadership lost - stopping TVM listeners');
+      this.logger.info('Leadership lost - stopping TVM listeners');
       await this.stopAllListeners();
     }
   }
@@ -70,7 +69,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   private async initializeListeners() {
     // Check if listeners are enabled
     if (!this.tvmConfigService.listenersEnabled) {
-      this.logger.log('TVM listeners are disabled via configuration');
+      this.logger.info('TVM listeners are disabled via configuration');
       return;
     }
 
@@ -85,8 +84,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       }
 
       // Create a new logger instance for each listener to avoid context pollution
-      const listenerLogger = new SystemLoggerService(this.winstonLogger);
-      listenerLogger.setContext(`TronListener:${network.chainId}`);
+      const listenerLogger = new Logger(`TronListener:${network.chainId}`);
 
       try {
         const listener = new TronListener(
@@ -101,7 +99,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         this.listeners.push(listener);
         await listener.start();
 
-        this.logger.log(`Started TVM listener for chain ${network.chainId}`);
+        this.logger.info(`Started TVM listener for chain ${network.chainId}`);
       } catch (error) {
         this.logger.error(
           `Unable to start listener for ${network.chainId}: ${getErrorMessage(error)}`,
@@ -112,7 +110,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     if (this.listeners.length > 0) {
       this.isListening = true;
     }
-    this.logger.log(`Initialized ${this.listeners.length} TVM listeners`);
+    this.logger.info(`Initialized ${this.listeners.length} TVM listeners`);
   }
 
   private async stopAllListeners() {
@@ -123,6 +121,6 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     await Promise.all(this.listeners.map((listener) => listener.stop()));
     this.listeners = [];
     this.isListening = false;
-    this.logger.log('All TVM listeners stopped');
+    this.logger.info('All TVM listeners stopped');
   }
 }

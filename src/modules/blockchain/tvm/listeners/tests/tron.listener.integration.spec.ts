@@ -8,7 +8,6 @@ import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 import { TvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { TronListener } from '../tron.listener';

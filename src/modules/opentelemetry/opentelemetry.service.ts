@@ -20,10 +20,10 @@ import {
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { toError } from '@/common/utils/error-handler';
 import { OpenTelemetryConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
 export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
@@ -33,10 +33,10 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
   private meterProvider?: MeterProvider;
 
   constructor(
+    @InjectPinoLogger(OpenTelemetryService.name)
+    private readonly logger: PinoLogger,
     private readonly config: OpenTelemetryConfigService,
-    private readonly logger: SystemLoggerService,
   ) {
-    this.logger.setContext(OpenTelemetryService.name);
     // Always get tracer - it will be no-op if no provider is registered
     this.tracer = api.trace.getTracer('solver');
     // Always get meter - it will be no-op if no provider is registered
@@ -45,13 +45,13 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     if (!this.config.enabled) {
-      this.logger.log('OpenTelemetry is disabled');
+      this.logger.info('OpenTelemetry is disabled');
       return;
     }
 
     try {
       await this.initializeOpenTelemetry();
-      this.logger.log('OpenTelemetry initialized successfully');
+      this.logger.info('OpenTelemetry initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize OpenTelemetry', toError(error));
     }
@@ -61,7 +61,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     if (this.sdk) {
       try {
         await this.sdk.shutdown();
-        this.logger.log('OpenTelemetry shut down successfully');
+        this.logger.info('OpenTelemetry shut down successfully');
       } catch (error) {
         this.logger.error('Error shutting down OpenTelemetry', toError(error));
       }
@@ -69,7 +69,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     if (this.meterProvider) {
       try {
         await this.meterProvider.shutdown();
-        this.logger.log('OpenTelemetry metrics shut down successfully');
+        this.logger.info('OpenTelemetry metrics shut down successfully');
       } catch (error) {
         this.logger.error('Error shutting down OpenTelemetry metrics', toError(error));
       }

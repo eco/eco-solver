@@ -10,7 +10,6 @@ import {
   SolanaConfigService,
   TvmConfigService,
 } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { BlockchainReaderService } from '../blockchain-reader.service';
 import { EvmReaderService } from '../evm/services/evm.reader.service';

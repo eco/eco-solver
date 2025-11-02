@@ -6,7 +6,6 @@ import * as viem from 'viem';
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmReaderService } from '../evm.reader.service';

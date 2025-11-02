@@ -18,6 +18,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import {
   BaseChainExecutor,
@@ -43,7 +44,6 @@ import { toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
 import { getTransferDestination } from '@/modules/blockchain/svm/utils/tokens';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
@@ -60,16 +60,16 @@ export class SvmExecutorService extends BaseChainExecutor {
   private isInitialized = false;
 
   constructor(
+    @InjectPinoLogger(SvmExecutorService.name)
+    private readonly logger: PinoLogger,
     private solanaConfigService: SolanaConfigService,
     private blockchainConfigService: BlockchainConfigService,
-    private readonly logger: SystemLoggerService,
     private walletManager: SvmWalletManagerService,
     private readonly otelService: OpenTelemetryService,
     private readonly proverService: ProverService,
     private readonly svmHyperProver: SvmHyperProver,
   ) {
     super();
-    this.logger.setContext(SvmExecutorService.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
   }
 
@@ -139,7 +139,7 @@ export class SvmExecutorService extends BaseChainExecutor {
             transaction_hash: fulfillResult.txHash,
           });
 
-          this.logger.log(
+          this.logger.info(
             `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
           );
 
@@ -159,7 +159,7 @@ export class SvmExecutorService extends BaseChainExecutor {
                 error: proveResult.error,
               });
             } else {
-              this.logger.log(
+              this.logger.info(
                 `Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`,
               );
               span.addEvent('svm.fulfill.prove_transaction.phase_completed', {
@@ -287,7 +287,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           span.addEvent('svm.batch_withdraw.validation.completed');
 
-          this.logger.log(
+          this.logger.info(
             `Executing batch withdrawal for ${withdrawalData.destinations?.length || 0} intents on Solana (chain ${chainId})`,
           );
 
@@ -332,7 +332,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           span.setAttribute('svm.compute_units_requested', computeUnits);
 
-          this.logger.log(
+          this.logger.info(
             `Creating transaction with ${ataCreationInstructions.length} ATA creation instructions and ${withdrawalInstructions.length} withdrawal instructions`,
           );
 
@@ -380,7 +380,7 @@ export class SvmExecutorService extends BaseChainExecutor {
             compute_units_used: computeUnits,
           });
 
-          this.logger.log(
+          this.logger.info(
             `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature}`,
           );
 
@@ -1238,7 +1238,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
             txSpan.setAttribute('svm.gas_payment_amount', gasPaymentResult.toString());
 
-            this.logger.log(
+            this.logger.info(
               `Gas payment result for intent ${intent.intentHash} with message id: 0x${messageIdHex}, payment amount: ${gasPaymentResult}`,
             );
           } else {
@@ -1705,7 +1705,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           gasPaymentSpan.setAttribute('svm.gas_payment.transaction_signature', signature);
           gasPaymentSpan.addEvent('svm.gas_payment.confirmed');
 
-          this.logger.log(
+          this.logger.info(
             `Gas payment completed for intent ${intent.intentHash}: paid ${quotedAmount} lamports for ${gasAmount} gas to domain ${destinationDomain}. Tx: ${signature}`,
           );
 
@@ -1807,7 +1807,7 @@ export class SvmExecutorService extends BaseChainExecutor {
       portal_program_id: portalProgramId.toString(),
     });
 
-    this.logger.log(`Portal program initialized at ${portalProgramId.toString()}`);
+    this.logger.info(`Portal program initialized at ${portalProgramId.toString()}`);
   }
 
   private determineErrorStage(error: Error): string {

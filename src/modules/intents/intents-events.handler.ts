@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import {
   IntentFulfilledEvent,
@@ -9,7 +10,6 @@ import {
 } from '@/common/interfaces/events.interface';
 import { toError } from '@/common/utils/error-handler';
 import { EventsService } from '@/modules/events/events.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { IntentsService } from './intents.service';
@@ -17,13 +17,12 @@ import { IntentsService } from './intents.service';
 @Injectable()
 export class IntentsEventsHandler implements OnModuleInit {
   constructor(
+    @InjectPinoLogger(IntentsEventsHandler.name)
+    private readonly logger: PinoLogger,
     private readonly eventsService: EventsService,
     private readonly intentsService: IntentsService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-  ) {
-    this.logger.setContext(IntentsEventsHandler.name);
-  }
+  ) {}
 
   onModuleInit() {
     // Subscribe to IntentFulfilled events
@@ -41,7 +40,7 @@ export class IntentsEventsHandler implements OnModuleInit {
       await this.handleIntentWithdrawn(event);
     });
 
-    this.logger.log('Intent event handlers registered');
+    this.logger.info('Intent event handlers registered');
   }
 
   /**
@@ -60,13 +59,13 @@ export class IntentsEventsHandler implements OnModuleInit {
       },
       async (span) => {
         try {
-          this.logger.log(`Processing IntentFulfilled event for intent ${event.intentHash}`);
+          this.logger.info(`Processing IntentFulfilled event for intent ${event.intentHash}`);
 
           // Update the intent with fulfilled event data
           const updatedIntent = await this.intentsService.updateFulfilledEvent(event);
 
           if (updatedIntent) {
-            this.logger.log(
+            this.logger.info(
               `Successfully updated intent ${event.intentHash} with fulfilled event data`,
             );
             span.setAttribute('update.success', true);
@@ -106,13 +105,13 @@ export class IntentsEventsHandler implements OnModuleInit {
       },
       async (span) => {
         try {
-          this.logger.log(`Processing IntentProven event for intent ${event.intentHash}`);
+          this.logger.info(`Processing IntentProven event for intent ${event.intentHash}`);
 
           // Update the intent with proven event data
           const updatedIntent = await this.intentsService.updateProvenEvent(event);
 
           if (updatedIntent) {
-            this.logger.log(
+            this.logger.info(
               `Successfully updated intent ${event.intentHash} with proven event data`,
             );
             span.setAttribute('update.success', true);
@@ -152,13 +151,13 @@ export class IntentsEventsHandler implements OnModuleInit {
       },
       async (span) => {
         try {
-          this.logger.log(`Processing IntentWithdrawn event for intent ${event.intentHash}`);
+          this.logger.info(`Processing IntentWithdrawn event for intent ${event.intentHash}`);
 
           // Update the intent with withdrawn event data
           const updatedIntent = await this.intentsService.updateWithdrawnEvent(event);
 
           if (updatedIntent) {
-            this.logger.log(
+            this.logger.info(
               `Successfully updated intent ${event.intentHash} with withdrawn event data`,
             );
             span.setAttribute('update.success', true);

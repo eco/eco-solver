@@ -1,7 +1,7 @@
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 // Mock the blockchain reader service module before any imports
@@ -62,7 +62,7 @@ describe('IntentFundedValidation', () => {
           useValue: mockBlockchainReaderService,
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: mockLoggerService,
         },
         {

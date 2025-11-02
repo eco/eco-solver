@@ -2,23 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { IntentsService } from '@/modules/intents/intents.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 @Injectable()
 export class IntentFulfilledHandler {
   constructor(
+    @InjectPinoLogger(IntentFulfilledHandler.name)
+    private readonly logger: PinoLogger,
     private readonly intentsService: IntentsService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-  ) {
-    this.logger.setContext(IntentFulfilledHandler.name);
-  }
+  ) {}
 
   @OnEvent('intent.fulfilled', { async: true })
   async handleIntentFulfilled(event: IntentFulfilledEvent): Promise<void> {
@@ -35,7 +34,7 @@ export class IntentFulfilledHandler {
       },
       async (span) => {
         try {
-          this.logger.log(
+          this.logger.info(
             `Processing IntentFulfilled event for intent ${event.intentHash} on chain ${event.chainId}`,
           );
 
@@ -49,7 +48,7 @@ export class IntentFulfilledHandler {
           );
 
           if (updatedIntent) {
-            this.logger.log(
+            this.logger.info(
               `Successfully updated intent ${event.intentHash} status to FULFILLED. Tx: ${event.transactionHash}`,
             );
 

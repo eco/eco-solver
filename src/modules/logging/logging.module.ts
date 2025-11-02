@@ -1,30 +1,43 @@
 import { Global, Module } from '@nestjs/common';
 
-import { WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
+import { LoggerModule } from 'nestjs-pino';
 
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 
-import { LoggerService, SystemLoggerService } from './logger.service';
-import { createWinstonConfig } from './winston.config';
+import { maskSensitiveData } from './log-message.helper';
 
 @Global()
 @Module({
   imports: [
-    WinstonModule.forRootAsync({
-      useFactory: (appConfig: AppConfigService) => {
-        const transports: winston.transport[] = [
-          new winston.transports.Console({
-            format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-          }),
-        ];
-
-        return createWinstonConfig(appConfig, transports);
-      },
+    LoggerModule.forRootAsync({
       inject: [AppConfigService],
+      useFactory: async (appConfig: AppConfigService) => {
+        const loggerConfig = appConfig.getLoggerConfig();
+
+        return {
+          pinoHttp: {
+            ...loggerConfig.pinoConfig.pinoHttp,
+            // Add custom serializers for sensitive data masking
+            serializers: {
+              req: (req: any) => {
+                const masked = {
+                  id: req.id,
+                  method: req.method,
+                  url: req.url,
+                  params: maskSensitiveData(req.params, loggerConfig.maskKeywords),
+                  query: maskSensitiveData(req.query, loggerConfig.maskKeywords),
+                  body: maskSensitiveData(req.body, loggerConfig.maskKeywords),
+                };
+                return masked;
+              },
+              res: (res: any) => ({
+                statusCode: res.statusCode,
+              }),
+            },
+          },
+        };
+      },
     }),
   ],
-  providers: [LoggerService, SystemLoggerService],
-  exports: [LoggerService, SystemLoggerService],
 })
 export class LoggingModule {}

@@ -1,5 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
@@ -9,7 +10,6 @@ import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { BlockchainConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { EvmReaderService } from './evm/services/evm.reader.service';
 import { SvmReaderService } from './svm/services/svm.reader.service';
@@ -21,12 +21,11 @@ export class BlockchainReaderService {
 
   constructor(
     private blockchainConfigService: BlockchainConfigService,
-    private readonly logger: SystemLoggerService,
+    @InjectPinoLogger(BlockchainReaderService.name) private readonly logger: PinoLogger,
     @Optional() private evmReader?: EvmReaderService,
     @Optional() private svmReader?: SvmReaderService,
     @Optional() private tvmReader?: TvmReaderService,
   ) {
-    this.logger.setContext(BlockchainReaderService.name);
     this.initializeReaders();
   }
 

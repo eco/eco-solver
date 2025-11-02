@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { FulfillmentConfigService } from '@/modules/config/services';
@@ -8,7 +10,6 @@ import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { IntentProcessingService } from './services/intent-processing.service';
@@ -23,18 +24,17 @@ import { StrategyManagementService } from './services/strategy-management.servic
 @Injectable()
 export class FulfillmentService {
   constructor(
+    @InjectPinoLogger(FulfillmentService.name)
+    private readonly logger: PinoLogger,
     private readonly intentsService: IntentsService,
     private readonly dataDogService: DataDogService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     private readonly fulfillmentConfigService: FulfillmentConfigService,
     // New specialized services
     private readonly submissionService: IntentSubmissionService,
     private readonly processingService: IntentProcessingService,
     private readonly strategyManagement: StrategyManagementService,
-  ) {
-    this.logger.setContext(FulfillmentService.name);
-  }
+  ) {}
 
   /**
    * Submit an intent for fulfillment

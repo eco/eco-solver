@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import {
@@ -16,7 +17,6 @@ import {
   RhinestoneFulfillmentStrategy,
   StandardFulfillmentStrategy,
 } from '@/modules/fulfillment/strategies';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 /**
@@ -29,7 +29,8 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
   private readonly strategyMetadata = new Map<string, StrategyMetadata>();
 
   constructor(
-    private readonly logger: SystemLoggerService,
+    @InjectPinoLogger(StrategyManagementService.name)
+    private readonly logger: PinoLogger,
     private readonly configService: FulfillmentConfigService,
     private readonly otelService: OpenTelemetryService,
     // Strategy dependencies injected here
@@ -38,9 +39,7 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
     private readonly nativeIntentsStrategy: NativeIntentsFulfillmentStrategy,
     private readonly negativeIntentsStrategy: NegativeIntentsFulfillmentStrategy,
     private readonly rhinestoneStrategy: RhinestoneFulfillmentStrategy,
-  ) {
-    this.logger.setContext(StrategyManagementService.name);
-  }
+  ) {}
 
   async onModuleInit() {
     const span = this.otelService.startSpan('strategy.management.init');
@@ -81,7 +80,7 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
   unregister(strategyName: string): void {
     this.strategies.delete(strategyName);
     this.strategyMetadata.delete(strategyName);
-    this.logger.log(`Strategy '${strategyName}' unregistered`);
+    this.logger.info(`Strategy '${strategyName}' unregistered`);
   }
 
   getStrategy(name: string): IFulfillmentStrategy | undefined {
@@ -157,9 +156,9 @@ export class StrategyManagementService implements IStrategyRegistry, OnModuleIni
       this.register(strategy, metadata);
 
       if (enabled) {
-        this.logger.log(`Strategy '${name}' registered and enabled`);
+        this.logger.info(`Strategy '${name}' registered and enabled`);
       } else {
-        this.logger.log(`Strategy '${name}' registered but disabled`);
+        this.logger.info(`Strategy '${name}' registered but disabled`);
       }
     }
   }

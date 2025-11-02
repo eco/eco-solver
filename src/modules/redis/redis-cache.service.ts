@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { RedisService } from './redis.service';
 
@@ -15,11 +15,10 @@ export interface CacheOptions {
 @Injectable()
 export class RedisCacheService {
   constructor(
+    @InjectPinoLogger(RedisCacheService.name)
+    private readonly logger: PinoLogger,
     private readonly redisService: RedisService,
-    private readonly logger: SystemLoggerService,
-  ) {
-    this.logger.setContext(RedisCacheService.name);
-  }
+  ) {}
 
   /**
    * Get a value from cache

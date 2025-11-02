@@ -11,6 +11,7 @@ import {
   TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Hex } from 'viem';
 
 // Types for route and reward are now from the SVMIntent conversion
@@ -27,7 +28,6 @@ import { decodeRouteCall } from '@/modules/blockchain/svm/utils/call-data';
 import { bufferToBytes } from '@/modules/blockchain/svm/utils/converter';
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SolanaConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { SvmWalletManagerService } from './svm-wallet-manager.service';
@@ -35,15 +35,17 @@ import { SvmWalletManagerService } from './svm-wallet-manager.service';
 @Injectable()
 export class SvmReaderService extends BaseChainReader {
   private readonly connection: Connection;
+  protected readonly logger: PinoLogger;
 
   constructor(
+    @InjectPinoLogger(SvmReaderService.name)
+    logger: PinoLogger,
     private solanaConfigService: SolanaConfigService,
-    protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     @Optional() private svmWalletManager?: SvmWalletManagerService,
   ) {
     super();
-    this.logger.setContext(SvmReaderService.name);
+    this.logger = logger;
     const rpcUrl = this.solanaConfigService.rpcUrl;
     this.connection = new Connection(rpcUrl, 'confirmed');
   }

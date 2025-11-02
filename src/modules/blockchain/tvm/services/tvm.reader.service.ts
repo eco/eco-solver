@@ -1,6 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 import { decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
@@ -17,7 +18,6 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmReward } from '@/common/utils/intent-converter';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { TvmClientUtils } from '../utils';
@@ -26,14 +26,17 @@ import { TvmWalletManagerService } from './tvm-wallet-manager.service';
 
 @Injectable()
 export class TvmReaderService extends BaseChainReader {
+  protected readonly logger: PinoLogger;
+
   constructor(
+    @InjectPinoLogger(TvmReaderService.name)
+    logger: PinoLogger,
     private tvmConfigService: TvmConfigService,
-    protected readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
     @Optional() private tvmWalletManager?: TvmWalletManagerService,
   ) {
     super();
-    this.logger.setContext(TvmReaderService.name);
+    this.logger = logger;
   }
 
   async getChainInfo(chainId: number): Promise<ChainInfo> {

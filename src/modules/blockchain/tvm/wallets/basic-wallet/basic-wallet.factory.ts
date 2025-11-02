@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { TvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 import { TvmClientUtils } from '../../utils';
@@ -11,8 +12,9 @@ import { BasicWallet } from './basic-wallet';
 @Injectable()
 export class BasicWalletFactory {
   constructor(
+    @InjectPinoLogger(BasicWalletFactory.name)
+    private readonly logger: PinoLogger,
     private readonly tvmConfigService: TvmConfigService,
-    private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
   ) {}
 

@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 import { Address, type Log, PublicClient } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
@@ -9,7 +11,6 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
 export class ChainListener extends BaseChainListener {
@@ -19,7 +20,7 @@ export class ChainListener extends BaseChainListener {
   constructor(
     private readonly config: EvmChainConfig,
     private readonly transportService: EvmTransportService,
-    private readonly logger: SystemLoggerService,
+    private readonly logger: Logger,
     private readonly blockchainConfigService: BlockchainConfigService,
     private readonly evmConfigService: EvmConfigService,
     private readonly queueService: QueueService,

@@ -15,10 +15,10 @@ jest.mock('../../strategies/rhinestone-fulfillment.strategy', () => ({
   RhinestoneFulfillmentStrategy: jest.fn(),
 }));
 
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { CrowdLiquidityFulfillmentStrategy } from '../../strategies/crowd-liquidity-fulfillment.strategy';
@@ -107,7 +107,7 @@ describe('StrategyManagementService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StrategyManagementService,
-        { provide: SystemLoggerService, useValue: mockLogger },
+        { provide: Logger, useValue: mockLogger },
         { provide: FulfillmentConfigService, useValue: mockConfigService },
         { provide: OpenTelemetryService, useValue: mockOtelService },
         { provide: StandardFulfillmentStrategy, useValue: standardStrategy },

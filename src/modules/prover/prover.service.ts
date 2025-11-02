@@ -1,11 +1,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { DummyProver } from '@/modules/prover/provers/dummy.prover';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
@@ -16,15 +17,14 @@ export class ProverService implements OnModuleInit {
   private readonly provers: Map<string, BaseProver> = new Map();
 
   constructor(
+    @InjectPinoLogger(ProverService.name)
+    private readonly logger: PinoLogger,
     private hyperProver: HyperProver,
     private polymerProver: PolymerProver,
     private metalayerProver: MetalayerProver,
     private dummyProver: DummyProver,
-    private readonly logger: SystemLoggerService,
     private readonly blockchainConfigService: BlockchainConfigService,
-  ) {
-    this.logger.setContext(ProverService.name);
-  }
+  ) {}
 
   onModuleInit() {
     this.initializeProvers();
@@ -101,6 +101,6 @@ export class ProverService implements OnModuleInit {
     this.provers.set(ProverType.METALAYER, this.metalayerProver);
     this.provers.set(ProverType.DUMMY, this.dummyProver);
 
-    this.logger.log(`Initialized ${this.provers.size} provers`);
+    this.logger.info(`Initialized ${this.provers.size} provers`);
   }
 }
