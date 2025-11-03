@@ -18,7 +18,7 @@ import { LmTxGatedKernelAccountClientV2Service } from '@/liquidity-manager/walle
 
 describe('LiFiProviderService', () => {
   let lifiProviderService: LiFiProviderService
-  let kernelAccountClientService: LmTxGatedKernelAccountClientV2Service
+  let kernelAccountClientService: DeepMocked<LmTxGatedKernelAccountClientV2Service>
   let balanceService: DeepMocked<BalanceService>
   let ecoConfigService: DeepMocked<EcoConfigService>
   let mockAssetCacheManager: DeepMocked<LiFiAssetCacheManager>
@@ -32,15 +32,48 @@ describe('LiFiProviderService', () => {
       () => mockAssetCacheManager,
     )
 
+    // Setup default cache manager behavior BEFORE module compilation
+    mockAssetCacheManager.initialize.mockResolvedValue()
+    mockAssetCacheManager.isChainSupported.mockReturnValue(true)
+    mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+    mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
+    mockAssetCacheManager.getCacheStatus.mockReturnValue({
+      isInitialized: true,
+      isValid: true,
+      lastUpdated: new Date(),
+      nextRefresh: new Date(),
+      totalChains: 2,
+      totalTokens: 100,
+      cacheAge: 1000,
+    })
+
+    // Create mocks with default implementations BEFORE test module compilation
+    ecoConfigService = createMock<EcoConfigService>()
+    kernelAccountClientService = createMock<LmTxGatedKernelAccountClientV2Service>()
+
+    // Set up mocks BEFORE module compilation (constructor will call initialize)
+    ecoConfigService.getIntentSources.mockReturnValue([{ chainID: 10 }] as any)
+    ecoConfigService.getLiFi.mockReturnValue({ integrator: 'Eco' } as any)
+    ecoConfigService.getChainRpcs.mockReturnValue({ '10': ['http://op.rpc.com'] })
+    ecoConfigService.getLiquidityManager.mockReturnValue({
+      swapSlippage: 0.001,
+      maxQuoteSlippage: 0.005,
+    } as any)
+
+    kernelAccountClientService.getClient.mockReturnValue({
+      account: { address: '0x123' },
+    } as any)
+    kernelAccountClientService.getAddress.mockResolvedValue(zeroAddress)
+
     const chainMod: TestingModule = await Test.createTestingModule({
       providers: [
         LiFiProviderService,
         { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
-        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoConfigService, useValue: ecoConfigService },
         { provide: BalanceService, useValue: createMock<BalanceService>() },
         {
           provide: LmTxGatedKernelAccountClientV2Service,
-          useValue: createMock<LmTxGatedKernelAccountClientV2Service>(),
+          useValue: kernelAccountClientService,
         },
         {
           provide: EcoAnalyticsService,
@@ -58,29 +91,8 @@ describe('LiFiProviderService', () => {
       .useValue(createMock<FlowProducer>())
       .compile()
 
-    ecoConfigService = chainMod.get(EcoConfigService)
     balanceService = chainMod.get(BalanceService)
     lifiProviderService = chainMod.get(LiFiProviderService)
-    kernelAccountClientService = chainMod.get(LmTxGatedKernelAccountClientV2Service)
-
-    kernelAccountClientService['getAddress'] = jest.fn().mockResolvedValue(zeroAddress)
-
-    jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco' })
-
-    // Setup default cache manager behavior
-    mockAssetCacheManager.initialize.mockResolvedValue()
-    mockAssetCacheManager.isChainSupported.mockReturnValue(true)
-    mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
-    mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
-    mockAssetCacheManager.getCacheStatus.mockReturnValue({
-      isInitialized: true,
-      isValid: true,
-      lastUpdated: new Date(),
-      nextRefresh: new Date(),
-      totalChains: 2,
-      totalTokens: 100,
-      cacheAge: 1000,
-    })
   })
 
   afterEach(() => {
@@ -89,44 +101,112 @@ describe('LiFiProviderService', () => {
     jest.clearAllMocks()
   })
 
-  describe('OnModuleInit', () => {
-    it('should configure LiFi SDK and initialize cache on init', async () => {
-      const mockGetClient = jest.spyOn(kernelAccountClientService, 'getClient')
-      mockGetClient.mockReturnValue({ account: { address: '0x123' } } as any)
+  describe('initialization', () => {
+    it('should configure LiFi SDK and initialize cache lazily on first method call', async () => {
+      // Initialization should NOT happen in constructor
+      expect(LiFi.createConfig).not.toHaveBeenCalled()
+      expect(mockAssetCacheManager.initialize).not.toHaveBeenCalled()
 
-      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
+      // Call a method that triggers initialization
+      const mockRoute = {
+        fromAmount: '1000000',
+        toAmount: '1000000',
+        toAmountMin: '995000',
+        steps: [],
+      }
+      jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [mockRoute] } as any)
 
-      const rpcUrls = { '10': ['http://op.rpc.com'] }
-      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue(rpcUrls)
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 1, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
 
-      await lifiProviderService.onModuleInit()
-
-      expect(mockGetClient).toHaveBeenCalled()
-      expect(lifiProviderService['walletAddress']).toEqual('0x123')
+      // Now initialization should have happened
       expect(LiFi.createConfig).toHaveBeenCalledWith(
         expect.objectContaining({
           integrator: 'Eco',
-          rpcUrls: { '10': [rpcUrls['10']] },
         }),
       )
       expect(mockAssetCacheManager.initialize).toHaveBeenCalled()
     })
 
-    it('should handle cache initialization failure gracefully', async () => {
-      const mockGetClient = jest.spyOn(kernelAccountClientService, 'getClient')
-      mockGetClient.mockReturnValue({ account: { address: '0x123' } } as any)
+    it('should only initialize once even when called multiple times', async () => {
+      const mockRoute = {
+        fromAmount: '1000000',
+        toAmount: '1000000',
+        toAmountMin: '995000',
+        steps: [],
+      }
+      jest.spyOn(LiFi, 'getRoutes').mockResolvedValue({ routes: [mockRoute] } as any)
 
-      jest.spyOn(ecoConfigService, 'getIntentSources').mockReturnValue([{ chainID: 10 }] as any)
-      jest.spyOn(ecoConfigService, 'getChainRpcs').mockReturnValue({ '10': ['http://op.rpc.com'] })
+      // Call getQuote multiple times
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 1, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
+      await lifiProviderService.getQuote(
+        { chainId: 1, config: { address: '0xA' }, balance: { decimals: 6 } } as any,
+        { chainId: 1, config: { address: '0xB' }, balance: { decimals: 6 } } as any,
+        1,
+      )
 
-      // Mock cache initialization failure
-      mockAssetCacheManager.initialize.mockRejectedValue(new Error('Cache init failed'))
+      // Initialization should only happen once
+      expect(LiFi.createConfig).toHaveBeenCalledTimes(1)
+      expect(mockAssetCacheManager.initialize).toHaveBeenCalledTimes(1)
+    })
+  })
 
-      await lifiProviderService.onModuleInit()
+  describe('isRouteAvailable', () => {
+    it('should return true when both tokens and chains are supported', async () => {
+      mockAssetCacheManager.isChainSupported.mockReturnValue(true)
+      mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
 
-      expect(mockAssetCacheManager.initialize).toHaveBeenCalled()
-      // Service should continue to work even if cache fails
-      expect(lifiProviderService['walletAddress']).toEqual('0x123')
+      const result = await lifiProviderService.isRouteAvailable(
+        { chainId: 1, config: { address: '0xTokenIn' }, balance: { decimals: 6 } } as any,
+        { chainId: 10, config: { address: '0xTokenOut' }, balance: { decimals: 6 } } as any,
+      )
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source chain is not supported', async () => {
+      mockAssetCacheManager.isChainSupported.mockImplementation((chainId) => chainId !== 999)
+      mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
+
+      const result = await lifiProviderService.isRouteAvailable(
+        { chainId: 999, config: { address: '0xTokenIn' }, balance: { decimals: 6 } } as any,
+        { chainId: 10, config: { address: '0xTokenOut' }, balance: { decimals: 6 } } as any,
+      )
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source token is not supported', async () => {
+      mockAssetCacheManager.isChainSupported.mockReturnValue(true)
+      mockAssetCacheManager.isTokenSupported.mockImplementation(
+        (chainId, address) => address !== '0xUnsupportedToken',
+      )
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(true)
+
+      const result = await lifiProviderService.isRouteAvailable(
+        { chainId: 1, config: { address: '0xUnsupportedToken' }, balance: { decimals: 6 } } as any,
+        { chainId: 10, config: { address: '0xTokenOut' }, balance: { decimals: 6 } } as any,
+      )
+      expect(result).toBe(false)
+    })
+
+    it('should return false when tokens are not connected', async () => {
+      mockAssetCacheManager.isChainSupported.mockReturnValue(true)
+      mockAssetCacheManager.isTokenSupported.mockReturnValue(true)
+      mockAssetCacheManager.areTokensConnected.mockReturnValue(false)
+
+      const result = await lifiProviderService.isRouteAvailable(
+        { chainId: 1, config: { address: '0xTokenIn' }, balance: { decimals: 6 } } as any,
+        { chainId: 10, config: { address: '0xTokenOut' }, balance: { decimals: 6 } } as any,
+      )
+      expect(result).toBe(false)
     })
   })
 
@@ -149,10 +229,11 @@ describe('LiFiProviderService', () => {
         prefer: ['relay'],
       }
 
-      jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco', bridges } as any)
-      jest
-        .spyOn(ecoConfigService, 'getLiquidityManager')
-        .mockReturnValue({ swapSlippage: 0.001, maxQuoteSlippage: 0.005 } as any)
+      ecoConfigService.getLiFi.mockReturnValue({ integrator: 'Eco', bridges } as any)
+      ecoConfigService.getLiquidityManager.mockReturnValue({
+        swapSlippage: 0.001,
+        maxQuoteSlippage: 0.005,
+      } as any)
 
       const mockRoute = {
         fromAmount: '1000000',
@@ -187,10 +268,11 @@ describe('LiFiProviderService', () => {
         steps: [],
       }
 
-      jest.spyOn(ecoConfigService, 'getLiFi').mockReturnValue({ integrator: 'Eco' } as any)
-      jest
-        .spyOn(ecoConfigService, 'getLiquidityManager')
-        .mockReturnValue({ swapSlippage: 0.001, maxQuoteSlippage: 0.005 } as any)
+      ecoConfigService.getLiFi.mockReturnValue({ integrator: 'Eco' } as any)
+      ecoConfigService.getLiquidityManager.mockReturnValue({
+        swapSlippage: 0.001,
+        maxQuoteSlippage: 0.005,
+      } as any)
 
       const getRoutesSpy = jest
         .spyOn(LiFi, 'getRoutes')

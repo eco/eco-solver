@@ -209,6 +209,62 @@ describe('GatewayProviderService', () => {
     } as any)
   })
 
+  describe('isRouteAvailable', () => {
+    it('should return true for supported USDC to USDC cross-chain route', async () => {
+      const tokenIn = buildTokenData(sourceChainId, usdc1)
+      const tokenOut = buildTokenData(destinationChainId, usdc2)
+
+      const result = await service.isRouteAvailable(tokenIn as any, tokenOut as any)
+      expect(result).toBe(true)
+    })
+
+    it('should return false for same-chain routes', async () => {
+      const tokenIn = buildTokenData(sourceChainId, usdc1)
+      const tokenOut = buildTokenData(sourceChainId, usdc1)
+
+      const result = await service.isRouteAvailable(tokenIn as any, tokenOut as any)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source chain is not configured', async () => {
+      const tokenIn = buildTokenData(999, '0x9999999999999999999999999999999999999999' as Hex)
+      const tokenOut = buildTokenData(destinationChainId, usdc2)
+
+      const result = await service.isRouteAvailable(tokenIn as any, tokenOut as any)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain is not configured', async () => {
+      const tokenIn = buildTokenData(sourceChainId, usdc1)
+      const tokenOut = buildTokenData(999, '0x9999999999999999999999999999999999999999' as Hex)
+
+      const result = await service.isRouteAvailable(tokenIn as any, tokenOut as any)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when token is not USDC on source chain', async () => {
+      const tokenIn = buildTokenData(
+        sourceChainId,
+        '0x9999999999999999999999999999999999999999' as Hex,
+      )
+      const tokenOut = buildTokenData(destinationChainId, usdc2)
+
+      const result = await service.isRouteAvailable(tokenIn as any, tokenOut as any)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when token is not USDC on destination chain', async () => {
+      const tokenIn = buildTokenData(sourceChainId, usdc1)
+      const tokenOut = buildTokenData(
+        destinationChainId,
+        '0x9999999999999999999999999999999999999999' as Hex,
+      )
+
+      const result = await service.isRouteAvailable(tokenIn as any, tokenOut as any)
+      expect(result).toBe(false)
+    })
+  })
+
   it('getQuote returns zero-slippage USDC→USDC quote', async () => {
     const tokenIn = buildTokenData(sourceChainId, usdc1)
     const tokenOut = buildTokenData(destinationChainId, usdc2)

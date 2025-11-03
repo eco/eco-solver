@@ -150,10 +150,51 @@ describe('CCTPV2ProviderService', () => {
         config: { ...mockTokenOut.config, chainId: 999 },
         chainId: 999,
       }
-      console.log(unsupportedToken)
       await expect(service.getQuote(mockTokenIn, unsupportedToken, 10)).rejects.toThrow(
-        'Unsupported route for CCTP V2',
+        'A rebalancing route is not available',
       )
+    })
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true when both tokens are supported', async () => {
+      const result = await service.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source token is not supported', async () => {
+      const unsupportedSourceToken = {
+        ...mockTokenIn,
+        config: { ...mockTokenIn.config, chainId: 999 },
+        chainId: 999,
+      }
+      const result = await service.isRouteAvailable(unsupportedSourceToken, mockTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination token is not supported', async () => {
+      const unsupportedDestToken = {
+        ...mockTokenOut,
+        config: { ...mockTokenOut.config, chainId: 999 },
+        chainId: 999,
+      }
+      const result = await service.isRouteAvailable(mockTokenIn, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both tokens are not supported', async () => {
+      const unsupportedSourceToken = {
+        ...mockTokenIn,
+        config: { ...mockTokenIn.config, chainId: 998 },
+        chainId: 998,
+      }
+      const unsupportedDestToken = {
+        ...mockTokenOut,
+        config: { ...mockTokenOut.config, chainId: 999 },
+        chainId: 999,
+      }
+      const result = await service.isRouteAvailable(unsupportedSourceToken, unsupportedDestToken)
+      expect(result).toBe(false)
     })
   })
 

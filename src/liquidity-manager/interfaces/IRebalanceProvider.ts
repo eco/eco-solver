@@ -9,4 +9,5 @@ export interface IRebalanceProvider<S extends Strategy> {
   ): Promise<RebalanceQuote | RebalanceQuote[]>
   execute(walletAddress: string, quote: RebalanceQuote<S>): Promise<unknown>
   getStrategy(): S
+  isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean>
 }

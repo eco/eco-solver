@@ -83,6 +83,48 @@ describe('USDT0LiFiProviderService', () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation()
   })
 
+  describe('isRouteAvailable', () => {
+    it('should return true for supported cross-chain USDT0 route', async () => {
+      const tokenIn = token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7')
+      const tokenOut = token(10, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false for same-chain routes', async () => {
+      const tokenIn = token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7')
+      const tokenOut = token(1, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source chain does not support USDT0', async () => {
+      const tokenIn = token(56, '0x1111111111111111111111111111111111111111') // Unsupported chain
+      const tokenOut = token(10, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain does not support USDT0', async () => {
+      const tokenIn = token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7')
+      const tokenOut = token(56, '0x1111111111111111111111111111111111111111') // Unsupported chain
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both chains do not support USDT0', async () => {
+      const tokenIn = token(56, '0x1111111111111111111111111111111111111111')
+      const tokenOut = token(97, '0x2222222222222222222222222222222222222222')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+  })
+
   describe('getQuote', () => {
     it('builds TOKEN → TOKEN route with both swaps', async () => {
       const tIn = token(1, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')

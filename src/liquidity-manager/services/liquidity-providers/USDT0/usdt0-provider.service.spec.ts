@@ -105,8 +105,70 @@ describe('USDT0ProviderService', () => {
         balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
       }
       await expect(svc.getQuote(tokenIn, tokenOut, 1)).rejects.toThrow(
-        'USDT0 unsupported chain pair',
+        'A rebalancing route is not available',
       )
+    })
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true when both chains are configured', async () => {
+      const tokenIn: any = {
+        chainId: 1,
+        config: { chainId: 1, address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source chain is not configured', async () => {
+      const tokenIn: any = {
+        chainId: 999, // Unsupported chain
+        config: { chainId: 999, address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain is not configured', async () => {
+      const tokenIn: any = {
+        chainId: 1,
+        config: { chainId: 1, address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 999, // Unsupported chain
+        config: { chainId: 999, address: '0xdddddddddddddddddddddddddddddddddddddddd' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when token address does not match config', async () => {
+      const tokenIn: any = {
+        chainId: 8453, // Base - has token address validation
+        config: { chainId: 8453, address: '0xWrongAddress0000000000000000000000000000' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
     })
   })
 

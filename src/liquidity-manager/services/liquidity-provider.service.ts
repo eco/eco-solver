@@ -104,6 +104,16 @@ export class LiquidityProviderService {
             id: quoteId,
           }),
         )
+        if (!(await service.isRouteAvailable(tokenIn, tokenOut))) {
+          this.logger.debug(
+            EcoLogMessage.withId({
+              message: 'Route not available for strategy',
+              properties: { strategy, tokenIn, tokenOut, swapAmount },
+              id: quoteId,
+            }),
+          )
+          return undefined
+        }
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, quoteId)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
         hadAnyQuotes = true // Mark that at least one strategy succeeded in getting quotes
@@ -200,7 +210,9 @@ export class LiquidityProviderService {
     const quoteBatchResults = await Promise.all(quoteBatchRequests)
 
     // Filter out undefined results
-    const validQuoteBatches = quoteBatchResults.filter((batch) => batch !== undefined)
+    const validQuoteBatches = quoteBatchResults.filter(
+      (batch) => batch !== undefined && batch.length > 0,
+    )
 
     // Use the quote from the strategy returning the biggest amount out
     const bestQuotes = validQuoteBatches.reduce((bestBatch, quoteBatch) => {

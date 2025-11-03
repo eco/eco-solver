@@ -124,6 +124,48 @@ describe('CCIPLiFiProviderService', () => {
     ecoConfigService = module.get(EcoConfigService)
   })
 
+  describe('isRouteAvailable', () => {
+    it('should return true for supported cross-chain CCIP route', async () => {
+      const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
+      const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false for same-chain routes', async () => {
+      const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
+      const tokenOut = makeTokenData(1, '0x2222222222222222222222222222222222222222')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source chain does not support CCIP', async () => {
+      const tokenIn = makeTokenData(56, '0x1111111111111111111111111111111111111111') // BSC not supported
+      const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain does not support CCIP', async () => {
+      const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
+      const tokenOut = makeTokenData(56, '0x2222222222222222222222222222222222222222') // BSC not supported
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both chains do not support CCIP', async () => {
+      const tokenIn = makeTokenData(56, '0x1111111111111111111111111111111111111111')
+      const tokenOut = makeTokenData(97, '0x2222222222222222222222222222222222222222')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+  })
+
   it('builds route context with source and destination swaps', async () => {
     const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
     const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')

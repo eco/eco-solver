@@ -79,6 +79,17 @@ export class EcoError extends Error {
     return new EcoError(`A rebalancing route not found`)
   }
 
+  static RebalancingRouteNotAvailable(
+    fromChainId: number,
+    fromToken: string,
+    toChainId: number,
+    toToken: string,
+  ) {
+    return new EcoError(
+      `A rebalancing route is not available for token ${fromToken} on chain ${fromChainId} to token ${toToken} on chain ${toChainId}`,
+    )
+  }
+
   static IntentNotFound = new Error('Intent not found')
   static QuoteNotFound = new Error('Quote not found')
   static QuoteDBUpdateError = new Error('Quote not found')

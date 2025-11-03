@@ -66,13 +66,21 @@ describe('EverclearProviderService', () => {
       .spyOn(LiquidityManagerQueue.prototype, 'startCheckEverclearIntent')
       .mockResolvedValue()
 
+    // Create mocks with proper return values BEFORE module compilation
+    configService = createMock<EcoConfigService>()
+    kernelAccountClientService = createMock<LmTxGatedKernelAccountClientService>()
+
+    // Setup mocks BEFORE module compilation (constructor reads these)
+    configService.getEverclear.mockReturnValue({ baseUrl: 'https://test.everclear.org' })
+    kernelAccountClientService.getAddress.mockResolvedValue(mockWalletAddress)
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EverclearProviderService,
-        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
+        { provide: EcoConfigService, useValue: configService },
         {
           provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
+          useValue: kernelAccountClientService,
         },
         { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
         { provide: getQueueToken(LiquidityManagerQueue.queueName), useValue: createMock<any>() },
@@ -84,13 +92,8 @@ describe('EverclearProviderService', () => {
     }).compile()
 
     service = module.get<EverclearProviderService>(EverclearProviderService)
-    configService = module.get(EcoConfigService)
-    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
     mockQueue = module.get(getQueueToken(LiquidityManagerQueue.queueName))
 
-    // Setup default mocks
-    configService.getEverclear.mockReturnValue({ baseUrl: 'https://test.everclear.org' })
-    kernelAccountClientService.getAddress.mockResolvedValue(mockWalletAddress)
     getTokenSymbolSpy = jest
       .spyOn(service as any, 'getTokenSymbol')
       .mockImplementation(async (chainId: number, address: Hex) => {
@@ -98,8 +101,6 @@ describe('EverclearProviderService', () => {
         if (address === mockTokenOut.config.address) return 'USDC'
         return 'UNKNOWN'
       })
-
-    await service.onModuleInit()
   })
 
   afterEach(() => {
@@ -110,6 +111,42 @@ describe('EverclearProviderService', () => {
   describe('getStrategy', () => {
     it("should return 'Everclear'", () => {
       expect(service.getStrategy()).toBe('Everclear')
+    })
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true when chains are different and token symbols match', async () => {
+      const result = await service.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source and destination chains are the same', async () => {
+      const sameChainTokenOut: TokenData = {
+        ...mockTokenOut,
+        chainId: mockTokenIn.chainId,
+        config: { ...mockTokenOut.config, chainId: mockTokenIn.chainId },
+      }
+
+      const result = await service.isRouteAvailable(mockTokenIn, sameChainTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when token symbols do not match', async () => {
+      getTokenSymbolSpy.mockImplementation(async (chainId: number, address: Hex) => {
+        if (address === mockTokenIn.config.address) return 'USDC'
+        if (address === mockTokenOut.config.address) return 'WETH'
+        return 'UNKNOWN'
+      })
+
+      const result = await service.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return true when both tokens have matching symbols (e.g., USDT)', async () => {
+      getTokenSymbolSpy.mockImplementation(async () => 'USDT')
+
+      const result = await service.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(true)
     })
   })
 
@@ -136,15 +173,16 @@ describe('EverclearProviderService', () => {
       expect(quote.slippage).toBeCloseTo(0.01)
     })
 
-    it('should return an empty array if token symbols do not match', async () => {
+    it('should throw error if token symbols do not match', async () => {
       getTokenSymbolSpy.mockImplementation(async (chainId: number, address: Hex) => {
         if (address === mockTokenIn.config.address) return 'USDC'
         if (address === mockTokenOut.config.address) return 'WETH'
         return 'UNKNOWN'
       })
 
-      const quotes = await service.getQuote(mockTokenIn, mockTokenOut, 100)
-      expect(quotes).toEqual([])
+      await expect(service.getQuote(mockTokenIn, mockTokenOut, 100)).rejects.toThrow(
+        'A rebalancing route is not available',
+      )
       expect(fetch).not.toHaveBeenCalled()
     })
 
@@ -161,7 +199,7 @@ describe('EverclearProviderService', () => {
       )
     })
 
-    it('should return an empty array if origin and destination chains are the same', async () => {
+    it('should throw error if origin and destination chains are the same', async () => {
       const sameChainTokenOut: TokenData = {
         ...mockTokenOut,
         chainId: mockTokenIn.chainId,
@@ -171,8 +209,9 @@ describe('EverclearProviderService', () => {
         },
       }
 
-      const quotes = await service.getQuote(mockTokenIn, sameChainTokenOut, 100)
-      expect(quotes).toEqual([])
+      await expect(service.getQuote(mockTokenIn, sameChainTokenOut, 100)).rejects.toThrow(
+        'A rebalancing route is not available',
+      )
       expect(fetch).not.toHaveBeenCalled()
     })
   })

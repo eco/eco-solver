@@ -5,7 +5,7 @@ import { convertViemChainToRelayChain, createClient, getClient } from '@reservoi
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { KernelAccountClient } from '@zerodev/sdk/clients/kernelAccountClient'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
@@ -15,19 +15,20 @@ import { SmartAccount } from 'viem/account-abstraction'
 import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
-export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'Relay'> {
+export class RelayProviderService implements IRebalanceProvider<'Relay'> {
   private logger = new Logger(RelayProviderService.name)
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly kernelAccountClientService: LmTxGatedKernelAccountClientV2Service,
     private readonly rebalanceRepository: RebalanceRepository,
-  ) {}
+  ) {
+    this.initialize()
+  }
 
-  async onModuleInit() {
+  async initialize() {
     // Configure Relay SDK
     const chains = this.getRelayChains()
-
     createClient({
       source: 'eco-protocol',
       chains,
@@ -36,6 +37,14 @@ export class RelayProviderService implements OnModuleInit, IRebalanceProvider<'R
 
   getStrategy() {
     return 'Relay' as const
+  }
+
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    const chains = this.getRelayChains()
+    return (
+      chains.some((chain) => chain.id === tokenIn.chainId) &&
+      chains.some((chain) => chain.id === tokenOut.chainId)
+    )
   }
 
   async getQuote(

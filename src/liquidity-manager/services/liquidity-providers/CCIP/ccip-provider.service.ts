@@ -62,6 +62,55 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
   }
 
   /**
+   * Checks if a CCIP route is available between the given tokens.
+   * Returns true if both chains and tokens are configured and compatible.
+   */
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    const config = this.ecoConfigService.getCCIP()
+
+    // CCIP must be enabled
+    if (config.enabled === false) {
+      return false
+    }
+
+    // Same-chain routes are not supported
+    if (tokenIn.chainId === tokenOut.chainId) {
+      return false
+    }
+
+    // Check source chain is configured
+    const sourceChain = config.chains.find((c) => c.chainId === tokenIn.chainId)
+    if (!sourceChain) {
+      return false
+    }
+
+    // Check destination chain is configured
+    const destinationChain = config.chains.find((c) => c.chainId === tokenOut.chainId)
+    if (!destinationChain) {
+      return false
+    }
+
+    // Check source token is configured
+    const sourceToken = Object.values(sourceChain.tokens).find((t) =>
+      isAddressEqual(t.address as Hex, tokenIn.config.address as Hex),
+    )
+    if (!sourceToken) {
+      return false
+    }
+
+    // Check destination token is configured
+    const destinationToken = Object.values(destinationChain.tokens).find((t) =>
+      isAddressEqual(t.address as Hex, tokenOut.config.address as Hex),
+    )
+    if (!destinationToken) {
+      return false
+    }
+
+    // CCIP requires same-token routes (same symbol)
+    return sourceToken.symbol === destinationToken.symbol
+  }
+
+  /**
    * Generates a quote for a CCIP rebalance.
    * Validates chain/token support, estimates fees via the CCIP client, and constructs the quote.
    */

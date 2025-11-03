@@ -27,6 +27,7 @@ import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -55,6 +56,20 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
     return 'CCTPLiFi' as const
   }
 
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    // Validate CCTP support for both chains
+    if (!CCTPLiFiRoutePlanner.validateCCTPSupport(tokenIn.chainId, tokenOut.chainId)) {
+      return false
+    }
+
+    // Validate same chain (CCTPLiFi is for cross-chain only)
+    if (tokenIn.chainId === tokenOut.chainId) {
+      return false
+    }
+
+    return true
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -73,39 +88,13 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       }),
     )
 
-    // 1. Enhanced pre-checks: CCTP compatibility and validation
-    const validation = CCTPLiFiValidator.validateRoute(
-      tokenIn,
-      tokenOut,
-      swapAmount,
-      this.config.maxSlippage,
-    )
-
-    if (!validation.isValid) {
-      const errorMessage = `Invalid CCTPLiFi route: ${validation.errors.join(', ')}`
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error: new Error(errorMessage),
-          message: 'CCTPLiFi route validation warnings',
-          properties: { id, validation },
-        }),
-      )
-      throw new Error(errorMessage)
-    }
-
-    // Log any warnings
-    if (validation.warnings && validation.warnings.length > 0) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'CCTPLiFi route validation warnings',
-          id,
-          properties: {
-            warnings: validation.warnings,
-            tokenIn,
-            tokenOut,
-            swapAmount,
-          },
-        }),
+    // 1. Validate route availability
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
       )
     }
 

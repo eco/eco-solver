@@ -19,12 +19,12 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
 import { USDT0LiFiRoutePlanner, RouteStep } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
-import { USDT0LiFiValidator } from './utils/validation'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
 export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'> {
@@ -57,6 +57,16 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
     return 'USDT0LiFi' as const
   }
 
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    if (tokenIn.chainId === tokenOut.chainId) return false
+
+    if (!USDT0LiFiRoutePlanner.validateUSDT0Support(tokenIn.chainId, tokenOut.chainId)) {
+      return false
+    }
+
+    return true
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -70,34 +80,12 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
         properties: { tokenIn, tokenOut, swapAmount },
       }),
     )
-    const { maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
-
-    const validation = USDT0LiFiValidator.validateRoute(
-      tokenIn,
-      tokenOut,
-      swapAmount,
-      maxQuoteSlippage,
-    )
-    if (!validation.isValid) {
-      const errorMessage = `Invalid USDT0LiFi route: ${validation.errors.join(', ')}`
-      this.logger.error(
-        EcoLogMessage.withErrorAndId({
-          error: new Error(errorMessage),
-          id,
-          message: 'USDT0LiFi route validation errors',
-          properties: { validation },
-        }),
-      )
-      throw new Error(errorMessage)
-    }
-
-    if (validation.warnings?.length) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: 'USDT0LiFi route validation warnings',
-          id,
-          properties: { warnings: validation.warnings, tokenIn, tokenOut, swapAmount },
-        }),
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
       )
     }
 

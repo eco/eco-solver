@@ -77,7 +77,12 @@ export class CCIPLiFiProviderService implements IRebalanceProvider<'CCIPLiFi'> {
     )
 
     if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
-      throw EcoError.RebalancingRouteNotFound()
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
+      )
     }
 
     const plannedRoute = CCIPLiFiRoutePlanner.planRoute(tokenIn, tokenOut)

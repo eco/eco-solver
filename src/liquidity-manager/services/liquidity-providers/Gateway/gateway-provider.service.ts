@@ -21,6 +21,7 @@ import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum
 import { serialize } from '@/common/utils/serialize'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
 export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
@@ -225,6 +226,30 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     })
   }
 
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    // same-chain route not supported
+    if (tokenIn.chainId === tokenOut.chainId) return false
+
+    const cfg = this.configService.getGatewayConfig()
+    const inChain = cfg.chains.find((c) => c.chainId === tokenIn.chainId)
+    const outChain = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
+    // unsupported chain
+    if (!inChain || !outChain) return false
+
+    // Validate chain support using Gateway info
+    if (!(await this.areDomainsSupported(inChain.domain, outChain.domain))) return false
+
+    // only USDC -> USDC routes are supported
+    if (
+      !isAddressEqual(tokenIn.config.address, inChain.usdc) ||
+      !isAddressEqual(tokenOut.config.address, outChain.usdc)
+    ) {
+      return false
+    }
+
+    return true
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -249,46 +274,13 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       throw new GatewayQuoteValidationError('Gateway provider is disabled')
     }
 
-    if (tokenIn.chainId === tokenOut.chainId) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: same-chain route not supported',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
       )
-      throw new GatewayQuoteValidationError('Same-chain route not supported for Gateway')
-    }
-
-    const inChain = cfg.chains.find((c) => c.chainId === tokenIn.chainId)
-    const outChain = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
-    if (!inChain || !outChain) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: unsupported chain pair',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
-      )
-      throw new GatewayQuoteValidationError('Unsupported chain pair for Gateway', {
-        in: tokenIn.chainId,
-        out: tokenOut.chainId,
-      })
-    }
-
-    // Validate both tokens are configured USDC addresses
-    if (
-      !isAddressEqual(tokenIn.config.address, inChain.usdc) ||
-      !isAddressEqual(tokenOut.config.address, outChain.usdc)
-    ) {
-      this.logger.debug(
-        EcoLogMessage.withId({
-          message: 'Gateway: only USDC -> USDC routes are supported',
-          id,
-          properties: { tokenIn, tokenOut, swapAmount },
-        }),
-      )
-      throw new GatewayQuoteValidationError('Only USDC -> USDC routes are supported')
     }
 
     // Build amounts in token-native decimals and base-6 for Gateway context
@@ -309,10 +301,8 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
           },
         }),
       )
+      throw new Error('Gateway: USDC token decimals are not 6 — check token configuration')
     }
-
-    // Validate chain support using Gateway info
-    await this.ensureDomainsSupported(inChain.domain, outChain.domain, id)
 
     // Ensure sufficient unified balance at Gateway for the depositor (EOA)
     await this.ensureSufficientUnifiedBalance(amountBase6, id)
@@ -321,13 +311,14 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
     const sources = await this.selectSourcesForAmount(amountBase6, id)
     const chosenSourceDomain = sources[0].domain
 
+    const outChain = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Gateway: building zero-slippage quote',
         id,
         properties: {
           chosenSourceDomain,
-          destinationDomain: outChain.domain,
+          destinationDomain: outChain!.domain,
           amountBase6: amountBase6.toString(),
           sources: sources.map((s) => {
             const fee = this.computeMaxFeeBase6(s.domain, s.amountBase6)
@@ -349,7 +340,7 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       strategy: 'Gateway',
       context: {
         sourceDomain: chosenSourceDomain,
-        destinationDomain: outChain.domain,
+        destinationDomain: outChain!.domain,
         amountBase6,
         sources,
         id,
@@ -634,60 +625,18 @@ export class GatewayProviderService implements IRebalanceProvider<'Gateway'> {
       wallet: d.walletContract,
       minter: d.minterContract,
     }))
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: 'Gateway: fetched supported domains',
-        properties: { domains },
-      }),
-    )
     return domains
   }
 
-  private async ensureDomainsSupported(
+  private async areDomainsSupported(
     sourceDomain: number,
     destinationDomain: number,
-    id?: string,
-  ) {
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'Gateway: validating domain support',
-        id,
-        properties: { sourceDomain, destinationDomain },
-      }),
-    )
+  ): Promise<boolean> {
     const domains = await this.getSupportedDomains(false)
     const src = domains.find((d) => d.domain === sourceDomain)
     const dst = domains.find((d) => d.domain === destinationDomain)
-    if (!src || !src.wallet) {
-      this.logger.error(
-        EcoLogMessage.withId({
-          message: 'Gateway: source domain not supported by Gateway (wallet missing)',
-          id,
-          properties: { sourceDomain },
-        }),
-      )
-      throw new GatewayQuoteValidationError(
-        'Source domain not supported by Gateway (wallet missing)',
-        {
-          sourceDomain,
-        },
-      )
-    }
-    if (!dst || !dst.minter) {
-      this.logger.error(
-        EcoLogMessage.withId({
-          message: 'Gateway: destination domain not supported by Gateway (minter missing)',
-          id,
-          properties: { destinationDomain },
-        }),
-      )
-      throw new GatewayQuoteValidationError(
-        'Destination domain not supported by Gateway (minter missing)',
-        {
-          destinationDomain,
-        },
-      )
-    }
+    if (!src?.wallet || !dst?.minter) return false
+    return true
   }
 
   private async getMinterAddress(destinationDomain: number): Promise<Hex> {

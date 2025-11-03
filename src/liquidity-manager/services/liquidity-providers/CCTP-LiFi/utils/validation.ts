@@ -1,6 +1,3 @@
-import { TokenData } from '@/liquidity-manager/types/types'
-import { CCTPLiFiRoutePlanner } from './route-planner'
-
 export interface ValidationResult {
   isValid: boolean
   errors: string[]
@@ -15,55 +12,6 @@ export interface GasEstimation {
 }
 
 export class CCTPLiFiValidator {
-  /**
-   * Validates a CCTPLiFi route before execution
-   * @param tokenIn Source token
-   * @param tokenOut Destination token
-   * @param swapAmount Amount to swap
-   * @param maxSlippage Maximum acceptable slippage (0-1)
-   * @returns Validation result with errors if any
-   */
-  static validateRoute(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    maxSlippage: number,
-  ): ValidationResult {
-    const errors: string[] = []
-    const warnings: string[] = []
-
-    // Validate CCTP support for both chains
-    if (!CCTPLiFiRoutePlanner.validateCCTPSupport(tokenIn.chainId, tokenOut.chainId)) {
-      errors.push(`CCTP not supported for route ${tokenIn.chainId} → ${tokenOut.chainId}`)
-    }
-
-    // Validate same chain (CCTPLiFi is for cross-chain only)
-    if (tokenIn.chainId === tokenOut.chainId) {
-      errors.push('CCTPLiFi route is for cross-chain operations only')
-    }
-
-    // Validate swap amount
-    if (swapAmount <= 0) {
-      errors.push('Swap amount must be positive')
-    }
-
-    // Validate max slippage
-    if (maxSlippage < 0 || maxSlippage > 1) {
-      errors.push('Max slippage must be between 0 and 1')
-    }
-
-    // Warning for high slippage
-    if (maxSlippage > 0.1) {
-      warnings.push(`High slippage tolerance (${(maxSlippage * 100).toFixed(1)}%)`)
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-    }
-  }
-
   /**
    * Estimates gas costs for a CCTPLiFi route
    * @param sourceChainId Source chain ID

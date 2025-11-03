@@ -129,6 +129,22 @@ describe('LiquidityProviderService', () => {
 
     // Reinitialize the config in the service
     liquidityProviderService['config'] = ecoConfigService.getLiquidityManager()
+
+    // Stub isRouteAvailable to return true by default for all providers
+    // This is required because getQuote now calls isRouteAvailable first
+    jest.spyOn(liFiProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(cctpProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(relayProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(stargateProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(warpRouteProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(cctpLiFiProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(squidProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(everclearProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(cctpv2ProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(gatewayProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(usdt0ProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(ccipProviderService, 'isRouteAvailable').mockResolvedValue(true)
+    jest.spyOn(ccipLiFiProviderService, 'isRouteAvailable').mockResolvedValue(true)
   })
 
   afterAll(() => {
