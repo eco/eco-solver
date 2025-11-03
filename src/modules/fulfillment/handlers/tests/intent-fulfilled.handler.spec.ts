@@ -4,8 +4,8 @@ import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
-import { Logger } from '@/modules/logging';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 describe('IntentFulfilledHandler', () => {

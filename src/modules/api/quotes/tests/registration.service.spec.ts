@@ -185,10 +185,7 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed',
-        expect.any(Error),
-      );
+      expect(logger.error).toHaveBeenCalledWith('Registration failed', expect.any(Error));
     });
 
     it('should not throw error when apiUrl is configured', async () => {
