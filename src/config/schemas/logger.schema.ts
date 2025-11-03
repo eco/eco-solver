@@ -1,37 +1,31 @@
 import { z } from 'zod';
 
 /**
+ * Default redaction paths for sensitive data
+ */
+const DEFAULT_REDACT_PATHS = [
+  // Authentication and authorization headers
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.headers["set-cookie"]',
+  // API key headers (common patterns)
+  'req.headers["x-api-key"]',
+  'req.headers["api-key"]',
+  'req.headers["apikey"]',
+  // Error stack traces for privacy
+  'err.stack',
+] as const;
+
+/**
  * Pino redact configuration schema
  */
 const PinoRedactSchema = z
   .object({
-    paths: z
-      .array(z.string())
-      .default([
-        'req.headers.authorization',
-        'req.headers.accept',
-        'req.headers["cache-control"]',
-        'req.headers["accept-encoding"]',
-        'req.headers["content-type"]',
-        'req.headers["content-length"]',
-        'req.headers.connection',
-        'res.headers',
-        'err.stack',
-      ]),
+    paths: z.array(z.string()).default([...DEFAULT_REDACT_PATHS]),
     remove: z.boolean().default(true),
   })
   .default({
-    paths: [
-      'req.headers.authorization',
-      'req.headers.accept',
-      'req.headers["cache-control"]',
-      'req.headers["accept-encoding"]',
-      'req.headers["content-type"]',
-      'req.headers["content-length"]',
-      'req.headers.connection',
-      'res.headers',
-      'err.stack',
-    ],
+    paths: [...DEFAULT_REDACT_PATHS],
     remove: true,
   });
 
@@ -48,17 +42,7 @@ const PinoHttpSchema = z
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     useLevelLabels: true,
     redact: {
-      paths: [
-        'req.headers.authorization',
-        'req.headers.accept',
-        'req.headers["cache-control"]',
-        'req.headers["accept-encoding"]',
-        'req.headers["content-type"]',
-        'req.headers["content-length"]',
-        'req.headers.connection',
-        'res.headers',
-        'err.stack',
-      ],
+      paths: [...DEFAULT_REDACT_PATHS],
       remove: true,
     },
   });
@@ -75,17 +59,7 @@ const PinoConfigSchema = z
       level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
       useLevelLabels: true,
       redact: {
-        paths: [
-          'req.headers.authorization',
-          'req.headers.accept',
-          'req.headers["cache-control"]',
-          'req.headers["accept-encoding"]',
-          'req.headers["content-type"]',
-          'req.headers["content-length"]',
-          'req.headers.connection',
-          'res.headers',
-          'err.stack',
-        ],
+        paths: [...DEFAULT_REDACT_PATHS],
         remove: true,
       },
     },
@@ -108,6 +82,7 @@ const OtelLogExportSchema = z
 export const LoggerSchema = z
   .object({
     usePino: z.boolean().default(true),
+    pretty: z.boolean().default(process.env.NODE_ENV !== 'production'),
     pinoConfig: PinoConfigSchema,
     maskKeywords: z
       .array(z.string())
@@ -125,22 +100,13 @@ export const LoggerSchema = z
   })
   .default({
     usePino: true,
+    pretty: process.env.NODE_ENV !== 'production',
     pinoConfig: {
       pinoHttp: {
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         useLevelLabels: true,
         redact: {
-          paths: [
-            'req.headers.authorization',
-            'req.headers.accept',
-            'req.headers["cache-control"]',
-            'req.headers["accept-encoding"]',
-            'req.headers["content-type"]',
-            'req.headers["content-length"]',
-            'req.headers.connection',
-            'res.headers',
-            'err.stack',
-          ],
+          paths: [...DEFAULT_REDACT_PATHS],
           remove: true,
         },
       },

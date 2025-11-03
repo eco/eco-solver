@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
-import { LoggerModule } from 'nestjs-pino';
+import { LoggerModule, Params as PinoParams } from 'nestjs-pino';
 
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 
@@ -14,30 +14,42 @@ import { PinoOtelBridgeService } from './pino-otel-bridge.service';
   imports: [
     LoggerModule.forRootAsync({
       inject: [AppConfigService],
-      useFactory: async (appConfig: AppConfigService) => {
+      useFactory: async (appConfig: AppConfigService): Promise<PinoParams> => {
         const loggerConfig = appConfig.getLoggerConfig();
 
-        return {
-          pinoHttp: {
-            ...loggerConfig.pinoConfig.pinoHttp,
-            // Add custom serializers for sensitive data masking
-            serializers: {
-              req: (req: any) => {
-                const masked = {
-                  id: req.id,
-                  method: req.method,
-                  url: req.url,
-                  params: maskSensitiveData(req.params, loggerConfig.maskKeywords),
-                  query: maskSensitiveData(req.query, loggerConfig.maskKeywords),
-                  body: maskSensitiveData(req.body, loggerConfig.maskKeywords),
-                };
-                return masked;
-              },
-              res: (res: any) => ({
-                statusCode: res.statusCode,
-              }),
-            },
+        const pinoHttpConfig: PinoParams['pinoHttp'] = {
+          ...loggerConfig.pinoConfig.pinoHttp,
+          // Add custom serializers for sensitive data masking
+          serializers: {
+            req: (req: any) => ({
+              id: req.id,
+              method: req.method,
+              url: req.url,
+              params: maskSensitiveData(req.params, loggerConfig.maskKeywords),
+              query: maskSensitiveData(req.query, loggerConfig.maskKeywords),
+              body: maskSensitiveData(req.body, loggerConfig.maskKeywords),
+            }),
+            res: (res: any) => ({
+              statusCode: res.statusCode,
+            }),
           },
+        };
+
+        // Add pino-pretty transport if pretty logging is enabled
+        if (loggerConfig.pretty) {
+          pinoHttpConfig.transport = {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+              singleLine: false,
+            },
+          };
+        }
+
+        return {
+          pinoHttp: pinoHttpConfig,
         };
       },
     }),
