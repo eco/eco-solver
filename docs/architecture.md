@@ -101,8 +101,9 @@ App Module
 │   ├── QueueConfigService
 │   └── TokenConfigService
 ├── Logging Module (Global)
-│   ├── LoggerService (Request-scoped)
-│   └── SystemLoggerService (System-level)
+│   ├── Logger (Custom Pino logger)
+│   ├── LoggerFactory (Logger instance factory)
+│   └── PinoOtelBridgeService (OTLP log export)
 ├── OpenTelemetry Module (Global)
 │   ├── OpenTelemetryService
 │   └── QueueTracingService
@@ -257,10 +258,13 @@ App Module
 ## Observability Architecture
 
 ### Logging
-- **Structured Logging**: JSON format with metadata
-- **Correlation IDs**: Request tracking across services
-- **Context Propagation**: Log context maintained
-- **Sensitive Data Masking**: Automatic redaction
+- **Pino-Based Logging**: High-performance async logging with minimal overhead
+- **Structured Format**: JSON logs with structured metadata for machine parsing
+- **OpenTelemetry Integration**: Automatic trace context injection (trace_id, span_id, correlation_id)
+- **BigInt Serialization**: Automatic conversion for blockchain data compatibility
+- **Sensitive Data Masking**: Automatic redaction of passwords, keys, tokens, authorization
+- **pino-pretty Support**: Human-readable colorized logs for development (via LOGGER_PRETTY)
+- **OTLP Log Export**: Optional export to OpenTelemetry collectors for unified observability
 
 ### Metrics
 - **DataDog Integration**: StatsD protocol metrics

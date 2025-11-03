@@ -32,18 +32,14 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
 - **Request Tracking**: Automatic request ID generation for tracing
 
 #### Phase 2: Observability & Monitoring ✅
-- **Structured Logging**: Production-ready Winston logger with:
+- **Structured Logging**: Production-ready Pino logger with:
+  - High-performance async logging (10x faster than alternatives)
   - JSON format for machine parsing and log aggregation systems
-  - Automatic correlation IDs for request tracing
-  - Sensitive data masking (passwords, keys, tokens)
-  - Request-scoped and system-level loggers
+  - Automatic OpenTelemetry trace context injection (trace_id, span_id)
+  - Automatic BigInt serialization for blockchain data
+  - Sensitive data masking (passwords, keys, tokens, authorization)
+  - Human-readable development logs with pino-pretty (configurable via `LOGGER_PRETTY`)
   - Integration as NestJS's default logger for unified logging
-- **Why Winston over NestJS Logger**: 
-  - Multiple transports (console, file, HTTP, custom)
-  - Structured metadata support for contextual logging
-  - Production features: async logging, error handling, query capabilities
-  - Enterprise-ready: Works with ELK stack, Splunk, DataDog
-  - Extensible with custom formatters and transports
 - **Metrics & Monitoring**: DataDog integration with comprehensive metrics:
   - HTTP metrics (request rate, latency, status codes)
   - Queue metrics (job processing time, depth, success/failure rates)
@@ -621,28 +617,33 @@ Each fulfillment strategy defines its own immutable set of validations. Configur
 
 ### Logging Best Practices
 
-The application uses enhanced Winston logging with custom logger services:
+The application uses Pino-based logging with a custom `Logger` class for high-performance structured logging:
 
-- **LoggerService**: Request-scoped logger for HTTP contexts with automatic correlation IDs
-- **SystemLoggerService**: System-level logger for background tasks and non-request contexts
+- **Logger**: Custom logger class extending `PinoLogger` with structured logging by default
+- **LoggerFactory**: Factory service for creating logger instances with consistent configuration
 
-Benefits of using the custom logger services:
-- Automatic request correlation ID tracking
-- Sensitive data masking (passwords, keys, tokens)
-- Structured JSON logging with metadata
-- Context-aware logging for better filtering
+Benefits:
+- Automatic OpenTelemetry trace context injection (trace_id, span_id, correlation_id)
+- Automatic BigInt serialization for blockchain data
+- Sensitive data masking (passwords, keys, tokens, authorization headers)
+- Human-readable development logs with pino-pretty (via `LOGGER_PRETTY` env var)
+- JSON logs in production for aggregation tools
+- High performance with minimal overhead
 
 Example usage:
 ```typescript
-// For HTTP request contexts
-constructor(private readonly logger: LoggerService) {
+// Standard logger injection
+constructor(private readonly logger: Logger) {
   this.logger.setContext(MyService.name);
 }
 
-// For background services
-constructor(private readonly logger: SystemLoggerService) {
-  this.logger.setContext(MyService.name);
-}
+// Structured logging
+this.logger.info('Processing intent', { intentHash: '0x...', chainId: 1n });
+this.logger.error('Execution failed', error, { intentHash: '0x...', retry: 3 });
+
+// Factory pattern for dynamic contexts
+constructor(private readonly loggerFactory: LoggerFactory) {}
+const logger = this.loggerFactory.createLogger('DynamicContext');
 ```
 
 ### Observability
