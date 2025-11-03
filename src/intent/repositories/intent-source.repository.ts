@@ -2,7 +2,7 @@ import { EcoAnalyticsService } from '@/analytics'
 import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
-import { Injectable } from '@nestjs/common'
+import { Injectable, Optional } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { IntentSourceModel } from '@/intent/schemas/intent-source.schema'
@@ -17,7 +17,7 @@ export class IntentSourceRepository {
 
   constructor(
     @InjectModel(IntentSourceModel.name) private model: Model<IntentSourceModel>,
-    private readonly ecoAnalytics: EcoAnalyticsService,
+    @Optional() private readonly ecoAnalytics?: EcoAnalyticsService,
   ) {}
 
   async create(data: any): Promise<IntentSourceModel> {
@@ -76,7 +76,7 @@ export class IntentSourceRepository {
       )
 
       // Track gasless intent creation attempt with complete objects
-      this.ecoAnalytics.trackGaslessIntentCreationStarted(
+      this.ecoAnalytics?.trackGaslessIntentCreationStarted(
         intentHash,
         quoteID,
         funder,
@@ -112,7 +112,7 @@ export class IntentSourceRepository {
       })
 
       // Track successful gasless intent creation with complete context
-      this.ecoAnalytics.trackGaslessIntentCreated(
+      this.ecoAnalytics?.trackGaslessIntentCreated(
         intentHash,
         quoteID,
         funder,
@@ -133,7 +133,7 @@ export class IntentSourceRepository {
       )
 
       // Track gasless intent creation failure with complete context
-      this.ecoAnalytics.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
+      this.ecoAnalytics?.trackGaslessIntentCreationError(ex, quoteID, funder, route, reward)
     }
   }
 

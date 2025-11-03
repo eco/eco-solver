@@ -31,6 +31,12 @@ export class IntentSourceModel {
   @Prop({ required: true, type: String })
   status: IntentSourceStatus
 
+  @Prop()
+  createdAt: Date
+
+  @Prop()
+  updatedAt: Date
+
   static getSource(intentSourceModel: IntentSourceModel): bigint {
     return intentSourceModel.intent.route.source
   }

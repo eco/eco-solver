@@ -30,6 +30,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "cli": "ts-node src/commander/command-main.ts",
+    "script:analyze-intents": "ts-node src/scripts/run-analyze-failed-intents.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier": "prettier . --check",
