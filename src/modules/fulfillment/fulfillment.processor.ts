@@ -2,15 +2,14 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job, UnrecoverableError } from 'bullmq';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
-import { toError } from '@/common/utils/error-handler';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregated-validation.error';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { Logger } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -22,7 +21,7 @@ import { FulfillmentJobData } from './interfaces/fulfillment-job.interface';
 })
 export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
-    @InjectPinoLogger(FulfillmentProcessor.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private fulfillmentService: FulfillmentService,
     private intentsService: IntentsService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
@@ -55,9 +54,12 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, On
     if (job.name === 'process-intent') {
       const jobData = BigintSerializer.deserialize<FulfillmentJobData>(job.data);
 
-      this.logger.info(
-        `Processing intent ${jobData.intent.intentHash} with strategy ${jobData.strategy} (attempt ${job.attemptsMade + 1}/${job.opts.attempts})`,
-      );
+      this.logger.info('Processing intent', {
+        intentHash: jobData.intent.intentHash,
+        strategy: jobData.strategy,
+        attempt: job.attemptsMade + 1,
+        maxAttempts: job.opts.attempts,
+      });
 
       // Break context and start a new trace for fulfillment stage
       return this.otelService.startNewTraceWithCorrelation(
@@ -99,30 +101,33 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, On
                   ? `(aggregated with ${error.individualErrors.length} failures)`
                   : '';
 
-              this.logger.warn(
-                `Validation error for intent ${jobData.intent.intentHash}: ${error.message} ${errorDetails} (type: ${error.type}, attempt: ${job.attemptsMade + 1})`,
-              );
+              this.logger.warn('Validation error for intent', {
+                intentHash: jobData.intent.intentHash,
+                message: error.message,
+                errorDetails,
+                type: error.type,
+                attempt: job.attemptsMade + 1,
+              });
 
               // Check if this is a PERMANENT error that should not be retried
               if (error.type === ValidationErrorType.PERMANENT) {
-                this.logger.error(
-                  `Permanent validation failure for intent ${jobData.intent.intentHash} - stopping retries`,
-                );
+                this.logger.error('Permanent validation failure - stopping retries', {
+                  intentHash: jobData.intent.intentHash,
+                });
                 // Throw UnrecoverableError to prevent BullMQ from retrying
                 throw new UnrecoverableError(error.message);
               }
 
               // For TEMPORARY errors, re-throw to allow BullMQ retry with backoff
-              this.logger.info(
-                `Temporary validation failure for intent ${jobData.intent.intentHash} - will retry with backoff`,
-              );
+              this.logger.info('Temporary validation failure - will retry with backoff', {
+                intentHash: jobData.intent.intentHash,
+              });
               throw error;
             } else {
               // For non-ValidationError errors, log and re-throw normally
-              this.logger.error(
-                `Non-validation error processing intent ${jobData.intent.intentHash}:`,
-                toError(error),
-              );
+              this.logger.error('Non-validation error processing intent', error, {
+                intentHash: jobData.intent.intentHash,
+              });
               throw error;
             }
           }

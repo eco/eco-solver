@@ -2,22 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
-import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 @Injectable()
 export class IntentFulfilledHandler {
   constructor(
-    @InjectPinoLogger(IntentFulfilledHandler.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly intentsService: IntentsService,
     private readonly otelService: OpenTelemetryService,
-  ) {}
+  ) {
+    this.logger.setContext(IntentFulfilledHandler.name);
+  }
 
   @OnEvent('intent.fulfilled', { async: true })
   async handleIntentFulfilled(event: IntentFulfilledEvent): Promise<void> {
@@ -34,9 +34,13 @@ export class IntentFulfilledHandler {
       },
       async (span) => {
         try {
-          this.logger.info(
-            `Processing IntentFulfilled event for intent ${event.intentHash} on chain ${event.chainId}`,
-          );
+          this.logger.info('Processing IntentFulfilled event', {
+            intentHash: event.intentHash,
+            chainId: event.chainId.toString(),
+            claimant: event.claimant,
+            transactionHash: event.transactionHash,
+            blockNumber: event.blockNumber?.toString(),
+          });
 
           // Update intent status to FULFILLED
           const updatedIntent = await this.intentsService.updateStatus(
@@ -48,18 +52,22 @@ export class IntentFulfilledHandler {
           );
 
           if (updatedIntent) {
-            this.logger.info(
-              `Successfully updated intent ${event.intentHash} status to FULFILLED. Tx: ${event.transactionHash}`,
-            );
+            this.logger.info('Successfully updated intent status to FULFILLED', {
+              intentHash: event.intentHash,
+              transactionHash: event.transactionHash,
+              chainId: event.chainId.toString(),
+            });
 
             span.addEvent('intent.status.updated', {
               status: IntentStatus.FULFILLED,
               txHash: event.transactionHash,
             });
           } else {
-            this.logger.warn(
-              `Intent ${event.intentHash} not found in database for IntentFulfilled event`,
-            );
+            this.logger.warn('Intent not found in database for IntentFulfilled event', {
+              intentHash: event.intentHash,
+              chainId: event.chainId.toString(),
+              transactionHash: event.transactionHash,
+            });
 
             span.addEvent('intent.not_found', {
               intentHash: event.intentHash,
@@ -68,10 +76,11 @@ export class IntentFulfilledHandler {
 
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
-          this.logger.error(
-            `Error processing IntentFulfilled event for ${event.intentHash}: ${getErrorMessage(error)}`,
-            toError(error),
-          );
+          this.logger.error('Error processing IntentFulfilled event', error, {
+            intentHash: event.intentHash,
+            chainId: event.chainId.toString(),
+            transactionHash: event.transactionHash,
+          });
 
           span.recordException(error as Error);
           span.setStatus({

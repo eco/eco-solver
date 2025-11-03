@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import helmet from 'helmet';
-import { Logger as PinoLogger, LoggerErrorInterceptor } from 'nestjs-pino';
+import { LoggerErrorInterceptor, PinoLogger } from 'nestjs-pino';
 
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
@@ -25,7 +25,8 @@ async function bootstrap() {
   app.useLogger(app.get(PinoLogger));
   app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
-  const logger = new Logger('Bootstrap');
+  const logger = app.get(PinoLogger);
+  logger.setContext('Bootstrap');
 
   const appConfig = app.get(AppConfigService);
   const port = appConfig.port;
@@ -62,7 +63,7 @@ async function bootstrap() {
   if (dataDogConfig.enabled) {
     const dataDogInterceptor = app.get(DataDogInterceptor);
     interceptors.push(dataDogInterceptor);
-    logger.log('DataDog metrics interceptor enabled');
+    logger.info('DataDog metrics interceptor enabled');
   }
 
   // OpenTelemetry trace interceptor (if enabled)
@@ -70,7 +71,7 @@ async function bootstrap() {
   if (otelConfig.enabled) {
     const traceInterceptor = app.get(TraceInterceptor);
     interceptors.push(traceInterceptor);
-    logger.log('OpenTelemetry trace interceptor enabled');
+    logger.info('OpenTelemetry trace interceptor enabled');
   }
 
   // Apply all interceptors
@@ -88,21 +89,21 @@ async function bootstrap() {
   setupProcessHandlers(app);
 
   await app.listen(port);
-  logger.log(`Application is running on: ${await app.getUrl()}`);
-  logger.log(`Swagger documentation available at: ${await app.getUrl()}/api-docs`);
+  logger.info(`Application is running on: ${await app.getUrl()}`);
+  logger.info(`Swagger documentation available at: ${await app.getUrl()}/api-docs`);
 }
 
 /**
  * Setup process handlers for graceful shutdown
  */
 function setupProcessHandlers(app: INestApplication) {
-  const pinoLogger = app.get(PinoLogger);
+  const logger = app.get(PinoLogger);
   let isShuttingDown = false;
 
   const logError = (message: string, error: unknown) => {
     const asError =
       error instanceof Error ? { msg: message, err: error } : { msg: message, err: String(error) };
-    pinoLogger.error(asError);
+    logger.error(asError);
   };
 
   const drainStreams = async () => {
@@ -118,7 +119,7 @@ function setupProcessHandlers(app: INestApplication) {
 
   const flushLogger = async () => {
     try {
-      const pinoLike: any = (pinoLogger as any)?.logger ?? (pinoLogger as any);
+      const pinoLike: any = (logger as any)?.logger ?? (logger as any);
       if (pinoLike && typeof pinoLike.flush === 'function') {
         pinoLike.flush();
       }
@@ -135,7 +136,7 @@ function setupProcessHandlers(app: INestApplication) {
       if (error !== undefined) {
         logError(`[process] ${reason}`, error);
       } else {
-        pinoLogger.warn({ msg: `[process] ${reason}` });
+        logger.warn({ msg: `[process] ${reason}` });
       }
       await app.close();
     } catch (closeError) {

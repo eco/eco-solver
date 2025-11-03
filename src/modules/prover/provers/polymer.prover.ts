@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
 import axios, { AxiosInstance } from 'axios';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { encodeFunctionData, Hex } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
@@ -11,6 +10,7 @@ import { ProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 interface PolymerProofRequest {
   srcChainId: number;
@@ -40,11 +40,12 @@ export class PolymerProver extends BaseProver {
   private readonly PROOF_POLLING_TIMEOUT = 300000; // 5 minutes
 
   constructor(
-    @InjectPinoLogger(PolymerProver.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     protected readonly blockchainConfigService: BlockchainConfigService,
     protected readonly moduleRef: ModuleRef,
   ) {
     super(blockchainConfigService, moduleRef);
+    this.logger.setContext(PolymerProver.name);
     this.initializePolymerClient();
   }
 
@@ -71,9 +72,11 @@ export class PolymerProver extends BaseProver {
    */
   async requestProofJob(params: PolymerProofRequest): Promise<string> {
     try {
-      this.logger.info(
-        `Requesting proof job from Polymer API for chain ${params.srcChainId} block ${params.srcBlockNumber}`,
-      );
+      this.logger.info('Requesting proof job from Polymer API', {
+        chainId: params.srcChainId,
+        blockNumber: params.srcBlockNumber,
+        globalLogIndex: params.globalLogIndex,
+      });
 
       const response = await this.polymerApiClient.post('/api/v1/proof', params);
 
@@ -81,10 +84,10 @@ export class PolymerProver extends BaseProver {
         throw new Error('Invalid response from Polymer API: missing jobId');
       }
 
-      this.logger.info(`Polymer proof job created: ${response.data.jobId}`);
+      this.logger.info('Polymer proof job created', { jobId: response.data.jobId });
       return response.data.jobId;
     } catch (error: any) {
-      this.logger.error(`Failed to request proof from Polymer API:`, error);
+      this.logger.error('Failed to request proof from Polymer API', error);
       throw new Error(`Polymer API request failed: ${error?.message || error}`);
     }
   }
@@ -102,7 +105,7 @@ export class PolymerProver extends BaseProver {
         );
 
         if (response.data.status === 'ready' && response.data.proof) {
-          this.logger.info(`Polymer proof ready for job ${jobId}`);
+          this.logger.info('Polymer proof ready', { jobId });
           // Convert base64 to hex if needed
           const proof = response.data.proof.startsWith('0x')
             ? response.data.proof
@@ -120,7 +123,7 @@ export class PolymerProver extends BaseProver {
         if (error?.response?.status === 404) {
           throw new Error(`Polymer proof job ${jobId} not found`);
         }
-        this.logger.error(`Error polling for proof:`, error);
+        this.logger.error('Error polling for proof', error, { jobId });
         // Continue polling on transient errors
       }
     }
@@ -140,7 +143,10 @@ export class PolymerProver extends BaseProver {
         throw new Error(`No Polymer prover contract on source chain ${sourceChainId}`);
       }
 
-      this.logger.info(`Relaying proof for intent ${intent.intentHash} to chain ${sourceChainId}`);
+      this.logger.info('Relaying proof for intent', {
+        intentHash: intent.intentHash,
+        chainId: sourceChainId,
+      });
 
       // Get the blockchain reader to access wallet for transaction
       const wallet = await this.getWalletForChain(sourceChainId);
@@ -169,13 +175,16 @@ export class PolymerProver extends BaseProver {
         data: validateData,
       });
 
-      this.logger.info(
-        `Proof relay transaction submitted: ${txHash} for intent ${intent.intentHash}`,
-      );
+      this.logger.info('Proof relay transaction submitted', {
+        transactionHash: txHash,
+        intentHash: intent.intentHash,
+      });
 
       return txHash;
     } catch (error: any) {
-      this.logger.error(`Failed to relay proof for intent ${intent.intentHash}:`, error);
+      this.logger.error('Failed to relay proof for intent', error, {
+        intentHash: intent.intentHash,
+      });
       throw error;
     }
   }

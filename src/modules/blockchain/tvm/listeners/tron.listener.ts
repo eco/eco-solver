@@ -1,5 +1,3 @@
-import { Logger } from '@nestjs/common';
-
 import * as api from '@opentelemetry/api';
 import { chunk, maxBy } from 'es-toolkit';
 import { EMPTY, from, Subscription, timer } from 'rxjs';
@@ -20,6 +18,7 @@ import { TvmEvent } from '@/modules/blockchain/tvm/types/events.type';
 import { TvmClientUtils } from '@/modules/blockchain/tvm/utils';
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { TvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
@@ -69,12 +68,16 @@ export class TronListener extends BaseChainListener {
     try {
       await this.initialize();
       this.startRxJSPolling();
-      this.logger.log('TronListener started successfully', {
+      const network = this.tvmConfigService.getChain(this.config.chainId);
+      this.logger.info('TronListener started successfully', {
         chainId: this.config.chainId,
+        portalAddress: network.contracts.portal,
+        proverAddresses: network.provers,
         pollInterval: this.transactionSettings.listenerPollInterval,
+        proverPollInterval: this.transactionSettings.proverListenerInterval,
       });
     } catch (error) {
-      this.logger.error('Failed to start TronListener', toError(error));
+      this.logger.error('Failed to start TronListener', error);
       throw error;
     }
   }
@@ -133,7 +136,7 @@ export class TronListener extends BaseChainListener {
         exhaustMap(() =>
           from(this.pollForPortalEvents()).pipe(
             catchError((error) => {
-              this.logger.error(`Portal polling error`, toError(error));
+              this.logger.error(`Portal polling error`, error);
               return EMPTY; // Continue polling despite errors
             }),
           ),
@@ -152,7 +155,7 @@ export class TronListener extends BaseChainListener {
         exhaustMap(() =>
           from(this.pollForProverEvents()).pipe(
             catchError((error) => {
-              this.logger.error(`Provers polling error`, toError(error));
+              this.logger.error(`Provers polling error`, error);
               return EMPTY; // Continue polling despite errors
             }),
           ),
@@ -383,7 +386,7 @@ export class TronListener extends BaseChainListener {
 
       return { success: true, intentHash: fulfilledEvent.intentHash };
     } catch (error) {
-      this.logger.error(`Failed to queue IntentFulfilled event:`, toError(error));
+      this.logger.error(`Failed to queue IntentFulfilled event:`, error);
       return { success: false, error: toError(error) };
     }
   }
@@ -424,7 +427,7 @@ export class TronListener extends BaseChainListener {
 
       return { success: true, intentHash: parsedEvent.intentHash };
     } catch (error) {
-      this.logger.error(`Failed to queue IntentProven event:`, toError(error));
+      this.logger.error(`Failed to queue IntentProven event:`, error);
       return { success: false, error: toError(error) };
     }
   }
@@ -459,7 +462,7 @@ export class TronListener extends BaseChainListener {
 
       return { success: true, intentHash: parsedEvent.intentHash };
     } catch (error) {
-      this.logger.error(`Failed to queue IntentWithdrawn event:`, toError(error));
+      this.logger.error(`Failed to queue IntentWithdrawn event:`, error);
       return { success: false, error: toError(error) };
     }
   }
@@ -522,7 +525,7 @@ export class TronListener extends BaseChainListener {
       try {
         return EvmEventParser.parseIntentPublish(BigInt(this.config.chainId), evmLog);
       } catch (error) {
-        this.logger.error('Failed to parse IntentPublished event', toError(error), {
+        this.logger.error('Failed to parse IntentPublished event', error, {
           txId: txInfo.id,
         });
       }
@@ -557,7 +560,7 @@ export class TronListener extends BaseChainListener {
     } catch (error) {
       this.logger.error(
         `Failed to queue IntentPublished event for intent ${intent.intentHash}:`,
-        toError(error),
+        error,
       );
     }
   }

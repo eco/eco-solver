@@ -20,10 +20,9 @@ import {
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
-import { toError } from '@/common/utils/error-handler';
 import { OpenTelemetryConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 @Injectable()
 export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
@@ -33,8 +32,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
   private meterProvider?: MeterProvider;
 
   constructor(
-    @InjectPinoLogger(OpenTelemetryService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly config: OpenTelemetryConfigService,
   ) {
     // Always get tracer - it will be no-op if no provider is registered
@@ -53,7 +51,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
       await this.initializeOpenTelemetry();
       this.logger.info('OpenTelemetry initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize OpenTelemetry', toError(error));
+      this.logger.error('Failed to initialize OpenTelemetry', error);
     }
   }
 
@@ -63,7 +61,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
         await this.sdk.shutdown();
         this.logger.info('OpenTelemetry shut down successfully');
       } catch (error) {
-        this.logger.error('Error shutting down OpenTelemetry', toError(error));
+        this.logger.error('Error shutting down OpenTelemetry', error);
       }
     }
     if (this.meterProvider) {
@@ -71,7 +69,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
         await this.meterProvider.shutdown();
         this.logger.info('OpenTelemetry metrics shut down successfully');
       } catch (error) {
-        this.logger.error('Error shutting down OpenTelemetry metrics', toError(error));
+        this.logger.error('Error shutting down OpenTelemetry metrics', error);
       }
     }
   }

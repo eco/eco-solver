@@ -2,7 +2,6 @@ import * as api from '@opentelemetry/api';
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
 import { createKernelAccount, KernelV3AccountAbi, KernelValidator } from '@zerodev/sdk';
 import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import {
   Address,
   Chain,
@@ -33,6 +32,7 @@ import {
   encodeKernelExecuteCallData,
   encodeKernelExecuteParams,
 } from '@/modules/blockchain/evm/wallets/kernel-wallet/utils/encode-transactions';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { constructInitDataWithHook } from './utils/encode-module';
@@ -52,8 +52,7 @@ export class KernelWallet extends BaseEvmWallet {
   private executorEnabled = false;
 
   constructor(
-    @InjectPinoLogger(KernelWallet.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly chainId: number,
     private readonly signer: LocalAccount,
     private readonly kernelWalletConfig: KernelWalletConfig,
@@ -120,7 +119,7 @@ export class KernelWallet extends BaseEvmWallet {
             });
           } catch (error) {
             const msg = `Failed to create ECDSA validator for kernel wallet`;
-            this.logger.error(msg, toError(error));
+            this.logger.error(msg, error);
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
 
@@ -136,7 +135,7 @@ export class KernelWallet extends BaseEvmWallet {
             });
           } catch (error) {
             const msg = `Failed to create kernel account`;
-            this.logger.error(msg, toError(error));
+            this.logger.error(msg, error);
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
 
@@ -150,14 +149,14 @@ export class KernelWallet extends BaseEvmWallet {
             isDeployed = await this.kernelAccount.isDeployed();
           } catch (error) {
             const msg = `Failed to check kernel account deployment status`;
-            this.logger.error(msg, toError(error));
+            this.logger.error(msg, error);
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
 
           span.setAttribute('kernel.is_deployed', isDeployed);
 
           if (!isDeployed) {
-            this.logger.info('Kernel account not deployed, deploying now...');
+            this.logger.info('Kernel account not deployed, deploying now');
             await this.deploy(this.kernelAccount);
           } else {
             this.logger.info('Kernel account already deployed', {
@@ -182,7 +181,7 @@ export class KernelWallet extends BaseEvmWallet {
             code: api.SpanStatusCode.ERROR,
             message: getErrorMessage(error),
           });
-          this.logger.error('Kernel wallet initialization failed', toError(error), {
+          this.logger.error('Kernel wallet initialization failed', error, {
             chainId: this.chainId,
             signerAddress: this.signer.address,
           });
@@ -236,7 +235,9 @@ export class KernelWallet extends BaseEvmWallet {
           } as any);
 
           span.setAttribute('kernel.deployment_tx_hash', hash);
-          this.logger.info('Deployment transaction sent', { transactionHash: hash });
+          this.logger.info('Deployment transaction sent', {
+            transactionHash: hash,
+          });
 
           const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
@@ -387,7 +388,9 @@ export class KernelWallet extends BaseEvmWallet {
           span.setAttribute('kernel.tx_hash', hash);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.info('Transaction sent via signer', { transactionHash: hash });
+          this.logger.info('Transaction sent via signer', {
+            transactionHash: hash,
+          });
 
           span.end();
           return [hash];
@@ -448,7 +451,7 @@ export class KernelWallet extends BaseEvmWallet {
             })) as bigint;
           } catch (error) {
             const msg = `Failed to get nonce from ECDSA executor`;
-            this.logger.error(msg, toError(error));
+            this.logger.error(msg, error);
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
 
@@ -483,7 +486,7 @@ export class KernelWallet extends BaseEvmWallet {
             } as any);
           } catch (error) {
             const msg = `Failed to sign execution hash`;
-            this.logger.error(msg, toError(error));
+            this.logger.error(msg, error);
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
 
@@ -707,7 +710,9 @@ export class KernelWallet extends BaseEvmWallet {
           } as any);
 
           span.setAttribute('kernel.install_tx_hash', hash);
-          this.logger.info('Module installation transaction sent', { transactionHash: hash });
+          this.logger.info('Module installation transaction sent', {
+            transactionHash: hash,
+          });
 
           // Wait for transaction confirmation
           const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
@@ -728,7 +733,7 @@ export class KernelWallet extends BaseEvmWallet {
             span.setStatus({ code: api.SpanStatusCode.OK });
           } else {
             const error = `Module installation failed`;
-            this.logger.error(error, undefined, {
+            this.logger.error(error, new Error(error), {
               transactionHash: hash,
               moduleType,
               moduleAddress,

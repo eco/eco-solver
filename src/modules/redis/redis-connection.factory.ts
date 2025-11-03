@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
 import Redis, { Cluster } from 'ioredis';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { RedisConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 
 /**
@@ -14,11 +14,12 @@ import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 @Injectable()
 export class RedisConnectionFactory {
   constructor(
-    @InjectPinoLogger(RedisConnectionFactory.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly redisConfig: RedisConfigService,
     private readonly bullMQOtelFactory: BullMQOtelFactory,
-  ) {}
+  ) {
+    this.logger.setContext(RedisConnectionFactory.name);
+  }
 
   /**
    * Creates a Redis connection for BullMQ workers.
@@ -46,7 +47,7 @@ export class RedisConnectionFactory {
     };
 
     if (this.redisConfig.enableCluster) {
-      this.logger.info(`Configuring ${queueName} queue with Redis cluster`);
+      this.logger.info('Configuring queue with Redis cluster', { queueName });
       config.connection = this.createClusterConnection();
     }
 
@@ -67,7 +68,7 @@ export class RedisConnectionFactory {
     };
 
     if (this.redisConfig.enableCluster) {
-      this.logger.info(`Configuring ${queueName} processor with Redis cluster`);
+      this.logger.info('Configuring processor with Redis cluster', { queueName });
       config.connection = this.createClusterConnection();
     }
 
@@ -79,11 +80,10 @@ export class RedisConnectionFactory {
       { host: this.redisConfig.host, port: this.redisConfig.port },
     ];
 
-    this.logger.info(
-      `Creating Redis cluster connection with ${clusterNodes.length} nodes: ${JSON.stringify(
-        clusterNodes,
-      )}`,
-    );
+    this.logger.info('Creating Redis cluster connection', {
+      nodeCount: clusterNodes.length,
+      nodes: clusterNodes,
+    });
 
     // Check if we're using TLS (ElastiCache in-transit encryption)
     const isTLS = Boolean(this.redisConfig.tls);
@@ -103,9 +103,10 @@ export class RedisConnectionFactory {
       slotsRefreshTimeout: 10000,
       slotsRefreshInterval: 60000,
       clusterRetryStrategy: (times: number, reason?: Error) => {
-        this.logger.warn(
-          `Retrying cluster connection (attempt ${times}): ${reason?.message || 'Unknown error'}`,
-        );
+        this.logger.warn('Retrying cluster connection', {
+          attempt: times,
+          error: reason?.message || 'Unknown error',
+        });
         return Math.min(100 * times, 2000);
       },
       redisOptions: {
@@ -128,28 +129,35 @@ export class RedisConnectionFactory {
 
     // Add error event handlers for better debugging
     cluster.on('error', (error) => {
-      this.logger.error(`Redis cluster error: ${error.message}`, error.stack);
+      this.logger.error('Redis cluster error', { error: error.message, stack: error.stack });
     });
 
     cluster.on('node error', (error, address) => {
-      this.logger.error(`Redis node error at ${address}: ${error.message}`);
+      this.logger.error('Redis node error', { address, error: error.message });
     });
 
     cluster.on('+node', (node) => {
-      this.logger.info(`Redis cluster node added: ${node.options.host}:${node.options.port}`);
+      this.logger.info('Redis cluster node added', {
+        host: node.options.host,
+        port: node.options.port,
+      });
     });
 
     cluster.on('-node', (node) => {
-      this.logger.warn(`Redis cluster node removed: ${node.options.host}:${node.options.port}`);
+      this.logger.warn('Redis cluster node removed', {
+        host: node.options.host,
+        port: node.options.port,
+      });
     });
 
     return cluster;
   }
 
   private createStandaloneConnection(): Redis {
-    this.logger.info(
-      `Creating Redis standalone connection at ${this.redisConfig.host}:${this.redisConfig.port}`,
-    );
+    this.logger.info('Creating Redis standalone connection', {
+      host: this.redisConfig.host,
+      port: this.redisConfig.port,
+    });
 
     return new Redis({
       host: this.redisConfig.host,
@@ -160,9 +168,11 @@ export class RedisConnectionFactory {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
       retryStrategy: (times: number) => {
-        this.logger.error(
-          `Failed to connect to Redis (attempt ${times}): ${this.redisConfig.host}:${this.redisConfig.port}`,
-        );
+        this.logger.error('Failed to connect to Redis', {
+          attempt: times,
+          host: this.redisConfig.host,
+          port: this.redisConfig.port,
+        });
         return Math.min(times * 50, 2000);
       },
     });

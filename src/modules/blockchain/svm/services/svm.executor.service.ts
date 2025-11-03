@@ -18,7 +18,6 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import {
   BaseChainExecutor,
@@ -44,6 +43,7 @@ import { toSvmRoute } from '@/modules/blockchain/svm/utils/instruments';
 import { getTransferDestination } from '@/modules/blockchain/svm/utils/tokens';
 import { getAnchorWallet } from '@/modules/blockchain/svm/utils/wallet-adapter';
 import { BlockchainConfigService, SolanaConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
@@ -60,8 +60,7 @@ export class SvmExecutorService extends BaseChainExecutor {
   private isInitialized = false;
 
   constructor(
-    @InjectPinoLogger(SvmExecutorService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private solanaConfigService: SolanaConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private walletManager: SvmWalletManagerService,
@@ -97,10 +96,9 @@ export class SvmExecutorService extends BaseChainExecutor {
             this.isInitialized = true;
             span.addEvent('svm.fulfill.initialization_completed');
           } catch (error) {
-            this.logger.error(
-              'Failed to initialize Portal program during fulfill:',
-              toError(error),
-            );
+            this.logger.error('Failed to initialize Portal program during fulfill', {
+              error: toError(error),
+            });
             span.recordException(toError(error));
             span.setStatus({ code: api.SpanStatusCode.ERROR });
             span.end();
@@ -139,9 +137,10 @@ export class SvmExecutorService extends BaseChainExecutor {
             transaction_hash: fulfillResult.txHash,
           });
 
-          this.logger.info(
-            `Intent ${intent.intentHash} fulfilled with signature: ${fulfillResult.txHash}`,
-          );
+          this.logger.info('Intent fulfilled with signature', {
+            intentHash: intent.intentHash,
+            signature: fulfillResult.txHash,
+          });
 
           // Step 2: Execute the prove transaction
           span.addEvent('svm.fulfill.prove_transaction.phase_started');
@@ -152,16 +151,18 @@ export class SvmExecutorService extends BaseChainExecutor {
             span.setAttribute('svm.prove_transaction.success', proveResult.success);
 
             if (!proveResult.success) {
-              this.logger.error(
-                `Prove transaction failed for intent ${intent.intentHash}: ${proveResult.error}`,
-              );
+              this.logger.error('Prove transaction failed for intent', {
+                intentHash: intent.intentHash,
+                error: proveResult.error,
+              });
               span.addEvent('svm.fulfill.prove_transaction.failed', {
                 error: proveResult.error,
               });
             } else {
-              this.logger.info(
-                `Intent ${intent.intentHash} proved with signature: ${proveResult.txHash}`,
-              );
+              this.logger.info('Intent proved with signature', {
+                intentHash: intent.intentHash,
+                signature: proveResult.txHash,
+              });
               span.addEvent('svm.fulfill.prove_transaction.phase_completed', {
                 transaction_hash: proveResult.txHash,
               });
@@ -192,7 +193,9 @@ export class SvmExecutorService extends BaseChainExecutor {
         } catch (error) {
           const typedError = toError(error);
 
-          this.logger.error('Solana execution error:', typedError);
+          this.logger.error('Solana execution error', {
+            error: typedError,
+          });
 
           span.setAttributes({
             'svm.fulfill.result': 'error',
@@ -287,9 +290,10 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           span.addEvent('svm.batch_withdraw.validation.completed');
 
-          this.logger.info(
-            `Executing batch withdrawal for ${withdrawalData.destinations?.length || 0} intents on Solana (chain ${chainId})`,
-          );
+          this.logger.info('Executing batch withdrawal on Solana', {
+            intentCount: withdrawalData.destinations?.length || 0,
+            chainId: chainId.toString(),
+          });
 
           // Add more detailed attributes
           span.setAttributes({
@@ -332,9 +336,10 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           span.setAttribute('svm.compute_units_requested', computeUnits);
 
-          this.logger.info(
-            `Creating transaction with ${ataCreationInstructions.length} ATA creation instructions and ${withdrawalInstructions.length} withdrawal instructions`,
-          );
+          this.logger.info('Creating transaction with instructions', {
+            ataCreationCount: ataCreationInstructions.length,
+            withdrawalCount: withdrawalInstructions.length,
+          });
 
           // Track transaction creation
           span.addEvent('svm.batch_withdraw.transaction.creation.started');
@@ -380,9 +385,11 @@ export class SvmExecutorService extends BaseChainExecutor {
             compute_units_used: computeUnits,
           });
 
-          this.logger.info(
-            `Successfully executed batch withdrawal for ${withdrawalInstructions.length} intents with ${ataCreationInstructions.length} ATA creations. Signature: ${signature}`,
-          );
+          this.logger.info('Successfully executed batch withdrawal', {
+            withdrawalCount: withdrawalInstructions.length,
+            ataCreationCount: ataCreationInstructions.length,
+            signature,
+          });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return signature;
@@ -402,7 +409,9 @@ export class SvmExecutorService extends BaseChainExecutor {
             stage: this.determineErrorStage(typedError),
           });
 
-          this.logger.error('Solana batch withdrawal error:', typedError);
+          this.logger.error('Solana batch withdrawal error', {
+            error: typedError,
+          });
           span.recordException(typedError);
           span.setStatus({
             code: api.SpanStatusCode.ERROR,
@@ -501,9 +510,10 @@ export class SvmExecutorService extends BaseChainExecutor {
         const routeHash = routeHashes[i];
         const reward = rewards[i];
 
-        this.logger.debug(
-          `Processing withdrawal for destination: ${destination}, routeHash: ${routeHash}`,
-        );
+        this.logger.debug('Processing withdrawal', {
+          destination: destination.toString(),
+          routeHash,
+        });
         const intentHashHex = PortalHashUtils.getIntentHash(
           destination,
           routeHash as `0x${string}`,
@@ -561,7 +571,9 @@ export class SvmExecutorService extends BaseChainExecutor {
           })),
         };
 
-        this.logger.debug(`Reward creator: ${rewardData.creator.toString()}`);
+        this.logger.debug('Reward creator info', {
+          creator: rewardData.creator.toString(),
+        });
 
         // Create withdraw instruction args
         const withdrawArgs = {
@@ -600,14 +612,15 @@ export class SvmExecutorService extends BaseChainExecutor {
           ata_instructions_created: createATAInstructions.length,
         });
 
-        this.logger.debug(
-          `Created withdrawal instruction for intent hash: ${intentHashHex}, claimant: ${claimantPublicKey.toString()}`,
-        );
+        this.logger.debug('Created withdrawal instruction', {
+          intentHash: intentHashHex,
+          claimant: claimantPublicKey.toString(),
+        });
       } catch (error) {
         failureCount++;
-        this.logger.error(
-          `Failed to create withdrawal instruction for intent ${i}: ${getErrorMessage(error)}`,
-        );
+        this.logger.error('Failed to create withdrawal instruction', error, {
+          intentIndex: i,
+        });
 
         span.addEvent('svm.withdrawal_instructions.item.failure', {
           index: i,
@@ -749,7 +762,9 @@ export class SvmExecutorService extends BaseChainExecutor {
           createATAInstructions.push(createATAIx);
           ataCreationCount++;
 
-          this.logger.debug(`Will create ATA for claimant: ${claimantATA.toString()}`);
+          this.logger.debug('Will create ATA for claimant', {
+            claimantATA: claimantATA.toString(),
+          });
 
           span.addEvent('svm.token_accounts.ata_creation_scheduled', {
             index: i,
@@ -759,7 +774,10 @@ export class SvmExecutorService extends BaseChainExecutor {
         }
       } catch (error) {
         ataCheckErrors++;
-        this.logger.warn(`Could not check claimant ATA ${claimantATA.toString()}: ${error}`);
+        this.logger.warn('Could not check claimant ATA', {
+          claimantATA: claimantATA.toString(),
+          error,
+        });
 
         span.addEvent('svm.token_accounts.ata_check_error', {
           index: i,
@@ -1104,10 +1122,10 @@ export class SvmExecutorService extends BaseChainExecutor {
           };
         } catch (error) {
           const typedError = toError(error);
-          this.logger.error(
-            `Failed to execute fulfill transaction for intent ${intent.intentHash}:`,
-            typedError,
-          );
+          this.logger.error('Failed to execute fulfill transaction for intent', {
+            intentHash: intent.intentHash,
+            error: typedError,
+          });
 
           txSpan.recordException(typedError);
           txSpan.setStatus({
@@ -1145,9 +1163,9 @@ export class SvmExecutorService extends BaseChainExecutor {
           const proveResult = await this.generateProveIx(intent);
 
           if (!proveResult) {
-            this.logger.debug(
-              `No prove instruction generated for intent ${intent.intentHash}, skipping prove transaction`,
-            );
+            this.logger.debug('No prove instruction generated, skipping prove transaction', {
+              intentHash: intent.intentHash,
+            });
             txSpan.addEvent('svm.prove.skipped', {
               reason: 'no_prove_instruction',
             });
@@ -1238,9 +1256,11 @@ export class SvmExecutorService extends BaseChainExecutor {
 
             txSpan.setAttribute('svm.gas_payment_amount', gasPaymentResult.toString());
 
-            this.logger.info(
-              `Gas payment result for intent ${intent.intentHash} with message id: 0x${messageIdHex}, payment amount: ${gasPaymentResult}`,
-            );
+            this.logger.info('Gas payment result for intent', {
+              intentHash: intent.intentHash,
+              messageId: `0x${messageIdHex}`,
+              paymentAmount: gasPaymentResult.toString(),
+            });
           } else {
             const errorMessage = `Could not parse message ID from prove transaction ${signature} for intent ${intent.intentHash}`;
 
@@ -1277,10 +1297,10 @@ export class SvmExecutorService extends BaseChainExecutor {
           };
         } catch (error) {
           const typedError = toError(error);
-          this.logger.error(
-            `Failed to execute prove transaction for intent ${intent.intentHash}:`,
-            typedError,
-          );
+          this.logger.error('Failed to execute prove transaction for intent', {
+            intentHash: intent.intentHash,
+            error: typedError,
+          });
 
           txSpan.recordException(typedError);
           txSpan.setStatus({
@@ -1356,9 +1376,11 @@ export class SvmExecutorService extends BaseChainExecutor {
       }
 
       if (!baseProver) {
-        this.logger.warn(
-          `No prover found for intent ${intent.intentHash}, skipping prove instruction`,
-        );
+        this.logger.warn('No prover found for intent, skipping prove instruction', {
+          intentHash: intent.intentHash,
+          sourceChainId,
+          proverAddress: intent.reward.prover.toString(),
+        });
         span.addEvent('svm.prove.prover_not_found', {
           source_chain_id: sourceChainId,
           prover_address: intent.reward.prover.toString(),
@@ -1378,9 +1400,10 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       // Check if this is a HyperProver (the only one with SVM support)
       if (baseProver.type !== ProverType.HYPER) {
-        this.logger.warn(
-          `Prover type ${baseProver.type} does not have SVM support for intent ${intent.intentHash}, skipping prove instruction`,
-        );
+        this.logger.warn('Prover type does not have SVM support, skipping prove instruction', {
+          intentHash: intent.intentHash,
+          proverType: baseProver.type,
+        });
         span.addEvent('svm.prove.unsupported_prover_type', {
           prover_type: baseProver.type,
         });
@@ -1401,9 +1424,10 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
 
       if (!proverAddress) {
-        this.logger.warn(
-          `No prover address configured for ${baseProver.type} on chain ${destinationChainId}, skipping prove instruction`,
-        );
+        this.logger.warn('No prover address configured, skipping prove instruction', {
+          proverType: baseProver.type,
+          destinationChainId,
+        });
         span.addEvent('svm.prove.prover_address_not_configured', {
           prover_type: baseProver.type,
           destination_chain_id: destinationChainId,
@@ -1461,9 +1485,10 @@ export class SvmExecutorService extends BaseChainExecutor {
       const result = await this.svmHyperProver.generateSvmProveInstruction(intent, context);
 
       if (result) {
-        this.logger.debug(
-          `Generated prove instruction for intent ${intent.intentHash} with prover ${baseProver.type}`,
-        );
+        this.logger.debug('Generated prove instruction for intent', {
+          intentHash: intent.intentHash,
+          proverType: baseProver.type,
+        });
 
         span.setAttributes({
           'svm.prove.instruction_generated': true,
@@ -1480,10 +1505,10 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Failed to generate prove instruction for intent ${intent.intentHash}:`,
-        toError(error),
-      );
+      this.logger.error('Failed to generate prove instruction for intent', {
+        intentHash: intent.intentHash,
+        error: toError(error),
+      });
       span.recordException(toError(error));
       return null;
     }
@@ -1541,7 +1566,9 @@ export class SvmExecutorService extends BaseChainExecutor {
       );
 
       if (!messageId) {
-        this.logger.warn(`Could not parse message ID from transaction ${signature}`);
+        this.logger.warn('Could not parse message ID from transaction', {
+          signature,
+        });
 
         span.addEvent('svm.parse_message_id.not_found', {
           transaction_signature: signature,
@@ -1564,13 +1591,16 @@ export class SvmExecutorService extends BaseChainExecutor {
         message_id: messageIdHex,
       });
 
-      this.logger.debug(`Parsed message ID from transaction ${signature}: 0x${messageIdHex}`);
+      this.logger.debug('Parsed message ID from transaction', {
+        signature,
+        messageId: `0x${messageIdHex}`,
+      });
 
       return messageId;
     } catch (error) {
-      this.logger.error(
-        `Failed to parse message ID from transaction ${signature}: ${getErrorMessage(error)}`,
-      );
+      this.logger.error('Failed to parse message ID from transaction', error, {
+        signature,
+      });
 
       span.recordException(toError(error));
       span.addEvent('svm.parse_message_id.error', {
@@ -1612,9 +1642,9 @@ export class SvmExecutorService extends BaseChainExecutor {
           const overheadIgpAccount = HyperProverUtils.getOverheadIgpAccount(hyperlaneConfig);
 
           if (!igpProgramId || !igpAccount) {
-            this.logger.warn(
-              `IGP not configured for Solana, skipping gas payment for intent ${intent.intentHash}`,
-            );
+            this.logger.warn('IGP not configured for Solana, skipping gas payment', {
+              intentHash: intent.intentHash,
+            });
             gasPaymentSpan.recordException(new Error('IGP not configured'));
             gasPaymentSpan.setStatus({
               code: api.SpanStatusCode.ERROR,
@@ -1705,15 +1735,20 @@ export class SvmExecutorService extends BaseChainExecutor {
           gasPaymentSpan.setAttribute('svm.gas_payment.transaction_signature', signature);
           gasPaymentSpan.addEvent('svm.gas_payment.confirmed');
 
-          this.logger.info(
-            `Gas payment completed for intent ${intent.intentHash}: paid ${quotedAmount} lamports for ${gasAmount} gas to domain ${destinationDomain}. Tx: ${signature}`,
-          );
+          this.logger.info('Gas payment completed for intent', {
+            intentHash: intent.intentHash,
+            quotedAmount: quotedAmount.toString(),
+            gasAmount: gasAmount.toString(),
+            destinationDomain,
+            signature,
+          });
 
           return quotedAmount;
         } catch (error) {
-          this.logger.warn(
-            `Failed to pay for gas for intent ${intent.intentHash}: ${getErrorMessage(error)}. Continuing without payment.`,
-          );
+          this.logger.warn('Failed to pay for gas for intent, continuing without payment', {
+            error: toError(error),
+            intentHash: intent.intentHash,
+          });
           span.addEvent('svm.gas_payment.failed', {
             error: getErrorMessage(error),
           });
@@ -1807,7 +1842,9 @@ export class SvmExecutorService extends BaseChainExecutor {
       portal_program_id: portalProgramId.toString(),
     });
 
-    this.logger.info(`Portal program initialized at ${portalProgramId.toString()}`);
+    this.logger.info('Portal program initialized', {
+      portalProgramId: portalProgramId.toString(),
+    });
   }
 
   private determineErrorStage(error: Error): string {

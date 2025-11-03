@@ -1,9 +1,10 @@
+import { Logger as NestLogger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { Address } from 'viem';
 
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
+import { Logger } from '@/modules/logging';
 import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
@@ -17,7 +18,7 @@ describe('EvmListenersManagerService', () => {
   let service: EvmListenersManagerService;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let transportService: jest.Mocked<EvmTransportService>;
-  let logger: jest.Mocked<SystemLoggerService>;
+  let logger: jest.Mocked<Logger>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let leaderElectionService: jest.Mocked<LeaderElectionService>;
   let queueService: jest.Mocked<QueueService>;
@@ -72,9 +73,10 @@ describe('EvmListenersManagerService', () => {
     transportService = {} as any;
     logger = {
       setContext: jest.fn(),
-      log: jest.fn(),
+      info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
     } as any;
     blockchainConfigService = {} as any;
     leaderElectionService = {
@@ -96,7 +98,7 @@ describe('EvmListenersManagerService', () => {
         EvmListenersManagerService,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
-        { provide: SystemLoggerService, useValue: logger },
+        { provide: Logger, useValue: logger },
         { provide: BlockchainConfigService, useValue: blockchainConfigService },
         { provide: 'winston', useValue: mockWinstonLogger },
         { provide: LeaderElectionService, useValue: leaderElectionService },
@@ -132,7 +134,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xPortal1',
       });
       expect(calls[0][1]).toBe(transportService);
-      expect(calls[0][2]).toBeInstanceOf(SystemLoggerService);
+      expect(calls[0][2]).toBeInstanceOf(NestLogger);
       expect(calls[0][3]).toBe(blockchainConfigService);
       expect(calls[0][4]).toBe(evmConfigService);
       expect(calls[0][5]).toBe(queueService);
@@ -144,7 +146,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xPortal10',
       });
       expect(calls[1][1]).toBe(transportService);
-      expect(calls[1][2]).toBeInstanceOf(SystemLoggerService);
+      expect(calls[1][2]).toBeInstanceOf(NestLogger);
       expect(calls[1][3]).toBe(blockchainConfigService);
       expect(calls[1][4]).toBe(evmConfigService);
       expect(calls[1][5]).toBe(queueService);
@@ -156,7 +158,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xPortal137',
       });
       expect(calls[2][1]).toBe(transportService);
-      expect(calls[2][2]).toBeInstanceOf(SystemLoggerService);
+      expect(calls[2][2]).toBeInstanceOf(NestLogger);
       expect(calls[2][3]).toBe(blockchainConfigService);
       expect(calls[2][4]).toBe(evmConfigService);
       expect(calls[2][5]).toBe(queueService);
@@ -180,7 +182,7 @@ describe('EvmListenersManagerService', () => {
           EvmListenersManagerService,
           { provide: EvmConfigService, useValue: emptyEvmConfigService },
           { provide: EvmTransportService, useValue: transportService },
-          { provide: SystemLoggerService, useValue: logger },
+          { provide: Logger, useValue: logger },
           { provide: BlockchainConfigService, useValue: blockchainConfigService },
           { provide: 'winston', useValue: mockWinstonLogger },
           { provide: LeaderElectionService, useValue: leaderElectionService },
@@ -261,11 +263,10 @@ describe('EvmListenersManagerService', () => {
     it('should handle destroy without init', async () => {
       // Create new service instance without calling onModuleInit
       const newService = new EvmListenersManagerService(
+        logger,
         evmConfigService,
         transportService,
-        logger,
         blockchainConfigService,
-        mockWinstonLogger,
         leaderElectionService,
         queueService,
       );
@@ -322,7 +323,7 @@ describe('EvmListenersManagerService', () => {
         portalAddress: '0xTestPortal',
       });
       expect(lastCall[1]).toBe(transportService);
-      expect(lastCall[2]).toBeInstanceOf(SystemLoggerService);
+      expect(lastCall[2]).toBeInstanceOf(NestLogger);
       expect(lastCall[3]).toBe(blockchainConfigService);
       expect(lastCall[4]).toBe(evmConfigService);
       expect(lastCall[5]).toBe(queueService);

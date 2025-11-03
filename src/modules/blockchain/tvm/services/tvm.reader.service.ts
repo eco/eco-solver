@@ -1,7 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 import { decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
@@ -18,6 +17,7 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmReward } from '@/common/utils/intent-converter';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { TvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { TvmClientUtils } from '../utils';
@@ -26,11 +26,10 @@ import { TvmWalletManagerService } from './tvm-wallet-manager.service';
 
 @Injectable()
 export class TvmReaderService extends BaseChainReader {
-  protected readonly logger: PinoLogger;
+  protected readonly logger: Logger;
 
   constructor(
-    @InjectPinoLogger(TvmReaderService.name)
-    logger: PinoLogger,
+    logger: Logger,
     private tvmConfigService: TvmConfigService,
     private readonly otelService: OpenTelemetryService,
     @Optional() private tvmWalletManager?: TvmWalletManagerService,
@@ -52,7 +51,9 @@ export class TvmReaderService extends BaseChainReader {
         });
       } catch (error) {
         // Wallet might not be configured for this chain
-        this.logger.debug(`Wallet not configured for TVM chain ${chainId}`);
+        this.logger.debug('Wallet not configured for TVM chain', {
+          chainId,
+        });
       }
     }
 
@@ -101,11 +102,11 @@ export class TvmReaderService extends BaseChainReader {
           span.setStatus({ code: api.SpanStatusCode.OK });
           return balanceBigInt;
         } catch (error) {
-          this.logger.error(
-            `TVM getBalance error:`,
-            error instanceof Error ? error.message : String(error),
-            { operation: 'getBalance', chainId, address },
-          );
+          this.logger.error('TVM getBalance error', error, {
+            operation: 'getBalance',
+            chainId,
+            address: tvmAddress,
+          });
           span.recordException(error as Error);
           span.setStatus({
             code: api.SpanStatusCode.ERROR,
@@ -259,10 +260,10 @@ export class TvmReaderService extends BaseChainReader {
 
           return isFunded;
         } catch (error) {
-          this.logger.error(
-            `Failed to check if intent ${intent.intentHash} is funded:`,
-            toError(error),
-          );
+          this.logger.error('Failed to check if intent is funded', error, {
+            intentHash: intent.intentHash,
+            chainId,
+          });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw new Error(`Failed to check intent funding status: ${getErrorMessage(error)}`);
@@ -321,10 +322,11 @@ export class TvmReaderService extends BaseChainReader {
           span.setStatus({ code: api.SpanStatusCode.OK });
           return feeBigInt;
         } catch (error) {
-          this.logger.error(
-            `Failed to fetch prover fee for intent ${intent.intentHash}:`,
-            toError(error),
-          );
+          this.logger.error('Failed to fetch prover fee for intent', error, {
+            intentHash: intent.intentHash,
+            chainId,
+            proverAddress: tvmProver,
+          });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);

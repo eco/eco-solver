@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { Logger } from '@/modules/logging';
 
 import { RedisService } from './redis.service';
 
@@ -15,10 +15,11 @@ export interface CacheOptions {
 @Injectable()
 export class RedisCacheService {
   constructor(
-    @InjectPinoLogger(RedisCacheService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly redisService: RedisService,
-  ) {}
+  ) {
+    this.logger.setContext(RedisCacheService.name);
+  }
 
   /**
    * Get a value from cache
@@ -35,7 +36,7 @@ export class RedisCacheService {
 
       return JSON.parse(cached) as T;
     } catch (error) {
-      this.logger.warn(`Failed to get cache value for key ${key}: ${error}`);
+      this.logger.warn('Failed to get cache value', { key, error });
       return null;
     }
   }
@@ -51,7 +52,7 @@ export class RedisCacheService {
       const serialized = JSON.stringify(value);
       await this.redisService.getClient().setex(key, ttl, serialized);
     } catch (error) {
-      this.logger.warn(`Failed to set cache value for key ${key}: ${error}`);
+      this.logger.warn('Failed to set cache value', { key, ttl, error });
     }
   }
 
@@ -63,7 +64,7 @@ export class RedisCacheService {
     try {
       await this.redisService.getClient().del(key);
     } catch (error) {
-      this.logger.warn(`Failed to delete cache value for key ${key}: ${error}`);
+      this.logger.warn('Failed to delete cache value', { key, error });
     }
   }
 
@@ -77,7 +78,7 @@ export class RedisCacheService {
       const exists = await this.redisService.getClient().exists(key);
       return exists === 1;
     } catch (error) {
-      this.logger.warn(`Failed to check cache existence for key ${key}: ${error}`);
+      this.logger.warn('Failed to check cache existence', { key, error });
       return false;
     }
   }
@@ -91,7 +92,7 @@ export class RedisCacheService {
     try {
       return await this.redisService.getClient().ttl(key);
     } catch (error) {
-      this.logger.warn(`Failed to get TTL for key ${key}: ${error}`);
+      this.logger.warn('Failed to get TTL', { key, error });
       return -1;
     }
   }

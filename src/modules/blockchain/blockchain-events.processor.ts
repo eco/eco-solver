@@ -3,16 +3,16 @@ import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Job } from 'bullmq';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
-import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { toError } from '@/common/utils/error-handler';
 import { EvmEventParser } from '@/modules/blockchain/evm/utils/evm-event-parser';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { Logger } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -22,7 +22,7 @@ import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 })
 export class BlockchainEventsProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
-    @InjectPinoLogger(BlockchainEventsProcessor.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private fulfillmentService: FulfillmentService,
     private eventsService: EventsService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
@@ -55,9 +55,13 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     if (job.name === 'process-blockchain-event') {
       const jobData = BigintSerializer.deserialize<BlockchainEventJob>(job.data);
 
-      this.logger.info(
-        `Processing blockchain event: ${jobData.contractName}-${jobData.eventType} for intent ${jobData.intentHash} from ${jobData.chainType} chain ${jobData.chainId}`,
-      );
+      this.logger.info('Processing blockchain event', {
+        contractName: jobData.contractName,
+        eventType: jobData.eventType,
+        intentHash: jobData.intentHash,
+        chainType: jobData.chainType,
+        chainId: jobData.chainId.toString(),
+      });
 
       // Start a new span for event processing
       return this.otelService.tracer.startActiveSpan(
@@ -77,10 +81,9 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
             await this.processEvent(jobData);
             span.setStatus({ code: api.SpanStatusCode.OK });
           } catch (error) {
-            this.logger.error(
-              `Failed to process blockchain event ${jobData.eventType}: ${getErrorMessage(error)}`,
-              toError(error),
-            );
+            this.logger.error('Failed to process blockchain event', error, {
+              eventType: jobData.eventType,
+            });
             span.recordException(toError(error));
             span.setStatus({ code: api.SpanStatusCode.ERROR });
             throw error;
@@ -146,9 +149,13 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     // Submit intent to fulfillment service
     try {
       await this.fulfillmentService.submitIntent(intent);
-      this.logger.info(`Intent ${intent.intentHash} submitted to fulfillment queue`);
+      this.logger.info('Intent submitted to fulfillment queue', {
+        intentHash: intent.intentHash,
+      });
     } catch (error) {
-      this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
+      this.logger.error('Failed to submit intent', error, {
+        intentHash: intent.intentHash,
+      });
       throw error;
     }
   }
@@ -167,9 +174,10 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
       case 'tvm':
         // IntentFunded events are currently only supported on SVM (Solana)
         // EVM and TVM chains may not emit this event type
-        this.logger.warn(
-          `IntentFunded events are not yet supported on ${jobData.chainType} chains. Skipping event for intent ${jobData.intentHash}`,
-        );
+        this.logger.warn('IntentFunded events not yet supported on chain', {
+          chainType: jobData.chainType,
+          intentHash: jobData.intentHash,
+        });
         return;
 
       default:
@@ -177,7 +185,9 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.funded', event);
-    this.logger.info(`IntentFunded event emitted for intent ${jobData.intentHash}`);
+    this.logger.info('IntentFunded event emitted', {
+      intentHash: jobData.intentHash,
+    });
   }
 
   private async handleIntentFulfilled(jobData: BlockchainEventJob): Promise<void> {
@@ -203,7 +213,9 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.fulfilled', event);
-    this.logger.info(`IntentFulfilled event emitted for intent ${jobData.intentHash}`);
+    this.logger.info('IntentFulfilled event emitted', {
+      intentHash: jobData.intentHash,
+    });
   }
 
   private async handleIntentWithdrawn(jobData: BlockchainEventJob): Promise<void> {
@@ -229,7 +241,9 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.withdrawn', event);
-    this.logger.info(`IntentWithdrawn event emitted for intent ${jobData.intentHash}`);
+    this.logger.info('IntentWithdrawn event emitted', {
+      intentHash: jobData.intentHash,
+    });
   }
 
   private async handleIntentProven(jobData: BlockchainEventJob): Promise<void> {
@@ -255,8 +269,9 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
     }
 
     this.eventsService.emit('intent.proven', event);
-    this.logger.info(
-      `IntentProven event emitted for intent ${jobData.intentHash} from ${jobData.metadata.proverType || 'unknown'} prover`,
-    );
+    this.logger.info('IntentProven event emitted', {
+      intentHash: jobData.intentHash,
+      proverType: jobData.metadata.proverType || 'unknown',
+    });
   }
 }

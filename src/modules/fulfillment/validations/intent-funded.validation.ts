@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -9,6 +8,7 @@ import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { Validation } from './validation.interface';
@@ -16,7 +16,7 @@ import { Validation } from './validation.interface';
 @Injectable()
 export class IntentFundedValidation implements Validation {
   constructor(
-    @InjectPinoLogger(IntentFundedValidation.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly blockchainReader: BlockchainReaderService,
     private readonly otelService: OpenTelemetryService,
   ) {}
@@ -61,7 +61,10 @@ export class IntentFundedValidation implements Validation {
         );
       }
 
-      this.logger.debug(`Intent ${intent.intentHash} is funded on chain ${sourceChainId}`);
+      this.logger.debug('Intent is funded on chain', {
+        intentHash: intent.intentHash,
+        sourceChainId: sourceChainId.toString(),
+      });
 
       span?.setStatus({ code: api.SpanStatusCode.OK });
       return true;
@@ -75,10 +78,11 @@ export class IntentFundedValidation implements Validation {
       }
 
       // Otherwise, wrap the error as TEMPORARY (network issues, etc.)
-      this.logger.error(
-        `Failed to check funding status for intent ${intent.intentHash}:`,
-        toError(error),
-      );
+      this.logger.error('Failed to check funding status for intent', {
+        intentHash: intent.intentHash,
+        sourceChainId: sourceChainId.toString(),
+        error: toError(error),
+      });
       throw new ValidationError(
         `Failed to verify intent funding status: ${getErrorMessage(error)}`,
         ValidationErrorType.TEMPORARY,

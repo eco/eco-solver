@@ -2,12 +2,12 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { Logger } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -20,7 +20,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
   private chainLocks: Map<string, Promise<void>> = new Map();
 
   constructor(
-    @InjectPinoLogger(BlockchainProcessor.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private blockchainService: BlockchainExecutorService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
@@ -57,9 +57,11 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
     const { intent, strategy, chainId, walletId } = jobData;
     const chainKey = chainId.toString();
 
-    this.logger.info(
-      `Processing intent ${intent.intentHash} for chain ${chainKey} with strategy ${strategy}`,
-    );
+    this.logger.info('Processing intent', {
+      intentHash: intent.intentHash,
+      chainId: chainKey,
+      strategy,
+    });
 
     // Break context and start a new trace for execution stage
     return this.otelService.startNewTraceWithCorrelation(
@@ -81,16 +83,22 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
         // Create a new lock for this chain
         const newLock = currentLock.then(async () => {
           try {
-            this.logger.info(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
+            this.logger.info('Executing intent', {
+              intentHash: intent.intentHash,
+              chainId: chainKey,
+            });
             span.addEvent('execution.started');
             await this.blockchainService.executeIntent(intent, walletId);
             span.addEvent('execution.completed');
-            this.logger.info(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
+            this.logger.info('Completed intent', {
+              intentHash: intent.intentHash,
+              chainId: chainKey,
+            });
           } catch (error) {
-            this.logger.error(
-              `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
-              toError(error),
-            );
+            this.logger.error('Failed to execute intent', error, {
+              intentHash: intent.intentHash,
+              chainId: chainKey,
+            });
             span.recordException(toError(error));
             throw error;
           }

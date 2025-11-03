@@ -1,7 +1,6 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 import { erc20Abi, maxUint256 } from 'viem';
 
@@ -17,6 +16,7 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { TvmReaderService } from '@/modules/blockchain/tvm/services/tvm.reader.service';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
@@ -29,8 +29,7 @@ import { TvmWalletManagerService, TvmWalletType } from './tvm-wallet-manager.ser
 @Injectable()
 export class TvmExecutorService extends BaseChainExecutor {
   constructor(
-    @InjectPinoLogger(TvmExecutorService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private tvmConfigService: TvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private walletManager: TvmWalletManagerService,
@@ -215,7 +214,13 @@ export class TvmExecutorService extends BaseChainExecutor {
             code: api.SpanStatusCode.ERROR,
             message: getErrorMessage(error),
           });
-          this.logger.error('TVM execution error:', toError(error));
+          this.logger.error('TVM execution failed', {
+            error: toError(error),
+            intentHash: intent.intentHash,
+            sourceChainId: intent.sourceChainId?.toString(),
+            destinationChainId: intent.destination.toString(),
+            walletType: walletId,
+          });
           return {
             success: false,
             error: getErrorMessage(error),
@@ -386,9 +391,12 @@ export class TvmExecutorService extends BaseChainExecutor {
               ] as const;
             });
 
-          this.logger.info(
-            `Executing batchWithdraw on TVM chain ${chainId} for ${withdrawalData.destinations.length} intents`,
-          );
+          this.logger.info('Executing batchWithdraw on TVM', {
+            chainId: chainId.toString(),
+            intentCount: withdrawalData.destinations.length,
+            walletType: walletId,
+            portalAddress,
+          });
 
           // Execute the batchWithdraw function
           const result = await contract.methods
@@ -416,9 +424,11 @@ export class TvmExecutorService extends BaseChainExecutor {
             'tvm.status': 'success',
           });
 
-          this.logger.info(
-            `Successfully executed batchWithdraw on TVM chain ${chainId}. TxHash: ${txHash}`,
-          );
+          this.logger.info('Successfully executed batchWithdraw on TVM', {
+            chainId: chainId.toString(),
+            txHash,
+            intentCount: withdrawalData.destinations.length,
+          });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return txHash;
@@ -428,10 +438,12 @@ export class TvmExecutorService extends BaseChainExecutor {
             code: api.SpanStatusCode.ERROR,
             message: getErrorMessage(error),
           });
-          this.logger.error(
-            `Failed to execute batchWithdraw on TVM chain ${chainId}: ${getErrorMessage(error)}`,
-            toError(error),
-          );
+          this.logger.error('Failed to execute batchWithdraw on TVM', {
+            error: toError(error),
+            chainId: chainId.toString(),
+            intentCount: withdrawalData.destinations.length,
+            walletType: walletId,
+          });
           throw error;
         } finally {
           span.end();

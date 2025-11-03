@@ -1,12 +1,12 @@
-import { PinoLogger } from 'nestjs-pino';
 import { Hex } from 'viem';
 
 import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
+import { Logger } from '@/modules/logging';
 
 export abstract class BaseChainReader {
-  protected abstract readonly logger: PinoLogger;
+  protected abstract readonly logger: Logger;
 
   abstract getChainInfo(chainId: number): Promise<ChainInfo | ChainInfo[]>;
 

@@ -1,15 +1,15 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import { SpanStatusCode } from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { ChainType } from '@/common/utils/chain-type-detector';
-import { getErrorMessage } from '@/common/utils/error-handler';
+import { toError } from '@/common/utils/error-handler';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
@@ -24,11 +24,12 @@ export class BlockchainExecutorService {
     private blockchainConfigService: BlockchainConfigService,
     private intentsService: IntentsService,
     private readonly otelService: OpenTelemetryService,
-    @InjectPinoLogger(BlockchainExecutorService.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
     @Optional() private tvmExecutor?: TvmExecutorService,
   ) {
+    this.logger.setContext(BlockchainExecutorService.name);
     this.initializeExecutors();
   }
 
@@ -88,7 +89,11 @@ export class BlockchainExecutorService {
 
           if (result.success) {
             await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
-            this.logger.info(`Intent ${intent.intentHash} fulfilled: ${result.txHash}`);
+            this.logger.info('Intent fulfilled successfully', {
+              intentHash: intent.intentHash,
+              txHash: result.txHash,
+              destinationChain: intent.destination.toString(),
+            });
 
             span.setAttributes({
               'intent.tx_hash': result.txHash,
@@ -101,7 +106,11 @@ export class BlockchainExecutorService {
             span.setStatus({ code: 0 }); // OK
           } else {
             await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-            this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
+            this.logger.error('Intent fulfillment failed', {
+              intentHash: intent.intentHash,
+              error: result.error,
+              destinationChain: intent.destination.toString(),
+            });
 
             span.setAttributes({
               'intent.error': result.error,
@@ -115,7 +124,10 @@ export class BlockchainExecutorService {
             throw new Error(result.error);
           }
         } catch (error) {
-          this.logger.error(`Error executing intent ${intent.intentHash}:`, getErrorMessage(error));
+          this.logger.error('Error executing intent', error, {
+            intentHash: intent.intentHash,
+            destinationChain: intent.destination.toString(),
+          });
           await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
 
           span.recordException(error as Error);
@@ -154,9 +166,10 @@ export class BlockchainExecutorService {
             break;
         }
       } catch (error) {
-        this.logger.warn(
-          `Failed to initialize executor for chain ${chainId}: ${getErrorMessage(error)}`,
-        );
+        this.logger.warn('Failed to initialize executor for chain', {
+          error: toError(error),
+          chainId,
+        });
       }
     }
   }

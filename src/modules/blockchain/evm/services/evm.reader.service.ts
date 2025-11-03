@@ -1,7 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Address, decodeFunctionData, encodeFunctionData, encodePacked, erc20Abi, Hex } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
@@ -17,6 +16,7 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmReward } from '@/common/utils/intent-converter';
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from './evm-transport.service';
@@ -24,11 +24,10 @@ import { EvmWalletManager } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmReaderService extends BaseChainReader {
-  protected readonly logger: PinoLogger;
+  protected readonly logger: Logger;
 
   constructor(
-    @InjectPinoLogger(EvmReaderService.name)
-    logger: PinoLogger,
+    logger: Logger,
     private transportService: EvmTransportService,
     private evmConfigService: EvmConfigService,
     private readonly otelService: OpenTelemetryService,
@@ -62,7 +61,10 @@ export class EvmReaderService extends BaseChainReader {
           wallets.push(walletInfo);
         } catch (error) {
           // Wallet type might not be configured for this chain
-          this.logger.debug(`Wallet type ${walletType} not configured for EVM chain ${chainId}`);
+          this.logger.debug('Wallet type not configured for EVM chain', {
+            walletType,
+            chainId,
+          });
         }
       }
     }
@@ -194,10 +196,9 @@ export class EvmReaderService extends BaseChainReader {
 
           return Boolean(isFunded);
         } catch (error) {
-          this.logger.error(
-            `Failed to check if intent ${intent.intentHash} is funded:`,
-            toError(error),
-          );
+          this.logger.error('Failed to check if intent is funded', error, {
+            intentHash: intent.intentHash,
+          });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw new Error(`Failed to check intent funding status: ${getErrorMessage(error)}`);
@@ -279,10 +280,9 @@ export class EvmReaderService extends BaseChainReader {
           span.setStatus({ code: api.SpanStatusCode.OK });
           return fee as bigint;
         } catch (error) {
-          this.logger.error(
-            `Failed to fetch prover fee for intent ${intent.intentHash}:`,
-            toError(error),
-          );
+          this.logger.error('Failed to fetch prover fee for intent', error, {
+            intentHash: intent.intentHash,
+          });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);

@@ -1,12 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { getErrorMessage } from '@/common/utils/error-handler';
 import { SolanaConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 
@@ -21,8 +19,7 @@ export class SvmWalletManagerService implements OnModuleInit {
   private wallets: Map<number, Map<SvmWalletType, ISvmWallet>> = new Map();
 
   constructor(
-    @InjectPinoLogger(SvmWalletManagerService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly basicWalletFactory: BasicWalletFactory,
     private readonly solanaConfigService: SolanaConfigService,
   ) {}
@@ -99,13 +96,14 @@ export class SvmWalletManagerService implements OnModuleInit {
       // Create and cache basic wallet
       const basicWallet = this.basicWalletFactory.create(chainId);
       chainWallets.set('basic', basicWallet);
-      this.logger.debug(
-        `Initialized basic wallet for chain ${chainId}: ${(await basicWallet.getAddress()).toString()}`,
-      );
+      this.logger.debug('Initialized basic wallet for chain', {
+        chainId,
+        address: (await basicWallet.getAddress()).toString(),
+      });
     } catch (error) {
-      this.logger.error(
-        `Failed to initialize basic wallet for chain ${chainId}: ${getErrorMessage(error)}`,
-      );
+      this.logger.error('Failed to initialize basic wallet for chain', error, {
+        chainId,
+      });
       throw error;
     }
   }

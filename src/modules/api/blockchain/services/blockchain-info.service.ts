@@ -1,20 +1,21 @@
 import { Injectable } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-
 import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 import { ChainsResponse } from '../schemas/chains-response.schema';
 
 @Injectable()
 export class BlockchainInfoService {
   constructor(
-    @InjectPinoLogger(BlockchainInfoService.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly blockchainReaderService: BlockchainReaderService,
     private readonly blockchainConfigService: BlockchainConfigService,
-  ) {}
+  ) {
+    this.logger.setContext(BlockchainInfoService.name);
+  }
 
   async getAllChains(): Promise<ChainsResponse> {
     const chains: ChainInfo[] = [];
@@ -34,7 +35,10 @@ export class BlockchainInfoService {
           chains.push(chainInfo);
         }
       } catch (error) {
-        this.logger.warn(`Failed to get chain info for chain ${chainId}: ${error}`);
+        this.logger.warn('Failed to get chain info', {
+          chainId,
+          error: String(error),
+        });
       }
     }
 

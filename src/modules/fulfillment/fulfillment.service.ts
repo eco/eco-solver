@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { FulfillmentConfigService } from '@/modules/config/services';
@@ -10,6 +8,7 @@ import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { IntentProcessingService } from './services/intent-processing.service';
@@ -24,8 +23,7 @@ import { StrategyManagementService } from './services/strategy-management.servic
 @Injectable()
 export class FulfillmentService {
   constructor(
-    @InjectPinoLogger(FulfillmentService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly intentsService: IntentsService,
     private readonly dataDogService: DataDogService,
     private readonly otelService: OpenTelemetryService,
@@ -34,7 +32,9 @@ export class FulfillmentService {
     private readonly submissionService: IntentSubmissionService,
     private readonly processingService: IntentProcessingService,
     private readonly strategyManagement: StrategyManagementService,
-  ) {}
+  ) {
+    this.logger.setContext(FulfillmentService.name);
+  }
 
   /**
    * Submit an intent for fulfillment
@@ -72,7 +72,11 @@ export class FulfillmentService {
           const interfaceIntent = IntentConverter.toInterface(savedIntent);
 
           if (!isNew) {
-            this.logger.warn(`Intent ${intent.intentHash} already exists`);
+            this.logger.warn('Intent already exists, proceeding to queue', {
+              intentHash: intent.intentHash,
+              strategyName: strategy,
+              sourceChainId: intent.sourceChainId?.toString() || 'unknown',
+            });
             span.setAttribute('intent.already_exists', true);
             // For existing intents, we still proceed to queue them (they may have failed previously)
           }
@@ -93,7 +97,12 @@ export class FulfillmentService {
 
           return interfaceIntent;
         } catch (error) {
-          this.logger.error(`Error submitting intent ${intent.intentHash}:`, toError(error));
+          this.logger.error('Error submitting intent', error, {
+            intentHash: intent.intentHash,
+            strategyName: strategy,
+            sourceChainId: intent.sourceChainId?.toString() || 'unknown',
+            destinationChainId: intent.destination.toString(),
+          });
           span.recordException(toError(error));
           span.setStatus({ code: 2, message: getErrorMessage(error) });
           throw error;

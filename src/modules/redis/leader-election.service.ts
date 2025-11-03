@@ -2,9 +2,9 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import Redis, { Cluster } from 'ioredis';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { LeaderElectionConfigService } from '@/modules/config/services/leader-election-config.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { RedisService } from './redis.service';
@@ -33,13 +33,13 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
   private isEnabled: boolean;
 
   constructor(
-    @InjectPinoLogger(LeaderElectionService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly otelService: OpenTelemetryService,
     private readonly eventEmitter: EventEmitter2,
     private readonly leaderElectionConfig: LeaderElectionConfigService,
     private readonly redisService: RedisService,
   ) {
+    this.logger.setContext(LeaderElectionService.name);
     // Generate unique instance ID
     this.instanceId = `instance-${process.pid}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
@@ -100,7 +100,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
     try {
       return await this.redis.get(this.leaderElectionConfig.lockKey);
     } catch (error) {
-      this.logger.error('Error getting current leader:', error as Error);
+      this.logger.error('Error getting current leader', { error });
       return null;
     }
   }
@@ -151,7 +151,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
             // We successfully became the leader
             if (!this.isLeader) {
               this.isLeader = true;
-              this.logger.info(`Instance ${this.instanceId} became the leader`);
+              this.logger.info('Instance became the leader', { instanceId: this.instanceId });
 
               // Emit leadership gained event
               this.eventEmitter.emit('leader.gained', { instanceId: this.instanceId });
@@ -180,7 +180,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
 
           span.setStatus({ code: 0 });
         } catch (error) {
-          this.logger.error('Error during leader election:', error as Error);
+          this.logger.error('Error during leader election', { error });
           span.recordException(error as Error);
           span.setStatus({ code: 2, message: (error as Error).message });
 
@@ -255,14 +255,14 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
             span.setAttributes({ 'heartbeat.success': true });
           } else {
             // Lost leadership
-            this.logger.warn(`Failed to renew leadership for ${this.instanceId}`);
+            this.logger.warn('Failed to renew leadership', { instanceId: this.instanceId });
             this.handleLeadershipLoss();
             span.setAttributes({ 'heartbeat.success': false });
           }
 
           span.setStatus({ code: 0 });
         } catch (error) {
-          this.logger.error('Error renewing leadership:', error as Error);
+          this.logger.error('Error renewing leadership', { error });
           span.recordException(error as Error);
           span.setStatus({ code: 2, message: (error as Error).message });
 
@@ -280,7 +280,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
   private handleLeadershipLoss() {
     if (this.isLeader) {
       this.isLeader = false;
-      this.logger.info(`Instance ${this.instanceId} lost leadership`);
+      this.logger.info('Instance lost leadership', { instanceId: this.instanceId });
 
       // Clear heartbeat
       if (this.heartbeatInterval) {
@@ -330,14 +330,14 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
           );
 
           if (result === 1) {
-            this.logger.info(`Instance ${this.instanceId} released leadership`);
+            this.logger.info('Instance released leadership', { instanceId: this.instanceId });
             span.setAttributes({ 'release.success': true });
           }
 
           this.handleLeadershipLoss();
           span.setStatus({ code: 0 });
         } catch (error) {
-          this.logger.error('Error releasing leadership:', error as Error);
+          this.logger.error('Error releasing leadership', { error });
           span.recordException(error as Error);
           span.setStatus({ code: 2, message: (error as Error).message });
           throw error;

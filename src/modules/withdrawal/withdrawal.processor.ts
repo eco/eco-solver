@@ -2,11 +2,11 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job, Queue } from 'bullmq';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
-import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { toError } from '@/common/utils/error-handler';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { Logger } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -19,7 +19,7 @@ import { WithdrawalService } from './withdrawal.service';
 })
 export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
   constructor(
-    @InjectPinoLogger(WithdrawalProcessor.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     private withdrawalService: WithdrawalService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
@@ -27,6 +27,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
   ) {
     super();
+    this.logger.setContext(WithdrawalProcessor.name);
   }
 
   onModuleInit() {
@@ -39,7 +40,9 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
       const telemetry = this.bullMQOtelFactory.getInstance();
       if (telemetry && !this.worker.opts.telemetry) {
         this.worker.opts.telemetry = telemetry;
-        this.logger.info('Added BullMQOtel telemetry to WithdrawalProcessor worker');
+        this.logger.info('Added BullMQOtel telemetry to worker', {
+          processor: 'WithdrawalProcessor',
+        });
       }
     }
   }
@@ -47,9 +50,9 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
   async onModuleDestroy() {
     // Close the worker to ensure clean shutdown
     if (this.worker) {
-      this.logger.info('Closing WithdrawalProcessor worker...');
+      this.logger.info('Closing worker', { processor: 'WithdrawalProcessor' });
       await this.worker.close();
-      this.logger.info('WithdrawalProcessor worker closed');
+      this.logger.info('Worker closed', { processor: 'WithdrawalProcessor' });
     }
   }
 
@@ -70,22 +73,27 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
       // Otherwise, it's a regular withdrawal job
       const { chainId, intents, walletId } = jobData;
 
-      this.logger.info(`Processing withdrawal for chain ${chainId} with ${intents.length} intents`);
+      this.logger.info('Processing withdrawal', {
+        chainId: chainId.toString(),
+        intentCount: intents.length,
+        walletId,
+      });
 
       try {
         // Execute the withdrawal
         const txHash = await this.withdrawalService.executeWithdrawal(chainId, intents, walletId);
 
-        this.logger.info(
-          `Successfully processed withdrawal for chain ${chainId}. TxHash: ${txHash}`,
-        );
+        this.logger.info('Withdrawal processed successfully', {
+          chainId: chainId.toString(),
+          txHash,
+          intentCount: intents.length,
+        });
 
         return { chainId: chainId.toString(), txHash, intentCount: intents.length };
       } catch (error) {
-        this.logger.error(
-          `Failed to process withdrawal for chain ${chainId}: ${getErrorMessage(error)}`,
-          toError(error),
-        );
+        this.logger.error('Failed to process withdrawal', error, {
+          chainId: chainId.toString(),
+        });
         throw error;
       }
     };
@@ -113,7 +121,9 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
             return;
           }
 
-          this.logger.info(`Found ${intents.length} proven intents for withdrawal`);
+          this.logger.info('Proven intents found for withdrawal', {
+            intentCount: intents.length,
+          });
           span.setAttribute('withdrawal.intents_found', intents.length);
 
           // Group intents by chain
@@ -148,9 +158,10 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
 
           await this.withdrawalQueue.addBulk(bulkJobs);
 
-          this.logger.info(
-            `Created ${jobs.length} withdrawal jobs for chains: ${chainsToProcess.join(', ')}`,
-          );
+          this.logger.info('Withdrawal jobs created', {
+            jobCount: jobs.length,
+            chains: chainsToProcess.map((c) => c.toString()),
+          });
 
           span.setAttributes({
             'withdrawal.jobs_created': jobs.length,
@@ -160,7 +171,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
         } catch (error) {
           span.recordException(toError(error));
           span.setStatus({ code: 2 });
-          this.logger.error('Error processing scheduled withdrawal check', toError(error));
+          this.logger.error('Error processing scheduled withdrawal check', error);
           throw error;
         } finally {
           span.end();

@@ -1,5 +1,3 @@
-import { Logger } from '@nestjs/common';
-
 import {
   GetSecretValueCommand,
   SecretsManagerClient,
@@ -9,20 +7,27 @@ import * as yaml from 'js-yaml';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { AwsConfig } from '@/config/schemas';
+import { Logger } from '@/modules/logging';
 
 export class AwsSecretsManager {
-  private readonly logger = new Logger(AwsSecretsManager.name);
+  private readonly logger: Logger;
   private secretsCache: Record<string, any> = {};
+
+  constructor() {
+    // Create Logger with default config
+    this.logger = new Logger({ pinoHttp: { level: 'info' } });
+    this.logger.setContext(AwsSecretsManager.name);
+  }
 
   async getSecrets(awsConfig: AwsConfig): Promise<Record<string, any>> {
     if (!awsConfig.secretName) {
-      this.logger.log('AWS Secrets Manager is disabled');
+      this.logger.info('AWS Secrets Manager is disabled', { enabled: false });
       return {};
     }
 
     // Check cache first
     if (this.secretsCache[awsConfig.secretName]) {
-      this.logger.log('Returning cached secrets');
+      this.logger.info('Returning cached secrets', { secretName: awsConfig.secretName });
       return this.secretsCache[awsConfig.secretName];
     }
 
@@ -56,16 +61,16 @@ export class AwsSecretsManager {
       try {
         // First try JSON parsing (for backward compatibility)
         secrets = JSON.parse(response.SecretString);
-        this.logger.log(
-          `Successfully parsed secrets as JSON from AWS Secrets Manager: ${awsConfig.secretName}`,
-        );
+        this.logger.info('Successfully parsed secrets as JSON from AWS Secrets Manager', {
+          secretName: awsConfig.secretName,
+        });
       } catch (jsonError) {
         // If JSON parsing fails, try YAML parsing
         try {
           secrets = yaml.load(response.SecretString) as Record<string, any>;
-          this.logger.log(
-            `Successfully parsed secrets as YAML from AWS Secrets Manager: ${awsConfig.secretName}`,
-          );
+          this.logger.info('Successfully parsed secrets as YAML from AWS Secrets Manager', {
+            secretName: awsConfig.secretName,
+          });
         } catch (yamlError) {
           throw new Error(
             `Failed to parse secrets from AWS Secrets Manager as JSON or YAML. ` +
@@ -83,15 +88,15 @@ export class AwsSecretsManager {
       // Cache the secrets
       this.secretsCache[awsConfig.secretName] = secrets;
 
-      this.logger.log(
-        `Successfully fetched secrets from AWS Secrets Manager: ${awsConfig.secretName}`,
-      );
+      this.logger.info('Successfully fetched secrets from AWS Secrets Manager', {
+        secretName: awsConfig.secretName,
+      });
 
       return secrets;
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch secrets from AWS Secrets Manager: ${getErrorMessage(error)}`,
-      );
+      this.logger.error('Failed to fetch secrets from AWS Secrets Manager', error, {
+        secretName: awsConfig.secretName,
+      });
       throw error;
     }
   }

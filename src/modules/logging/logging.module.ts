@@ -1,10 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 
-import { LoggerModule } from 'nestjs-pino';
+import { LoggerModule, PinoLogger } from 'nestjs-pino';
 
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 
 import { maskSensitiveData } from './log-message.helper';
+import { Logger } from './logger.service';
+import { LoggerFactory } from './logger-factory.service';
 
 @Global()
 @Module({
@@ -39,5 +41,14 @@ import { maskSensitiveData } from './log-message.helper';
       },
     }),
   ],
+  providers: [
+    // Override PinoLogger with our custom Logger for structured logging
+    {
+      provide: PinoLogger,
+      useClass: Logger,
+    },
+    LoggerFactory,
+  ],
+  exports: [Logger, LoggerFactory],
 })
 export class LoggingModule {}

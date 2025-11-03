@@ -1,8 +1,8 @@
-import { PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 
 import { toError } from '@/common/utils/error-handler';
 import { TvmTransactionSettings } from '@/config/schemas';
+import { Logger } from '@/modules/logging';
 
 import { TvmTransactionError } from '../errors';
 
@@ -22,7 +22,7 @@ export class TvmTransactionUtils {
     client: TronWeb,
     txId: string,
     settings: TvmTransactionSettings,
-    logger?: PinoLogger,
+    logger?: Logger,
   ): Promise<boolean> {
     for (let i = 0; i < settings.maxTransactionAttempts; i++) {
       try {
@@ -42,7 +42,9 @@ export class TvmTransactionUtils {
         if (error instanceof TvmTransactionError) {
           throw error;
         }
-        logger?.error(`Error checking transaction ${txId}:`, toError(error));
+        logger?.error('Error checking transaction', toError(error), {
+          transactionId: txId,
+        });
       }
 
       // Wait before next attempt
@@ -64,7 +66,7 @@ export class TvmTransactionUtils {
     client: TronWeb,
     txIds: string[],
     settings: TvmTransactionSettings,
-    logger?: PinoLogger,
+    logger?: Logger,
   ): Promise<void> {
     const results = await Promise.all(
       txIds.map((txId) => this.waitForTransaction(client, txId, settings, logger)),

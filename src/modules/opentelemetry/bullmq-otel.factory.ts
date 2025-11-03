@@ -1,17 +1,16 @@
 import { Injectable } from '@nestjs/common';
 
 import { BullMQOtel } from 'bullmq-otel';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { OpenTelemetryConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 @Injectable()
 export class BullMQOtelFactory {
   private bullMQOtel?: BullMQOtel;
 
   constructor(
-    @InjectPinoLogger(BullMQOtelFactory.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly config: OpenTelemetryConfigService,
   ) {}
 
@@ -25,7 +24,9 @@ export class BullMQOtelFactory {
     }
 
     if (!this.bullMQOtel) {
-      this.logger.info('Creating BullMQOtel instance for telemetry');
+      this.logger.info('Creating BullMQOtel instance for telemetry', {
+        serviceName: this.config.serviceName,
+      });
       this.bullMQOtel = new BullMQOtel(this.config.serviceName);
     }
 

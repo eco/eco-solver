@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { StrategyManagementService } from './strategy-management.service';
@@ -18,12 +18,13 @@ import { StrategyManagementService } from './strategy-management.service';
 @Injectable()
 export class IntentProcessingService {
   constructor(
-    @InjectPinoLogger(IntentProcessingService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly strategyManagement: StrategyManagementService,
     private readonly intentsService: IntentsService,
     private readonly otelService: OpenTelemetryService,
-  ) {}
+  ) {
+    this.logger.setContext(IntentProcessingService.name);
+  }
 
   /**
    * Process an intent using the specified strategy
@@ -46,7 +47,10 @@ export class IntentProcessingService {
           const strategy = this.strategyManagement.getStrategy(strategyName);
           if (!strategy) {
             await this.updateIntentStatus(intent, IntentStatus.FAILED);
-            this.logger.error(`Unknown fulfillment strategy: ${strategyName}`);
+            this.logger.error('Unknown fulfillment strategy', {
+              strategyName,
+              intentHash: intent.intentHash,
+            });
             span.addEvent('intent.strategy.not_found', {
               strategy: strategyName,
             });
@@ -60,7 +64,10 @@ export class IntentProcessingService {
           // Verify the strategy can handle this intent
           if (!strategy.canHandle(intent)) {
             await this.updateIntentStatus(intent, IntentStatus.FAILED);
-            this.logger.error(`Strategy ${strategyName} cannot handle this intent`);
+            this.logger.error('Strategy cannot handle this intent', {
+              strategyName,
+              intentHash: intent.intentHash,
+            });
             span.addEvent('intent.strategy.cannot_handle', {
               strategy: strategyName,
             });
@@ -89,16 +96,21 @@ export class IntentProcessingService {
               if (validationError.type === 'permanent') {
                 await this.updateIntentStatus(intent, IntentStatus.FAILED);
               }
-              this.logger.error(
-                `Validation failed for intent ${intent.intentHash}: ${validationError.message} (type: ${validationError.type})`,
-              );
+              this.logger.error('Validation failed for intent', {
+                intentHash: intent.intentHash,
+                errorMessage: validationError.message,
+                errorType: validationError.type,
+                strategyName,
+              });
             } else {
               // For non-ValidationError, mark as failed
               await this.updateIntentStatus(intent, IntentStatus.FAILED);
-              this.logger.error(
-                `Validation failed for intent ${intent.intentHash}:`,
-                (validationError as Error).message,
-              );
+              this.logger.error('Validation failed for intent', {
+                intentHash: intent.intentHash,
+                errorMessage: (validationError as Error).message,
+                errorType: 'unknown',
+                strategyName,
+              });
             }
 
             span.addEvent('intent.validation.failed', {
@@ -127,9 +139,11 @@ export class IntentProcessingService {
           span.setAttribute('processing.success', true);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.info(`Intent processed successfully: ${intent.intentHash}`, {
+          this.logger.info('Intent processed successfully', {
             intentHash: intent.intentHash,
-            strategy: strategyName,
+            strategyName,
+            sourceChainId: intent.sourceChainId.toString(),
+            destinationChainId: intent.destination.toString(),
           });
         } catch (error) {
           span.recordException(toError(error));
@@ -160,8 +174,10 @@ export class IntentProcessingService {
         try {
           await this.updateIntentStatus(intent, IntentStatus.FAILED);
 
-          this.logger.error(`Intent processing failed: ${intent.intentHash}`, error, {
+          this.logger.error('Intent processing failed', error, {
             intentHash: intent.intentHash,
+            sourceChainId: intent.sourceChainId.toString(),
+            destinationChainId: intent.destination.toString(),
           });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
@@ -169,11 +185,9 @@ export class IntentProcessingService {
           span.recordException(updateError as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
 
-          this.logger.error(
-            `Failed to update intent status after error: ${intent.intentHash}`,
-            toError(updateError),
-            { intentHash: intent.intentHash },
-          );
+          this.logger.error('Failed to update intent status after error', updateError, {
+            intentHash: intent.intentHash,
+          });
         } finally {
           span.end();
         }

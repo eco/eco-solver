@@ -1,5 +1,4 @@
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TronWeb } from 'tronweb';
 import { Abi, ContractFunctionName, getAbiItem, toFunctionSignature } from 'viem';
 
@@ -11,13 +10,14 @@ import {
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { TvmTransactionSettings } from '@/config/schemas';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 
 export class BasicWallet implements ITvmWallet {
   constructor(
     public readonly tronWeb: TronWeb,
     private readonly transactionSettings: TvmTransactionSettings,
-    @InjectPinoLogger(BasicWallet.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly otelService: OpenTelemetryService,
   ) {}
 
@@ -111,7 +111,11 @@ export class BasicWallet implements ITvmWallet {
           span.setAttribute('tvm.transaction_id', txId);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.info(`Smart contract transaction sent: ${txId}`);
+          this.logger.info('Smart contract transaction sent', {
+            transactionId: txId,
+            contractAddress,
+            functionName,
+          });
           return txId;
         } catch (error) {
           span.recordException(toError(error));

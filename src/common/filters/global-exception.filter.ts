@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { Logger } from '@/modules/logging';
 
 export interface ErrorResponse {
   statusCode: number;
@@ -25,10 +25,11 @@ export interface ErrorResponse {
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(
-    @InjectPinoLogger(GlobalExceptionFilter.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly httpAdapterHost: HttpAdapterHost,
-  ) {}
+  ) {
+    this.logger.setContext(GlobalExceptionFilter.name);
+  }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const { httpAdapter } = this.httpAdapterHost;
@@ -70,14 +71,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error = exception.name;
 
       // Log full error details for non-HTTP exceptions
-      this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack, {
+      this.logger.error('Unhandled exception occurred', exception, {
         requestId,
         path: request.url,
         method: request.method,
       });
     } else {
       // Log unknown exception types
-      this.logger.error('Unknown exception type', exception, {
+      this.logger.error('Unknown exception type encountered', {
+        exception,
         requestId,
         path: request.url,
         method: request.method,

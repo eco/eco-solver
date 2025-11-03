@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { toError } from '@/common/utils/error-handler';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
@@ -17,7 +17,7 @@ import { IQueueService } from '@/modules/queue/interfaces/queue-service.interfac
 @Injectable()
 export class IntentSubmissionService {
   constructor(
-    @InjectPinoLogger(IntentSubmissionService.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     private readonly otelService: OpenTelemetryService,
   ) {}
@@ -46,18 +46,22 @@ export class IntentSubmissionService {
           span.setAttribute('submission.success', true);
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          this.logger.info(`Intent submitted successfully: ${intent.intentHash}`, {
+          this.logger.info('Intent submitted successfully', {
             intentHash: intent.intentHash,
-            strategy: strategyName,
-            sourceChain: intent.sourceChainId.toString(),
-            destinationChain: intent.destination.toString(),
+            strategyName,
+            sourceChainId: intent.sourceChainId.toString(),
+            destinationChainId: intent.destination.toString(),
           });
         } catch (error) {
           span.recordException(error as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
 
-          this.logger.error(`Failed to submit intent: ${intent.intentHash}`, toError(error), {
+          this.logger.error('Failed to submit intent', {
             intentHash: intent.intentHash,
+            strategyName,
+            sourceChainId: intent.sourceChainId.toString(),
+            destinationChainId: intent.destination.toString(),
+            error: toError(error),
           });
           throw error;
         } finally {

@@ -1,12 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
-import { getErrorMessage } from '@/common/utils/error-handler';
 import { IWalletFactory } from '@/modules/blockchain/evm/interfaces/wallet-factory.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
 import { KernelWalletFactory } from '../wallets/kernel-wallet/kernel-wallet.factory';
@@ -20,17 +19,19 @@ export class EvmWalletManager implements OnModuleInit {
   private readonly walletFactories: IWalletFactory[];
 
   constructor(
-    @InjectPinoLogger(EvmWalletManager.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private evmConfigService: EvmConfigService,
     private basicWalletFactory: BasicWalletFactory,
     private kernelWalletFactory: KernelWalletFactory,
   ) {
+    this.logger.setContext(EvmWalletManager.name);
     this.walletFactories = [this.basicWalletFactory, this.kernelWalletFactory];
   }
 
   async onModuleInit() {
-    this.logger.info('Initializing EVM wallets from configuration');
+    this.logger.info('Initializing EVM wallets from configuration', {
+      supportedChainIds: this.evmConfigService.supportedChainIds,
+    });
 
     // Initialize wallets for each supported chain
     const initRequests = this.evmConfigService.supportedChainIds.map((chainId) =>
@@ -50,14 +51,18 @@ export class EvmWalletManager implements OnModuleInit {
     for (const walletFactory of this.walletFactories) {
       try {
         const wallet = await walletFactory.createWallet(chainId);
+        const walletAddress = await wallet.getAddress();
         chainWallets.set(walletFactory.name, wallet);
-        this.logger.debug(
-          `Initialized ${walletFactory.name} wallet for chain ${chainId}: ${await wallet.getAddress()}`,
-        );
+        this.logger.debug('Initialized wallet for chain', {
+          walletType: walletFactory.name,
+          chainId,
+          walletAddress,
+        });
       } catch (error) {
-        this.logger.error(
-          `Failed to initialize ${walletFactory.name} for chain ${chainId}: ${getErrorMessage(error)}`,
-        );
+        this.logger.error('Failed to initialize wallet for chain', error, {
+          walletType: walletFactory.name,
+          chainId,
+        });
         throw error;
       }
     }

@@ -3,7 +3,6 @@ import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 
 import { AxiosError } from 'axios';
 import canonicalize from 'canonicalize';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { firstValueFrom } from 'rxjs';
 import { Address, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -11,34 +10,35 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { BlockchainAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
-import { getErrorMessage } from '@/common/utils/error-handler';
 import { minutes, now } from '@/common/utils/time';
 import {
   SolverRegistrationRequestBody,
   SolverRegistrationResponseBody,
 } from '@/modules/api/quotes/types/quote-registration.types';
 import { BlockchainConfigService, QuotesConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 import { QUOTES_ENDPOINT } from '../constants/endpoint';
 
 @Injectable()
 export class QuoteRegistrationService implements OnApplicationBootstrap {
   constructor(
-    @InjectPinoLogger(QuoteRegistrationService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly httpService: HttpService,
     private readonly quotesConfigService: QuotesConfigService,
     private readonly blockchainConfigService: BlockchainConfigService,
-  ) {}
+  ) {
+    this.logger.setContext(QuoteRegistrationService.name);
+  }
 
   async onApplicationBootstrap(): Promise<void> {
     // Perform solver registration if enabled
     if (this.quotesConfigService.registrationEnabled) {
       try {
-        this.logger.info('Initiating solver registration on quote server...');
+        this.logger.info('Initiating solver registration on quote server');
         await this.register();
       } catch (error) {
-        this.logger.error(`Failed to register solver to quote server: ${getErrorMessage(error)}`);
+        this.logger.error('Failed to register solver to quote server', error);
       }
     }
   }
@@ -65,11 +65,11 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
       );
 
       if ('quotesUrl' in response.data.data) {
-        this.logger.info(
-          `Successfully registered with ID: ${response.data.data.solverID || 'N/A'}`,
-        );
+        this.logger.info('Successfully registered solver', {
+          solverID: response.data.data.solverID || 'N/A',
+        });
       } else {
-        this.logger.error(`Registration failed`);
+        this.logger.error('Registration failed');
       }
     } catch (error) {
       this.handleRegistrationError(error);
@@ -106,20 +106,19 @@ export class QuoteRegistrationService implements OnApplicationBootstrap {
   private handleRegistrationError(error: unknown): void {
     if (error instanceof AxiosError) {
       if (error.response) {
-        this.logger.error(
-          `Registration failed with status ${error.response.status}: ${
-            error.response.data?.message || error.message
-          }`,
-        );
+        this.logger.error('Registration failed with response error', error, {
+          status: error.response.status,
+          message: error.response.data?.message || error.message,
+        });
       } else if (error.request) {
-        this.logger.error(`Registration failed - no response received: ${error.message}`);
+        this.logger.error('Registration failed - no response received', error);
       } else {
-        this.logger.error(`Registration request failed: ${error.message}`);
+        this.logger.error('Registration request failed', error);
       }
     } else if (error instanceof Error) {
-      this.logger.error(`Registration failed: ${error.message}`);
+      this.logger.error('Registration failed', error);
     } else {
-      this.logger.error(`Registration failed with unknown error`);
+      this.logger.error('Registration failed with unknown error');
     }
   }
 

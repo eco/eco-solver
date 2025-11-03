@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { toError } from '@/common/utils/error-handler';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BatchWithdrawData } from './interfaces/withdrawal-job.interface';
@@ -16,12 +16,13 @@ import { BatchWithdrawData } from './interfaces/withdrawal-job.interface';
 @Injectable()
 export class WithdrawalService {
   constructor(
-    @InjectPinoLogger(WithdrawalService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private readonly intentsService: IntentsService,
     private readonly blockchainExecutor: BlockchainExecutorService,
     private readonly otelService: OpenTelemetryService,
-  ) {}
+  ) {
+    this.logger.setContext(WithdrawalService.name);
+  }
 
   /**
    * Find all proven intents that haven't been withdrawn yet
@@ -43,11 +44,10 @@ export class WithdrawalService {
             'withdrawal.intent_count': intents.length,
           });
 
-          this.logger.info(
-            `Found ${intents.length} proven intents for withdrawal${
-              sourceChainId ? ` on chain ${sourceChainId}` : ''
-            }`,
-          );
+          this.logger.info('Found proven intents for withdrawal', {
+            intentCount: intents.length,
+            sourceChainId: sourceChainId?.toString(),
+          });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return intents;
@@ -96,9 +96,11 @@ export class WithdrawalService {
       },
       async (span) => {
         try {
-          this.logger.info(
-            `Executing withdrawal for ${intents.length} intents on chain ${chainId}`,
-          );
+          this.logger.info('Executing withdrawal', {
+            intentCount: intents.length,
+            chainId: chainId.toString(),
+            walletId,
+          });
 
           const withdrawalData = this.prepareWithdrawalData(intents);
 
@@ -112,19 +114,20 @@ export class WithdrawalService {
             'withdrawal.tx_hash': txHash,
           });
 
-          this.logger.info(
-            `Successfully executed withdrawal for ${intents.length} intents on chain ${chainId}. TxHash: ${txHash}`,
-          );
+          this.logger.info('Withdrawal executed successfully', {
+            intentCount: intents.length,
+            chainId: chainId.toString(),
+            txHash,
+          });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return txHash;
         } catch (error) {
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
-          this.logger.error(
-            `Failed to execute withdrawal for chain ${chainId}: ${getErrorMessage(error)}`,
-            toError(error),
-          );
+          this.logger.error('Failed to execute withdrawal', error, {
+            chainId: chainId.toString(),
+          });
           throw error;
         } finally {
           span.end();
@@ -152,10 +155,9 @@ export class WithdrawalService {
               const txHash = await this.executeWithdrawal(chainId, chainIntents);
               results.set(chainId, txHash);
             } catch (error) {
-              this.logger.error(
-                `Failed to process withdrawals for chain ${chainId}`,
-                toError(error),
-              );
+              this.logger.error('Failed to process withdrawals for chain', error, {
+                chainId: chainId.toString(),
+              });
             }
           }
 

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Address, encodeFunctionData, erc20Abi, Hex, pad } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
@@ -16,6 +15,7 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmRoute } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
@@ -26,8 +26,7 @@ import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
   constructor(
-    @InjectPinoLogger(EvmExecutorService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private evmConfigService: EvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
     private transportService: EvmTransportService,
@@ -36,6 +35,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     private readonly otelService: OpenTelemetryService,
   ) {
     super();
+    this.logger.setContext(EvmExecutorService.name);
   }
 
   async fulfill(intent: Intent, walletId: WalletType): Promise<ExecutionResult> {
@@ -166,8 +166,16 @@ export class EvmExecutorService extends BaseChainExecutor {
             txHash: hash,
           };
         } catch (error) {
-          this.logger.error('EVM execution error:', toError(error));
-          span.recordException(toError(error));
+          const errorObj = toError(error);
+          this.logger.error('EVM execution error', {
+            intentHash: intent.intentHash,
+            sourceChainId: intent.sourceChainId?.toString(),
+            destinationChainId: intent.destination.toString(),
+            walletType: walletId,
+            error: errorObj.message,
+            stack: errorObj.stack,
+          });
+          span.recordException(errorObj);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           return {
             success: false,
@@ -262,9 +270,12 @@ export class EvmExecutorService extends BaseChainExecutor {
             args: [destinations, routeHashes, rewards],
           });
 
-          this.logger.info(
-            `Executing batchWithdraw on chain ${chainId} for ${withdrawalData.destinations.length} intents`,
-          );
+          this.logger.info('Executing batchWithdraw', {
+            chainId: chainId.toString(),
+            intentCount: withdrawalData.destinations.length,
+            portalAddress,
+            walletAddress,
+          });
 
           // Execute the transaction using the encoded data
           const txHash = await wallet.writeContract({
@@ -277,19 +288,24 @@ export class EvmExecutorService extends BaseChainExecutor {
             'evm.status': 'success',
           });
 
-          this.logger.info(
-            `Successfully executed batchWithdraw on chain ${chainId}. TxHash: ${txHash}`,
-          );
+          this.logger.info('Successfully executed batchWithdraw', {
+            chainId: chainId.toString(),
+            txHash,
+            intentCount: withdrawalData.destinations.length,
+          });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return txHash;
         } catch (error) {
-          span.recordException(toError(error));
+          const errorObj = toError(error);
+          span.recordException(errorObj);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
-          this.logger.error(
-            `Failed to execute batchWithdraw on chain ${chainId}: ${getErrorMessage(error)}`,
-            toError(error),
-          );
+          this.logger.error('Failed to execute batchWithdraw', {
+            chainId: chainId.toString(),
+            intentCount: withdrawalData.destinations.length,
+            error: errorObj.message,
+            stack: errorObj.stack,
+          });
           throw error;
         } finally {
           span.end();

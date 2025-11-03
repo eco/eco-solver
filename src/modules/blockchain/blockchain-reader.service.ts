@@ -1,6 +1,5 @@
 import { Injectable, Optional } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Hex } from 'viem';
 
 import { BaseChainReader } from '@/common/abstractions/base-chain-reader.abstract';
@@ -8,8 +7,9 @@ import { ChainInfo } from '@/common/interfaces/chain-info.interface';
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
-import { getErrorMessage } from '@/common/utils/error-handler';
+import { toError } from '@/common/utils/error-handler';
 import { BlockchainConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 import { EvmReaderService } from './evm/services/evm.reader.service';
 import { SvmReaderService } from './svm/services/svm.reader.service';
@@ -21,11 +21,12 @@ export class BlockchainReaderService {
 
   constructor(
     private blockchainConfigService: BlockchainConfigService,
-    @InjectPinoLogger(BlockchainReaderService.name) private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     @Optional() private evmReader?: EvmReaderService,
     @Optional() private svmReader?: SvmReaderService,
     @Optional() private tvmReader?: TvmReaderService,
   ) {
+    this.logger.setContext(BlockchainReaderService.name);
     this.initializeReaders();
   }
 
@@ -192,9 +193,10 @@ export class BlockchainReaderService {
             break;
         }
       } catch (error) {
-        this.logger.warn(
-          `Failed to initialize reader for chain ${chainId}: ${getErrorMessage(error)}`,
-        );
+        this.logger.warn('Failed to initialize reader for chain', {
+          error: toError(error),
+          chainId,
+        });
       }
     }
   }

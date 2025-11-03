@@ -11,7 +11,6 @@ import {
   TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Hex } from 'viem';
 
 // Types for route and reward are now from the SVMIntent conversion
@@ -28,6 +27,7 @@ import { decodeRouteCall } from '@/modules/blockchain/svm/utils/call-data';
 import { bufferToBytes } from '@/modules/blockchain/svm/utils/converter';
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SolanaConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { SvmWalletManagerService } from './svm-wallet-manager.service';
@@ -35,11 +35,10 @@ import { SvmWalletManagerService } from './svm-wallet-manager.service';
 @Injectable()
 export class SvmReaderService extends BaseChainReader {
   private readonly connection: Connection;
-  protected readonly logger: PinoLogger;
+  protected readonly logger: Logger;
 
   constructor(
-    @InjectPinoLogger(SvmReaderService.name)
-    logger: PinoLogger,
+    logger: Logger,
     private solanaConfigService: SolanaConfigService,
     private readonly otelService: OpenTelemetryService,
     @Optional() private svmWalletManager?: SvmWalletManagerService,
@@ -62,7 +61,7 @@ export class SvmReaderService extends BaseChainReader {
           address: address.toString(),
         });
       } catch (error) {
-        this.logger.error(`Failed to get SVM wallet: ${error}`);
+        this.logger.error('Failed to get SVM wallet', { error });
       }
     }
 
@@ -205,9 +204,9 @@ export class SvmReaderService extends BaseChainReader {
         try {
           // Short circuit: if reward tokens array is empty and nativeAmount is 0, consider it funded
           if (intent.reward.tokens.length === 0 && intent.reward.nativeAmount === BigInt(0)) {
-            this.logger.debug(
-              `Intent ${intent.intentHash} has no reward requirements, considering it funded`,
-            );
+            this.logger.debug('Intent has no reward requirements, considering it funded', {
+              intentHash: intent.intentHash,
+            });
             span.setAttribute('svm.funding_status', 'no_requirements');
             span.setStatus({ code: api.SpanStatusCode.OK });
             return true;
@@ -227,9 +226,11 @@ export class SvmReaderService extends BaseChainReader {
           if (intent.reward.nativeAmount > BigInt(0)) {
             const vaultNativeBalance = await this.connection.getBalance(vaultPDA);
             if (vaultNativeBalance < intent.reward.nativeAmount) {
-              this.logger.debug(
-                `Intent ${intent.intentHash} requires ${intent.reward.nativeAmount} lamports but vault only has ${vaultNativeBalance}`,
-              );
+              this.logger.debug('Intent requires more native balance than available', {
+                intentHash: intent.intentHash,
+                requiredLamports: intent.reward.nativeAmount.toString(),
+                vaultBalance: vaultNativeBalance.toString(),
+              });
               span.setAttributes({
                 'svm.funding_status': 'insufficient_native',
                 'svm.required_native': intent.reward.nativeAmount.toString(),
@@ -256,14 +257,19 @@ export class SvmReaderService extends BaseChainReader {
                     true, // allowOwnerOffCurve - required for PDAs
                   );
 
-                  this.logger.debug(
-                    `Token ${AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM)} balance: ${vaultTokenBalance}, required: ${rewardToken.amount}`,
-                  );
+                  this.logger.debug('Token balance check', {
+                    tokenAddress: AddressNormalizer.denormalize(rewardToken.token, ChainType.SVM),
+                    vaultBalance: vaultTokenBalance.toString(),
+                    requiredAmount: rewardToken.amount.toString(),
+                  });
 
                   if (vaultTokenBalance < rewardToken.amount) {
-                    this.logger.debug(
-                      `Intent ${intent.intentHash} requires ${rewardToken.amount} of token ${rewardToken.token} but vault only has ${vaultTokenBalance}`,
-                    );
+                    this.logger.debug('Intent requires more token balance than available', {
+                      intentHash: intent.intentHash,
+                      tokenAddress: rewardToken.token,
+                      requiredAmount: rewardToken.amount.toString(),
+                      vaultBalance: vaultTokenBalance.toString(),
+                    });
                     span.setAttributes({
                       'svm.funding_status': 'insufficient_token',
                       'svm.token_address': rewardToken.token,
@@ -276,10 +282,10 @@ export class SvmReaderService extends BaseChainReader {
                 }
               }
             } catch (error) {
-              this.logger.error(
-                `Failed to get token balances for vault ${vaultPDA.toBase58()}:`,
-                toError(error),
-              );
+              this.logger.error('Failed to get token balances for vault', {
+                vaultAddress: vaultPDA.toBase58(),
+                error: toError(error),
+              });
               // If we can't get token balances, assume no tokens are available
               if (intent.reward.tokens.some((token) => token.amount > BigInt(0))) {
                 span.setAttributes({
@@ -292,15 +298,17 @@ export class SvmReaderService extends BaseChainReader {
             }
           }
 
-          this.logger.debug(`Intent ${intent.intentHash} is fully funded`);
+          this.logger.debug('Intent is fully funded', {
+            intentHash: intent.intentHash,
+          });
           span.setAttribute('svm.funding_status', 'funded');
           span.setStatus({ code: api.SpanStatusCode.OK });
           return true;
         } catch (error) {
-          this.logger.error(
-            `Failed to check intent funding for ${intent.intentHash}:`,
-            toError(error),
-          );
+          this.logger.error('Failed to check intent funding', {
+            intentHash: intent.intentHash,
+            error: toError(error),
+          });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw new Error(`Failed to check intent funding: ${getErrorMessage(error)}`);
@@ -392,10 +400,11 @@ export class SvmReaderService extends BaseChainReader {
           // Return 0 as the default fee since there's no contract to query
           const defaultFee = BigInt(0);
 
-          this.logger.debug(
-            `Returning default prover fee (${defaultFee}) for Solana intent ${intent.intentHash}. ` +
-              'Solana does not use prover contracts with fetchFee functions like EVM chains.',
-          );
+          this.logger.debug('Returning default prover fee for Solana intent', {
+            intentHash: intent.intentHash,
+            defaultFee: defaultFee.toString(),
+            reason: 'Solana does not use prover contracts with fetchFee functions like EVM chains',
+          });
 
           span.setAttribute('svm.prover_fee', defaultFee.toString());
           span.setAttribute('svm.fee_source', 'default');
@@ -403,10 +412,10 @@ export class SvmReaderService extends BaseChainReader {
 
           return defaultFee;
         } catch (error) {
-          this.logger.error(
-            `Failed to fetch prover fee for Solana intent ${intent.intentHash}:`,
-            toError(error),
-          );
+          this.logger.error('Failed to fetch prover fee for Solana intent', {
+            intentHash: intent.intentHash,
+            error: toError(error),
+          });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw new Error(`Failed to fetch prover fee: ${getErrorMessage(error)}`);
@@ -494,10 +503,10 @@ export class SvmReaderService extends BaseChainReader {
               span.setAttribute('svm.validation_result', 'token_transfer_validated');
               span.setStatus({ code: api.SpanStatusCode.OK });
 
-              this.logger.debug(
-                `Solana token transfer validation passed for target ${call.target}. ` +
-                  `Instruction type: ${isTransferInstruction ? 'Transfer' : 'TransferChecked'}`,
-              );
+              this.logger.debug('Solana token transfer validation passed', {
+                target: call.target,
+                instructionType: isTransferInstruction ? 'Transfer' : 'TransferChecked',
+              });
 
               return true;
             },

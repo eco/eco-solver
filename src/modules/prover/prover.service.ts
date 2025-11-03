@@ -1,12 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { DummyProver } from '@/modules/prover/provers/dummy.prover';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
@@ -17,14 +16,15 @@ export class ProverService implements OnModuleInit {
   private readonly provers: Map<string, BaseProver> = new Map();
 
   constructor(
-    @InjectPinoLogger(ProverService.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private hyperProver: HyperProver,
     private polymerProver: PolymerProver,
     private metalayerProver: MetalayerProver,
     private dummyProver: DummyProver,
     private readonly blockchainConfigService: BlockchainConfigService,
-  ) {}
+  ) {
+    this.logger.setContext(ProverService.name);
+  }
 
   onModuleInit() {
     this.initializeProvers();
@@ -85,9 +85,11 @@ export class ProverService implements OnModuleInit {
       const destinationContract = prover.isSupported(destinationChainId);
 
       if (sourceContract && destinationContract) {
-        this.logger.debug(
-          `Found prover ${type} for route ${sourceChainId} -> ${destinationChainId}`,
-        );
+        this.logger.debug('Found prover for route', {
+          proverType: type,
+          sourceChainId,
+          destinationChainId,
+        });
         return prover;
       }
     }
@@ -101,6 +103,6 @@ export class ProverService implements OnModuleInit {
     this.provers.set(ProverType.METALAYER, this.metalayerProver);
     this.provers.set(ProverType.DUMMY, this.dummyProver);
 
-    this.logger.info(`Initialized ${this.provers.size} provers`);
+    this.logger.info('Initialized provers', { count: this.provers.size });
   }
 }

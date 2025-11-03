@@ -8,6 +8,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
@@ -133,7 +134,7 @@ describe('EvmExecutorService', () => {
         { provide: EvmTransportService, useValue: transportService },
         { provide: EvmWalletManager, useValue: walletManager },
         { provide: ProverService, useValue: proverService },
-        { provide: SystemLoggerService, useValue: mockLogger },
+        { provide: Logger, useValue: mockLogger },
         { provide: OpenTelemetryService, useValue: mockOtelService },
       ],
     }).compile();

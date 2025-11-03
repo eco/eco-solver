@@ -1,5 +1,3 @@
-import { Logger } from '@nestjs/common';
-
 import { Address, type Log, PublicClient } from 'viem';
 
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
@@ -7,10 +5,11 @@ import { portalAbi } from '@/common/abis/portal.abi';
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
-import { getErrorMessage, toError } from '@/common/utils/error-handler';
+import { toError } from '@/common/utils/error-handler';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { QueueService } from '@/modules/queue/queue.service';
 
 export class ChainListener extends BaseChainListener {
@@ -41,9 +40,10 @@ export class ChainListener extends BaseChainListener {
     const publicClient = this.transportService.getPublicClient(evmConfig.chainId);
     await this.setupListeners(publicClient, evmConfig, portalAddress);
 
-    this.logger.log(
-      `Listening for IntentPublished and IntentFulfilled events, portal address: ${portalAddress}`,
-    );
+    this.logger.info('Listening for IntentPublished and IntentFulfilled events', {
+      chainId: evmConfig.chainId,
+      portalAddress,
+    });
 
     // Set up polling transport listeners if available
     const hasPolling = this.transportService.hasPollingTransport(evmConfig.chainId);
@@ -60,7 +60,9 @@ export class ChainListener extends BaseChainListener {
           httpConfig?.pollingInterval,
         );
 
-        this.logger.log(`EVM Listeners for events using polling as backup`);
+        this.logger.info('EVM Listeners for events using polling as backup', {
+          chainId: evmConfig.chainId,
+        });
       }
     }
   }
@@ -105,7 +107,7 @@ export class ChainListener extends BaseChainListener {
       },
       onError: (error) => {
         this.logger.error(
-          `Error in IntentPublished watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          `Error in IntentPublished watcher for chain ${evmConfig.chainId}, portal ${portalAddress}`,
           toError(error),
         );
       },
@@ -125,7 +127,7 @@ export class ChainListener extends BaseChainListener {
       },
       onError: (error) => {
         this.logger.error(
-          `Error in IntentFulfilled watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          `Error in IntentFulfilled watcher for chain ${evmConfig.chainId}, portal ${portalAddress}`,
           toError(error),
         );
       },
@@ -141,9 +143,11 @@ export class ChainListener extends BaseChainListener {
     for (const [proverType, proverAddress] of Object.entries(provers)) {
       if (!proverAddress) continue;
 
-      this.logger.log(
-        `Listening for IntentProven events from ${proverType} prover at address: ${proverAddress}`,
-      );
+      this.logger.info('Listening for IntentProven events', {
+        chainId: evmConfig.chainId,
+        proverType,
+        proverAddress,
+      });
 
       const proverWatchOptions = pollingInterval ? { pollingInterval } : {};
 
@@ -159,7 +163,7 @@ export class ChainListener extends BaseChainListener {
         },
         onError: (error) => {
           this.logger.error(
-            `Error in IntentProven watcher for chain ${evmConfig.chainId}, prover ${proverType} at ${proverAddress}: ${getErrorMessage(error)}`,
+            `Error in IntentProven watcher for chain ${evmConfig.chainId}, prover ${proverType} at ${proverAddress}`,
             toError(error),
           );
         },
@@ -180,7 +184,7 @@ export class ChainListener extends BaseChainListener {
       },
       onError: (error) => {
         this.logger.error(
-          `Error in IntentWithdrawn watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          `Error in IntentWithdrawn watcher for chain ${evmConfig.chainId}, portal ${portalAddress}`,
           toError(error),
         );
       },
@@ -220,10 +224,7 @@ export class ChainListener extends BaseChainListener {
         `Queued IntentPublished event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to queue IntentPublished event: ${getErrorMessage(error)}`,
-        toError(error),
-      );
+      this.logger.error('Failed to queue IntentPublished event', toError(error));
     }
   }
 
@@ -257,10 +258,7 @@ export class ChainListener extends BaseChainListener {
         `Queued IntentFulfilled event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to queue IntentFulfilled event: ${getErrorMessage(error)}`,
-        toError(error),
-      );
+      this.logger.error('Failed to queue IntentFulfilled event', toError(error));
     }
   }
 
@@ -294,10 +292,7 @@ export class ChainListener extends BaseChainListener {
         `Queued IntentWithdrawn event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to queue IntentWithdrawn event: ${getErrorMessage(error)}`,
-        toError(error),
-      );
+      this.logger.error('Failed to queue IntentWithdrawn event', toError(error));
     }
   }
 
@@ -334,7 +329,7 @@ export class ChainListener extends BaseChainListener {
       );
     } catch (error) {
       this.logger.error(
-        `Failed to queue IntentProven event from ${proverType} prover: ${getErrorMessage(error)}`,
+        `Failed to queue IntentProven event from ${proverType} prover`,
         toError(error),
       );
     }

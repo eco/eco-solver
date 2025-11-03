@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 
 import { EventParser } from '@coral-xyz/anchor';
 import { Connection, Logs, PublicKey } from '@solana/web3.js';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
@@ -17,6 +16,7 @@ import {
 import { portalBorshCoder } from '@/modules/blockchain/svm/utils/portal-borsh-coder';
 import { SvmEventParser } from '@/modules/blockchain/svm/utils/svm-event-parser';
 import { SolanaConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { QueueService } from '@/modules/queue/queue.service';
 
 @Injectable()
@@ -27,8 +27,7 @@ export class SolanaListener extends BaseChainListener {
   private parser: EventParser;
 
   constructor(
-    @InjectPinoLogger(SolanaListener.name)
-    private readonly logger: PinoLogger,
+    private readonly logger: Logger,
     private solanaConfigService: SolanaConfigService,
     private readonly queueService: QueueService,
   ) {
@@ -63,16 +62,20 @@ export class SolanaListener extends BaseChainListener {
 
     // TODO: Listen to IntentProven events on the prover programs
 
-    this.logger.info(
-      `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished, IntentFulfilled, IntentProven, and IntentWithdrawn events.`,
-    );
+    this.logger.info('Solana listener started for Portal program', {
+      programId: this.programId.toString(),
+      events: ['IntentPublished', 'IntentFulfilled', 'IntentProven', 'IntentWithdrawn'],
+      chainId: Number(this.solanaConfigService.chainId),
+    });
   }
 
   async stop(): Promise<void> {
     if (this.subscriptionId && this.connection) {
       await this.connection.removeOnLogsListener(this.subscriptionId);
     }
-    this.logger.info('Solana listener stopped');
+    this.logger.info('Solana listener stopped', {
+      subscriptionId: this.subscriptionId,
+    });
   }
 
   private async handleProgramLogs(logs: Logs): Promise<void> {
@@ -102,9 +105,12 @@ export class SolanaListener extends BaseChainListener {
               };
 
               await this.queueService.addBlockchainEvent(publishedJob);
-              this.logger.debug(
-                `Queued IntentPublished event for intent ${intent.intentHash} from Solana`,
-              );
+              this.logger.debug('Queued IntentPublished event', {
+                eventType: 'IntentPublished',
+                intentHash: intent.intentHash,
+                chainId: Number(this.solanaConfigService.chainId),
+                chainType: 'svm',
+              });
               break;
 
             case 'IntentFunded':
@@ -128,9 +134,12 @@ export class SolanaListener extends BaseChainListener {
               };
 
               await this.queueService.addBlockchainEvent(fundedJob);
-              this.logger.debug(
-                `Queued IntentFunded event for intent ${fundedEvent.intentHash} from Solana`,
-              );
+              this.logger.debug('Queued IntentFunded event', {
+                eventType: 'IntentFunded',
+                intentHash: fundedEvent.intentHash,
+                chainId: Number(this.solanaConfigService.chainId),
+                chainType: 'svm',
+              });
 
               break;
 
@@ -156,9 +165,12 @@ export class SolanaListener extends BaseChainListener {
               };
 
               await this.queueService.addBlockchainEvent(fulfilledJob);
-              this.logger.debug(
-                `Queued IntentFulfilled event for intent ${fulfilledEvent.intentHash} from Solana`,
-              );
+              this.logger.debug('Queued IntentFulfilled event', {
+                eventType: 'IntentFulfilled',
+                intentHash: fulfilledEvent.intentHash,
+                chainId: Number(this.solanaConfigService.chainId),
+                chainType: 'svm',
+              });
               break;
 
             case 'IntentWithdrawn':
@@ -183,21 +195,32 @@ export class SolanaListener extends BaseChainListener {
               };
 
               await this.queueService.addBlockchainEvent(withdrawnJob);
-              this.logger.debug(
-                `Queued IntentWithdrawn event for intent ${withdrawnEvent.intentHash} from Solana`,
-              );
+              this.logger.debug('Queued IntentWithdrawn event', {
+                eventType: 'IntentWithdrawn',
+                intentHash: withdrawnEvent.intentHash,
+                chainId: Number(this.solanaConfigService.chainId),
+                chainType: 'svm',
+              });
               break;
 
             default:
-              this.logger.debug(`Unknown event type: ${ev.name}`, ev);
+              this.logger.debug('Unknown event type received', {
+                eventName: ev.name,
+                eventData: ev,
+              });
               break;
           }
         } catch (eventError) {
-          this.logger.error(`Error processing ${ev.name} event:`, toError(eventError));
+          this.logger.error('Error processing event', {
+            eventName: ev.name,
+            error: toError(eventError),
+          });
         }
       }
     } catch (error) {
-      this.logger.error('Error handling Solana program logs:', toError(error));
+      this.logger.error('Error handling Solana program logs', {
+        error: toError(error),
+      });
     }
   }
 }

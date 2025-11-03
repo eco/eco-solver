@@ -4,6 +4,7 @@ import { Address } from 'viem';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 // Mock the wallet factories to prevent NestJS from trying to instantiate them
 jest.mock('../../wallets/basic-wallet', () => ({
@@ -71,7 +72,7 @@ describe('EvmWalletManager', () => {
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: BasicWalletFactory, useValue: basicWalletFactory },
         { provide: KernelWalletFactory, useValue: kernelWalletFactory },
-        { provide: SystemLoggerService, useValue: mockLogger },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
 
@@ -129,7 +130,7 @@ describe('EvmWalletManager', () => {
           { provide: EvmConfigService, useValue: emptyConfigService },
           { provide: BasicWalletFactory, useValue: basicWalletFactory },
           { provide: KernelWalletFactory, useValue: kernelWalletFactory },
-          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: Logger, useValue: mockLogger },
         ],
       }).compile();
 
