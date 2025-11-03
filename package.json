@@ -82,6 +82,7 @@
     "lodash.merge": "^4.6.2",
     "mongoose": "^8.4.0",
     "nestjs-pino": "^4.1.0",
+    "pino": "^9.0.0",
     "pino-http": "^10.2.0",
     "reflect-metadata": "^0.2.2",
     "rimraf": "^5.0.7",

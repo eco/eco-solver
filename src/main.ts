@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import helmet from 'helmet';
-import { LoggerErrorInterceptor, PinoLogger } from 'nestjs-pino';
+import { LoggerErrorInterceptor } from 'nestjs-pino';
 
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/common/filters/global-exception.filter';
@@ -13,19 +13,20 @@ import {
   OpenTelemetryConfigService,
 } from '@/modules/config/services';
 import { DataDogInterceptor } from '@/modules/datadog';
+import { Logger } from '@/modules/logging';
 import { TraceInterceptor } from '@/modules/opentelemetry';
 
 async function bootstrap() {
-  // Create app with Pino logger
+  // Create app with Pino logger configured in LoggingModule
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
 
-  // Replace default logger with Pino
-  app.useLogger(app.get(PinoLogger));
+  // Replace default logger with our custom Pino logger
+  app.useLogger(app.get(Logger));
   app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
-  const logger = app.get(PinoLogger);
+  const logger = app.get(Logger);
   logger.setContext('Bootstrap');
 
   const appConfig = app.get(AppConfigService);
@@ -97,7 +98,7 @@ async function bootstrap() {
  * Setup process handlers for graceful shutdown
  */
 function setupProcessHandlers(app: INestApplication) {
-  const logger = app.get(PinoLogger);
+  const logger = app.get(Logger);
   let isShuttingDown = false;
 
   const logError = (message: string, error: unknown) => {

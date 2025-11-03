@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
-import { LoggerModule, PinoLogger } from 'nestjs-pino';
+import { LoggerModule } from 'nestjs-pino';
 
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 
@@ -42,15 +42,7 @@ import { PinoOtelBridgeService } from './pino-otel-bridge.service';
       },
     }),
   ],
-  providers: [
-    // Override PinoLogger with our custom Logger for structured logging
-    {
-      provide: PinoLogger,
-      useClass: Logger,
-    },
-    LoggerFactory,
-    PinoOtelBridgeService,
-  ],
+  providers: [Logger, LoggerFactory, PinoOtelBridgeService],
   exports: [Logger, LoggerFactory, PinoOtelBridgeService],
 })
 export class LoggingModule {}

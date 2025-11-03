@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, LoggerService } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Params, PinoLogger } from 'nestjs-pino';
@@ -16,7 +16,7 @@ import { Params, PinoLogger } from 'nestjs-pino';
  * ```
  */
 @Injectable()
-export class Logger extends PinoLogger {
+export class Logger extends PinoLogger implements LoggerService {
   constructor(params: Params) {
     super(params);
   }
@@ -243,6 +243,38 @@ export class Logger extends PinoLogger {
     } else {
       super.trace(messageOrObj, dataOrMsg as string | undefined, ...args);
     }
+  }
+
+  /**
+   * Log message at info level
+   * Required by NestJS LoggerService interface
+   * This is an alias for info() to maintain compatibility with NestJS internal systems
+   */
+  log(message: string, data?: Record<string, any>): void;
+  log(obj: unknown, msg?: string, ...args: any[]): void;
+  log(
+    messageOrObj: string | unknown,
+    dataOrMsg?: Record<string, any> | string,
+    ...args: any[]
+  ): void {
+    // Delegate to info() - standard log level
+    this.info(messageOrObj as any, dataOrMsg as any, ...args);
+  }
+
+  /**
+   * Log verbose/trace message
+   * Required by NestJS LoggerService interface
+   * This is an alias for trace() which is Pino's most verbose level
+   */
+  verbose(message: string, data?: Record<string, any>): void;
+  verbose(obj: unknown, msg?: string, ...args: any[]): void;
+  verbose(
+    messageOrObj: string | unknown,
+    dataOrMsg?: Record<string, any> | string,
+    ...args: any[]
+  ): void {
+    // Delegate to trace() - most verbose level in Pino
+    this.trace(messageOrObj as any, dataOrMsg as any, ...args);
   }
 
   /**
