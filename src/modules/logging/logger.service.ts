@@ -88,16 +88,21 @@ export class Logger extends PinoLogger implements LoggerService {
   ): void {
     if (typeof messageOrObj === 'string') {
       // Our structured format: info(message, data?)
-      const data = dataOrMsg as Record<string, any> | undefined;
-      const baseData = { msg: messageOrObj };
-      if (data) {
-        const serialized = this.serializeBigInt(data);
-        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
-        super.info(enriched);
-      } else {
-        const enriched = this.enrichWithTraceContext(baseData);
-        super.info(enriched);
+      const baseData: Record<string, any> = { msg: messageOrObj };
+
+      if (dataOrMsg) {
+        if (typeof dataOrMsg === 'string') {
+          // NestJS context format: info(message, context)
+          baseData.context = dataOrMsg;
+        } else {
+          // Structured data format: info(message, data)
+          const serialized = this.serializeBigInt(dataOrMsg);
+          Object.assign(baseData, serialized);
+        }
       }
+
+      const enriched = this.enrichWithTraceContext(baseData);
+      super.info(enriched);
     } else {
       // PinoLogger format: info(obj, msg?, ...args)
       super.info(messageOrObj, dataOrMsg as string | undefined, ...args);
@@ -115,16 +120,21 @@ export class Logger extends PinoLogger implements LoggerService {
     ...args: any[]
   ): void {
     if (typeof messageOrObj === 'string') {
-      const data = dataOrMsg as Record<string, any> | undefined;
-      const baseData = { msg: messageOrObj };
-      if (data) {
-        const serialized = this.serializeBigInt(data);
-        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
-        super.debug(enriched);
-      } else {
-        const enriched = this.enrichWithTraceContext(baseData);
-        super.debug(enriched);
+      const baseData: Record<string, any> = { msg: messageOrObj };
+
+      if (dataOrMsg) {
+        if (typeof dataOrMsg === 'string') {
+          // NestJS context format: debug(message, context)
+          baseData.context = dataOrMsg;
+        } else {
+          // Structured data format: debug(message, data)
+          const serialized = this.serializeBigInt(dataOrMsg);
+          Object.assign(baseData, serialized);
+        }
       }
+
+      const enriched = this.enrichWithTraceContext(baseData);
+      super.debug(enriched);
     } else {
       super.debug(messageOrObj, dataOrMsg as string | undefined, ...args);
     }
@@ -141,16 +151,21 @@ export class Logger extends PinoLogger implements LoggerService {
     ...args: any[]
   ): void {
     if (typeof messageOrObj === 'string') {
-      const data = dataOrMsg as Record<string, any> | undefined;
-      const baseData = { msg: messageOrObj };
-      if (data) {
-        const serialized = this.serializeBigInt(data);
-        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
-        super.warn(enriched);
-      } else {
-        const enriched = this.enrichWithTraceContext(baseData);
-        super.warn(enriched);
+      const baseData: Record<string, any> = { msg: messageOrObj };
+
+      if (dataOrMsg) {
+        if (typeof dataOrMsg === 'string') {
+          // NestJS context format: warn(message, context)
+          baseData.context = dataOrMsg;
+        } else {
+          // Structured data format: warn(message, data)
+          const serialized = this.serializeBigInt(dataOrMsg);
+          Object.assign(baseData, serialized);
+        }
       }
+
+      const enriched = this.enrichWithTraceContext(baseData);
+      super.warn(enriched);
     } else {
       super.warn(messageOrObj, dataOrMsg as string | undefined, ...args);
     }
@@ -230,16 +245,21 @@ export class Logger extends PinoLogger implements LoggerService {
     ...args: any[]
   ): void {
     if (typeof messageOrObj === 'string') {
-      const data = dataOrMsg as Record<string, any> | undefined;
-      const baseData = { msg: messageOrObj };
-      if (data) {
-        const serialized = this.serializeBigInt(data);
-        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
-        super.trace(enriched);
-      } else {
-        const enriched = this.enrichWithTraceContext(baseData);
-        super.trace(enriched);
+      const baseData: Record<string, any> = { msg: messageOrObj };
+
+      if (dataOrMsg) {
+        if (typeof dataOrMsg === 'string') {
+          // NestJS context format: trace(message, context)
+          baseData.context = dataOrMsg;
+        } else {
+          // Structured data format: trace(message, data)
+          const serialized = this.serializeBigInt(dataOrMsg);
+          Object.assign(baseData, serialized);
+        }
       }
+
+      const enriched = this.enrichWithTraceContext(baseData);
+      super.trace(enriched);
     } else {
       super.trace(messageOrObj, dataOrMsg as string | undefined, ...args);
     }
