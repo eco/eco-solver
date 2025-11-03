@@ -102,12 +102,14 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
       this.logger.info('Started SVM listener for chain', {
         chainId: Number(chainId),
+        chainType: 'svm',
         isListening: true,
       });
       this.isListening = true;
     } catch (error) {
       this.logger.error('Unable to start listener', error, {
         chainId: Number(chainId),
+        chainType: 'svm',
       });
     }
   }
@@ -118,11 +120,14 @@ export class SvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     }
 
     await Promise.all(Array.from(this.listeners.values()).map((listener) => listener.stop()));
+    const chainIds = Array.from(this.listeners.keys());
     this.listeners.clear();
     this.isListening = false;
     this.logger.info('Stopped all SVM listeners', {
+      chainType: 'svm',
       isListening: false,
       listenersCount: 0,
+      chainIds,
     });
   }
 }

@@ -62,6 +62,8 @@ export class ChainListener extends BaseChainListener {
 
         this.logger.info('EVM Listeners for events using polling as backup', {
           chainId: evmConfig.chainId,
+          portalAddress,
+          pollingInterval: httpConfig?.pollingInterval,
         });
       }
     }
@@ -70,7 +72,10 @@ export class ChainListener extends BaseChainListener {
   async stop(): Promise<void> {
     // Clear all subscriptions
     this.clearAllSubscriptions();
-    this.logger.warn(`EVM listener stopped for chain ${this.config.chainId}`);
+    this.logger.warn('EVM listener stopped', {
+      chainId: this.config.chainId,
+      chainType: 'evm',
+    });
   }
 
   /**
@@ -106,10 +111,13 @@ export class ChainListener extends BaseChainListener {
         }
       },
       onError: (error) => {
-        this.logger.error(
-          `Error in IntentPublished watcher for chain ${evmConfig.chainId}, portal ${portalAddress}`,
-          toError(error),
-        );
+        this.logger.error('Error in IntentPublished watcher', toError(error), {
+          chainId: evmConfig.chainId,
+          chainType: 'evm',
+          contractName: 'portal',
+          portalAddress,
+          eventType: 'IntentPublished',
+        });
       },
     });
 
@@ -126,10 +134,13 @@ export class ChainListener extends BaseChainListener {
         }
       },
       onError: (error) => {
-        this.logger.error(
-          `Error in IntentFulfilled watcher for chain ${evmConfig.chainId}, portal ${portalAddress}`,
-          toError(error),
-        );
+        this.logger.error('Error in IntentFulfilled watcher', toError(error), {
+          chainId: evmConfig.chainId,
+          chainType: 'evm',
+          contractName: 'portal',
+          portalAddress,
+          eventType: 'IntentFulfilled',
+        });
       },
     });
 
@@ -145,8 +156,11 @@ export class ChainListener extends BaseChainListener {
 
       this.logger.info('Listening for IntentProven events', {
         chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'prover',
         proverType,
         proverAddress,
+        eventType: 'IntentProven',
       });
 
       const proverWatchOptions = pollingInterval ? { pollingInterval } : {};
@@ -162,10 +176,14 @@ export class ChainListener extends BaseChainListener {
           }
         },
         onError: (error) => {
-          this.logger.error(
-            `Error in IntentProven watcher for chain ${evmConfig.chainId}, prover ${proverType} at ${proverAddress}`,
-            toError(error),
-          );
+          this.logger.error('Error in IntentProven watcher', toError(error), {
+            chainId: evmConfig.chainId,
+            chainType: 'evm',
+            contractName: 'prover',
+            proverType,
+            proverAddress,
+            eventType: 'IntentProven',
+          });
         },
         strict: true,
       });
@@ -183,10 +201,13 @@ export class ChainListener extends BaseChainListener {
         }
       },
       onError: (error) => {
-        this.logger.error(
-          `Error in IntentWithdrawn watcher for chain ${evmConfig.chainId}, portal ${portalAddress}`,
-          toError(error),
-        );
+        this.logger.error('Error in IntentWithdrawn watcher', toError(error), {
+          chainId: evmConfig.chainId,
+          chainType: 'evm',
+          contractName: 'portal',
+          portalAddress,
+          eventType: 'IntentWithdrawn',
+        });
       },
     });
 
@@ -220,11 +241,23 @@ export class ChainListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentPublished event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
-      );
+      this.logger.debug('Queued IntentPublished event', {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        eventType: 'IntentPublished',
+        txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+      });
     } catch (error) {
-      this.logger.error('Failed to queue IntentPublished event', toError(error));
+      this.logger.error('Failed to queue IntentPublished event', toError(error), {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        eventType: 'IntentPublished',
+      });
     }
   }
 
@@ -254,11 +287,23 @@ export class ChainListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentFulfilled event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
-      );
+      this.logger.debug('Queued IntentFulfilled event', {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        eventType: 'IntentFulfilled',
+        txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+      });
     } catch (error) {
-      this.logger.error('Failed to queue IntentFulfilled event', toError(error));
+      this.logger.error('Failed to queue IntentFulfilled event', toError(error), {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        eventType: 'IntentFulfilled',
+      });
     }
   }
 
@@ -288,11 +333,23 @@ export class ChainListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentWithdrawn event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
-      );
+      this.logger.debug('Queued IntentWithdrawn event', {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        eventType: 'IntentWithdrawn',
+        txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+      });
     } catch (error) {
-      this.logger.error('Failed to queue IntentWithdrawn event', toError(error));
+      this.logger.error('Failed to queue IntentWithdrawn event', toError(error), {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        eventType: 'IntentWithdrawn',
+      });
     }
   }
 
@@ -324,14 +381,25 @@ export class ChainListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentProven event for intent ${log.args.intentHash} from ${proverType} prover on chain ${evmConfig.chainId}`,
-      );
+      this.logger.debug('Queued IntentProven event', {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'prover',
+        proverType,
+        eventType: 'IntentProven',
+        txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+      });
     } catch (error) {
-      this.logger.error(
-        `Failed to queue IntentProven event from ${proverType} prover`,
-        toError(error),
-      );
+      this.logger.error('Failed to queue IntentProven event', toError(error), {
+        intentHash: log.args.intentHash,
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'prover',
+        proverType,
+        eventType: 'IntentProven',
+      });
     }
   }
 }

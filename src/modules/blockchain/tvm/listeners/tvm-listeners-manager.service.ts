@@ -26,14 +26,20 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   async onModuleInit(): Promise<void> {
     // Check if listeners are enabled
     if (!this.tvmConfigService.listenersEnabled) {
-      this.logger.info('TVM listeners disabled via configuration');
+      this.logger.info('TVM listeners disabled via configuration', {
+        chainType: 'tvm',
+        listenersEnabled: false,
+      });
       return;
     }
 
     // If leader election is enabled, wait for leadership
     if (this.leaderElectionService) {
       if (!this.leaderElectionService.isCurrentLeader()) {
-        this.logger.info('TVM listeners waiting for leadership');
+        this.logger.info('TVM listeners waiting for leadership', {
+          chainType: 'tvm',
+          isLeader: false,
+        });
         return;
       }
     }
@@ -48,7 +54,11 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   @OnEvent('leader.gained')
   async onLeadershipGained() {
     if (this.tvmConfigService.listenersEnabled && !this.isListening) {
-      this.logger.info('Leadership gained, starting TVM listeners');
+      this.logger.info('Leadership gained, starting TVM listeners', {
+        chainType: 'tvm',
+        listenersEnabled: true,
+        isListening: false,
+      });
       await this.initializeListeners();
     }
   }
@@ -56,7 +66,10 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   @OnEvent('leader.lost')
   async onLeadershipLost() {
     if (this.isListening) {
-      this.logger.info('Leadership lost, stopping TVM listeners');
+      this.logger.info('Leadership lost, stopping TVM listeners', {
+        chainType: 'tvm',
+        isListening: true,
+      });
       await this.stopAllListeners();
     }
   }
@@ -64,7 +77,10 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
   private async initializeListeners() {
     // Check if listeners are enabled
     if (!this.tvmConfigService.listenersEnabled) {
-      this.logger.info('TVM listeners disabled via configuration');
+      this.logger.info('TVM listeners disabled via configuration', {
+        chainType: 'tvm',
+        listenersEnabled: false,
+      });
       return;
     }
 
@@ -74,6 +90,8 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       if (!network.contracts.portal) {
         this.logger.warn('Skipping TVM listener, no portal address configured', {
           chainId: network.chainId.toString(),
+          chainType: 'tvm',
+          portalAddress: network.contracts.portal,
         });
         continue;
       }
@@ -96,10 +114,14 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
         this.logger.info('Started TVM listener', {
           chainId: network.chainId.toString(),
+          chainType: 'tvm',
+          portalAddress: network.contracts.portal,
         });
       } catch (error) {
         this.logger.error('Unable to start TVM listener', error, {
           chainId: network.chainId.toString(),
+          chainType: 'tvm',
+          portalAddress: network.contracts.portal,
         });
       }
     }
@@ -108,6 +130,7 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       this.isListening = true;
     }
     this.logger.info('Initialized TVM listeners', {
+      chainType: 'tvm',
       listenerCount: this.listeners.length,
     });
   }
@@ -117,9 +140,13 @@ export class TvmListenersManagerService implements OnModuleInit, OnModuleDestroy
       return;
     }
 
+    const listenerCount = this.listeners.length;
     await Promise.all(this.listeners.map((listener) => listener.stop()));
     this.listeners = [];
     this.isListening = false;
-    this.logger.info('Stopped all TVM listeners');
+    this.logger.info('Stopped all TVM listeners', {
+      chainType: 'tvm',
+      stoppedCount: listenerCount,
+    });
   }
 }

@@ -111,12 +111,15 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
         this.logger.info('Started EVM listener for chain', {
           chainId: network.chainId,
+          chainType: 'evm',
           portalAddress: config.portalAddress,
         });
         this.isListening = true;
       } catch (error) {
         this.logger.error('Unable to start listener for chain', error, {
           chainId: network.chainId,
+          chainType: 'evm',
+          portalAddress: config.portalAddress,
         });
       }
     }
@@ -134,7 +137,9 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     this.listeners.clear();
     this.isListening = false;
     this.logger.info('EVM listeners stopped', {
+      chainType: 'evm',
       stoppedCount: listenerCount,
+      chainIds: Array.from(this.listeners.keys()),
     });
   }
 }

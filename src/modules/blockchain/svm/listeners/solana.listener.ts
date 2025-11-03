@@ -74,6 +74,8 @@ export class SolanaListener extends BaseChainListener {
       await this.connection.removeOnLogsListener(this.subscriptionId);
     }
     this.logger.info('Solana listener stopped', {
+      chainId: Number(this.solanaConfigService.chainId),
+      chainType: 'svm',
       subscriptionId: this.subscriptionId,
     });
   }
@@ -206,20 +208,27 @@ export class SolanaListener extends BaseChainListener {
             default:
               this.logger.debug('Unknown event type received', {
                 eventName: ev.name,
+                chainId: Number(this.solanaConfigService.chainId),
+                chainType: 'svm',
+                signature: logs.signature,
                 eventData: ev,
               });
               break;
           }
         } catch (eventError) {
-          this.logger.error('Error processing event', {
+          this.logger.error('Error processing event', toError(eventError), {
             eventName: ev.name,
-            error: toError(eventError),
+            chainId: Number(this.solanaConfigService.chainId),
+            chainType: 'svm',
+            signature: logs.signature,
           });
         }
       }
     } catch (error) {
-      this.logger.error('Error handling Solana program logs', {
-        error: toError(error),
+      this.logger.error('Error handling Solana program logs', toError(error), {
+        chainId: Number(this.solanaConfigService.chainId),
+        chainType: 'svm',
+        signature: logs.signature,
       });
     }
   }

@@ -67,10 +67,7 @@ export class PinoOtelBridgeService implements OnModuleInit {
     logs.setGlobalLoggerProvider(this.loggerProvider);
 
     // Get logger instance
-    this.otelLogger = this.loggerProvider.getLogger(
-      this.otelConfigService.serviceName || 'blockchain-intent-solver',
-      '1.0.0',
-    );
+    this.otelLogger = this.loggerProvider.getLogger(this.otelConfigService.serviceName, '1.0.0');
   }
 
   /**

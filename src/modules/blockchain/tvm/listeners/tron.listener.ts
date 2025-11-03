@@ -235,7 +235,12 @@ export class TronListener extends BaseChainListener {
           span.addEvent('tvm.events.fetched');
 
           if (!eventsResponse.success) {
-            this.logger.error(`Failed to get ${contractName} events: ${eventsResponse.error}`);
+            this.logger.error('Failed to get events', new Error(eventsResponse.error), {
+              contractName,
+              chainId: this.config.chainId,
+              chainType: 'tvm',
+              minBlockTimestamp: opts.minBlockTimestamp,
+            });
             throw new Error(`Failed to get ${contractName} events`);
           }
 
@@ -322,7 +327,13 @@ export class TronListener extends BaseChainListener {
         return await this.processIntentWithdrawnEvent(event);
 
       default:
-        this.logger.debug('Unknown event type', { eventName: event.event_name });
+        this.logger.debug('Unknown event type', {
+          eventName: event.event_name,
+          chainId: this.config.chainId,
+          chainType: 'tvm',
+          txHash: event.transaction_id,
+          blockNumber: event.block_number,
+        });
         return { success: true };
     }
   }
@@ -380,13 +391,24 @@ export class TronListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentFulfilled event for intent ${fulfilledEvent.intentHash} from Tron`,
-      );
+      this.logger.debug('Queued IntentFulfilled event', {
+        intentHash: fulfilledEvent.intentHash,
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        eventType: 'IntentFulfilled',
+        txHash: event.transaction_id,
+        blockNumber: event.block_number,
+      });
 
       return { success: true, intentHash: fulfilledEvent.intentHash };
     } catch (error) {
-      this.logger.error(`Failed to queue IntentFulfilled event:`, error);
+      this.logger.error('Failed to queue IntentFulfilled event', toError(error), {
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        eventType: 'IntentFulfilled',
+      });
       return { success: false, error: toError(error) };
     }
   }
@@ -423,11 +445,24 @@ export class TronListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(`Queued IntentProven event for intent ${parsedEvent.intentHash} from Tron`);
+      this.logger.debug('Queued IntentProven event', {
+        intentHash: parsedEvent.intentHash,
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'prover',
+        eventType: 'IntentProven',
+        txHash: event.transaction_id,
+        blockNumber: event.block_number,
+      });
 
       return { success: true, intentHash: parsedEvent.intentHash };
     } catch (error) {
-      this.logger.error(`Failed to queue IntentProven event:`, error);
+      this.logger.error('Failed to queue IntentProven event', toError(error), {
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'prover',
+        eventType: 'IntentProven',
+      });
       return { success: false, error: toError(error) };
     }
   }
@@ -456,13 +491,24 @@ export class TronListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentWithdrawn event for intent ${parsedEvent.intentHash} from Tron`,
-      );
+      this.logger.debug('Queued IntentWithdrawn event', {
+        intentHash: parsedEvent.intentHash,
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        eventType: 'IntentWithdrawn',
+        txHash: event.transaction_id,
+        blockNumber: event.block_number,
+      });
 
       return { success: true, intentHash: parsedEvent.intentHash };
     } catch (error) {
-      this.logger.error(`Failed to queue IntentWithdrawn event:`, error);
+      this.logger.error('Failed to queue IntentWithdrawn event', toError(error), {
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        eventType: 'IntentWithdrawn',
+      });
       return { success: false, error: toError(error) };
     }
   }
@@ -525,8 +571,11 @@ export class TronListener extends BaseChainListener {
       try {
         return EvmEventParser.parseIntentPublish(BigInt(this.config.chainId), evmLog);
       } catch (error) {
-        this.logger.error('Failed to parse IntentPublished event', error, {
+        this.logger.error('Failed to parse IntentPublished event', toError(error), {
           txId: txInfo.id,
+          chainId: this.config.chainId,
+          chainType: 'tvm',
+          contractName: 'portal',
         });
       }
     }
@@ -554,14 +603,22 @@ export class TronListener extends BaseChainListener {
       };
 
       await this.queueService.addBlockchainEvent(eventJob);
-      this.logger.debug(
-        `Queued IntentPublished event for intent ${intent.intentHash} from Tron chain ${this.config.chainId}`,
-      );
+      this.logger.debug('Queued IntentPublished event', {
+        intentHash: intent.intentHash,
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        eventType: 'IntentPublished',
+        txHash: intent.publishTxHash,
+      });
     } catch (error) {
-      this.logger.error(
-        `Failed to queue IntentPublished event for intent ${intent.intentHash}:`,
-        error,
-      );
+      this.logger.error('Failed to queue IntentPublished event', toError(error), {
+        intentHash: intent.intentHash,
+        chainId: this.config.chainId,
+        chainType: 'tvm',
+        contractName: 'portal',
+        eventType: 'IntentPublished',
+      });
     }
   }
 
