@@ -70,22 +70,6 @@ const logger = this.loggerFactory.createLogger('DynamicContext');
 logger.info('Message with dynamic context', { data: 'value' });
 ```
 
-#### PinoOtelBridgeService
-Bridges Pino logs to OpenTelemetry collectors via OTLP.
-
-**Location**: `src/modules/logging/pino-otel-bridge.service.ts`
-
-**Responsibilities:**
-- Export logs to OpenTelemetry collector
-- Map Pino log levels to OpenTelemetry severity levels
-- Handle batching and delivery
-- Optional feature (disabled by default)
-
-**Configuration:**
-- `LOGGER_OTEL_LOG_EXPORT_ENABLED`: Enable OTLP log export
-- `LOGGER_OTEL_LOG_EXPORT_ENDPOINT`: Custom OTLP endpoint
-- `LOGGER_OTEL_LOG_EXPORT_HEADERS_*`: Custom headers
-
 #### LoggingModule
 Global NestJS module that configures the logging system.
 
@@ -94,8 +78,9 @@ Global NestJS module that configures the logging system.
 **Responsibilities:**
 - Configure nestjs-pino LoggerModule
 - Set up pino-pretty transport (development)
+- Set up pino-opentelemetry-transport for OTLP log export (optional)
 - Configure custom serializers
-- Export Logger, LoggerFactory, and PinoOtelBridgeService
+- Export Logger and LoggerFactory
 
 ## Configuration
 

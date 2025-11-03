@@ -70,7 +70,7 @@ const PinoConfigSchema = z
  */
 const OtelLogExportSchema = z
   .object({
-    enabled: z.boolean().default(false),
+    enabled: z.boolean().default(true),
     endpoint: z.string().optional(), // If not provided, uses OpenTelemetry OTLP endpoint
     headers: z.record(z.string()).default({}),
   })
@@ -121,10 +121,6 @@ export const LoggerSchema = z
       'authorization',
       'auth',
     ],
-    otelLogExport: {
-      enabled: false,
-      headers: {},
-    },
   });
 
 export type LoggerConfig = z.infer<typeof LoggerSchema>;

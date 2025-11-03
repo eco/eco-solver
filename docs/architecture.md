@@ -102,8 +102,7 @@ App Module
 │   └── TokenConfigService
 ├── Logging Module (Global)
 │   ├── Logger (Custom Pino logger)
-│   ├── LoggerFactory (Logger instance factory)
-│   └── PinoOtelBridgeService (OTLP log export)
+│   └── LoggerFactory (Logger instance factory)
 ├── OpenTelemetry Module (Global)
 │   ├── OpenTelemetryService
 │   └── QueueTracingService
