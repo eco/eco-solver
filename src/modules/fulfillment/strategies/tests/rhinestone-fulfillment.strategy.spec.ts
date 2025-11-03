@@ -54,6 +54,7 @@ import {
   ExpirationValidation,
   IntentFundedValidation,
   ProverSupportValidation,
+  RhinestoneValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
   RouteEnabledValidation,
@@ -85,6 +86,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let proverSupportValidation: jest.Mocked<ProverSupportValidation>;
   let executorBalanceValidation: jest.Mocked<ExecutorBalanceValidation>;
   let standardFeeValidation: jest.Mocked<StandardFeeValidation>;
+  let rhinestoneValidation: jest.Mocked<RhinestoneValidation>;
 
   beforeEach(async () => {
     // Clear all mocks
@@ -142,6 +144,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
     proverSupportValidation = createMockValidation('ProverSupportValidation') as any;
     executorBalanceValidation = createMockValidation('ExecutorBalanceValidation') as any;
     standardFeeValidation = createMockValidation('StandardFeeValidation') as any;
+    rhinestoneValidation = createMockValidation('RhinestoneValidation') as any;
 
     const module = await Test.createTestingModule({
       providers: [
@@ -206,6 +209,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
           provide: StandardFeeValidation,
           useValue: standardFeeValidation,
         },
+        {
+          provide: RhinestoneValidation,
+          useValue: rhinestoneValidation,
+        },
       ],
     }).compile();
 
@@ -237,7 +244,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(validations[6]).toBe(routeEnabledValidation);
       expect(validations[7]).toBe(proverSupportValidation);
       expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(standardFeeValidation);
+      expect(validations[9]).toBe(rhinestoneValidation);
     });
 
     it('should exclude RouteCallsValidation from validations', () => {
@@ -378,7 +385,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
         mockIntent,
         expect.objectContaining({ strategy }),
       );
-      expect(standardFeeValidation.validate).toHaveBeenCalledWith(
+      expect(rhinestoneValidation.validate).toHaveBeenCalledWith(
         mockIntent,
         expect.objectContaining({ strategy }),
       );
@@ -393,7 +400,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
         routeEnabledValidation,
         proverSupportValidation,
         executorBalanceValidation,
-        standardFeeValidation,
+        rhinestoneValidation,
       ].forEach((validation) => {
         expect(validation.validate).toHaveBeenCalledTimes(1);
       });
@@ -445,7 +452,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
       expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
       expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
-      expect(standardFeeValidation.validate).toHaveBeenCalledTimes(1);
+      expect(rhinestoneValidation.validate).toHaveBeenCalledTimes(1);
     });
 
     it('should propagate validation errors', async () => {
@@ -617,7 +624,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(validations[6]).toBe(routeEnabledValidation);
       expect(validations[7]).toBe(proverSupportValidation);
       expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(standardFeeValidation);
+      expect(validations[9]).toBe(rhinestoneValidation);
     });
   });
 });

@@ -1,10 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { RhinestoneConfigService } from '@/modules/config/services/rhinestone-config.service';
+import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 
 import { RhinestoneActionProcessor } from '../rhinestone-action-processor.service';
+import { RhinestoneContractsService } from '../rhinestone-contracts.service';
+import { RhinestoneValidationService } from '../rhinestone-validation.service';
 import { RhinestoneWebsocketService } from '../rhinestone-websocket.service';
 
 import {
@@ -52,6 +56,11 @@ const mockRhinestoneConfigService = {
   }),
 };
 
+// Minimal mocks for RhinestoneValidationService dependencies
+const mockRhinestoneContractsService = {};
+const mockFeeResolverService = {};
+const mockTokenConfigService = {};
+
 describe('RhinestoneActionProcessor', () => {
   let service: RhinestoneActionProcessor;
 
@@ -59,10 +68,14 @@ describe('RhinestoneActionProcessor', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RhinestoneActionProcessor,
+        RhinestoneValidationService, // Use real service
         { provide: QUEUE_SERVICE, useValue: mockQueueService },
         { provide: RhinestoneWebsocketService, useValue: mockWebsocketService },
         { provide: OpenTelemetryService, useValue: mockOtelService },
         { provide: RhinestoneConfigService, useValue: mockRhinestoneConfigService },
+        { provide: RhinestoneContractsService, useValue: mockRhinestoneContractsService },
+        { provide: FeeResolverService, useValue: mockFeeResolverService },
+        { provide: TokenConfigService, useValue: mockTokenConfigService },
       ],
     }).compile();
 
@@ -159,7 +172,7 @@ describe('RhinestoneActionProcessor', () => {
         expect.objectContaining({
           type: 'Error',
           reason: 'PreconditionFailed',
-          message: expect.stringContaining('Invalid router address in claim'),
+          message: expect.stringContaining('Invalid router address'),
         }),
       );
     });
@@ -177,7 +190,7 @@ describe('RhinestoneActionProcessor', () => {
         expect.objectContaining({
           type: 'Error',
           reason: 'PreconditionFailed',
-          message: expect.stringContaining('Invalid router address in fill'),
+          message: expect.stringContaining('Invalid router address'),
         }),
       );
     });
@@ -255,7 +268,7 @@ describe('RhinestoneActionProcessor', () => {
         expect.objectContaining({
           type: 'Error',
           reason: 'PreconditionFailed',
-          message: expect.stringContaining('Router call in claim must have zero value'),
+          message: expect.stringContaining('Router call must have zero value'),
         }),
       );
     });
@@ -273,7 +286,7 @@ describe('RhinestoneActionProcessor', () => {
         expect.objectContaining({
           type: 'Error',
           reason: 'PreconditionFailed',
-          message: expect.stringContaining('Router call in fill must have zero value'),
+          message: expect.stringContaining('Router call must have zero value'),
         }),
       );
     });
