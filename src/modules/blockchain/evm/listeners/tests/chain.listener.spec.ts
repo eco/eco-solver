@@ -426,6 +426,13 @@ describe('ChainListener', () => {
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to queue IntentFulfilled event'),
         expect.any(Error),
+        expect.objectContaining({
+          intentHash: expect.any(String),
+          chainId: expect.any(Number),
+          chainType: 'evm',
+          contractName: 'portal',
+          eventType: 'IntentFulfilled',
+        }),
       );
     });
 
