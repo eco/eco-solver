@@ -92,6 +92,17 @@ const PinoConfigSchema = z
   });
 
 /**
+ * OpenTelemetry log export configuration schema
+ */
+const OtelLogExportSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    endpoint: z.string().optional(), // If not provided, uses OpenTelemetry OTLP endpoint
+    headers: z.record(z.string()).default({}),
+  })
+  .optional();
+
+/**
  * Logger configuration schema
  */
 export const LoggerSchema = z
@@ -110,6 +121,7 @@ export const LoggerSchema = z
         'authorization',
         'auth',
       ]),
+    otelLogExport: OtelLogExportSchema,
   })
   .default({
     usePino: true,
@@ -143,6 +155,10 @@ export const LoggerSchema = z
       'authorization',
       'auth',
     ],
+    otelLogExport: {
+      enabled: false,
+      headers: {},
+    },
   });
 
 export type LoggerConfig = z.infer<typeof LoggerSchema>;

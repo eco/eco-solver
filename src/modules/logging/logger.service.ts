@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
+import * as api from '@opentelemetry/api';
 import { Params, PinoLogger } from 'nestjs-pino';
 
 /**
  * Custom Logger that extends PinoLogger with structured logging by default
  * All log methods use structured format: { msg: string, ...data }
  * Automatically handles BigInt serialization
+ * Automatically injects OpenTelemetry trace context when available
  *
  * Usage:
  * ```typescript
@@ -17,6 +19,58 @@ import { Params, PinoLogger } from 'nestjs-pino';
 export class Logger extends PinoLogger {
   constructor(params: Params) {
     super(params);
+  }
+
+  /**
+   * Extract trace context from the active OpenTelemetry span
+   * Returns trace_id and span_id if a span is active, undefined otherwise
+   */
+  private getTraceContext(): { trace_id: string; span_id: string } | undefined {
+    const span = api.trace.getActiveSpan();
+    if (!span) {
+      return undefined;
+    }
+
+    const spanContext = span.spanContext();
+    if (!spanContext || !api.trace.isSpanContextValid(spanContext)) {
+      return undefined;
+    }
+
+    return {
+      trace_id: spanContext.traceId,
+      span_id: spanContext.spanId,
+    };
+  }
+
+  /**
+   * Enrich log data with trace context and correlation attributes
+   * Adds trace_id, span_id, and any correlation attributes from span
+   */
+  private enrichWithTraceContext(data: Record<string, any>): Record<string, any> {
+    const traceContext = this.getTraceContext();
+    if (!traceContext) {
+      return data;
+    }
+
+    const enriched: Record<string, any> = { ...data, ...traceContext };
+
+    // Also extract correlation attributes if present in the active span
+    const span = api.trace.getActiveSpan();
+    if (span) {
+      const attributes = (span as any).attributes;
+      if (attributes) {
+        // Add correlation_id if present
+        if (attributes['trace.correlation.id']) {
+          enriched.correlation_id = attributes['trace.correlation.id'];
+        }
+        // Add stage if present
+        if (attributes['trace.stage']) {
+          enriched.stage = attributes['trace.stage'];
+        }
+      }
+    }
+
+    return enriched;
   }
 
   /**
@@ -35,11 +89,14 @@ export class Logger extends PinoLogger {
     if (typeof messageOrObj === 'string') {
       // Our structured format: info(message, data?)
       const data = dataOrMsg as Record<string, any> | undefined;
+      const baseData = { msg: messageOrObj };
       if (data) {
         const serialized = this.serializeBigInt(data);
-        super.info({ msg: messageOrObj, ...serialized });
+        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
+        super.info(enriched);
       } else {
-        super.info({ msg: messageOrObj });
+        const enriched = this.enrichWithTraceContext(baseData);
+        super.info(enriched);
       }
     } else {
       // PinoLogger format: info(obj, msg?, ...args)
@@ -59,11 +116,14 @@ export class Logger extends PinoLogger {
   ): void {
     if (typeof messageOrObj === 'string') {
       const data = dataOrMsg as Record<string, any> | undefined;
+      const baseData = { msg: messageOrObj };
       if (data) {
         const serialized = this.serializeBigInt(data);
-        super.debug({ msg: messageOrObj, ...serialized });
+        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
+        super.debug(enriched);
       } else {
-        super.debug({ msg: messageOrObj });
+        const enriched = this.enrichWithTraceContext(baseData);
+        super.debug(enriched);
       }
     } else {
       super.debug(messageOrObj, dataOrMsg as string | undefined, ...args);
@@ -82,11 +142,14 @@ export class Logger extends PinoLogger {
   ): void {
     if (typeof messageOrObj === 'string') {
       const data = dataOrMsg as Record<string, any> | undefined;
+      const baseData = { msg: messageOrObj };
       if (data) {
         const serialized = this.serializeBigInt(data);
-        super.warn({ msg: messageOrObj, ...serialized });
+        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
+        super.warn(enriched);
       } else {
-        super.warn({ msg: messageOrObj });
+        const enriched = this.enrichWithTraceContext(baseData);
+        super.warn(enriched);
       }
     } else {
       super.warn(messageOrObj, dataOrMsg as string | undefined, ...args);
@@ -119,7 +182,8 @@ export class Logger extends PinoLogger {
         Object.assign(logData, this.serializeBigInt(dataOrArgs));
       }
 
-      super.error(logData);
+      const enriched = this.enrichWithTraceContext(logData);
+      super.error(enriched);
     } else {
       // PinoLogger format
       super.error(messageOrObj, errorOrMsg as string | undefined, dataOrArgs, ...args);
@@ -148,7 +212,8 @@ export class Logger extends PinoLogger {
         Object.assign(logData, this.serializeBigInt(dataOrArgs));
       }
 
-      super.fatal(logData);
+      const enriched = this.enrichWithTraceContext(logData);
+      super.fatal(enriched);
     } else {
       super.fatal(messageOrObj, errorOrMsg as string | undefined, dataOrArgs, ...args);
     }
@@ -166,11 +231,14 @@ export class Logger extends PinoLogger {
   ): void {
     if (typeof messageOrObj === 'string') {
       const data = dataOrMsg as Record<string, any> | undefined;
+      const baseData = { msg: messageOrObj };
       if (data) {
         const serialized = this.serializeBigInt(data);
-        super.trace({ msg: messageOrObj, ...serialized });
+        const enriched = this.enrichWithTraceContext({ ...baseData, ...serialized });
+        super.trace(enriched);
       } else {
-        super.trace({ msg: messageOrObj });
+        const enriched = this.enrichWithTraceContext(baseData);
+        super.trace(enriched);
       }
     } else {
       super.trace(messageOrObj, dataOrMsg as string | undefined, ...args);

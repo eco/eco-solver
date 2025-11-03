@@ -7,6 +7,7 @@ import { AppConfigService } from '@/modules/config/services/app-config.service';
 import { maskSensitiveData } from './log-message.helper';
 import { Logger } from './logger.service';
 import { LoggerFactory } from './logger-factory.service';
+import { PinoOtelBridgeService } from './pino-otel-bridge.service';
 
 @Global()
 @Module({
@@ -48,7 +49,8 @@ import { LoggerFactory } from './logger-factory.service';
       useClass: Logger,
     },
     LoggerFactory,
+    PinoOtelBridgeService,
   ],
-  exports: [Logger, LoggerFactory],
+  exports: [Logger, LoggerFactory, PinoOtelBridgeService],
 })
 export class LoggingModule {}

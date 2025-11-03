@@ -7,6 +7,7 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
 import { MongoDBInstrumentation } from '@opentelemetry/instrumentation-mongodb';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
+import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { defaultResource, resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ConsoleMetricExporter,
@@ -343,6 +344,17 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     if (this.config.instrumentation.nestjs.enabled) {
       instrumentations.push(new NestInstrumentation());
     }
+
+    // Add Pino instrumentation to inject trace context into logs
+    instrumentations.push(
+      new PinoInstrumentation({
+        logKeys: {
+          traceId: 'trace_id',
+          spanId: 'span_id',
+          traceFlags: 'trace_flags',
+        },
+      }),
+    );
 
     return instrumentations;
   }
