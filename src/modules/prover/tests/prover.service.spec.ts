@@ -4,6 +4,7 @@ import { ProverType } from '@/common/interfaces/prover.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
+import { Logger } from '@/modules/logging';
 
 import { ProverService } from '../prover.service';
 import { DummyProver } from '../provers/dummy.prover';
@@ -20,7 +21,7 @@ describe('ProverService', () => {
   let mockPolymerProver: jest.Mocked<PolymerProver>;
   let mockMetalayerProver: jest.Mocked<MetalayerProver>;
   let mockDummyProver: jest.Mocked<DummyProver>;
-  let mockLogger: jest.Mocked<SystemLoggerService>;
+  let mockLogger: jest.Mocked<Logger>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
   const mockHyperAddress = toUniversalAddress(
@@ -87,7 +88,8 @@ describe('ProverService', () => {
       debug: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
-    } as unknown as jest.Mocked<SystemLoggerService>;
+      info: jest.fn(),
+    } as unknown as jest.Mocked<Logger>;
 
     mockBlockchainConfigService = {
       getPortalAddress: jest.fn().mockImplementation((chainId: number) => {
@@ -122,7 +124,7 @@ describe('ProverService', () => {
           useValue: mockDummyProver,
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: mockLogger,
         },
         {

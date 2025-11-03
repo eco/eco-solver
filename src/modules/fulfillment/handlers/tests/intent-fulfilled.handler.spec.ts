@@ -1,10 +1,10 @@
-import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentFulfilledEvent } from '@/common/interfaces/events.interface';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
+import { Logger } from '@/modules/logging';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -29,8 +29,12 @@ describe('IntentFulfilledHandler', () => {
           useValue: {
             setContext: jest.fn(),
             log: jest.fn(),
-            warn: jest.fn(),
             error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            info: jest.fn(),
+            verbose: jest.fn(),
+            fatal: jest.fn(),
           },
         },
         {
@@ -84,11 +88,13 @@ describe('IntentFulfilledHandler', () => {
         },
       );
 
-      expect(logger.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Processing IntentFulfilled event'),
+        expect.any(Object),
       );
-      expect(logger.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('Successfully updated intent'),
+        expect.any(Object),
       );
     });
 
@@ -99,7 +105,8 @@ describe('IntentFulfilledHandler', () => {
 
       expect(intentsService.updateStatus).toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Intent ' + mockEvent.intentHash + ' not found'),
+        expect.stringContaining('Intent not found'),
+        expect.any(Object),
       );
     });
 
@@ -112,6 +119,7 @@ describe('IntentFulfilledHandler', () => {
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error processing IntentFulfilled event'),
         error,
+        expect.any(Object),
       );
 
       // The span is created and used within the callback, we just need to verify the tracer was called

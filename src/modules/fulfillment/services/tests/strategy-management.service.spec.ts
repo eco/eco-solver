@@ -15,10 +15,10 @@ jest.mock('../../strategies/rhinestone-fulfillment.strategy', () => ({
   RhinestoneFulfillmentStrategy: jest.fn(),
 }));
 
-import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { CrowdLiquidityFulfillmentStrategy } from '../../strategies/crowd-liquidity-fulfillment.strategy';
@@ -37,6 +37,10 @@ describe('StrategyManagementService', () => {
     log: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    verbose: jest.fn(),
+    fatal: jest.fn(),
   };
 
   const mockOtelService = {
@@ -129,12 +133,26 @@ describe('StrategyManagementService', () => {
     it('should initialize strategies based on configuration', async () => {
       await service.onModuleInit();
 
-      expect(mockLogger.log).toHaveBeenCalledWith("Strategy 'standard' registered and enabled");
-      expect(mockLogger.log).toHaveBeenCalledWith(
-        "Strategy 'crowd-liquidity' registered but disabled",
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Strategy registered and enabled',
+        expect.objectContaining({
+          strategyName: 'standard',
+          enabled: true,
+        }),
       );
-      expect(mockLogger.log).toHaveBeenCalledWith(
-        "Strategy 'native-intents' registered and enabled",
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Strategy registered but disabled',
+        expect.objectContaining({
+          strategyName: 'crowd-liquidity',
+          enabled: false,
+        }),
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Strategy registered and enabled',
+        expect.objectContaining({
+          strategyName: 'native-intents',
+          enabled: true,
+        }),
       );
     });
   });
@@ -250,7 +268,12 @@ describe('StrategyManagementService', () => {
 
       const strategy = service.getStrategy('standard');
       expect(strategy).toBeUndefined();
-      expect(mockLogger.log).toHaveBeenCalledWith("Strategy 'standard' unregistered");
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Strategy unregistered',
+        expect.objectContaining({
+          strategyName: 'standard',
+        }),
+      );
     });
   });
 });

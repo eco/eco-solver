@@ -7,6 +7,7 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService, TvmConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 
@@ -151,6 +152,7 @@ describe.skip('TvmExecutorService Integration - Mainnet Happy Path', () => {
     error: jest.fn(),
     warn: jest.fn(),
     debug: jest.fn(),
+    info: jest.fn(),
   };
 
   // Mock OpenTelemetry
@@ -203,7 +205,7 @@ describe.skip('TvmExecutorService Integration - Mainnet Happy Path', () => {
           useValue: mockFulfillmentService,
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: mockLogger,
         },
         {

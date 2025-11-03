@@ -8,14 +8,14 @@ import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EvmWalletManager } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';
-import { SystemLoggerService } from '@/modules/logging';
+import { Logger } from '@/modules/logging';
 
 import { QuoteRegistrationService } from '../services/quote-registration.service';
 
 describe('RegistrationService', () => {
   let service: QuoteRegistrationService;
   let httpService: HttpService;
-  let logger: SystemLoggerService;
+  let logger: Logger;
   let blockchainConfigService: BlockchainConfigService;
   let mockWallet: IEvmWallet;
   let module: TestingModule;
@@ -85,12 +85,13 @@ describe('RegistrationService', () => {
           },
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: {
             setContext: jest.fn(),
             log: jest.fn(),
             error: jest.fn(),
             warn: jest.fn(),
+            info: jest.fn(),
           },
         },
       ],
@@ -98,7 +99,7 @@ describe('RegistrationService', () => {
 
     service = module.get<QuoteRegistrationService>(QuoteRegistrationService);
     httpService = module.get<HttpService>(HttpService);
-    logger = module.get<SystemLoggerService>(SystemLoggerService);
+    logger = module.get<Logger>(Logger);
     blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
   });
 
@@ -161,7 +162,12 @@ describe('RegistrationService', () => {
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
       expect(Object.keys(routeConfig)).toEqual(['1', '10', '137']);
 
-      expect(logger.log).toHaveBeenCalledWith('Successfully registered with ID: solver-123');
+      expect(logger.info).toHaveBeenCalledWith(
+        'Successfully registered solver',
+        expect.objectContaining({
+          solverID: 'solver-123',
+        }),
+      );
     });
 
     it('should not register when disabled', async () => {
@@ -170,7 +176,7 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.log).toHaveBeenCalledWith('Registration is disabled');
+      expect(logger.info).toHaveBeenCalledWith('Registration is disabled');
     });
 
     it('should error when base URL is not configured', async () => {
@@ -180,7 +186,8 @@ describe('RegistrationService', () => {
 
       expect(httpService.post).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed: Registration base URL is not configured',
+        'Registration failed',
+        expect.any(Error),
       );
     });
 
@@ -200,7 +207,12 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(httpService.post).toHaveBeenCalled();
-      expect(logger.log).toHaveBeenCalledWith('Successfully registered with ID: N/A');
+      expect(logger.info).toHaveBeenCalledWith(
+        'Successfully registered solver',
+        expect.objectContaining({
+          solverID: 'N/A',
+        }),
+      );
     });
 
     it('should handle registration failure response', async () => {
@@ -238,7 +250,12 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed with status 401: Unauthorized',
+        'Registration failed with response error',
+        expect.any(Error),
+        expect.objectContaining({
+          status: 401,
+          message: 'Unauthorized',
+        }),
       );
     });
 
@@ -251,7 +268,8 @@ describe('RegistrationService', () => {
       await service.register();
 
       expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed - no response received: Request failed',
+        'Registration failed - no response received',
+        expect.any(Error),
       );
     });
 

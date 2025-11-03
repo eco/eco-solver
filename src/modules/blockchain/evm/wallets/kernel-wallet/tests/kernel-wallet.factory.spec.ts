@@ -4,6 +4,7 @@ import { Address } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmTransportService } from '../../../services/evm-transport.service';
@@ -55,6 +56,7 @@ describe('KernelWalletFactory', () => {
     mockLogger = {
       setContext: jest.fn(),
       log: jest.fn(),
+      info: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
       warn: jest.fn(),
@@ -85,7 +87,7 @@ describe('KernelWalletFactory', () => {
         KernelWalletFactory,
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: EvmTransportService, useValue: transportService },
-        { provide: SystemLoggerService, useValue: mockLogger },
+        { provide: Logger, useValue: mockLogger },
         { provide: OpenTelemetryService, useValue: mockOtelService },
         { provide: EvmWalletManager, useValue: mockEvmWalletManager },
       ],
@@ -170,12 +172,12 @@ describe('KernelWalletFactory', () => {
 
       // Verify KernelWallet was created with correct parameters
       expect(KernelWallet).toHaveBeenCalledWith(
+        mockLogger,
         chainId,
         mockAccount,
         evmConfigService.getKernelWalletConfig(),
         mockNetworkConfig,
         transportService,
-        mockLogger,
         mockOtelService,
         mockEvmWalletManager,
       );
@@ -340,7 +342,7 @@ describe('KernelWalletFactory', () => {
             },
           },
           { provide: EvmTransportService, useValue: transportService },
-          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: Logger, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
           { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
@@ -382,6 +384,7 @@ describe('KernelWalletFactory', () => {
 
       // Verify KernelWallet was created with KMS account
       expect(KernelWallet).toHaveBeenCalledWith(
+        mockLogger,
         chainId,
         mockKmsAccount,
         expect.objectContaining({
@@ -393,7 +396,6 @@ describe('KernelWalletFactory', () => {
         }),
         mockNetworkConfig,
         transportService,
-        mockLogger,
         mockOtelService,
         expect.any(Object), // EvmWalletManager
       );
@@ -433,7 +435,7 @@ describe('KernelWalletFactory', () => {
             },
           },
           { provide: EvmTransportService, useValue: transportService },
-          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: Logger, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
           { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
@@ -494,7 +496,7 @@ describe('KernelWalletFactory', () => {
             },
           },
           { provide: EvmTransportService, useValue: transportService },
-          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: Logger, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
           { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],
@@ -521,7 +523,7 @@ describe('KernelWalletFactory', () => {
               },
             },
             { provide: EvmTransportService, useValue: transportService },
-            { provide: SystemLoggerService, useValue: mockLogger },
+            { provide: Logger, useValue: mockLogger },
             { provide: OpenTelemetryService, useValue: mockOtelService },
             { provide: EvmWalletManager, useValue: mockEvmWalletManager },
           ],
@@ -603,7 +605,7 @@ describe('KernelWalletFactory', () => {
             },
           },
           { provide: EvmTransportService, useValue: transportService },
-          { provide: SystemLoggerService, useValue: mockLogger },
+          { provide: Logger, useValue: mockLogger },
           { provide: OpenTelemetryService, useValue: mockOtelService },
           { provide: EvmWalletManager, useValue: mockEvmWalletManager },
         ],

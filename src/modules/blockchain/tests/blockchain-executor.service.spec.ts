@@ -10,6 +10,7 @@ import {
 } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { BlockchainExecutorService } from '../blockchain-executor.service';
@@ -23,7 +24,7 @@ describe('BlockchainExecutorService', () => {
   let solanaConfigService: jest.Mocked<SolanaConfigService>;
   let tvmConfigService: jest.Mocked<TvmConfigService>;
   let intentsService: jest.Mocked<IntentsService>;
-  let systemLoggerService: jest.Mocked<SystemLoggerService>;
+  let logger: jest.Mocked<Logger>;
   let otelService: jest.Mocked<OpenTelemetryService>;
   let evmExecutor: jest.Mocked<EvmExecutorService>;
   let svmExecutor: jest.Mocked<SvmExecutorService>;
@@ -73,9 +74,10 @@ describe('BlockchainExecutorService', () => {
       updateStatus: jest.fn().mockResolvedValue(undefined),
     } as any;
 
-    systemLoggerService = {
+    logger = {
       setContext: jest.fn(),
       log: jest.fn(),
+      info: jest.fn(),
       error: jest.fn(),
     } as any;
 
@@ -111,7 +113,7 @@ describe('BlockchainExecutorService', () => {
         { provide: SolanaConfigService, useValue: solanaConfigService },
         { provide: TvmConfigService, useValue: tvmConfigService },
         { provide: IntentsService, useValue: intentsService },
-        { provide: SystemLoggerService, useValue: systemLoggerService },
+        { provide: Logger, useValue: logger },
         { provide: OpenTelemetryService, useValue: otelService },
         { provide: EvmExecutorService, useValue: evmExecutor },
         { provide: SvmExecutorService, useValue: svmExecutor },
@@ -157,7 +159,7 @@ describe('BlockchainExecutorService', () => {
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
           { provide: IntentsService, useValue: intentsService },
-          { provide: SystemLoggerService, useValue: systemLoggerService },
+          { provide: Logger, useValue: logger },
           { provide: OpenTelemetryService, useValue: otelService },
           { provide: EvmExecutorService, useValue: evmExecutor },
           { provide: SvmExecutorService, useValue: svmExecutor },
@@ -183,7 +185,7 @@ describe('BlockchainExecutorService', () => {
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
           { provide: IntentsService, useValue: intentsService },
-          { provide: SystemLoggerService, useValue: systemLoggerService },
+          { provide: Logger, useValue: logger },
           { provide: OpenTelemetryService, useValue: otelService },
         ],
       }).compile();

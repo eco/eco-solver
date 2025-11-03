@@ -8,6 +8,7 @@ import { TvmNetworkConfig, TvmTransactionSettings } from '@/config/schemas';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 import { TvmUtils } from '@/modules/blockchain/tvm/utils/tvm-utils';
 import { TvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { TronListener } from '../tron.listener';
@@ -68,6 +69,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     error: jest.fn().mockImplementation((...args) => console.error('[ERROR]', ...args)),
     warn: jest.fn().mockImplementation((...args) => console.warn('[WARN]', ...args)),
     debug: jest.fn().mockImplementation((...args) => console.debug('[DEBUG]', ...args)),
+    info: jest.fn(),
   };
 
   // Mock OpenTelemetry with logging
@@ -128,7 +130,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
     module = await Test.createTestingModule({
       providers: [
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: mockLogger,
         },
         {
@@ -142,7 +144,7 @@ describe('TronListener Integration - Real Blockchain Events', () => {
       ],
     }).compile();
 
-    const logger = module.get<SystemLoggerService>(SystemLoggerService);
+    const logger = module.get<Logger>(Logger);
     const otelService = module.get<OpenTelemetryService>(OpenTelemetryService);
     const tvmConfigService = module.get<TvmConfigService>(TvmConfigService);
 

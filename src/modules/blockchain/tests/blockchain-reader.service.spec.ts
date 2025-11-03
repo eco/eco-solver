@@ -10,6 +10,7 @@ import {
   SolanaConfigService,
   TvmConfigService,
 } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 
 import { BlockchainReaderService } from '../blockchain-reader.service';
 import { EvmReaderService } from '../evm/services/evm.reader.service';
@@ -23,7 +24,7 @@ describe('BlockchainReaderService', () => {
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let solanaConfigService: jest.Mocked<SolanaConfigService>;
   let tvmConfigService: jest.Mocked<TvmConfigService>;
-  let systemLogger: jest.Mocked<SystemLoggerService>;
+  let logger: jest.Mocked<Logger>;
   let evmReader: jest.Mocked<EvmReaderService>;
   let svmReader: jest.Mocked<SvmReaderService>;
 
@@ -86,8 +87,9 @@ describe('BlockchainReaderService', () => {
       supportedChainIds: [],
     } as any;
 
-    systemLogger = {
+    logger = {
       setContext: jest.fn(),
+      info: jest.fn(),
     } as any;
 
     evmReader = {
@@ -111,7 +113,7 @@ describe('BlockchainReaderService', () => {
         { provide: EvmConfigService, useValue: evmConfigService },
         { provide: SolanaConfigService, useValue: solanaConfigService },
         { provide: TvmConfigService, useValue: tvmConfigService },
-        { provide: SystemLoggerService, useValue: systemLogger },
+        { provide: Logger, useValue: logger },
         { provide: EvmReaderService, useValue: evmReader },
         { provide: SvmReaderService, useValue: svmReader },
       ],
@@ -149,7 +151,7 @@ describe('BlockchainReaderService', () => {
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
-          { provide: SystemLoggerService, useValue: systemLogger },
+          { provide: Logger, useValue: logger },
           { provide: EvmReaderService, useValue: evmReader },
           { provide: SvmReaderService, useValue: svmReader },
         ],
@@ -173,7 +175,7 @@ describe('BlockchainReaderService', () => {
           { provide: EvmConfigService, useValue: evmConfigService },
           { provide: SolanaConfigService, useValue: solanaConfigService },
           { provide: TvmConfigService, useValue: tvmConfigService },
-          { provide: SystemLoggerService, useValue: systemLogger },
+          { provide: Logger, useValue: logger },
         ],
       }).compile();
 

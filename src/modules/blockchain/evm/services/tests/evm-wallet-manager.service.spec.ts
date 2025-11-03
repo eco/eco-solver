@@ -61,6 +61,7 @@ describe('EvmWalletManager', () => {
     const mockLogger = {
       setContext: jest.fn(),
       log: jest.fn(),
+      info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
@@ -119,6 +120,7 @@ describe('EvmWalletManager', () => {
       const mockLogger = {
         setContext: jest.fn(),
         log: jest.fn(),
+        info: jest.fn(),
         error: jest.fn(),
         warn: jest.fn(),
         debug: jest.fn(),

@@ -1,7 +1,7 @@
-import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { UniversalAddress } from '@/common/types/universal-address.type';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 // Mock the blockchain reader service module before any imports
@@ -36,6 +36,9 @@ describe('IntentFundedValidation', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      info: jest.fn(),
+      verbose: jest.fn(),
+      fatal: jest.fn(),
     };
 
     const mockOtelService = {

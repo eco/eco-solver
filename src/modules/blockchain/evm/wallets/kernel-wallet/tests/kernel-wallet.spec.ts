@@ -103,6 +103,7 @@ describe('KernelWallet', () => {
       mockLogger = {
         setContext: jest.fn(),
         log: jest.fn(),
+        info: jest.fn(),
         error: jest.fn(),
         debug: jest.fn(),
         warn: jest.fn(),
@@ -165,12 +166,12 @@ describe('KernelWallet', () => {
 
       expect(() => {
         new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           invalidNetworkConfig,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -188,12 +189,12 @@ describe('KernelWallet', () => {
 
       expect(() => {
         new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           validNetworkConfig,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -279,6 +280,7 @@ describe('KernelWallet', () => {
     mockLogger = {
       setContext: jest.fn(),
       log: jest.fn(),
+      info: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
       warn: jest.fn(),
@@ -308,12 +310,12 @@ describe('KernelWallet', () => {
 
     // Create wallet instance
     wallet = new KernelWallet(
+      mockLogger,
       mockChainId,
       mockSigner,
       mockKernelWalletConfig,
       mockNetworkConfig,
       mockTransportService,
-      mockLogger,
       mockOtelService,
       mockEvmWalletManager,
     );
@@ -441,12 +443,12 @@ describe('KernelWallet', () => {
 
         // Create new wallet with executor config
         const walletWithExecutor = new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -509,12 +511,12 @@ describe('KernelWallet', () => {
 
         // Create new wallet with executor config
         const walletWithExecutor = new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -566,12 +568,12 @@ describe('KernelWallet', () => {
 
         // Create new wallet with executor config
         const walletWithExecutor = new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -610,12 +612,12 @@ describe('KernelWallet', () => {
         };
 
         const walletWithExecutor = new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           networkConfigWithInvalidExecutor,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -637,12 +639,12 @@ describe('KernelWallet', () => {
         };
 
         const walletWithExecutor = new KernelWallet(
+          mockLogger,
           mockChainId,
           mockSigner,
           mockKernelWalletConfig,
           networkConfigWithExecutor,
           mockTransportService,
-          mockLogger,
           mockOtelService,
           mockEvmWalletManager,
         );
@@ -690,12 +692,12 @@ describe('KernelWallet', () => {
       } as any;
 
       const walletWithExecutor = new KernelWallet(
+        mockLogger,
         mockChainId,
         mockSigner,
         mockKernelWalletConfig,
         networkConfigWithExecutor,
         mockTransportServiceWithRead,
-        mockLogger,
         mockOtelService,
         mockEvmWalletManager,
       );
@@ -839,12 +841,12 @@ describe('KernelWallet', () => {
 
     it('should throw error if wallet not initialized', async () => {
       const uninitializedWallet = new KernelWallet(
+        mockLogger,
         mockChainId,
         mockSigner,
         mockKernelWalletConfig,
         mockNetworkConfig,
         mockTransportService,
-        mockLogger,
         mockOtelService,
         mockEvmWalletManager,
       );
@@ -874,12 +876,12 @@ describe('KernelWallet', () => {
     it('should throw error when account deployment fails', async () => {
       // Create new wallet instance for deployment failure test
       const newWallet = new KernelWallet(
+        mockLogger,
         mockChainId,
         mockSigner,
         mockKernelWalletConfig,
         mockNetworkConfig,
         mockTransportService,
-        mockLogger,
         mockOtelService,
         mockEvmWalletManager,
       );

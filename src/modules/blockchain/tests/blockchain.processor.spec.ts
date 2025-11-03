@@ -7,6 +7,7 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { Logger } from '@/modules/logging';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
@@ -70,6 +71,7 @@ describe('BlockchainProcessor', () => {
 
     logger = {
       log: jest.fn(),
+      info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
@@ -97,7 +99,7 @@ describe('BlockchainProcessor', () => {
         BlockchainProcessor,
         { provide: BlockchainExecutorService, useValue: blockchainService },
         { provide: QueueConfigService, useValue: queueConfig },
-        { provide: SystemLoggerService, useValue: logger },
+        { provide: Logger, useValue: logger },
         { provide: BullMQOtelFactory, useValue: bullMQOtelFactory },
         { provide: OpenTelemetryService, useValue: otelService },
       ],

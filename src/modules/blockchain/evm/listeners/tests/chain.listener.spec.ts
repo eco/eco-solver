@@ -4,7 +4,7 @@ import { portalAbi } from '@/common/abis/portal.abi';
 import { EvmChainConfig } from '@/common/interfaces/chain-config.interface';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { BlockchainConfigService, EvmConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
+import { Logger } from '@/modules/logging';
 
 import { ChainListener } from '../chain.listener';
 
@@ -62,7 +62,7 @@ jest.mock('@/common/utils/bigint-serializer', () => ({
 describe('ChainListener', () => {
   let listener: ChainListener;
   let transportService: jest.Mocked<EvmTransportService>;
-  let logger: jest.Mocked<SystemLoggerService>;
+  let logger: jest.Mocked<Logger>;
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let evmConfigService: jest.Mocked<EvmConfigService>;
   let queueService: jest.Mocked<any>;
@@ -108,6 +108,7 @@ describe('ChainListener', () => {
     logger = {
       setContext: jest.fn(),
       log: jest.fn(),
+      info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),

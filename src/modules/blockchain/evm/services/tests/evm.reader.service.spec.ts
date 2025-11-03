@@ -6,6 +6,7 @@ import * as viem from 'viem';
 import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { EvmConfigService } from '@/modules/config/services';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { EvmReaderService } from '../evm.reader.service';
@@ -45,6 +46,7 @@ describe('EvmReaderService', () => {
     const mockLogger = {
       setContext: jest.fn(),
       log: jest.fn(),
+      info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
@@ -78,7 +80,7 @@ describe('EvmReaderService', () => {
           useValue: mockEvmConfigService,
         },
         {
-          provide: SystemLoggerService,
+          provide: Logger,
           useValue: mockLogger,
         },
         {
