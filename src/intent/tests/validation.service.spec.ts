@@ -1149,8 +1149,8 @@ describe('ValidationService', () => {
       it(`should fail on ${fun}`, async () => {
         const intent = {
           reward: {
-            creator: '0xa',
-            prover: '0xb',
+            creator: '0x000000000000000000000000000000000000000A',
+            prover: '0x000000000000000000000000000000000000000B',
             deadline: 100,
             tokens: [
               { token: '0x1', amount: 1n },

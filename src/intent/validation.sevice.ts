@@ -16,7 +16,7 @@ import { ProofService } from '@/prover/proof.service'
 import { QuoteIntentDataInterface } from '@/quote/dto/quote.intent.data.dto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { difference } from 'lodash'
-import { Hex } from 'viem'
+import { getAddress, Hex } from 'viem'
 import { isGreaterEqual, normalizeBalance } from '@/fee/utils'
 import { CallDataInterface } from '@/contracts'
 import { EcoError } from '@/common/errors/eco-error'
@@ -167,12 +167,23 @@ export class ValidationService implements OnModuleInit {
   }
 
   checkProverWhitelisted(chainID: number, prover: Hex): boolean {
-    return this.ecoConfigService
-      .getIntentSources()
-      .some(
-        (intent) =>
-          intent.chainID === chainID && intent.provers.some((_prover) => _prover == prover),
-      )
+    if (chainID === undefined || chainID === null || !prover) return false
+    let normalizedProver: string
+    try {
+      normalizedProver = getAddress(prover)
+    } catch {
+      return false
+    }
+    return this.ecoConfigService.getIntentSources().some((intent) => {
+      if (intent.chainID !== chainID) return false
+      return intent.provers.some((_prover) => {
+        try {
+          return getAddress(_prover) === normalizedProver
+        } catch {
+          return false
+        }
+      })
+    })
   }
 
   /**

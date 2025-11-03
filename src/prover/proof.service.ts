@@ -77,9 +77,20 @@ export class ProofService implements OnModuleInit {
    * @returns
    */
   getProverType(chainID: number, proverAddr: Hex): ProofType | undefined {
-    return this.provers.find(
-      (prover) => prover.chainID === chainID && prover.address === proverAddr,
-    )?.type
+    try {
+      const normalizedInput = getAddress(proverAddr)
+      const match = this.provers.find((prover) => {
+        if (prover.chainID !== chainID) return false
+        try {
+          return getAddress(prover.address) === normalizedInput
+        } catch {
+          return false
+        }
+      })
+      return match?.type
+    } catch {
+      return undefined
+    }
   }
 
   /**
@@ -174,11 +185,20 @@ export class ProofService implements OnModuleInit {
       }
 
       if (proofType) {
-        proofs.push({
-          chainID,
-          address: proverAddr,
-          type: this.getProofTypeFromString(proofType),
-        })
+        try {
+          proofs.push({
+            chainID,
+            address: getAddress(proverAddr),
+            type: this.getProofTypeFromString(proofType),
+          })
+        } catch (error) {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: `getProofTypes: invalid prover address`,
+              properties: { chainID, proverAddr, error: (error as any)?.message },
+            }),
+          )
+        }
       }
     }
 
