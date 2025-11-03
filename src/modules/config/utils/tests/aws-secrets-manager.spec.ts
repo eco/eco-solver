@@ -1,5 +1,3 @@
-import { Logger } from '@nestjs/common';
-
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import * as yaml from 'js-yaml';
 
@@ -15,8 +13,8 @@ describe('AwsSecrets', () => {
 
   beforeEach(() => {
     service = new AwsSecretsManager();
-    jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    jest.spyOn(service['logger'], 'info').mockImplementation();
+    jest.spyOn(service['logger'], 'error').mockImplementation();
     mockSecretsManagerClient = new SecretsManagerClient(
       {},
     ) as jest.MockedObjectDeep<SecretsManagerClient>;
@@ -43,7 +41,10 @@ describe('AwsSecrets', () => {
       const result = await service.getSecrets(configWithoutSecret);
 
       expect(result).toEqual({});
-      expect(Logger.prototype.log).toHaveBeenCalledWith('AWS Secrets Manager is disabled');
+      expect(service['logger'].info).toHaveBeenCalledWith(
+        expect.stringContaining('AWS Secrets Manager is disabled'),
+        expect.objectContaining({ enabled: false }),
+      );
     });
 
     it('should successfully parse JSON secrets', async () => {
@@ -63,8 +64,9 @@ describe('AwsSecrets', () => {
       const result = await service.getSecrets(mockAwsConfig);
 
       expect(result).toEqual(mockJsonSecrets);
-      expect(Logger.prototype.log).toHaveBeenCalledWith(
+      expect(service['logger'].info).toHaveBeenCalledWith(
         expect.stringContaining('Successfully parsed secrets as JSON'),
+        expect.objectContaining({ secretName: mockAwsConfig.secretName }),
       );
     });
 
@@ -88,8 +90,9 @@ describe('AwsSecrets', () => {
       const result = await service.getSecrets(mockAwsConfig);
 
       expect(result).toEqual(mockYamlSecrets);
-      expect(Logger.prototype.log).toHaveBeenCalledWith(
+      expect(service['logger'].info).toHaveBeenCalledWith(
         expect.stringContaining('Successfully parsed secrets as YAML'),
+        expect.objectContaining({ secretName: mockAwsConfig.secretName }),
       );
     });
 
@@ -152,7 +155,10 @@ describe('AwsSecrets', () => {
       // Second call should return cached value
       const result2 = await service.getSecrets(mockAwsConfig);
       expect(result2).toEqual(mockJsonSecrets);
-      expect(Logger.prototype.log).toHaveBeenCalledWith('Returning cached secrets');
+      expect(service['logger'].info).toHaveBeenCalledWith(
+        expect.stringContaining('Returning cached secrets'),
+        expect.objectContaining({ secretName: mockAwsConfig.secretName }),
+      );
       // SecretsManagerClient should only be called once due to caching
       expect(mockSecretsManagerClient.send).toHaveBeenCalledTimes(1);
     });
