@@ -18,49 +18,44 @@ export class BlockchainService {
     const supportedChains = this.ecoConfigService.getSupportedChains()
     const supportedTokens = this.crowdLiquidityService.getSupportedTokens()
 
-    const chains = Promise.all(
-      supportedChains
-        .map(async (chain) => {
-          const viemChain = Object.values(viemChains).find((c) => c.id === Number(chain))
+    const chains = await Promise.all(
+      supportedChains.map(async (chain) => {
+        const viemChain = Object.values(viemChains).find((c) => c.id === Number(chain))
 
-          if (!viemChain) {
-            return null
-          }
+        if (!viemChain) {
+          return null
+        }
 
-          const clientKernel = await this.kernelAccountClientService.getClient(Number(chain))
-          const kernelAddress = clientKernel.kernelAccount?.address
+        const clientKernel = await this.kernelAccountClientService.getClient(Number(chain))
+        const kernelAddress = clientKernel.kernelAccount?.address
 
-          const tokens = supportedTokens
-            .filter((token) => token.chainId === Number(chain))
-            .map((token) => {
-              const tokenInfo = this.lifiTokenCacheManager.getTokenInfo(
-                Number(chain),
-                token.address,
-              )
+        const tokens = supportedTokens
+          .filter((token) => token.chainId === Number(chain))
+          .map((token) => {
+            const tokenInfo = this.lifiTokenCacheManager.getTokenInfo(Number(chain), token.address)
 
-              return {
-                address: token.address,
-                decimals: tokenInfo?.decimals ?? 6,
-                symbol: tokenInfo?.symbol ?? 'Unknown',
-              }
-            })
+            return {
+              address: token.address,
+              decimals: tokenInfo?.decimals ?? 6,
+              symbol: tokenInfo?.symbol ?? 'Unknown',
+            }
+          })
 
-          return {
-            chainId: Number(chain),
-            chainName: viemChain.name,
-            chainType: 'EVM',
-            wallets: [
-              {
-                type: 'kernel',
-                address: kernelAddress,
-              },
-            ],
-            tokens,
-          }
-        })
-        .filter((chain) => chain),
+        return {
+          chainId: Number(chain),
+          chainName: viemChain.name,
+          chainType: 'EVM',
+          wallets: [
+            {
+              type: 'kernel',
+              address: kernelAddress,
+            },
+          ],
+          tokens,
+        }
+      }),
     )
 
-    return chains
+    return chains.filter((chain) => chain)
   }
 }
