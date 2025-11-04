@@ -13,6 +13,7 @@ import {
   EvmTokenConfig,
   EvmWalletsConfig,
   EvmWsSchema,
+  OwnableExecutorConfig,
 } from '@/config/schemas';
 import { AssetsFeeSchemaType } from '@/config/schemas/fee.schema';
 import { ChainIdentifier } from '@/modules/token/types/token.types';
@@ -59,6 +60,10 @@ export class EvmConfigService implements IBlockchainConfigService {
 
   getKernelWalletConfig() {
     return this.wallets.kernel;
+  }
+
+  getOwnableExecutorConfig(): OwnableExecutorConfig | undefined {
+    return this.wallets.kernel?.ownableExecutor;
   }
 
   getChain(chainId: number): EvmNetworkConfig {
