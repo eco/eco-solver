@@ -1,8 +1,8 @@
-import merge from 'lodash.merge';
 import { z } from 'zod';
 
 import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';
 import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
+import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
 import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
 import { AwsSecretsManager } from '@/modules/config/utils/aws-secrets-manager';
 import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
@@ -20,14 +20,14 @@ export const configurationFactory = async () => {
   const envConfiguration = transformEnvVarsToConfig(process.env, ConfigSchema);
 
   // First merge to get the configFiles path from env vars if specified
-  let mergedConfig = merge({}, envConfiguration);
+  let mergedConfig = mergeWithArrayReplacement(envConfiguration);
 
   // Load YAML configuration if files are specified
   const { configFiles } = BaseSchema.parse(mergedConfig);
   const yamlConfiguration = loadYamlConfig(configFiles);
 
   // Merge in order: base defaults, YAML config, then environment vars (env vars take precedence)
-  mergedConfig = merge({}, yamlConfiguration, envConfiguration);
+  mergedConfig = mergeWithArrayReplacement(yamlConfiguration, envConfiguration);
 
   // Check if AWS secrets should be loaded
   const useAwsSecrets = Boolean(mergedConfig.aws?.secretName);
@@ -41,13 +41,13 @@ export const configurationFactory = async () => {
     const secrets = await awsSecretsService.getSecrets(awsConfig);
 
     // Merge AWS secrets into the configuration
-    mergedConfig = merge({}, secrets, mergedConfig);
+    mergedConfig = mergeWithArrayReplacement(secrets, mergedConfig);
   }
 
   if (mergedConfig.useEcoPackageConfig) {
     const npmPackageConfig = getEcoNpmPackageConfig(mergedConfig);
 
-    mergedConfig = merge({}, mergedConfig, npmPackageConfig);
+    mergedConfig = mergeWithArrayReplacement(mergedConfig, npmPackageConfig);
   }
 
   try {

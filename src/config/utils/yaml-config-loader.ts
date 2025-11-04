@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 import * as yaml from 'js-yaml';
-import merge from 'lodash.merge';
+
+import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
 
 /**
  * Loads configuration from YAML files
@@ -29,7 +30,7 @@ export function loadYamlConfig(configPaths?: string | string[]): Record<string, 
 
       if (parsedConfig && typeof parsedConfig === 'object') {
         console.log(`[YamlConfigLoader] Loaded configuration from: ${absolutePath}`);
-        mergedConfig = merge({}, mergedConfig, parsedConfig);
+        mergedConfig = mergeWithArrayReplacement(mergedConfig, parsedConfig);
       }
     } catch (error) {
       console.error(`[YamlConfigLoader] Failed to load configuration from ${absolutePath}:`, error);
