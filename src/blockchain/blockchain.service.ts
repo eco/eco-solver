@@ -4,6 +4,7 @@ import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-pr
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Injectable } from '@nestjs/common'
 import * as viemChains from 'viem/chains'
+import { ChainsResponse } from './types'
 
 @Injectable()
 export class BlockchainService {
@@ -56,6 +57,6 @@ export class BlockchainService {
       }),
     )
 
-    return chains.filter((chain) => chain)
+    return chains.filter((chain) => chain) as ChainsResponse
   }
 }
