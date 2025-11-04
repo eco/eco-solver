@@ -1,5 +1,3 @@
-import { keccak256 } from 'viem';
-
 import { decodeAdapterClaim, decodeAdapterFill } from '../decoder';
 import { extractIntent } from '../intent-extractor';
 
@@ -8,21 +6,15 @@ import { sampleAction } from './sample-action';
 describe('Intent Extractor', () => {
   // Sample claim data from a real Rhinestone RelayerAction
   const sampleClaimData = sampleAction.action.claims[0].call.data;
-
-  const sourceChainId = sampleAction.action.claims[0].call.chainId;
   const fillData = decodeAdapterFill(sampleAction.action.fill.call.data);
-  const mockPortal = fillData.route.portal;
 
   describe('extractIntent', () => {
     it('should extract intent from claim data', () => {
       // Decode claim data
       const claimData = decodeAdapterClaim(sampleClaimData);
 
-      // Compute claim hash
-      const claimHash = keccak256(sampleClaimData);
-
       // Extract intent
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Verify intent structure
       expect(intent).toBeDefined();
@@ -33,9 +25,8 @@ describe('Intent Extractor', () => {
 
     it('should extract correct source and destination chains', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       expect(intent.sourceChainId).toBe(BigInt(8453)); // Base
       expect(intent.destination).toBe(42161n); // Arbitrum
@@ -43,9 +34,8 @@ describe('Intent Extractor', () => {
 
     it('should extract route information correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Verify route structure
       expect(intent.route).toBeDefined();
@@ -68,9 +58,8 @@ describe('Intent Extractor', () => {
 
     it('should extract tokens from tokenOut correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Should have 1 token (USDC on Arbitrum)
       expect(intent.route.tokens).toHaveLength(1);
@@ -84,9 +73,8 @@ describe('Intent Extractor', () => {
 
     it('should extract calls correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Should have at least 1 call (token transfer)
       expect(intent.route.calls.length).toBeGreaterThanOrEqual(1);
@@ -106,9 +94,8 @@ describe('Intent Extractor', () => {
 
     it('should extract reward information correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Verify reward structure
       expect(intent.reward).toBeDefined();
@@ -136,9 +123,8 @@ describe('Intent Extractor', () => {
 
     it('should extract reward tokens from tokenIn correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Should have 1 reward token (USDC on Base)
       expect(intent.reward.tokens).toHaveLength(1);
@@ -152,9 +138,8 @@ describe('Intent Extractor', () => {
 
     it('should compute intent hash correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Intent hash should be deterministic
       expect(intent.intentHash).toBe(
@@ -162,15 +147,14 @@ describe('Intent Extractor', () => {
       );
 
       // Running extraction again should produce same hash
-      const intent2 = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent2 = extractIntent({ claimData, fillData });
       expect(intent2.intentHash).toBe(intent.intentHash);
     });
 
     it('should handle deadline correctly', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Deadline should be same for route and reward
       expect(intent.route.deadline).toBe(intent.reward.deadline);
@@ -186,9 +170,8 @@ describe('Intent Extractor', () => {
 
     it('should convert all addresses to UniversalAddress format', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // All addresses should be 32 bytes (66 chars including 0x)
       expect(intent.route.portal.length).toBe(66);
@@ -210,9 +193,8 @@ describe('Intent Extractor', () => {
 
     it('should have matching token count with order data', () => {
       const claimData = decodeAdapterClaim(sampleClaimData);
-      const claimHash = keccak256(sampleClaimData);
 
-      const intent = extractIntent(claimData, claimHash, sourceChainId, mockPortal);
+      const intent = extractIntent({ claimData, fillData });
 
       // Route tokens should match order.tokenOut
       expect(intent.route.tokens.length).toBe(claimData.order.tokenOut.length);

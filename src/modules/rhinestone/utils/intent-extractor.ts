@@ -1,3 +1,4 @@
+import { hashIntent, RewardType, RouteType } from '@eco-foundation/routes-ts';
 import {
   decodeAbiParameters,
   encodeFunctionData,
@@ -6,12 +7,11 @@ import {
   Hex,
   zeroAddress,
 } from 'viem';
-import { hashIntent, RewardType, RouteType } from '@eco-foundation/routes-ts';
 
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
 
-import { ClaimData } from '../types/rhinestone-order.types';
+import { ClaimData, FillData } from '../types/rhinestone-order.types';
 
 type RhinestoneOrder = ClaimData['order'];
 
@@ -120,22 +120,26 @@ function encodeTargetExecutions(tokenLength: number, order: RhinestoneOrder): Ca
 }
 
 /**
- * Extracts an Intent from Rhinestone claim data.
+ * Extracts an Intent from Rhinestone claim and fill data.
  *
- * @param claimData The decoded claim data from the Rhinestone order
- * @param claimHash The hash of the claim calldata
- * @param sourceChainId The chain ID where the claim originated
- * @param portal The Eco portal address (from ClaimAction.metadata.settlementLayer)
+ * @param params Object containing claimData and fillData
+ * @param params.claimData The decoded claim data from the Rhinestone order
+ * @param params.fillData The decoded fill data containing route information
  * @returns The extracted Intent ready for fulfillment
  */
-export function extractIntent(
-  claimData: ClaimData,
-  claimHash: Hex,
-  sourceChainId: number,
-  portal: `0x${string}`,
-): Intent {
+export function extractIntent({
+  claimData,
+  fillData,
+}: {
+  claimData: ClaimData;
+  fillData: FillData;
+}): Intent {
   const order = claimData.order;
   const prover = decodeQualifier(order.qualifier);
+
+  // Extract source chain ID from claim data and portal from fill data
+  const sourceChainId = Number(order.notarizedChainId);
+  const portal = fillData.route.portal;
 
   // Build tokens and calls for route
   const tokens: {

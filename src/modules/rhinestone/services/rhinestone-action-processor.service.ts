@@ -2,7 +2,6 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import * as api from '@opentelemetry/api';
-import { keccak256 } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { RhinestoneConfigService } from '@/modules/config/services/rhinestone-config.service';
@@ -143,18 +142,8 @@ export class RhinestoneActionProcessor {
     }
 
     const claimData = decodeAdapterClaim(claimCallData);
-
-    console.log(`[RhinestoneActionProcessor] Claim data: ${JSON.stringify(claimData)}`);
-
-    const claimHash = keccak256(claimCallData);
-    const sourceChainId = beforeFillClaim.call.chainId;
-
-    // Decode the fill calldata to extract portal address from the Route structure
     const fillData = decodeAdapterFill(fillAction.call.data);
-    const portal = fillData.route.portal;
 
-    console.log(`[RhinestoneActionProcessor] Extracted portal from fill route: ${portal}`);
-
-    return extractIntent(claimData, claimHash, sourceChainId, portal);
+    return extractIntent({ claimData, fillData });
   }
 }
