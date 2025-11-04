@@ -4,9 +4,9 @@ import {
   erc20Abi,
   getAddress,
   Hex,
-  keccak256,
   zeroAddress,
 } from 'viem';
+import { hashIntent, RewardType, RouteType } from '@eco-foundation/routes-ts';
 
 import { Call, Intent } from '@/common/interfaces/intent.interface';
 import { toUniversalAddress } from '@/common/types/universal-address.type';
@@ -138,7 +138,10 @@ export function extractIntent(
   const prover = decodeQualifier(order.qualifier);
 
   // Build tokens and calls for route
-  const tokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] = [];
+  const tokens: {
+    amount: bigint;
+    token: ReturnType<typeof toUniversalAddress>;
+  }[] = [];
   const tokenTransferCalls: Call[] = [];
   let routeNativeAmount = 0n;
 
@@ -173,7 +176,10 @@ export function extractIntent(
   const calls = [...tokenTransferCalls, ...targetCalls.slice(tokenTransferCalls.length)];
 
   // Build reward tokens and accumulate native amount
-  const rewardTokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] = [];
+  const rewardTokens: {
+    amount: bigint;
+    token: ReturnType<typeof toUniversalAddress>;
+  }[] = [];
   let rewardNativeAmount = 0n;
 
   for (const [tokenId, amount] of order.tokenIn) {
@@ -188,11 +194,37 @@ export function extractIntent(
     }
   }
 
-  // Compute intent hash
+  // Build route and reward structures matching routes-ts types
   const salt = `0x${order.nonce.toString(16).padStart(64, '0')}` as Hex;
-  const intentHash = keccak256(
-    `0x${salt.slice(2)}${order.targetChainId.toString(16).padStart(16, '0')}${portal.slice(2)}${claimHash.slice(2)}` as Hex,
-  );
+
+  const route: RouteType = {
+    salt,
+    source: BigInt(sourceChainId),
+    destination: order.targetChainId,
+    inbox: portal,
+    tokens: tokens.map((t) => ({
+      token: getAddress(`0x${t.token.slice(-40)}`),
+      amount: t.amount,
+    })),
+    calls: calls.map((c) => ({
+      target: getAddress(`0x${c.target.slice(-40)}`),
+      value: c.value,
+      data: c.data,
+    })),
+  };
+
+  const reward: RewardType = {
+    creator: order.sponsor,
+    prover: prover,
+    deadline: order.fillDeadline,
+    nativeValue: rewardNativeAmount,
+    tokens: rewardTokens.map((t) => ({
+      token: getAddress(`0x${t.token.slice(-40)}`),
+      amount: t.amount,
+    })),
+  };
+
+  const { intentHash } = hashIntent({ route, reward });
 
   return {
     intentHash,
