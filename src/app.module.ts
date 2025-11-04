@@ -46,7 +46,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     FulfillmentModule,
     WithdrawalModule,
     BullBoardDashboardModule.forRootAsync(),
-    ApiModule,
+    ApiModule.forRootAsync(),
     HealthModule,
   ],
   providers: [Logger],

@@ -17,7 +17,8 @@ const RegistrationSchema = z.object({
  * Quotes service configuration schema
  */
 export const QuotesSchema = z.object({
-  registration: RegistrationSchema,
+  enabled: z.boolean().default(true).describe('Enable the quotes API endpoints'),
+  registration: RegistrationSchema.optional(),
 });
 
 export type QuotesConfig = z.infer<typeof QuotesSchema>;
