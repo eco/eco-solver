@@ -21,7 +21,7 @@ export class QuoteRepository {
    * @param quoteID Quote identifier
    * @returns Quote or null
    */
-  async findByQuoteId(quoteID: string): Promise<Quote | null> {
+  async findByQuoteID(quoteID: string): Promise<Quote | null> {
     const span = this.otelService.startSpan('quote.repository.findByQuoteId', {
       attributes: {
         'quote.id': quoteID,
@@ -50,7 +50,7 @@ export class QuoteRepository {
    * @returns Quote
    * @throws NotFoundException if quote not found
    */
-  async getByQuoteId(quoteID: string): Promise<Quote> {
+  async getByQuoteID(quoteID: string): Promise<Quote> {
     const span = this.otelService.startSpan('quote.repository.getByQuoteId', {
       attributes: {
         'quote.id': quoteID,
@@ -58,7 +58,7 @@ export class QuoteRepository {
     });
 
     try {
-      const quote = await this.findByQuoteId(quoteID);
+      const quote = await this.findByQuoteID(quoteID);
 
       if (!quote) {
         const error = new NotFoundException(`Quote not found: quoteID=${quoteID}`);
