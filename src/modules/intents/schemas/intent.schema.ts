@@ -173,6 +173,6 @@ export const IntentSchema = SchemaFactory.createForClass(Intent);
 IntentSchema.index({ 'route.source': 1, status: 1 });
 IntentSchema.index({ 'route.destination': 1, status: 1 });
 IntentSchema.index({ 'reward.creator': 1, status: 1 });
-// Index for finding proven but not withdrawn intents
-IntentSchema.index({ 'provenEvent.chainId': 1, withdrawnEvent: 1 });
+// Index for finding proven but not withdrawn intents by source chain
+IntentSchema.index({ 'route.source': 1, provenEvent: 1, withdrawnEvent: 1 });
 IntentSchema.index({ 'provenEvent.timestamp': 1 });
