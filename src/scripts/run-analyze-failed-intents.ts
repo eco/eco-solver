@@ -102,12 +102,23 @@ async function bootstrap() {
   const resolvedInputFile = inputFile ? path.resolve(process.cwd(), inputFile) : undefined
   const resolvedOutputFile = outputFile ? path.resolve(process.cwd(), outputFile) : undefined
 
+  // Generate cache file path for GraphQL mode
+  let cacheFilePath: string | undefined
+  if (useGraphQLMode && startTimestamp) {
+    const outputDir = resolvedOutputFile ? path.dirname(resolvedOutputFile) : process.cwd()
+    const date = new Date(startTimestamp * 1000)
+    const dateStr = date.toISOString().split('T')[0] // YYYY-MM-DD format
+    const cacheFileName = `intent-hashes-cache-${dateStr}.csv`
+    cacheFilePath = path.join(outputDir, cacheFileName)
+  }
+
   console.log('='.repeat(80))
   console.log('Analyze Failed Intents Script')
   console.log('='.repeat(80))
   if (useGraphQLMode) {
     console.log(`Mode:        GraphQL Indexer`)
     console.log(`Start date:  ${startDateStr || '2025-10-01'} (timestamp: ${startTimestamp})`)
+    console.log(`Cache file:  ${cacheFilePath}`)
   } else {
     console.log(`Mode:        File-based`)
     console.log(`Input file:  ${resolvedInputFile}`)

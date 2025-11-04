@@ -300,17 +300,6 @@ export class AnalyzeFailedIntentsService {
       return dateB - dateA
     })
 
-    this.logger.log(`Found ${intents.length} intents`)
-
-    // Log warning for intent hashes not found
-    const foundHashes = new Set(intents.map((i) => i.intent.hash))
-    const notFoundHashes = intentHashes.filter((hash) => !foundHashes.has(hash))
-    if (notFoundHashes.length > 0) {
-      this.logger.warn(
-        `${notFoundHashes.length} intent hash(es) not found in database: ${notFoundHashes.slice(0, 5).join(', ')}${notFoundHashes.length > 5 ? '...' : ''}`,
-      )
-    }
-
     return intents
   }
 
@@ -465,6 +454,59 @@ export class AnalyzeFailedIntentsService {
   }
 
   /**
+   * Generates cache file name based on start timestamp
+   * @param startTimestamp Unix timestamp in seconds
+   * @returns Cache file name
+   */
+  generateCacheFileName(startTimestamp: number): string {
+    const date = new Date(startTimestamp * 1000)
+    const dateStr = date.toISOString().split('T')[0] // YYYY-MM-DD format
+    return `intent-hashes-cache-${dateStr}.csv`
+  }
+
+  /**
+   * Checks if cache file exists
+   * @param cacheFilePath Path to cache file
+   * @returns True if file exists
+   */
+  async cacheFileExists(cacheFilePath: string): Promise<boolean> {
+    try {
+      await fs.access(cacheFilePath)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Writes intent hashes to cache file (CSV format, one hash per line)
+   * @param intentHashes Array of intent hashes
+   * @param cacheFilePath Path to cache file
+   */
+  async writeCacheFile(intentHashes: Hex[], cacheFilePath: string): Promise<void> {
+    this.logger.log(`Writing cache file to: ${cacheFilePath}`)
+    const csvContent = intentHashes.join('\n')
+    await fs.writeFile(cacheFilePath, csvContent, 'utf-8')
+    this.logger.log(`Cache file written successfully (${intentHashes.length} hashes)`)
+  }
+
+  /**
+   * Reads intent hashes from cache file
+   * @param cacheFilePath Path to cache file
+   * @returns Array of intent hashes
+   */
+  async readCacheFile(cacheFilePath: string): Promise<Hex[]> {
+    this.logger.log(`Reading cache file from: ${cacheFilePath}`)
+    const content = await fs.readFile(cacheFilePath, 'utf-8')
+    const intentHashes = content
+      .split(/\r?\n/)
+      .filter((line) => line.trim())
+      .map((line) => line.trim() as Hex)
+    this.logger.log(`Loaded ${intentHashes.length} intent hashes from cache`)
+    return intentHashes
+  }
+
+  /**
    * Main analysis function that orchestrates the entire process
    * @param inputFile Path to input CSV file with chainID,transactionHash (optional if using startTimestamp)
    * @param outputFile Path to output CSV file
@@ -489,11 +531,29 @@ export class AnalyzeFailedIntentsService {
         // Process transactions to extract intent hashes
         intentHashes = await this.processTransactions(transactions)
       } else if (startTimestamp) {
-        // Mode 2: GraphQL indexer mode
+        // Mode 2: GraphQL indexer mode with caching
         this.logger.log('Using GraphQL indexer mode')
 
-        // Fetch refunded intents from indexer
-        intentHashes = await this.fetchRefundedIntentsFromIndexer(startTimestamp)
+        // Determine cache file location (same directory as output file or CWD)
+        const outputDir = outputFile ? path.dirname(outputFile) : process.cwd()
+        const cacheFileName = this.generateCacheFileName(startTimestamp)
+        const cacheFilePath = path.join(outputDir, cacheFileName)
+
+        // Check if cache file exists
+        const cacheExists = await this.cacheFileExists(cacheFilePath)
+
+        if (cacheExists) {
+          // Load from cache
+          this.logger.log(`Cache file found: ${cacheFilePath}`)
+          intentHashes = await this.readCacheFile(cacheFilePath)
+        } else {
+          // Fetch from indexer
+          this.logger.log('No cache file found, fetching from indexer...')
+          intentHashes = await this.fetchRefundedIntentsFromIndexer(startTimestamp)
+
+          // Save to cache
+          await this.writeCacheFile(intentHashes, cacheFilePath)
+        }
       } else {
         throw new Error('Either inputFile or startTimestamp must be provided')
       }
@@ -506,13 +566,35 @@ export class AnalyzeFailedIntentsService {
       // Query MongoDB for intents
       const intents = await this.getIntentsByIntentHashes(intentHashes)
 
-      if (intents.length === 0) {
-        this.logger.warn('No intents found in database for the extracted intent hashes')
-        return
+      // Identify missing intents
+      const foundHashes = new Set(intents.map((i) => i.intent.hash))
+      const missingHashes = intentHashes.filter((hash) => !foundHashes.has(hash))
+
+      // Log statistics
+      this.logger.log(
+        `Found ${intents.length} intents in database, ${missingHashes.length} intents not found (will be marked in output)`,
+      )
+
+      // Analyze found intents
+      const results: AnalysisResult[] = intents.map((intent) => this.analyzeIntent(intent))
+
+      // Add entries for missing intents
+      for (const missingHash of missingHashes) {
+        results.push({
+          intentHash: missingHash as string,
+          createdAt: 'N/A',
+          sourceChainId: 'N/A',
+          rewardToken: 'N/A',
+          rewardAmount: 'N/A',
+          destinationChainId: 'N/A',
+          routeToken: 'N/A',
+          routeAmount: 'N/A',
+          errorMessage: 'Intent not found in database',
+        })
       }
 
-      // Analyze each intent
-      const results = intents.map((intent) => this.analyzeIntent(intent))
+      // Sort results by intent hash for easier comparison
+      results.sort((a, b) => a.intentHash.localeCompare(b.intentHash))
 
       // Convert to CSV
       const csvData = this.convertToCSV(results)
