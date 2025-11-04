@@ -44,7 +44,10 @@ jest.mock('@/eco-configs/utils', () => {
     ...jest.requireActual('@/eco-configs/utils'),
     getChainConfig: jest
       .fn()
-      .mockReturnValue({ IntentSource: '0x0000000000000000000000000000000000000001' }),
+      .mockReturnValue({
+        IntentSource: '0x0000000000000000000000000000000000000001',
+        Portal: '0x0000000000000000000000000000000000000001'
+      }),
   }
 })
 
