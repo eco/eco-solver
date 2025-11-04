@@ -118,24 +118,45 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
 }
 
 export function decodeAdapterFill(data: Hex): FillData {
+  // Decode the optimized router function (optimized_routeFill921336808)
   const routerDecoded = decodeFunctionData({
     abi: rhinestoneRouterAbi,
     data,
   });
 
-  const adapterCalldatas = routerDecoded.args[1] as readonly Hex[];
-  const adapterCallData = adapterCalldatas[0];
+  // The second parameter is encodedAdapterCalldatas (bytes)
+  // Per Rhinestone team: "optimized functions have the same args as unoptimized but encoded as bytes"
+  const encodedAdapterCalldatas = routerDecoded.args[1] as Hex;
 
-  const adapterDecoded = decodeFunctionData({
-    abi: ecoAdapterAbi,
-    data: adapterCallData,
-  });
+  // Decode it as bytes[] array
+  const adapterCalldatasArray = decodeAbiParameters(
+    parseAbiParameters('bytes[] adapterCalldatas'),
+    encodedAdapterCalldatas,
+  )[0];
 
-  if (adapterDecoded.functionName === 'eco_permit2_handleClaim_optimized') {
-    return adapterDecoded.args[0];
+  // Loop through to find eco_handleFill (same pattern as decodeAdapterClaim)
+  for (let i = 0; i < adapterCalldatasArray.length; i++) {
+    const calldata = adapterCalldatasArray[i];
+
+    if (!isValidHexData(calldata) || isDirectRouterCall(calldata)) {
+      continue;
+    }
+
+    try {
+      const adapterDecoded = decodeFunctionData({
+        abi: ecoAdapterAbi,
+        data: calldata,
+      });
+
+      if (adapterDecoded.functionName === 'eco_handleFill') {
+        return adapterDecoded.args[0];
+      }
+    } catch (error) {
+      continue;
+    }
   }
 
   throw new Error(
-    `Unknown adapter function: ${adapterDecoded.functionName}. Expected eco_permit2_handleClaim_optimized`,
+    'No valid eco_handleFill found in adapter calldatas. All calldatas were either direct router calls or failed to decode.',
   );
 }

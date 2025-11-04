@@ -17,10 +17,6 @@ export type ClaimData = ContractFunctionArgs<
 export type RhinestoneOrder = ClaimData['order'];
 
 /**
- * Fill data type derived from eco_permit2_handleClaim_optimized ABI
+ * Fill data type derived from eco_handleFill ABI
  */
-export type FillData = ContractFunctionArgs<
-  typeof ecoAdapterAbi,
-  'nonpayable',
-  'eco_permit2_handleClaim_optimized'
->[0];
+export type FillData = ContractFunctionArgs<typeof ecoAdapterAbi, 'payable', 'eco_handleFill'>[0];

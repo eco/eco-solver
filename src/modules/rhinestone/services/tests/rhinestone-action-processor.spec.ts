@@ -384,7 +384,7 @@ describe('RhinestoneActionProcessor', () => {
             ...VALID_ACTION.claims[0],
             call: {
               ...VALID_ACTION.claims[0].call,
-              data: 'not-hex-data',
+              data: 'not-hex-data' as any,
             },
           },
         ],

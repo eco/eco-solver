@@ -12,7 +12,7 @@ import { IQueueService } from '@/modules/queue/interfaces/queue-service.interfac
 
 import { ActionStatusError } from '../types/action-status.types';
 import { RelayerActionV1 } from '../types/relayer-action.types';
-import { decodeAdapterClaim } from '../utils/decoder';
+import { decodeAdapterClaim, decodeAdapterFill } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
 import { isValidHexData, normalizeError } from '../utils/validation';
 
@@ -70,12 +70,32 @@ export class RhinestoneActionProcessor {
             payload.action.fill.call,
           );
 
-          const intent = this.extractIntent(beforeFillClaim);
+          const intent = this.extractIntent(beforeFillClaim, payload.action.fill);
           this.logger.log(`Extracted intent: ${intent.intentHash}`);
+          console.log(
+            `[RhinestoneActionProcessor] Intent details: ${JSON.stringify({
+              intentHash: intent.intentHash,
+              portal: intent.route.portal,
+              prover: intent.reward.prover,
+              sourceChain: intent.sourceChainId.toString(),
+              destination: intent.destination.toString(),
+              routeTokens: intent.route.tokens.map((t) => ({
+                token: t.token,
+                amount: t.amount.toString(),
+              })),
+              rewardTokens: intent.reward.tokens.map((t) => ({
+                token: t.token,
+                amount: t.amount.toString(),
+              })),
+              routeNativeAmount: intent.route.nativeAmount.toString(),
+              rewardNativeAmount: intent.reward.nativeAmount.toString(),
+            })}`,
+          );
           span.setAttribute('rhinestone.intent_hash', intent.intentHash);
 
-          // TODO: Queue intent for fulfillment
           span.setStatus({ code: api.SpanStatusCode.OK });
+
+          await this.queueService.addIntentToFulfillmentQueue(intent);
         } catch (error) {
           const duration = Date.now() - startTime;
 
@@ -102,11 +122,18 @@ export class RhinestoneActionProcessor {
   }
 
   /**
-   * Extract intent from RelayerAction (decodes adapter claim)
+   * Extract intent from RelayerAction (decodes adapter claim and fill)
    */
-  private extractIntent(beforeFillClaim: RelayerActionV1['claims'][0]): Intent {
+  private extractIntent(
+    beforeFillClaim: RelayerActionV1['claims'][0],
+    fillAction: RelayerActionV1['fill'],
+  ): Intent {
     if (!beforeFillClaim.call.data) {
       throw new Error('Claim call data is missing');
+    }
+
+    if (!fillAction.call.data) {
+      throw new Error('Fill call data is missing');
     }
 
     const claimCallData = beforeFillClaim.call.data;
@@ -116,9 +143,18 @@ export class RhinestoneActionProcessor {
     }
 
     const claimData = decodeAdapterClaim(claimCallData);
+
+    console.log(`[RhinestoneActionProcessor] Claim data: ${JSON.stringify(claimData)}`);
+
     const claimHash = keccak256(claimCallData);
     const sourceChainId = beforeFillClaim.call.chainId;
 
-    return extractIntent(claimData, claimHash, sourceChainId);
+    // Decode the fill calldata to extract portal address from the Route structure
+    const fillData = decodeAdapterFill(fillAction.call.data);
+    const portal = fillData.route.portal;
+
+    console.log(`[RhinestoneActionProcessor] Extracted portal from fill route: ${portal}`);
+
+    return extractIntent(claimData, claimHash, sourceChainId, portal);
   }
 }

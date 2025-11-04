@@ -14,12 +14,6 @@ export const VALID_ACTION: RelayerActionV1 = {
       to: '0x000000000004598d17aad017bf0734a364c5588b',
       value: '0',
     },
-    tokens: [
-      {
-        tokenAddress: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
-        amount: '50000',
-      },
-    ],
     metadata: {
       settlementLayers: ['ECO'],
       tokensOut: [
@@ -38,12 +32,6 @@ export const VALID_ACTION: RelayerActionV1 = {
         to: '0x000000000004598d17aad017bf0734a364c5588b',
         value: '0',
       },
-      tokens: [
-        {
-          tokenAddress: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
-          amount: '51278',
-        },
-      ],
       beforeFill: true,
       metadata: {
         tokensIn: [
@@ -60,7 +48,7 @@ export const VALID_ACTION: RelayerActionV1 = {
     dryRun: true,
     userAddress: '0x5eeb0df30c63390735645a0788a373550ebd5707',
   },
-};
+} as const;
 
 /**
  * Create action with invalid router address in claim
@@ -168,15 +156,14 @@ export function createActionWithInvalidSettlementLayer(): RelayerActionV1 {
  * Create action with missing settlement layer
  */
 export function createActionWithMissingSettlementLayer(): RelayerActionV1 {
+  const { settlementLayer: _settlementLayer, ...metadataWithoutSettlementLayer } =
+    VALID_ACTION.claims[0].metadata;
   return {
     ...VALID_ACTION,
     claims: [
       {
         ...VALID_ACTION.claims[0],
-        metadata: {
-          ...VALID_ACTION.claims[0].metadata,
-          settlementLayer: undefined,
-        },
+        metadata: metadataWithoutSettlementLayer as any,
       },
     ],
   };

@@ -10,7 +10,7 @@ import { isValidBigInt, isValidEthereumAddress, isValidHexData } from '../utils/
 export interface ChainCall {
   chainId: number;
   to: string;
-  data: string;
+  data: `0x${string}`;
   value: string;
 }
 
@@ -27,10 +27,9 @@ export interface TokenTransfer {
  */
 export interface FillAction {
   call: ChainCall;
-  tokens: TokenTransfer[];
-  metadata?: {
-    settlementLayers?: string[];
-    tokensOut?: TokenTransfer[];
+  metadata: {
+    settlementLayers: string[];
+    tokensOut: TokenTransfer[];
   };
 }
 
@@ -39,11 +38,10 @@ export interface FillAction {
  */
 export interface ClaimAction {
   call: ChainCall;
-  tokens: TokenTransfer[];
   beforeFill: boolean;
-  metadata?: {
-    tokensIn?: TokenTransfer[];
-    settlementLayer?: string;
+  metadata: {
+    tokensIn: TokenTransfer[];
+    settlementLayer: string;
   };
 }
 
@@ -69,6 +67,7 @@ export interface RelayerActionEnvelope {
   type: RhinestoneMessageType.RelayerAction;
   messageId: string;
   action: RelayerActionV1;
+  maxExecutionTime?: number; // Optional execution time limit in ms
 }
 
 // Zod Schemas
@@ -81,10 +80,13 @@ export const ChainCallSchema = z.object({
   to: z.string().refine((val) => isAddress(val), {
     message: 'Invalid Ethereum address (must be valid checksum)',
   }),
-  data: z.string().refine((val) => isValidHexData(val), {
-    message:
-      'Invalid hex data (must start with 0x and contain only hex characters with even length)',
-  }),
+  data: z
+    .string()
+    .refine((val) => isValidHexData(val), {
+      message:
+        'Invalid hex data (must start with 0x and contain only hex characters with even length)',
+    })
+    .transform((val) => val as `0x${string}`),
   value: z.string().refine((val) => isValidBigInt(val), {
     message: 'Invalid value (must be a non-negative integer as decimal or 0x-prefixed hex string)',
   }),
@@ -107,13 +109,10 @@ const TokenTransferSchema = z.object({
  */
 export const FillActionSchema = z.object({
   call: ChainCallSchema,
-  tokens: z.array(TokenTransferSchema),
-  metadata: z
-    .object({
-      settlementLayers: z.array(z.string()).optional(),
-      tokensOut: z.array(TokenTransferSchema).optional(),
-    })
-    .optional(),
+  metadata: z.object({
+    settlementLayers: z.array(z.string()),
+    tokensOut: z.array(TokenTransferSchema),
+  }),
 });
 
 /**
@@ -121,14 +120,11 @@ export const FillActionSchema = z.object({
  */
 export const ClaimActionSchema = z.object({
   call: ChainCallSchema,
-  tokens: z.array(TokenTransferSchema),
   beforeFill: z.boolean(),
-  metadata: z
-    .object({
-      tokensIn: z.array(TokenTransferSchema).optional(),
-      settlementLayer: z.string().optional(),
-    })
-    .optional(),
+  metadata: z.object({
+    tokensIn: z.array(TokenTransferSchema),
+    settlementLayer: z.string(),
+  }),
 });
 
 /**
@@ -160,4 +156,5 @@ export const RelayerActionEnvelopeSchema = z.object({
   type: z.literal(RhinestoneMessageType.RelayerAction),
   messageId: z.string().min(1).max(200),
   action: RelayerActionV1Schema,
+  maxExecutionTime: z.number().int().positive().optional(), // Optional execution time limit in ms
 });

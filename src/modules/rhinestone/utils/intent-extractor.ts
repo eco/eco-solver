@@ -37,18 +37,21 @@ function toAddress(id: bigint): `0x${string}` {
   return getAddress(`0x${id.toString(16).padStart(40, '0').slice(-40)}`);
 }
 
-function decodeQualifier(qualifier: Hex) {
-  const data = qualifier.slice(2);
-  return {
-    inbox: ('0x' + data.slice(0, 40)) as `0x${string}`,
-    prover: ('0x' + data.slice(40, 80)) as `0x${string}`,
-    id: ('0x' + data.slice(80, 144)) as Hex,
-  };
-}
-
-function decodeInbox(qualifier: Hex): `0x${string}` {
-  const { inbox } = decodeQualifier(qualifier);
-  return inbox;
+/**
+ * Decodes the ECO Arbiter qualifier which contains only the prover address (20 bytes).
+ * According to EcoQualifierDataEncodingLib, the qualifier format is:
+ * - Bytes 0-19: prover address (20 bytes)
+ *
+ * @param qualifier The qualifier hex string (should be 20 bytes = 42 chars including '0x')
+ * @returns The prover address
+ */
+function decodeQualifier(qualifier: Hex): `0x${string}` {
+  if (qualifier.length !== 42) {
+    throw new Error(
+      `Invalid qualifier length: expected 42 chars (20 bytes), got ${qualifier.length}`,
+    );
+  }
+  return getAddress(qualifier);
 }
 
 function getExecutionType(operation: { data: Hex }): ExecutionType {
@@ -116,10 +119,23 @@ function encodeTargetExecutions(tokenLength: number, order: RhinestoneOrder): Ca
   return calls;
 }
 
-export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainId: number): Intent {
+/**
+ * Extracts an Intent from Rhinestone claim data.
+ *
+ * @param claimData The decoded claim data from the Rhinestone order
+ * @param claimHash The hash of the claim calldata
+ * @param sourceChainId The chain ID where the claim originated
+ * @param portal The Eco portal address (from ClaimAction.metadata.settlementLayer)
+ * @returns The extracted Intent ready for fulfillment
+ */
+export function extractIntent(
+  claimData: ClaimData,
+  claimHash: Hex,
+  sourceChainId: number,
+  portal: `0x${string}`,
+): Intent {
   const order = claimData.order;
-  const inbox = decodeInbox(order.qualifier);
-  const { prover } = decodeQualifier(order.qualifier);
+  const prover = decodeQualifier(order.qualifier);
 
   // Build tokens and calls for route
   const tokens: { amount: bigint; token: ReturnType<typeof toUniversalAddress> }[] = [];
@@ -128,7 +144,6 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
 
   for (const [tokenId, amount] of order.tokenOut) {
     const tokenAddress = toAddress(tokenId);
-
     if (tokenAddress !== NATIVE_TOKEN) {
       tokens.push({
         token: toUniversalAddress(tokenAddress),
@@ -163,7 +178,6 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
 
   for (const [tokenId, amount] of order.tokenIn) {
     const tokenAddress = toAddress(tokenId);
-
     if (tokenAddress === NATIVE_TOKEN) {
       rewardNativeAmount += amount;
     } else {
@@ -177,7 +191,7 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
   // Compute intent hash
   const salt = `0x${order.nonce.toString(16).padStart(64, '0')}` as Hex;
   const intentHash = keccak256(
-    `0x${salt.slice(2)}${order.targetChainId.toString(16).padStart(16, '0')}${inbox.slice(2)}${claimHash.slice(2)}` as Hex,
+    `0x${salt.slice(2)}${order.targetChainId.toString(16).padStart(16, '0')}${portal.slice(2)}${claimHash.slice(2)}` as Hex,
   );
 
   return {
@@ -187,7 +201,7 @@ export function extractIntent(claimData: ClaimData, claimHash: Hex, sourceChainI
     route: {
       salt,
       deadline: order.fillDeadline,
-      portal: toUniversalAddress(inbox),
+      portal: toUniversalAddress(portal),
       nativeAmount: routeNativeAmount,
       tokens,
       calls,
