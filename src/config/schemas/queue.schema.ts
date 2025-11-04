@@ -22,6 +22,7 @@ export const QueueSchema = z
           .default({}),
       })
       .default({}),
+    fulfillmentJobDelay: z.coerce.number().int().min(0).default(0),
   })
   .default({});
 
