@@ -23,13 +23,32 @@ export interface AnalysisResult {
   errorMessage: string
 }
 
+export interface GraphQLRefundItem {
+  hash: string
+}
+
+export interface GraphQLRefundsResponse {
+  data: {
+    refunds: {
+      totalCount: number
+      pageInfo: {
+        hasNextPage: boolean
+        endCursor: string
+      }
+      items: GraphQLRefundItem[]
+    }
+  }
+}
+
 @Injectable()
 export class AnalyzeFailedIntentsService {
   private logger = new Logger(AnalyzeFailedIntentsService.name)
   private readonly erpcBaseUrl: string
+  private readonly indexerUrl: string
 
   constructor(private readonly intentSourceRepository: IntentSourceRepository) {
     this.erpcBaseUrl = process.env.ERPC_BASE_URL!
+    this.indexerUrl = process.env.INDEXER_URL || 'https://indexer.eco.com'
   }
 
   /**
@@ -61,6 +80,96 @@ export class AnalyzeFailedIntentsService {
 
     this.logger.log(`Found ${transactions.length} transactions`)
     return transactions
+  }
+
+  /**
+   * Fetches refunded intents from the GraphQL indexer with pagination
+   * @param startTimestamp Unix timestamp in seconds (e.g., Oct 1st 2025)
+   * @returns Array of unique intent hashes
+   */
+  async fetchRefundedIntentsFromIndexer(startTimestamp: number): Promise<Hex[]> {
+    this.logger.log(
+      `Fetching refunded intents from indexer since ${new Date(startTimestamp * 1000).toISOString()}`,
+    )
+
+    const allIntentHashes: Hex[] = []
+    let cursor: string | null = null
+    let pageNumber = 1
+
+    const query = `
+      query ($now: BigInt!, $cursor: String) {
+        refunds(where: {blockTimestamp_gte: $now}, after: $cursor) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          items {
+            hash
+          }
+        }
+      }
+    `
+
+    try {
+      do {
+        this.logger.log(`Fetching page ${pageNumber}...`)
+
+        const variables: { now: string; cursor?: string } = {
+          now: startTimestamp.toString(),
+        }
+        if (cursor) {
+          variables.cursor = cursor
+        }
+
+        const response = await fetch(this.indexerUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query,
+            variables,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result: GraphQLRefundsResponse = await response.json()
+
+        if (!result.data?.refunds) {
+          throw new Error('Invalid response from indexer')
+        }
+
+        const { items, pageInfo, totalCount } = result.data.refunds
+
+        this.logger.log(
+          `Page ${pageNumber}: Found ${items.length} refunds (Total: ${totalCount}, HasNextPage: ${pageInfo.hasNextPage})`,
+        )
+
+        // Extract intent hashes
+        const intentHashes = items.map((item) => item.hash as Hex)
+        allIntentHashes.push(...intentHashes)
+
+        // Update cursor for next page
+        cursor = pageInfo.hasNextPage ? pageInfo.endCursor : null
+        pageNumber++
+      } while (cursor !== null)
+
+      // Remove duplicates
+      const uniqueIntentHashes = [...new Set(allIntentHashes)]
+
+      this.logger.log(
+        `Fetched ${allIntentHashes.length} intent hashes (${uniqueIntentHashes.length} unique) from indexer`,
+      )
+
+      return uniqueIntentHashes
+    } catch (error) {
+      this.logger.error(`Failed to fetch refunded intents from indexer: ${error.message}`)
+      throw error
+    }
   }
 
   /**
@@ -357,24 +466,40 @@ export class AnalyzeFailedIntentsService {
 
   /**
    * Main analysis function that orchestrates the entire process
-   * @param inputFile Path to input CSV file with chainID,transactionHash
+   * @param inputFile Path to input CSV file with chainID,transactionHash (optional if using startTimestamp)
    * @param outputFile Path to output CSV file
+   * @param startTimestamp Unix timestamp in seconds for GraphQL mode (optional if using inputFile)
    */
-  async analyze(inputFile: string, outputFile?: string): Promise<void> {
+  async analyze(inputFile?: string, outputFile?: string, startTimestamp?: number): Promise<void> {
     try {
-      // Read transaction data from input file
-      const transactions = await this.readTransactionData(inputFile)
+      let intentHashes: Hex[]
 
-      if (transactions.length === 0) {
-        this.logger.warn('No transactions found in input file')
-        return
+      if (inputFile) {
+        // Mode 1: File-based analysis (original flow)
+        this.logger.log('Using file-based analysis mode')
+
+        // Read transaction data from input file
+        const transactions = await this.readTransactionData(inputFile)
+
+        if (transactions.length === 0) {
+          this.logger.warn('No transactions found in input file')
+          return
+        }
+
+        // Process transactions to extract intent hashes
+        intentHashes = await this.processTransactions(transactions)
+      } else if (startTimestamp) {
+        // Mode 2: GraphQL indexer mode
+        this.logger.log('Using GraphQL indexer mode')
+
+        // Fetch refunded intents from indexer
+        intentHashes = await this.fetchRefundedIntentsFromIndexer(startTimestamp)
+      } else {
+        throw new Error('Either inputFile or startTimestamp must be provided')
       }
 
-      // Process transactions to extract intent hashes
-      const intentHashes = await this.processTransactions(transactions)
-
       if (intentHashes.length === 0) {
-        this.logger.warn('No intent hashes extracted from transaction receipts')
+        this.logger.warn('No intent hashes found')
         return
       }
 
