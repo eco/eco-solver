@@ -339,10 +339,9 @@ export class SvmExecutorService extends BaseChainExecutor {
           // Track transaction creation
           span.addEvent('svm.batch_withdraw.transaction.creation.started');
 
-          // Get recent blockhash for the transaction
-          const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
-
           const wallet = this.walletManager.getWallet();
+          const { blockhash, lastValidBlockHeight } =
+            await this.connection.getLatestBlockhash('processed');
 
           // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
           const transaction = new Transaction({
@@ -354,17 +353,17 @@ export class SvmExecutorService extends BaseChainExecutor {
             .add(...ataCreationInstructions)
             .add(...withdrawalInstructions);
 
-          span.addEvent('svm.batch_withdraw.transaction.creation.completed', {
-            total_instructions: transaction.instructions.length,
-            transaction_size_bytes: transaction.serialize({ requireAllSignatures: false }).length,
-          });
-
           // Track transaction submission
           span.addEvent('svm.batch_withdraw.transaction.submission.started');
 
           const signature = await wallet.sendTransaction(transaction, {
             skipPreflight: false,
             preflightCommitment: 'confirmed',
+          });
+
+          span.addEvent('svm.batch_withdraw.transaction.creation.completed', {
+            total_instructions: transaction.instructions.length,
+            transaction_size_bytes: transaction.serialize({ requireAllSignatures: false }).length,
           });
 
           // Add comprehensive success attributes
@@ -1049,10 +1048,9 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.fulfill.transaction_build.started');
 
-          // Get recent blockhash for the transaction
-          const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
-
           const wallet = this.walletManager.getWallet();
+          const { blockhash, lastValidBlockHeight } =
+            await this.connection.getLatestBlockhash('processed');
           const transaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
@@ -1063,12 +1061,6 @@ export class SvmExecutorService extends BaseChainExecutor {
             .add(fulfillmentIx);
 
           const totalInstructions = 1 + transferInstructions.length + 1;
-
-          txSpan.setAttributes({
-            'svm.transaction.instruction_count': totalInstructions,
-            'svm.transaction.size_bytes': transaction.serialize({ requireAllSignatures: false })
-              .length,
-          });
 
           txSpan.addEvent('svm.fulfill.transaction_build.completed', {
             total_instructions: totalInstructions,
@@ -1081,10 +1073,15 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.fulfill.transaction_submission.started');
 
-          // Send transaction (wallet already retrieved above for feePayer)
           const signature = await wallet.sendTransaction(transaction, {
             skipPreflight: false,
             preflightCommitment: 'confirmed',
+          });
+
+          txSpan.setAttributes({
+            'svm.transaction.instruction_count': totalInstructions,
+            'svm.transaction.size_bytes': transaction.serialize({ requireAllSignatures: false })
+              .length,
           });
 
           txSpan.setAttributes({
@@ -1176,7 +1173,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.prove.transaction_build.started');
 
-          const { blockhash } = await this.connection.getLatestBlockhash();
+          const { blockhash } = await this.connection.getLatestBlockhash('processed');
 
           const messageV0 = new TransactionMessage({
             payerKey: this.walletManager.getWallet().getKeypair().publicKey,
@@ -1663,7 +1660,8 @@ export class SvmExecutorService extends BaseChainExecutor {
           gasPaymentSpan.setAttribute('svm.gas_payment.pda', gasPaymentPDA.toString());
           gasPaymentSpan.addEvent('svm.gas_payment.quoted');
 
-          const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
+          const { blockhash, lastValidBlockHeight } =
+            await this.connection.getLatestBlockhash('processed');
           const payForGasTransaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
