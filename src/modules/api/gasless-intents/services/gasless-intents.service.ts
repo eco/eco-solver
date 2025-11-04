@@ -73,18 +73,19 @@ export class GaslessIntentsService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkGaslessIntentSupported(dAppID: string): EcoResponse<void> {
-    if (!this.gaslessIntentdAppIDs.includes(dAppID)) {
-      this.gaslessIntentdAppIDs.push(dAppID);
+    // if (!this.gaslessIntentdAppIDs.includes(dAppID)) {
+    //   this.gaslessIntentdAppIDs.push(dAppID);
 
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `checkGaslessIntentSupported: dAppID: ${dAppID} not supported for gasless intents`,
-        }),
-      );
+    //   this.logger.error(
+    //     EcoLogMessage.fromDefault({
+    //       message: `checkGaslessIntentSupported: dAppID: ${dAppID} not supported for gasless intents`,
+    //     }),
+    //   );
 
-      return { error: EcoError.GaslessIntentsNotSupported };
-    }
+    //   return { error: EcoError.GaslessIntentsNotSupported };
+    // }
 
     return {};
   }

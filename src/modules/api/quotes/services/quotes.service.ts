@@ -144,7 +144,6 @@ export class QuotesService {
     const encodedRoute = PortalEncoder.encode(route, destinationChainType);
 
     // Generate unique quote ID
-    const quoteID = crypto.randomUUID();
     const gaslessRequested = request.intentExecutionTypes.includes('GASLESS');
 
     // This is a hack to set intent execution type based on the request. Once we fix quotes generation so it behaves like
@@ -191,7 +190,7 @@ export class QuotesService {
 
     // Save quote to database
     const quote: Quote = {
-      quoteID,
+      quoteID: request.quoteID,
       ...quoteData,
       intent: serializedIntentData,
     };

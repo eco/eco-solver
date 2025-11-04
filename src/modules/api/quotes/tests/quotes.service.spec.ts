@@ -111,6 +111,7 @@ describe('QuotesService', () => {
   describe('getQuote', () => {
     const mockQuoteRequest: QuoteRequest = {
       dAppID: 'test-dapp',
+      quoteID: 'quote-123',
       intentExecutionTypes: ['SELF_PUBLISH'],
       quoteRequest: {
         sourceChainID: BigInt(1),

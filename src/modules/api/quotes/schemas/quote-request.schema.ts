@@ -43,6 +43,11 @@ export const QuoteRequestSchema = extendApi(
       example: 'my-dapp-v1',
     }),
 
+    quoteID: extendApi(z.string(), {
+      description: 'Unique identifier for the quote request',
+      example: 'quote:d849d36a-6305-41ec-a3a2-531387d00f19',
+    }),
+
     intentExecutionTypes: extendApi(z.array(z.enum(IntentExecutionTypeKeys)), {
       description: 'Array of allowed execution types for this intent',
       example: ['SELF_PUBLISH', 'GASLESS'],

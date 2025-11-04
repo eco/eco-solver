@@ -51,6 +51,7 @@ describe('QuotesController', () => {
     it('should call quotesService.getQuote with the request', async () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'test-dapp',
+        quoteID: 'quote-123',
         intentExecutionTypes: ['SELF_PUBLISH'],
         quoteRequest: {
           sourceChainID: 1n,
@@ -111,6 +112,7 @@ describe('QuotesController', () => {
     it('should handle minimal request with only required fields', async () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'minimal-dapp',
+        quoteID: 'quote-456',
         intentExecutionTypes: ['SELF_PUBLISH'],
         quoteRequest: {
           sourceChainID: 1n,
@@ -160,6 +162,7 @@ describe('QuotesController', () => {
     it('should propagate errors from quotesService', async () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'error-dapp',
+        quoteID: 'quote-789',
         intentExecutionTypes: ['SELF_PUBLISH'],
         quoteRequest: {
           sourceChainID: 999n,
