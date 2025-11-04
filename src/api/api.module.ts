@@ -9,6 +9,7 @@ import { Module } from '@nestjs/common'
 import { QuoteController } from '@/api/quote.controller'
 import { QuoteModule } from '@/quote/quote.module'
 import { QuoteV2Controller } from '@/api/quote-v2.controller'
+import { BlockchainController } from './blockchain.controller'
 
 @Module({
   imports: [
@@ -21,7 +22,13 @@ import { QuoteV2Controller } from '@/api/quote-v2.controller'
     IntentInitiationModule,
   ],
 
-  controllers: [BalanceController, QuoteController, QuoteV2Controller, IntentInitiationController],
+  controllers: [
+    BalanceController,
+    QuoteController,
+    QuoteV2Controller,
+    IntentInitiationController,
+    BlockchainController,
+  ],
 
   providers: [
     {

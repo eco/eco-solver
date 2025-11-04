@@ -28,6 +28,7 @@ import { WatchModule } from '@/watch/watch.module'
 import { ModuleRef } from '@nestjs/core'
 import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { DynamicConfigModule } from '@/dynamic-config/dynamic-config.module'
+import { BlockchainModule } from '@/blockchain/blockchain.module'
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { DynamicConfigModule } from '@/dynamic-config/dynamic-config.module'
     BalanceModule,
     ChainMonitorModule,
     DynamicConfigModule,
+    BlockchainModule,
     EcoConfigModule.withAWS(),
     FeeModule,
     FlagsModule,

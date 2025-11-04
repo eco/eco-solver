@@ -28,6 +28,9 @@ interface LiFiSupportedAssets {
   // Map of chainId -> Set of lowercase token addresses
   tokens: Map<number, Set<string>>
 
+  // Map of chainId:tokenAddress -> TokenInfo
+  tokensInfo: Map<string, TokenInfo>
+
   // Cache metadata
   metadata: {
     lastUpdated: Date
@@ -83,6 +86,7 @@ export class LiFiAssetCacheManager {
     this.cache = {
       chains: new Map(),
       tokens: new Map(),
+      tokensInfo: new Map(),
       metadata: {
         lastUpdated: new Date(0),
         ttl: this.config.ttl,
@@ -186,6 +190,7 @@ export class LiFiAssetCacheManager {
         // Clear existing cache
         this.cache.chains.clear()
         this.cache.tokens.clear()
+        this.cache.tokensInfo.clear()
 
         // Process chains
         let totalChains = 0
@@ -221,6 +226,7 @@ export class LiFiAssetCacheManager {
           for (const token of tokens as TokenInfo[]) {
             // Store addresses in lowercase for case-insensitive comparison
             tokenAddresses.add(token.address.toLowerCase())
+            this.cache.tokensInfo.set(`${chainIdNum}:${token.address.toLowerCase()}`, token)
             totalTokens++
           }
 
@@ -326,6 +332,16 @@ export class LiFiAssetCacheManager {
     }
 
     return this.cache.chains.has(chainId)
+  }
+
+  /**
+   * Get token information by chainId and token address
+   * @param chainId The chain ID
+   * @param tokenAddress The token address
+   * @returns TokenInfo if found, undefined otherwise
+   */
+  getTokenInfo(chainId: number, tokenAddress: string): TokenInfo | undefined {
+    return this.cache.tokensInfo.get(`${chainId}:${tokenAddress.toLowerCase()}`)
   }
 
   /**
