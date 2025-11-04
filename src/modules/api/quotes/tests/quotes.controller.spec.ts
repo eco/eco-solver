@@ -10,10 +10,10 @@ import { QuotesService } from '../services/quotes.service';
 
 describe('QuotesController', () => {
   let controller: QuotesController;
-  let quotesService: QuotesService;
 
   const mockQuotesService = {
     getQuote: jest.fn(),
+    getReverseQuote: jest.fn(),
   };
 
   const mockAppConfigService = {};
@@ -41,7 +41,6 @@ describe('QuotesController', () => {
       .compile();
 
     controller = module.get<QuotesController>(QuotesController);
-    quotesService = module.get<QuotesService>(QuotesService);
   });
 
   afterEach(() => {
@@ -52,6 +51,7 @@ describe('QuotesController', () => {
     it('should call quotesService.getQuote with the request', async () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'test-dapp',
+        intentExecutionTypes: ['SELF_PUBLISH'],
         quoteRequest: {
           sourceChainID: 1n,
           destinationChainID: 10n,
@@ -66,6 +66,7 @@ describe('QuotesController', () => {
       const mockResponse: SuccessfulQuoteResponse = {
         quoteResponses: [
           {
+            intentExecutionType: 'SELF_PUBLISH',
             sourceChainID: 1,
             destinationChainID: 10,
             sourceToken: '0x1234567890123456789012345678901234567890',
@@ -103,13 +104,14 @@ describe('QuotesController', () => {
 
       const result = await controller.getQuote(mockRequest);
 
-      expect(quotesService.getQuote).toHaveBeenCalledWith(mockRequest);
+      expect(mockQuotesService.getQuote).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockResponse);
     });
 
     it('should handle minimal request with only required fields', async () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'minimal-dapp',
+        intentExecutionTypes: ['SELF_PUBLISH'],
         quoteRequest: {
           sourceChainID: 1n,
           destinationChainID: 10n,
@@ -124,6 +126,7 @@ describe('QuotesController', () => {
       const mockResponse: SuccessfulQuoteResponse = {
         quoteResponses: [
           {
+            intentExecutionType: 'SELF_PUBLISH',
             sourceChainID: 1,
             destinationChainID: 10,
             sourceToken: '0x0000000000000000000000000000000000000000',
@@ -150,13 +153,14 @@ describe('QuotesController', () => {
 
       const result = await controller.getQuote(mockRequest);
 
-      expect(quotesService.getQuote).toHaveBeenCalledWith(mockRequest);
+      expect(mockQuotesService.getQuote).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockResponse);
     });
 
     it('should propagate errors from quotesService', async () => {
       const mockRequest: QuoteRequest = {
         dAppID: 'error-dapp',
+        intentExecutionTypes: ['SELF_PUBLISH'],
         quoteRequest: {
           sourceChainID: 999n,
           destinationChainID: 999n,
