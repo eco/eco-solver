@@ -384,6 +384,11 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('intentConfigs')
   }
 
+  // Returns global per-route fee overrides
+  getRouteFeeOverrides(): EcoConfigType['routeFeeOverrides'] {
+    return this.ecoConfig.has('routeFeeOverrides') ? this.get('routeFeeOverrides') : []
+  }
+
   // Returns the quote configs
   getQuotesConfig(): EcoConfigType['quotesConfig'] {
     return this.get('quotesConfig')

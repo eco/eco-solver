@@ -142,7 +142,7 @@ export default {
       },
     },
     proofs: {
-      hyperlane_duration_seconds: 3600,
+      hyperlane_duration_seconds: 1200,
       metalayer_duration_seconds: 7200,
     },
     intentFundedRetries: 3,
