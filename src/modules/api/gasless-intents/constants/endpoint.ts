@@ -1,1 +1,4 @@
-export const GASLESS_INTENTS_ENDPOINT = '/api/v2/gasless-intents';
+/**
+ * API endpoint paths for gasless intents
+ */
+export const INTENT_INITIATION_ROUTE = '/intentInitiation';
