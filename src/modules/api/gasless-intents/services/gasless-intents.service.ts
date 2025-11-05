@@ -341,17 +341,17 @@ export class GaslessIntentsService {
             }));
 
           // Execute permit3 transaction (once per chain)
-          const permit3TxHash = await executor.permit3(
+          const permit3TxHash = await executor.permit3({
             chainId,
-            permit3.permitContract as UniversalAddress,
-            permit3.owner as UniversalAddress,
-            permit3.salt as Hex,
-            Number(permit3.deadline),
-            permit3.timestamp,
-            chainPermits,
+            permitContract: permit3.permitContract as UniversalAddress,
+            owner: permit3.owner as UniversalAddress,
+            salt: permit3.salt as Hex,
+            deadline: Number(permit3.deadline),
+            timestamp: permit3.timestamp,
+            permits: chainPermits,
             merkleProof,
-            permit3.signature as Hex,
-          );
+            signature: permit3.signature as Hex,
+          });
 
           span.setAttribute('permit3.tx_hash', permit3TxHash);
           this.logger.debug(`Permit3 executed on chain ${chainId}. TxHash: ${permit3TxHash}`);
@@ -384,15 +384,15 @@ export class GaslessIntentsService {
               }),
             );
 
-            const fundForTxHash = await executor.fundFor(
+            const fundForTxHash = await executor.fundFor({
               chainId,
-              intent.destination,
+              destination: intent.destination,
               routeHash,
-              intent.reward,
+              reward: intent.reward,
               allowPartial,
-              AddressNormalizer.normalize(permit3.owner, chainType),
-              AddressNormalizer.normalize(permit3.permitContract, chainType),
-            );
+              funder: AddressNormalizer.normalize(permit3.owner, chainType),
+              permitContract: AddressNormalizer.normalize(permit3.permitContract, chainType),
+            });
 
             fundForTxHashes.push(fundForTxHash);
           }
