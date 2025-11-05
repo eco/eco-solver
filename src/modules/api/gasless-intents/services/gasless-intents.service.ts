@@ -106,6 +106,12 @@ export class GaslessIntentsService {
           'gasless.dapp_id': request.dAppID,
           'gasless.intent_count': request.intents.length,
           'gasless.permit_count': request.gaslessIntentData.permit3.allowanceOrTransfers.length,
+          'gasless.quote_ids': JSON.stringify(request.intents.map((i) => i.quoteID)),
+          'gasless.intents.salts': JSON.stringify(request.intents.map((i) => i.salt)),
+          'gasless.permit_owner': request.gaslessIntentData.permit3.owner,
+          'gasless.permit_deadline': request.gaslessIntentData.permit3.deadline.toString(),
+          'gasless.permit_merkle_root': request.gaslessIntentData.permit3.merkleRoot,
+          'gasless.allow_partial': request.gaslessIntentData.allowPartial ?? false,
         },
       },
       async (span) => {
@@ -127,8 +133,39 @@ export class GaslessIntentsService {
           );
 
           // Build a Merkle tree and get proofs
-          const { response: crossChainProofs, error } =
-            this.merkleBuilder.createCrossChainProofs(permitsByChain);
+          const merkleResult = await this.otelService.tracer.startActiveSpan(
+            'gasless-intents.createMerkleProofs',
+            {
+              attributes: {
+                'merkle.chain_count': Object.keys(permitsByChain).length,
+                'merkle.total_permits': gaslessIntentData.permit3.allowanceOrTransfers.length,
+                'merkle.permit_owner': gaslessIntentData.permit3.owner,
+              },
+            },
+            (merkleSpan) => {
+              try {
+                const result = this.merkleBuilder.createCrossChainProofs(permitsByChain);
+
+                if (result.error) {
+                  merkleSpan.recordException(new Error(result.error.message));
+                  merkleSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+                } else {
+                  merkleSpan.setAttribute('merkle.merkle_root', result.response!.merkleRoot);
+                  merkleSpan.setStatus({ code: api.SpanStatusCode.OK });
+                }
+
+                return result;
+              } catch (error) {
+                merkleSpan.recordException(error as Error);
+                merkleSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+                throw error;
+              } finally {
+                merkleSpan.end();
+              }
+            },
+          );
+
+          const { response: crossChainProofs, error } = merkleResult;
 
           if (error) {
             this.logger.error(
@@ -153,11 +190,44 @@ export class GaslessIntentsService {
           // Group intents by source chain
           const intentsByChain = await this.groupIntentsByChain(intents);
 
-          // Save the permit data to the database
-          await this.gaslessInitiationIntentRepository.addIntent({
-            intentGroupID,
-            permit3: gaslessIntentData.permit3,
+          // Add chain distribution attributes
+          const chainIds = Array.from(intentsByChain.keys());
+          const intentsPerChain: Record<number, number> = {};
+          intentsByChain.forEach((chainIntents, chainId) => {
+            intentsPerChain[chainId] = chainIntents.length;
           });
+
+          span.setAttributes({
+            'gasless.chain_ids': JSON.stringify(chainIds),
+            'gasless.chain_count': chainIds.length,
+            'gasless.intents_per_chain': JSON.stringify(intentsPerChain),
+          });
+
+          // Save the permit data to the database
+          await this.otelService.tracer.startActiveSpan(
+            'gasless-intents.saveInitiationIntent',
+            {
+              attributes: {
+                initiation_id: intentGroupID,
+              },
+            },
+            async (dbSpan) => {
+              try {
+                await this.gaslessInitiationIntentRepository.addIntent({
+                  intentGroupID,
+                  permit3: gaslessIntentData.permit3,
+                });
+
+                dbSpan.setStatus({ code: api.SpanStatusCode.OK });
+              } catch (error) {
+                dbSpan.recordException(error as Error);
+                dbSpan.setStatus({ code: api.SpanStatusCode.ERROR });
+                throw error;
+              } finally {
+                dbSpan.end();
+              }
+            },
+          );
 
           // Execute transactions for each chain in parallel
           const executionPromises = Array.from(intentsByChain.entries()).map(
@@ -260,9 +330,16 @@ export class GaslessIntentsService {
                 },
               }),
             );
-          }
 
-          span.setStatus({ code: api.SpanStatusCode.OK });
+            span.recordException(new Error(permitValidationError.message));
+            span.setStatus({ code: api.SpanStatusCode.ERROR });
+          } else {
+            span.setStatus({ code: api.SpanStatusCode.OK });
+          }
+        } catch (error) {
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
         } finally {
           span.end();
         }
@@ -276,28 +353,61 @@ export class GaslessIntentsService {
    * Group intents by their source chain
    */
   private async groupIntentsByChain(intents: Array<{ quoteID: string; salt: string }>) {
-    const intentsByChain = new Map<number, Array<{ quoteID: string; salt: Hex; quote: Quote }>>();
+    return this.otelService.tracer.startActiveSpan(
+      'gasless-intents.groupIntentsByChain',
+      {
+        attributes: {
+          intent_count: intents.length,
+          'grouping.quote_ids': JSON.stringify(intents.map((i) => i.quoteID)),
+        },
+      },
+      async (span) => {
+        try {
+          const intentsByChain = new Map<
+            number,
+            Array<{ quoteID: string; salt: Hex; quote: Quote }>
+          >();
 
-    for (const intent of intents) {
-      const { quoteID, salt } = intent;
+          for (const intent of intents) {
+            const { quoteID, salt } = intent;
 
-      // Fetch quote from database
-      const quote = await this.quoteRepository.getByQuoteID(quoteID);
-      const chainId = quote.sourceChainID;
+            // Fetch quote from database
+            const quote = await this.quoteRepository.getByQuoteID(quoteID);
+            const chainId = quote.sourceChainID;
 
-      // Initialize chain group if needed
-      if (!intentsByChain.has(chainId)) {
-        intentsByChain.set(chainId, []);
-      }
+            // Initialize chain group if needed
+            if (!intentsByChain.has(chainId)) {
+              intentsByChain.set(chainId, []);
+            }
 
-      intentsByChain.get(chainId)!.push({
-        quoteID,
-        salt: salt as Hex,
-        quote,
-      });
-    }
+            intentsByChain.get(chainId)!.push({
+              quoteID,
+              salt: salt as Hex,
+              quote,
+            });
+          }
 
-    return intentsByChain;
+          // Build chains distribution string
+          const distribution = Array.from(intentsByChain.entries())
+            .map(([chainId, chainIntents]) => `${chainId}:${chainIntents.length}`)
+            .join(',');
+
+          span.setAttributes({
+            chain_count: intentsByChain.size,
+            'grouping.chains_distribution': distribution,
+          });
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return intentsByChain;
+        } catch (error) {
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   /**
@@ -436,21 +546,44 @@ export class GaslessIntentsService {
   private groupPermitsByChain(
     permits: AllowanceOrTransferDTO[],
   ): Record<number, AllowanceOrTransfer[]> {
-    const grouped: Record<number, AllowanceOrTransfer[]> = {};
+    return this.otelService.tracer.startActiveSpan(
+      'gasless-intents.groupPermitsByChain',
+      {
+        attributes: {
+          permit_count: permits.length,
+        },
+      },
+      (span) => {
+        try {
+          const grouped: Record<number, AllowanceOrTransfer[]> = {};
 
-    for (const permit of permits) {
-      if (!grouped[permit.chainID]) {
-        grouped[permit.chainID] = [];
-      }
+          for (const permit of permits) {
+            if (!grouped[permit.chainID]) {
+              grouped[permit.chainID] = [];
+            }
 
-      grouped[permit.chainID].push({
-        modeOrExpiration: permit.modeOrExpiration,
-        tokenKey: permit.tokenKey as Hex,
-        account: permit.account as Hex,
-        amountDelta: permit.amountDelta,
-      });
-    }
+            grouped[permit.chainID].push({
+              modeOrExpiration: permit.modeOrExpiration,
+              tokenKey: permit.tokenKey as Hex,
+              account: permit.account as Hex,
+              amountDelta: permit.amountDelta,
+            });
+          }
 
-    return grouped;
+          span.setAttributes({
+            chain_count: Object.keys(grouped).length,
+          });
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return grouped;
+        } catch (error) {
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 }
