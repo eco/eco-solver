@@ -340,25 +340,22 @@ export class GaslessIntentsService {
               amountDelta: p.amountDelta,
             }));
 
-          // Execute permit3 transaction (once per chain)
-          const permit3TxHash = await executor.permit3(
+          // Build permit3 params
+          const permit3Params = {
             chainId,
-            permit3.permitContract as UniversalAddress,
-            permit3.owner as UniversalAddress,
-            permit3.salt as Hex,
-            Number(permit3.deadline),
-            permit3.timestamp,
-            chainPermits,
+            permitContract: permit3.permitContract as UniversalAddress,
+            owner: permit3.owner as UniversalAddress,
+            salt: permit3.salt as Hex,
+            deadline: Number(permit3.deadline),
+            timestamp: permit3.timestamp,
+            permits: chainPermits,
             merkleProof,
-            permit3.signature as Hex,
-          );
+            signature: permit3.signature as Hex,
+          };
 
-          span.setAttribute('permit3.tx_hash', permit3TxHash);
-          this.logger.debug(`Permit3 executed on chain ${chainId}. TxHash: ${permit3TxHash}`);
-
-          // Execute fundFor transactions (sequentially for each intent)
-          const fundForTxHashes: Hex[] = [];
-          for (const { quote, salt } of chainIntents) {
+          // Build fundFor params for all intents on this chain
+          const chainType = ChainTypeDetector.detect(chainId);
+          const fundForCalls = chainIntents.map(({ quote, salt }) => {
             // Convert quote to intent using QuotesService
             const intent = IntentDataSchema.parse(quote.intent);
 
@@ -366,8 +363,6 @@ export class GaslessIntentsService {
             intent.route.salt = salt;
 
             const { routeHash } = PortalHashUtils.getIntentHash(intent);
-
-            const chainType = ChainTypeDetector.detect(chainId);
 
             this.logger.debug(
               EcoLogMessage.fromDefault({
@@ -384,25 +379,23 @@ export class GaslessIntentsService {
               }),
             );
 
-            const fundForTxHash = await executor.fundFor(
+            return {
               chainId,
-              intent.destination,
+              destination: intent.destination,
               routeHash,
-              intent.reward,
+              reward: intent.reward,
               allowPartial,
-              AddressNormalizer.normalize(permit3.owner, chainType),
-              AddressNormalizer.normalize(permit3.permitContract, chainType),
-            );
+              funder: AddressNormalizer.normalize(permit3.owner, chainType),
+              permitContract: AddressNormalizer.normalize(permit3.permitContract, chainType),
+            };
+          });
 
-            fundForTxHashes.push(fundForTxHash);
-          }
-
-          // For simplicity, return the last fundFor tx hash as the main transaction hash
-          const transactionHash = fundForTxHashes[fundForTxHashes.length - 1];
+          // Execute permit3 + multiple fundFor atomically in a single transaction
+          const transactionHash = await executor.fundForWithPermit3(permit3Params, fundForCalls);
 
           span.setAttributes({
-            'fundFor.tx_count': fundForTxHashes.length,
-            'fundFor.final_tx_hash': transactionHash,
+            'batch.tx_hash': transactionHash,
+            'batch.fundFor_count': fundForCalls.length,
           });
 
           this.logger.log(`Successfully executed transactions on chain ${chainId}`, {

@@ -5,6 +5,10 @@ import { Hex } from 'viem';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
+import {
+  FundForParams,
+  Permit3Params,
+} from '@/modules/blockchain/interfaces/executor-params.interface';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 export interface ExecutionResult {
@@ -32,32 +36,12 @@ export abstract class BaseChainExecutor {
     walletId?: string,
   ): Promise<string>;
 
-  abstract permit3(
-    chainId: number,
-    permitContract: UniversalAddress,
-    owner: UniversalAddress,
-    salt: Hex,
-    deadline: number,
-    timestamp: number,
-    permits: Array<{
-      modeOrExpiration: number;
-      tokenKey: Hex;
-      account: UniversalAddress;
-      amountDelta: bigint;
-    }>,
-    merkleProof: Hex[],
-    signature: Hex,
-    walletType?: WalletType,
-  ): Promise<Hex>;
+  abstract permit3(params: Permit3Params): Promise<Hex>;
 
-  abstract fundFor(
-    chainId: number,
-    destination: bigint,
-    routeHash: Hex,
-    reward: Intent['reward'],
-    allowPartial: boolean,
-    funder: UniversalAddress,
-    permitContract: UniversalAddress,
-    walletType?: WalletType,
+  abstract fundFor(params: FundForParams): Promise<Hex>;
+
+  abstract fundForWithPermit3(
+    permit3Params: Permit3Params,
+    fundForCalls: FundForParams[],
   ): Promise<Hex>;
 }
