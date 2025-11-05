@@ -626,7 +626,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     return {
       to: portalAddress,
       data,
-      value: 0n,
+      value: params.reward.nativeAmount,
     };
   }
 }
