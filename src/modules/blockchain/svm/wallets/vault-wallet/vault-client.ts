@@ -9,6 +9,62 @@ import { SystemLoggerService } from '@/modules/logging';
 
 /**
  * HashiCorp Vault client for Solana signing operations using Transit Secrets Engine
+ *
+ * This class provides secure key management and signing capabilities for Solana transactions
+ * by delegating cryptographic operations to HashiCorp Vault's Transit Secrets Engine.
+ * Private keys never leave Vault, providing enhanced security for production environments.
+ *
+ * @remarks
+ * **IMPORTANT**: Vault keys MUST be ed25519 type. The Transit Secrets Engine must be enabled
+ * and configured with an ed25519 signing key before using this client.
+ *
+ * ## Features
+ * - Remote signing without exposing private keys
+ * - Support for token and Kubernetes authentication
+ * - Automatic public key caching
+ * - DER-encoded public key parsing
+ *
+ * ## Authentication Methods
+ *
+ * ### Token Authentication (Testing Only)
+ * Token authentication is suitable for development and testing but lacks automatic token renewal
+ * required for long-running production processes.
+ *
+ * @example
+ * ```yaml
+ * # Token authentication configuration (testing only)
+ * solana:
+ *   wallets:
+ *     basic:
+ *       type: vault
+ *       endpoint: https://vault.example.com:8200
+ *       transitPath: transit
+ *       keyName: solana-signing-key
+ *       auth:
+ *         type: token
+ *         token: hvs.CAESIJ...
+ * ```
+ *
+ * ### Kubernetes Authentication (Production)
+ * Kubernetes authentication is recommended for production deployments. It uses the pod's
+ * service account token for authentication and supports automatic token renewal.
+ *
+ * @example
+ * ```yaml
+ * # Kubernetes authentication configuration (production)
+ * solana:
+ *   wallets:
+ *     basic:
+ *       type: vault
+ *       endpoint: https://vault.example.com:8200
+ *       transitPath: transit
+ *       keyName: solana-signing-key
+ *       auth:
+ *         type: kubernetes
+ *         role: solver-service
+ *         mountPoint: kubernetes  # optional, defaults to 'kubernetes'
+ *         jwtPath: /var/run/secrets/kubernetes.io/serviceaccount/token  # optional
+ * ```
  */
 export class VaultClient {
   private client: vault.client;
