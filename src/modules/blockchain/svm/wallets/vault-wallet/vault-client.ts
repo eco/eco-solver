@@ -50,7 +50,7 @@ export class VaultClient {
         if (this.authConfig.jwt) {
           jwt = this.authConfig.jwt;
         } else if (this.authConfig.jwtPath) {
-          jwt = this.readServiceAccountToken(this.authConfig.jwtPath);
+          jwt = await this.readServiceAccountToken(this.authConfig.jwtPath);
         } else {
           throw new Error('Kubernetes auth requires either jwt or jwtPath');
         }
@@ -178,9 +178,10 @@ export class VaultClient {
    * @param path - Path to the service account token file
    * @returns The JWT token as a string
    */
-  private readServiceAccountToken(path: string): string {
+  private async readServiceAccountToken(path: string): Promise<string> {
     try {
-      return fs.readFileSync(path, 'utf8').trim();
+      const token = await fs.promises.readFile(path, 'utf8');
+      return token.trim();
     } catch (error) {
       throw new Error(
         `Failed to read Kubernetes service account token from ${path}: ${getErrorMessage(error)}`,
