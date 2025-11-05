@@ -45,9 +45,15 @@ export class VaultClient {
         await this.client.tokenLookupSelf();
       } else if (this.authConfig.type === 'kubernetes') {
         // Kubernetes authentication
-        const jwt =
-          this.authConfig.jwt ||
-          (this.authConfig.jwtPath && this.readServiceAccountToken(this.authConfig.jwtPath));
+
+        let jwt: string;
+        if (this.authConfig.jwt) {
+          jwt = this.authConfig.jwt;
+        } else if (this.authConfig.jwtPath) {
+          jwt = this.readServiceAccountToken(this.authConfig.jwtPath);
+        } else {
+          throw new Error('Kubernetes auth requires either jwt or jwtPath');
+        }
 
         const response = await this.client.kubernetesLogin({
           jwt: jwt,

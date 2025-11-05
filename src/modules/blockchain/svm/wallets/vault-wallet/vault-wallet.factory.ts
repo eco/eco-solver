@@ -51,6 +51,7 @@ export class VaultWalletFactory {
           walletConfig.transitPath,
           walletConfig.keyName,
           walletConfig.auth,
+          this.logger,
         );
 
         // Authenticate with Vault
