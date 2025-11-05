@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "nest build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' nest build",
     "start": "NODE_OPTIONS='--max-old-space-size=4096' nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
