@@ -2,7 +2,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BlockchainService } from '../blockchain.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
+import { BalanceService } from '@/balance/balance.service'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { mainnet, optimism, base } from 'viem/chains'
@@ -11,7 +11,7 @@ import { Hex } from 'viem'
 describe('BlockchainService', () => {
   let blockchainService: BlockchainService
   let ecoConfigService: DeepMocked<EcoConfigService>
-  let crowdLiquidityService: DeepMocked<CrowdLiquidityService>
+  let balanceService: DeepMocked<BalanceService>
   let kernelAccountClientService: DeepMocked<KernelAccountClientService>
   let lifiTokenCacheManager: DeepMocked<LiFiAssetCacheManager>
 
@@ -20,7 +20,7 @@ describe('BlockchainService', () => {
       providers: [
         BlockchainService,
         { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        { provide: CrowdLiquidityService, useValue: createMock<CrowdLiquidityService>() },
+        { provide: BalanceService, useValue: createMock<BalanceService>() },
         {
           provide: KernelAccountClientService,
           useValue: createMock<KernelAccountClientService>(),
@@ -34,7 +34,7 @@ describe('BlockchainService', () => {
 
     blockchainService = mod.get(BlockchainService)
     ecoConfigService = mod.get(EcoConfigService)
-    crowdLiquidityService = mod.get(CrowdLiquidityService)
+    balanceService = mod.get(BalanceService)
     kernelAccountClientService = mod.get(KernelAccountClientService)
     lifiTokenCacheManager = mod.get(LiFiAssetCacheManager)
   })
@@ -78,7 +78,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       lifiTokenCacheManager.getTokenInfo = jest
         .fn()
@@ -146,7 +146,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       lifiTokenCacheManager.getTokenInfo = jest.fn().mockReturnValue({
         decimals: 18,
@@ -174,7 +174,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       lifiTokenCacheManager.getTokenInfo = jest.fn().mockReturnValue(undefined)
 
@@ -203,7 +203,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       kernelAccountClientService.getClient = jest.fn().mockImplementation(async () => {
         return {
@@ -254,7 +254,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       lifiTokenCacheManager.getTokenInfo = jest
         .fn()
@@ -277,7 +277,7 @@ describe('BlockchainService', () => {
 
     it('should handle empty chains array', async () => {
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue([])
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue([])
+      balanceService.getInboxTokens = jest.fn().mockReturnValue([])
 
       const result = await blockchainService.getSupportedChainsAndTokens()
 
@@ -289,7 +289,7 @@ describe('BlockchainService', () => {
       const supportedTokens: never[] = []
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       const result = await blockchainService.getSupportedChainsAndTokens()
 
@@ -325,7 +325,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       lifiTokenCacheManager.getTokenInfo = jest
         .fn()
@@ -354,7 +354,7 @@ describe('BlockchainService', () => {
       const supportedTokens: never[] = []
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       await blockchainService.getSupportedChainsAndTokens()
 
@@ -377,7 +377,7 @@ describe('BlockchainService', () => {
       ]
 
       ecoConfigService.getSupportedChains = jest.fn().mockReturnValue(supportedChains)
-      crowdLiquidityService.getSupportedTokens = jest.fn().mockReturnValue(supportedTokens)
+      balanceService.getInboxTokens = jest.fn().mockReturnValue(supportedTokens)
 
       lifiTokenCacheManager.getTokenInfo = jest.fn().mockReturnValue({
         decimals: 18,
