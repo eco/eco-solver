@@ -5,6 +5,7 @@ import vault from 'node-vault';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { VaultAuthConfig } from '@/config/schemas/solana.schema';
+import { SystemLoggerService } from '@/modules/logging';
 
 /**
  * HashiCorp Vault client for Solana signing operations using Transit Secrets Engine
@@ -18,6 +19,7 @@ export class VaultClient {
     private readonly transitPath: string,
     private readonly keyName: string,
     private readonly authConfig: VaultAuthConfig,
+    private readonly logger: SystemLoggerService,
   ) {
     // Initialize vault client (authentication happens in authenticate method)
     this.client = vault({
@@ -128,6 +130,8 @@ export class VaultClient {
       if (!keyData || !keyData.public_key) {
         throw new Error('Public key not found in Vault key data');
       }
+
+      this.logger.log('Vault client public key', { public_key: keyData.public_key });
 
       // Parse the public key - Vault returns it as base64-encoded DER SubjectPublicKeyInfo
       // For ed25519, this is a 44-byte structure: 12-byte ASN.1/DER header + 32-byte raw key
