@@ -25,6 +25,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
   // Map each chainID to its active viem unwatch callback. Enables targeted teardown and avoids leaking references.
   protected unwatch: Record<number, WatchContractEventReturnType> = {}
   protected watchJobConfig: JobsOptions
+  protected lastProcessedBlockByChain: Record<number, bigint> = {}
 
   /**
    * Per-chain recovery guard and capped exponential backoff.
@@ -186,12 +187,40 @@ export abstract class WatchEventService<T extends { chainID: number }>
     }
 
     try {
+      // Apply backoff BEFORE attempting recovery so we don't hammer flapping RPC nodes
       if (delayMs > 0) {
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `watch-event: applying recovery backoff`,
+            properties: { chainID, attempts: nextAttempt, delayMs },
+          }),
+        )
         await this.delay(delayMs)
       }
 
-      // Filters may be invalid or node changed; refresh by tearing down and resubscribing.
       await this.unsubscribeFrom(chainID)
+
+      const fromBlock = this.getNextFromBlock(chainID)
+      if (fromBlock !== undefined) {
+        try {
+          const toBlock = await client.getBlockNumber()
+          if (toBlock !== undefined && toBlock >= fromBlock) {
+            const missedLogs = await this.fetchBackfillLogs(client, contract, fromBlock, toBlock)
+            if (missedLogs.length > 0) {
+              await this.addJob(contract)(missedLogs)
+            }
+          }
+        } catch (backfillError) {
+          this.logger.warn(
+            EcoLogMessage.withError({
+              message: `watch-event: backfill failed`,
+              error: backfillError,
+              properties: { chainID, fromBlock },
+            }),
+          )
+        }
+      }
+
       await this.subscribeTo(client, contract)
 
       // Mark recovery time; attempts will reset only if we remain stable past the window
@@ -214,7 +243,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
       // Persist attempt count and emit telemetry; future errors will retry with higher backoff.
       this.logger.warn(
         EcoLogMessage.withError({
-          message: `watch-event: recovery failed, will retry with backoff`,
+          message: `watch-event: recovery failed after backoff`,
           error: recoveryError,
           properties: { chainID, attempts: nextAttempt, delayMs },
         }),
@@ -224,6 +253,34 @@ export abstract class WatchEventService<T extends { chainID: number }>
     } finally {
       this.recoveryInProgress[chainID] = false
     }
+  }
+
+  protected getNextFromBlock(chainID: number): bigint | undefined {
+    const lastBlock = this.lastProcessedBlockByChain[chainID]
+    if (typeof lastBlock === 'bigint') {
+      return lastBlock + 1n
+    }
+    return undefined
+  }
+
+  protected recordProcessedBlock(chainID: number, blockNumber: bigint) {
+    const existing = this.lastProcessedBlockByChain[chainID]
+    if (!existing || blockNumber > existing) {
+      this.lastProcessedBlockByChain[chainID] = blockNumber
+    }
+  }
+
+  protected async fetchBackfillLogs(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _client: PublicClient,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _contract: T,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _fromBlock: bigint,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _toBlock: bigint,
+  ): Promise<Log[]> {
+    return []
   }
 
   /**

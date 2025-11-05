@@ -20,6 +20,8 @@ import { ERROR_EVENTS } from '@/analytics/events.constants'
  * supported chains and prover addresses. When an event is emitted, it mutates the event log, and then
  * adds it intent queue for processing.
  */
+const MAX_BACKFILL_BLOCK_RANGE = 10_000n
+
 @Injectable()
 export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   protected logger = new Logger(WatchCreateIntentService.name)
@@ -72,6 +74,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   }
 
   async subscribeTo(client: PublicClient, source: IntentSource) {
+    const chainID = Number(source.chainID)
+    const fromBlock = this.getNextFromBlock(chainID)
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch create intent: subscribeToSource`,
@@ -81,7 +86,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       }),
     )
 
-    this.unwatch[source.chainID] = client.watchContractEvent({
+    this.unwatch[chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
       },
@@ -93,6 +98,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
+      fromBlock,
       onLogs: this.addJob(source),
     })
   }
@@ -104,9 +110,15 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
       }
 
+      // Track the highest successfully processed block and the earliest failed block.
+      // We will only advance the cursor to the last safe block that guarantees no skipped logs.
+      let maxSuccessBlock: bigint | undefined
+      let minFailedBlock: bigint | undefined
+
       await this.processLogsResiliently(
         logs,
         async (log) => {
+          const blockNum = typeof log.blockNumber === 'bigint' ? log.blockNumber : undefined
           log.sourceChainID = BigInt(source.chainID)
           log.sourceNetwork = source.network
 
@@ -146,11 +158,73 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
                 logIndex: createIntent.logIndex,
               },
             )
+            // Record earliest failed block so we do not advance beyond it
+            if (blockNum !== undefined) {
+              if (minFailedBlock === undefined || blockNum < minFailedBlock) {
+                minFailedBlock = blockNum
+              }
+            }
             throw error
+          }
+          // Record highest successful block
+          if (blockNum !== undefined) {
+            if (maxSuccessBlock === undefined || blockNum > maxSuccessBlock) {
+              maxSuccessBlock = blockNum
+            }
           }
         },
         'watch create-intent',
       )
+
+      const chainIDNum = Number(source.chainID)
+      const previous = this['lastProcessedBlockByChain'][chainIDNum]
+
+      // If any failures occurred, only advance to just before the earliest failed block.
+      // Otherwise, advance to the highest successful block.
+      let nextCursor: bigint | undefined
+      if (minFailedBlock !== undefined) {
+        if (minFailedBlock > 0n) {
+          const candidate = minFailedBlock - 1n
+          if (previous === undefined || candidate > previous) {
+            nextCursor = candidate
+          }
+        }
+      } else if (maxSuccessBlock !== undefined) {
+        nextCursor = maxSuccessBlock
+      }
+
+      if (nextCursor !== undefined) {
+        this.recordProcessedBlock(chainIDNum, nextCursor)
+      }
     }
+  }
+
+  protected override async fetchBackfillLogs(
+    client: PublicClient,
+    source: IntentSource,
+    fromBlock: bigint,
+    toBlock: bigint,
+  ): Promise<Log[]> {
+    let effectiveFromBlock = fromBlock
+    if (toBlock - fromBlock > MAX_BACKFILL_BLOCK_RANGE) {
+      effectiveFromBlock =
+        toBlock > MAX_BACKFILL_BLOCK_RANGE ? toBlock - MAX_BACKFILL_BLOCK_RANGE : 0n
+    }
+
+    const supportedChains = this.ecoConfigService.getSupportedChains()
+
+    const logs = await client.getContractEvents({
+      address: source.sourceAddress,
+      abi: portalAbi,
+      eventName: 'IntentPublished',
+      strict: true,
+      args: {
+        prover: source.provers,
+      },
+      fromBlock: effectiveFromBlock,
+      toBlock,
+    })
+
+    return logs.filter((log) => supportedChains.includes(log.args.destination)) as Log[]
   }
 }
