@@ -553,50 +553,49 @@ export class EvmExecutorService extends BaseChainExecutor {
   }
 
   /**
-   * Execute multiple permit3 transactions followed by a fundFor transaction in a single atomic batch
+   * Execute a permit3 transaction followed by multiple fundFor transactions in a single atomic batch
    * Uses multicall3 for atomic execution - all calls succeed or all fail
-   * @param permit3Calls Array of permit3 parameters for multiple permit calls
-   * @param fundForParams FundFor parameters
+   * @param permit3Params Permit3 parameters
+   * @param fundForCalls Array of fundFor parameters for multiple intents
    * @returns Transaction hash of the batched transaction
    */
   async fundForWithPermit3(
-    permit3Calls: Permit3Params[],
-    fundForParams: FundForParams,
+    permit3Params: Permit3Params,
+    fundForCalls: FundForParams[],
   ): Promise<Hex> {
-    // Use walletType from fundForParams, or first permit3 call as fallback, or default to 'kernel'
+    // Use walletType from permit3Params, or first fundFor call as fallback, or default to 'kernel'
     const walletType =
-      fundForParams.walletType ?? permit3Calls[0]?.walletType ?? ('kernel' as WalletType);
-    const chainId = fundForParams.chainId;
+      permit3Params.walletType ?? fundForCalls[0]?.walletType ?? ('kernel' as WalletType);
+    const chainId = permit3Params.chainId;
 
     return this.otelService.tracer.startActiveSpan(
       'evm.executor.fundForWithPermit3',
       {
         attributes: {
           'evm.chain_id': chainId.toString(),
-          'evm.destination_chain': fundForParams.destination.toString(),
           'evm.wallet_type': walletType,
-          'evm.permit3_count': permit3Calls.length,
+          'evm.fundFor_count': fundForCalls.length,
           'evm.operation': 'fundForWithPermit3',
         },
       },
       async (span) => {
         try {
           this.logger.log(
-            `Executing fundForWithPermit3 on chain ${chainId} with ${permit3Calls.length} permit3 calls`,
+            `Executing fundForWithPermit3 on chain ${chainId} with ${fundForCalls.length} fundFor calls`,
           );
 
-          // Build all permit3 calls
-          const permit3EvmCalls = permit3Calls.map((params) => this.buildPermit3Call(params));
+          // Build single permit3 call
+          const permit3EvmCall = this.buildPermit3Call(permit3Params);
 
-          // Build fundFor call
-          const fundForEvmCall = this.buildFundForCall(fundForParams);
+          // Build all fundFor calls
+          const fundForEvmCalls = fundForCalls.map((params) => this.buildFundForCall(params));
 
           // Combine all calls into a single array
-          const allCalls = [...permit3EvmCalls, fundForEvmCall];
+          const allCalls = [permit3EvmCall, ...fundForEvmCalls];
 
           span.setAttributes({
             'evm.total_calls': allCalls.length,
-            'portal.address': fundForEvmCall.to,
+            'portal.address': fundForEvmCalls[0]?.to,
           });
 
           // Get wallet for this chain

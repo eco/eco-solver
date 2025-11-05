@@ -41,7 +41,7 @@ export abstract class BaseChainExecutor {
   abstract fundFor(params: FundForParams): Promise<Hex>;
 
   abstract fundForWithPermit3(
-    permit3Calls: Permit3Params[],
-    fundForParams: FundForParams,
+    permit3Params: Permit3Params,
+    fundForCalls: FundForParams[],
   ): Promise<Hex>;
 }
