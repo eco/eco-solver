@@ -13,6 +13,7 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
+import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { toEvmRoute } from '@/common/utils/intent-converter';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
@@ -483,6 +484,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           'evm.wallet_type': walletType,
           'evm.fundFor_count': fundForCalls.length,
           'evm.operation': 'fundForWithPermit3',
+          'evm.parameters': BigintSerializer.serialize({ permit3Params, fundForCalls }),
         },
       },
       async (span) => {
