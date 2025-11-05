@@ -1,23 +1,23 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
-import { CrowdLiquidityService } from '@/intent/crowd-liquidity.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Injectable } from '@nestjs/common'
 import * as viemChains from 'viem/chains'
 import { ChainsResponse } from './types'
+import { BalanceService } from '@/balance/balance.service'
 
 @Injectable()
 export class BlockchainService {
   constructor(
     private readonly ecoConfigService: EcoConfigService,
-    private readonly crowdLiquidityService: CrowdLiquidityService,
+    private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientService,
     private readonly lifiTokenCacheManager: LiFiAssetCacheManager,
   ) {}
 
   async getSupportedChainsAndTokens() {
     const supportedChains = this.ecoConfigService.getSupportedChains()
-    const supportedTokens = this.crowdLiquidityService.getSupportedTokens()
+    const supportedTokens = this.balanceService.getInboxTokens()
 
     const chains = await Promise.all(
       supportedChains.map(async (chain) => {

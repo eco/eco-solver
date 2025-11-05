@@ -10,6 +10,7 @@ import { QuoteController } from '@/api/quote.controller'
 import { QuoteModule } from '@/quote/quote.module'
 import { QuoteV2Controller } from '@/api/quote-v2.controller'
 import { BlockchainController } from './blockchain.controller'
+import { BlockchainModule } from '@/blockchain/blockchain.module'
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { BlockchainController } from './blockchain.controller'
     }),
     QuoteModule,
     IntentInitiationModule,
+    BlockchainModule,
   ],
 
   controllers: [
