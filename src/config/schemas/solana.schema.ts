@@ -27,6 +27,8 @@ const SvmTokenSchema = z.object({
     ])
     .optional(),
   fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
+  // Token-specific swap groups configuration (highest priority)
+  nonSwapGroups: z.array(z.string()).optional(),
 });
 
 /**
