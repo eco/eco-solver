@@ -59,8 +59,12 @@ import { LoggerFactory } from './logger-factory.service';
 
         // Add OpenTelemetry transport if enabled (for OTLP export)
         if (otelLogExportEnabled) {
-          const endpoint = loggerConfig.otelLogExport?.endpoint || otelConfig.otlp.endpoint;
-          const logsEndpoint = endpoint.endsWith('/v1/logs') ? endpoint : `${endpoint}/v1/logs`;
+          const baseEndpoint = (
+            loggerConfig.otelLogExport?.endpoint || otelConfig.otlp.endpoint
+          ).replace(/\/+$/, '');
+          const logsEndpoint = baseEndpoint.includes('/v1/logs')
+            ? baseEndpoint
+            : `${baseEndpoint}/v1/logs`;
 
           const headers = {
             ...otelConfig.otlp.headers,

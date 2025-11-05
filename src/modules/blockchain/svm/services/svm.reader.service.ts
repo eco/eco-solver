@@ -61,7 +61,7 @@ export class SvmReaderService extends BaseChainReader {
           address: address.toString(),
         });
       } catch (error) {
-        this.logger.error('Failed to get SVM wallet', { error });
+        this.logger.error('Failed to get SVM wallet', error);
       }
     }
 
@@ -282,9 +282,8 @@ export class SvmReaderService extends BaseChainReader {
                 }
               }
             } catch (error) {
-              this.logger.error('Failed to get token balances for vault', {
+              this.logger.error('Failed to get token balances for vault', error, {
                 vaultAddress: vaultPDA.toBase58(),
-                error: toError(error),
               });
               // If we can't get token balances, assume no tokens are available
               if (intent.reward.tokens.some((token) => token.amount > BigInt(0))) {
@@ -305,9 +304,8 @@ export class SvmReaderService extends BaseChainReader {
           span.setStatus({ code: api.SpanStatusCode.OK });
           return true;
         } catch (error) {
-          this.logger.error('Failed to check intent funding', {
+          this.logger.error('Failed to check intent funding', error, {
             intentHash: intent.intentHash,
-            error: toError(error),
           });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
@@ -412,9 +410,8 @@ export class SvmReaderService extends BaseChainReader {
 
           return defaultFee;
         } catch (error) {
-          this.logger.error('Failed to fetch prover fee for Solana intent', {
+          this.logger.error('Failed to fetch prover fee for Solana intent', error, {
             intentHash: intent.intentHash,
-            error: toError(error),
           });
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });

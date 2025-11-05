@@ -129,11 +129,11 @@ export class RedisConnectionFactory {
 
     // Add error event handlers for better debugging
     cluster.on('error', (error) => {
-      this.logger.error('Redis cluster error', { error: error.message, stack: error.stack });
+      this.logger.error('Redis cluster error', error);
     });
 
     cluster.on('node error', (error, address) => {
-      this.logger.error('Redis node error', { address, error: error.message });
+      this.logger.error('Redis node error', error, { address });
     });
 
     cluster.on('+node', (node) => {

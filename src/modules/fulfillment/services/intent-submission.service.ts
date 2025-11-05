@@ -3,7 +3,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
-import { toError } from '@/common/utils/error-handler';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -20,7 +19,9 @@ export class IntentSubmissionService {
     private readonly logger: Logger,
     @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
     private readonly otelService: OpenTelemetryService,
-  ) {}
+  ) {
+    this.logger.setContext(IntentSubmissionService.name);
+  }
 
   /**
    * Submit an intent for processing
@@ -56,12 +57,11 @@ export class IntentSubmissionService {
           span.recordException(error as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
 
-          this.logger.error('Failed to submit intent', {
+          this.logger.error('Failed to submit intent', error, {
             intentHash: intent.intentHash,
             strategyName,
             sourceChainId: intent.sourceChainId.toString(),
             destinationChainId: intent.destination.toString(),
-            error: toError(error),
           });
           throw error;
         } finally {

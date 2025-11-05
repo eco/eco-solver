@@ -3,7 +3,6 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
-import { toError } from '@/common/utils/error-handler';
 import { WithdrawalConfigService } from '@/modules/config/services';
 import { Logger } from '@/modules/logging';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
@@ -54,9 +53,7 @@ export class WithdrawalScheduler implements OnModuleInit, OnModuleDestroy {
         intervalMinutes,
       });
     } catch (error) {
-      this.logger.error('Failed to create withdrawal job scheduler', {
-        error: toError(error),
-      });
+      this.logger.error('Failed to create withdrawal job scheduler', error);
     }
   }
 
@@ -67,9 +64,7 @@ export class WithdrawalScheduler implements OnModuleInit, OnModuleDestroy {
       await this.withdrawalQueue.removeJobScheduler('check-proven-intents');
       this.logger.info('Withdrawal job scheduler removed');
     } catch (error) {
-      this.logger.error('Failed to remove withdrawal job scheduler', {
-        error: toError(error),
-      });
+      this.logger.error('Failed to remove withdrawal job scheduler', error);
     }
   }
 }

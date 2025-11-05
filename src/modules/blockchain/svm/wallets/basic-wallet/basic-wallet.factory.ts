@@ -22,6 +22,7 @@ export class BasicWalletFactory {
     private readonly solanaConfigService: SolanaConfigService,
     private readonly otelService: OpenTelemetryService,
   ) {
+    this.logger.setContext(BasicWalletFactory.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
   }
 

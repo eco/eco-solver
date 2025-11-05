@@ -106,9 +106,8 @@ export class BlockchainExecutorService {
             span.setStatus({ code: 0 }); // OK
           } else {
             await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
-            this.logger.error('Intent fulfillment failed', {
+            this.logger.error('Intent fulfillment failed', toError(result.error), {
               intentHash: intent.intentHash,
-              error: result.error,
               destinationChain: intent.destination.toString(),
             });
 

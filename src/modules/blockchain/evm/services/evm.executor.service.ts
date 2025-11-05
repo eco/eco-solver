@@ -166,16 +166,13 @@ export class EvmExecutorService extends BaseChainExecutor {
             txHash: hash,
           };
         } catch (error) {
-          const errorObj = toError(error);
-          this.logger.error('EVM execution error', {
+          this.logger.error('EVM execution error', error, {
             intentHash: intent.intentHash,
             sourceChainId: intent.sourceChainId?.toString(),
             destinationChainId: intent.destination.toString(),
             walletType: walletId,
-            error: errorObj.message,
-            stack: errorObj.stack,
           });
-          span.recordException(errorObj);
+          span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           return {
             success: false,

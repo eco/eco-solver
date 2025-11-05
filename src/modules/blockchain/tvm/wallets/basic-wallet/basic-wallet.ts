@@ -19,7 +19,9 @@ export class BasicWallet implements ITvmWallet {
     private readonly transactionSettings: TvmTransactionSettings,
     private readonly logger: Logger,
     private readonly otelService: OpenTelemetryService,
-  ) {}
+  ) {
+    this.logger.setContext(BasicWallet.name);
+  }
 
   /**
    * Gets the wallet address in base58 format

@@ -29,7 +29,7 @@ export class DataDogService implements OnModuleInit {
       globalTags,
       mock: !this.dataDogConfig.enabled, // Use mock mode when DataDog is disabled
       errorHandler: (error) => {
-        this.logger.error('DataDog StatsD error occurred', { error });
+        this.logger.error('DataDog StatsD error occurred', error);
       },
     });
 

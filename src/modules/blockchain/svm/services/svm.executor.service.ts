@@ -69,6 +69,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     private readonly svmHyperProver: SvmHyperProver,
   ) {
     super();
+    this.logger.setContext(SvmExecutorService.name);
     this.connection = new Connection(this.solanaConfigService.rpcUrl, 'confirmed');
   }
 
