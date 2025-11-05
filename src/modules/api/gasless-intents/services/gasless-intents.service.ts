@@ -208,7 +208,12 @@ export class GaslessIntentsService {
 
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          return { successes, failures };
+          return {
+            response: {
+              successes,
+              failures,
+            },
+          };
         } catch (error) {
           span.recordException(error as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
