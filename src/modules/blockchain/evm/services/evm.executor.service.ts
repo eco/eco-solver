@@ -44,99 +44,6 @@ export class EvmExecutorService extends BaseChainExecutor {
     this.logger.setContext(EvmExecutorService.name);
   }
 
-  /**
-   * Builds a permit3 transaction call
-   * @param params Permit3 parameters
-   * @returns EvmCall object with encoded transaction data
-   */
-  private buildPermit3Call(params: Permit3Params): { to: Address; data: Hex; value: bigint } {
-    // Convert UniversalAddress to Hex
-    const permitContractHex = AddressNormalizer.denormalizeToEvm(params.permitContract);
-    const ownerHex = AddressNormalizer.denormalizeToEvm(params.owner);
-
-    // Convert permits accounts to Hex
-    const permitsHex = params.permits.map((p) => ({
-      modeOrExpiration: p.modeOrExpiration,
-      tokenKey: p.tokenKey,
-      account: AddressNormalizer.denormalizeToEvm(p.account),
-      amountDelta: p.amountDelta,
-    }));
-
-    // Encode the permit function call
-    const data = encodeFunctionData({
-      abi: permit3Abi,
-      functionName: 'permit',
-      args: [
-        ownerHex,
-        params.salt,
-        params.deadline,
-        params.timestamp,
-        {
-          chainId: BigInt(params.chainId),
-          permits: permitsHex,
-        },
-        params.merkleProof,
-        params.signature,
-      ],
-    });
-
-    return {
-      to: permitContractHex,
-      data,
-      value: 0n,
-    };
-  }
-
-  /**
-   * Builds a fundFor transaction call
-   * @param params FundFor parameters
-   * @returns EvmCall object with encoded transaction data
-   */
-  private buildFundForCall(params: FundForParams): { to: Address; data: Hex; value: bigint } {
-    // Convert UniversalAddress to Hex
-    const funderHex = AddressNormalizer.denormalizeToEvm(params.funder);
-    const permitContractHex = AddressNormalizer.denormalizeToEvm(params.permitContract);
-
-    // Convert reward addresses to Hex
-    const rewardHex = {
-      deadline: params.reward.deadline,
-      creator: AddressNormalizer.denormalizeToEvm(params.reward.creator),
-      prover: AddressNormalizer.denormalizeToEvm(params.reward.prover),
-      nativeAmount: params.reward.nativeAmount,
-      tokens: params.reward.tokens.map((t) => ({
-        token: AddressNormalizer.denormalizeToEvm(t.token),
-        amount: t.amount,
-      })),
-    };
-
-    // Get Portal address from config
-    const portalAddressUA = this.evmConfigService.getPortalAddress(params.chainId);
-    if (!portalAddressUA) {
-      throw new Error(`No Portal address configured for chain ${params.chainId}`);
-    }
-    const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
-
-    // Encode the fundFor function call
-    const data = encodeFunctionData({
-      abi: portalAbi,
-      functionName: 'fundFor',
-      args: [
-        params.destination,
-        params.routeHash,
-        rewardHex,
-        params.allowPartial,
-        funderHex,
-        permitContractHex,
-      ],
-    });
-
-    return {
-      to: portalAddress,
-      data,
-      value: 0n,
-    };
-  }
-
   async fulfill(intent: Intent, walletId: WalletType): Promise<ExecutionResult> {
     return this.otelService.tracer.startActiveSpan(
       'evm.executor.fulfill',
@@ -628,5 +535,98 @@ export class EvmExecutorService extends BaseChainExecutor {
         }
       },
     );
+  }
+
+  /**
+   * Builds a permit3 transaction call
+   * @param params Permit3 parameters
+   * @returns EvmCall object with encoded transaction data
+   */
+  private buildPermit3Call(params: Permit3Params): { to: Address; data: Hex; value: bigint } {
+    // Convert UniversalAddress to Hex
+    const permitContractHex = AddressNormalizer.denormalizeToEvm(params.permitContract);
+    const ownerHex = AddressNormalizer.denormalizeToEvm(params.owner);
+
+    // Convert permits accounts to Hex
+    const permitsHex = params.permits.map((p) => ({
+      modeOrExpiration: p.modeOrExpiration,
+      tokenKey: p.tokenKey,
+      account: AddressNormalizer.denormalizeToEvm(p.account),
+      amountDelta: p.amountDelta,
+    }));
+
+    // Encode the permit function call
+    const data = encodeFunctionData({
+      abi: permit3Abi,
+      functionName: 'permit',
+      args: [
+        ownerHex,
+        params.salt,
+        params.deadline,
+        params.timestamp,
+        {
+          chainId: BigInt(params.chainId),
+          permits: permitsHex,
+        },
+        params.merkleProof,
+        params.signature,
+      ],
+    });
+
+    return {
+      to: permitContractHex,
+      data,
+      value: 0n,
+    };
+  }
+
+  /**
+   * Builds a fundFor transaction call
+   * @param params FundFor parameters
+   * @returns EvmCall object with encoded transaction data
+   */
+  private buildFundForCall(params: FundForParams): { to: Address; data: Hex; value: bigint } {
+    // Convert UniversalAddress to Hex
+    const funderHex = AddressNormalizer.denormalizeToEvm(params.funder);
+    const permitContractHex = AddressNormalizer.denormalizeToEvm(params.permitContract);
+
+    // Convert reward addresses to Hex
+    const rewardHex = {
+      deadline: params.reward.deadline,
+      creator: AddressNormalizer.denormalizeToEvm(params.reward.creator),
+      prover: AddressNormalizer.denormalizeToEvm(params.reward.prover),
+      nativeAmount: params.reward.nativeAmount,
+      tokens: params.reward.tokens.map((t) => ({
+        token: AddressNormalizer.denormalizeToEvm(t.token),
+        amount: t.amount,
+      })),
+    };
+
+    // Get Portal address from config
+    const portalAddressUA = this.evmConfigService.getPortalAddress(params.chainId);
+    if (!portalAddressUA) {
+      throw new Error(`No Portal address configured for chain ${params.chainId}`);
+    }
+    const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
+
+    // Encode the fundFor function call
+    const data = encodeFunctionData({
+      abi: portalAbi,
+      functionName: 'fundFor',
+      args: [
+        params.destination,
+        params.routeHash,
+        rewardHex,
+        params.allowPartial,
+        funderHex,
+        permitContractHex,
+      ],
+    });
+
+    return {
+      to: portalAddress,
+      data,
+      value: 0n,
+    };
   }
 }
