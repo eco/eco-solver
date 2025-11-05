@@ -1184,10 +1184,10 @@ export class SvmExecutorService extends BaseChainExecutor {
             recentBlockhash: blockhash,
             instructions: [computeBudgetIx, proveResult.instruction],
           }).compileToV0Message();
-          const versionedTx = new VersionedTransaction(messageV0);
+          let versionedTx = new VersionedTransaction(messageV0);
 
           // sign with wallet first
-          await wallet.signTransaction(versionedTx);
+          versionedTx = (await wallet.signTransaction(versionedTx)) as VersionedTransaction;
 
           // sign with additional signers (unique message keypair)
           versionedTx.sign(proveResult.signers);
@@ -1665,7 +1665,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           const { blockhash, lastValidBlockHeight } =
             await this.connection.getLatestBlockhash('processed');
-          const payForGasTransaction = new Transaction({
+          let payForGasTransaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
             feePayer: payer,
@@ -1679,7 +1679,9 @@ export class SvmExecutorService extends BaseChainExecutor {
           payForGasTransaction.add(payForGasInstruction);
 
           // Sign the transaction with wallet first, then with unique gas payment keypair
-          await wallet.signTransaction(payForGasTransaction);
+          payForGasTransaction = (await wallet.signTransaction(
+            payForGasTransaction,
+          )) as Transaction;
           payForGasTransaction.partialSign(uniqueGasPaymentKeypair);
 
           span.addEvent('svm.gas_payment.submitting', {
