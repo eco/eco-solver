@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi, Hex, pad } from 'viem';
@@ -10,6 +10,7 @@ import {
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -26,6 +27,8 @@ import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
+  private ecoLogger = new Logger(EvmExecutorService.name);
+
   constructor(
     private evmConfigService: EvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
@@ -445,6 +448,21 @@ export class EvmExecutorService extends BaseChainExecutor {
       },
       async (span) => {
         try {
+          this.ecoLogger.log(
+            EcoLogMessage.fromDefault({
+              message: `fundFor: entry`,
+              properties: {
+                chainId,
+                destination,
+                routeHash,
+                allowPartial,
+                funder,
+                permitContract,
+                walletType,
+              },
+            }),
+          );
+
           // Convert UniversalAddress to Hex
           const funderHex = AddressNormalizer.denormalizeToEvm(funder);
           const permitContractHex = AddressNormalizer.denormalizeToEvm(permitContract);
@@ -473,6 +491,20 @@ export class EvmExecutorService extends BaseChainExecutor {
 
           span.setAttribute('portal.address', portalAddress);
 
+          this.ecoLogger.log(
+            EcoLogMessage.fromDefault({
+              message: `fundFor: args`,
+              properties: {
+                destination,
+                routeHash,
+                rewardHex,
+                allowPartial,
+                funderHex,
+                permitContractHex,
+              },
+            }),
+          );
+
           // Encode the fundFor function call
           const data = encodeFunctionData({
             abi: portalAbi,
@@ -482,12 +514,31 @@ export class EvmExecutorService extends BaseChainExecutor {
 
           this.logger.log(`Executing fundFor on chain ${chainId} for destination ${destination}`);
 
+          this.ecoLogger.log(
+            EcoLogMessage.fromDefault({
+              message: `fundFor: wallet.writeContract`,
+              properties: {
+                to: portalAddress,
+                data,
+              },
+            }),
+          );
+
           // Execute the transaction
           const txHash = await wallet.writeContract({
             to: portalAddress,
             data,
             value: 0n,
           });
+
+          this.ecoLogger.log(
+            EcoLogMessage.fromDefault({
+              message: `fundFor: txHash`,
+              properties: {
+                txHash,
+              },
+            }),
+          );
 
           span.setAttributes({
             'evm.tx_hash': txHash,

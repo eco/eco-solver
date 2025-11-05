@@ -155,86 +155,12 @@ export class IntentRepository {
     return this.queryIntent({ 'intent.hash': hash }, projection);
   }
 
-  async getIntentsForGroupID(intentGroupID: string, projection: any = {}): Promise<Intent[]> {
-    return this.queryIntents({ 'intent.intentGroupID': intentGroupID }, projection);
-  }
-
   async getIntentsByHashes(hashes: string[], projection: any = {}): Promise<Intent[]> {
     if (hashes.length === 0) {
       return [];
     }
     return this.queryIntents({ 'intent.hash': { $in: hashes } }, projection);
   }
-
-  // async createIntentFromIntentInitiation(
-  //   intentGroupID: string,
-  //   quoteID: string,
-  //   funder: Hex,
-  //   intentHash: Hex,
-  //   route: RouteType,
-  //   reward: QuoteRewardDataType,
-  // ) {
-  //   try {
-  //     const {
-  //       salt,
-  //       source,
-  //       destination,
-  //       inbox,
-  //       tokens: routeTokens,
-  //       calls,
-  //       deadline: routeDeadline,
-  //     } = route as RouteType & { deadline: bigint }; // TODO: Must be update to use V2 contracts
-  //     const { creator, prover, deadline, nativeValue } = reward;
-  //     const rewardTokens = reward.tokens as RewardTokensInterface[];
-
-  //     this.logger.debug(
-  //       EcoLogMessage.fromDefault({
-  //         message: `createIntentFromIntentInitiation`,
-  //         properties: {
-  //           intentHash,
-  //         },
-  //       }),
-  //     );
-
-  //     const intent = new IntentDataModel({
-  //       intentGroupID,
-  //       quoteID,
-  //       hash: intentHash,
-  //       salt,
-  //       source,
-  //       destination,
-  //       inbox,
-  //       routeTokens: routeTokens as RewardTokensInterface[],
-  //       calls: calls as CallDataInterface[],
-  //       creator,
-  //       prover,
-  //       deadline,
-  //       routeDeadline: routeDeadline || deadline,
-  //       nativeValue,
-  //       rewardTokens,
-  //       logIndex: 0,
-  //       funder,
-  //     });
-
-  //     await this.model.create({
-  //       // event: null,
-  //       intent,
-  //       receipt: null,
-  //       status: 'PENDING',
-  //     });
-  //   } catch (ex: any) {
-  //     this.logger.error(
-  //       EcoLogMessage.fromDefault({
-  //         message: `Error in createIntentFromIntentInitiation`,
-  //         properties: {
-  //           quoteID,
-  //           error: ex.message,
-  //         },
-  //       }),
-  //       ex.stack,
-  //     );
-  //   }
-  // }
 
   async exists(query: any): Promise<boolean> {
     const res = await this.model.exists(query);

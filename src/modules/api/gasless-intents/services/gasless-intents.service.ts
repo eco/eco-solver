@@ -364,6 +364,21 @@ export class GaslessIntentsService {
 
             const chainType = ChainTypeDetector.detect(chainId);
 
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `executeChainTransactions`,
+                properties: {
+                  chainId,
+                  destination: intent.destination,
+                  routeHash,
+                  reward: intent.reward,
+                  allowPartial,
+                  owner: permit3.owner,
+                  permitContract: permit3.permitContract,
+                },
+              }),
+            );
+
             const fundForTxHash = await executor.fundFor(
               chainId,
               intent.destination,

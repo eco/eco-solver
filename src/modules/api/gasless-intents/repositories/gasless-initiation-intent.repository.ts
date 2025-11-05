@@ -78,7 +78,7 @@ export class GaslessInitiationIntentRepository {
   private async create(data: GaslessInitiationIntent): Promise<GaslessInitiationIntent> {
     this.logger.debug(
       EcoLogMessage.fromDefault({
-        message: `create`,
+        message: `create: GaslessInitiationIntent`,
         properties: {
           data,
         },
