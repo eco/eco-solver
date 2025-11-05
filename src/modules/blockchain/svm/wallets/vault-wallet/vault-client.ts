@@ -129,12 +129,30 @@ export class VaultClient {
         throw new Error('Public key not found in Vault key data');
       }
 
-      // Parse the public key - Vault returns it as base64
-      // For ed25519 (Solana's curve), the public key should be 32 bytes
-      const publicKeyBuffer = Buffer.from(keyData.public_key, 'base64');
+      // Parse the public key - Vault returns it as base64-encoded DER SubjectPublicKeyInfo
+      // For ed25519, this is a 44-byte structure: 12-byte ASN.1/DER header + 32-byte raw key
+      const derBuffer = Buffer.from(keyData.public_key, 'base64');
+
+      // Validate the buffer size
+      if (derBuffer.length !== 44) {
+        throw new Error(
+          `Expected 44-byte DER-encoded public key from Vault, got ${derBuffer.length} bytes`,
+        );
+      }
+
+      // Strip the 12-byte DER header to extract the raw 32-byte Ed25519 public key
+      // DER header format: 0x302a300506032b6570032100 (12 bytes)
+      const rawPublicKeyBuffer = derBuffer.subarray(12);
+
+      // Validate the raw key size
+      if (rawPublicKeyBuffer.length !== 32) {
+        throw new Error(
+          `Expected 32-byte raw Ed25519 public key, got ${rawPublicKeyBuffer.length} bytes`,
+        );
+      }
 
       // Convert to Solana PublicKey
-      this.publicKey = new PublicKey(publicKeyBuffer);
+      this.publicKey = new PublicKey(rawPublicKeyBuffer);
 
       return this.publicKey;
     } catch (error) {
