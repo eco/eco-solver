@@ -349,7 +349,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           const transaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
-            feePayer: wallet.getKeypair().publicKey,
+            feePayer: await wallet.getAddress(),
           })
             .add(computeBudgetIx)
             .add(...ataCreationInstructions)
@@ -1056,7 +1056,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           const transaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
-            feePayer: wallet.getKeypair().publicKey,
+            feePayer: await wallet.getAddress(),
           })
             .add(computeBudgetIx)
             .add(...transferInstructions)
