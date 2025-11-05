@@ -46,7 +46,7 @@ export class VaultWalletFactory {
       if (!this.vaultClient) {
         this.logger.log('Initializing HashiCorp Vault client');
 
-        this.vaultClient = new VaultClient(
+        const vaultClient = new VaultClient(
           walletConfig.endpoint,
           walletConfig.transitPath,
           walletConfig.keyName,
@@ -56,8 +56,10 @@ export class VaultWalletFactory {
 
         // Authenticate with Vault
         this.logger.log(`Authenticating with Vault using ${walletConfig.auth.type} auth`);
-        await this.vaultClient.authenticate();
+        await vaultClient.authenticate();
         this.logger.log('Successfully authenticated with Vault');
+
+        this.vaultClient = vaultClient;
       }
 
       // Get public key from Vault
