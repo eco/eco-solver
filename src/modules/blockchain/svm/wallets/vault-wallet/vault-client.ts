@@ -35,6 +35,9 @@ export class VaultClient {
   async authenticate(): Promise<void> {
     try {
       if (this.authConfig.type === 'token') {
+        // NOTE: TOKEN AUTH MUST BE USED FOR TESTING PURPOSES ONLY
+        // It lacks auto-renewals needed for long-running processes
+
         // Token authentication - directly set the token
         this.client.token = this.authConfig.token;
 
@@ -176,21 +179,6 @@ export class VaultClient {
       throw new Error(
         `Failed to read Kubernetes service account token from ${path}: ${getErrorMessage(error)}`,
       );
-    }
-  }
-
-  /**
-   * Renews the Vault token if necessary
-   * This should be called periodically for long-running processes
-   */
-  async renewToken(): Promise<void> {
-    try {
-      // Only renew for token auth (kubernetes auth handles this differently)
-      if (this.authConfig.type === 'token') {
-        await this.client.tokenRenewSelf();
-      }
-    } catch (error) {
-      throw new Error(`Failed to renew Vault token: ${getErrorMessage(error)}`);
     }
   }
 }
