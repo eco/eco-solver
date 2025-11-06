@@ -165,8 +165,7 @@ export class BlockchainExecutorService {
             break;
         }
       } catch (error) {
-        this.logger.warn('Failed to initialize executor for chain', {
-          error: toError(error),
+        this.logger.error('Failed to initialize executor for chain', error, {
           chainId,
         });
       }

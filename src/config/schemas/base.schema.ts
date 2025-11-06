@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Base environment configuration schema
  */
 export const BaseSchema = z.object({
-  env: z.string().default('development'),
+  env: z.string().default(process.env.NODE_ENV || 'development'),
   port: z.coerce.number().int().positive().default(3000),
   useEcoPackageConfig: z.boolean().optional(),
   configFiles: z

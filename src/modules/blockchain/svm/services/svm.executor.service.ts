@@ -97,9 +97,7 @@ export class SvmExecutorService extends BaseChainExecutor {
             this.isInitialized = true;
             span.addEvent('svm.fulfill.initialization_completed');
           } catch (error) {
-            this.logger.error('Failed to initialize Portal program during fulfill', {
-              error: toError(error),
-            });
+            this.logger.error('Failed to initialize Portal program during fulfill', toError(error));
             span.recordException(toError(error));
             span.setStatus({ code: api.SpanStatusCode.ERROR });
             span.end();
@@ -152,10 +150,13 @@ export class SvmExecutorService extends BaseChainExecutor {
             span.setAttribute('svm.prove_transaction.success', proveResult.success);
 
             if (!proveResult.success) {
-              this.logger.error('Prove transaction failed for intent', {
-                intentHash: intent.intentHash,
-                error: proveResult.error,
-              });
+              this.logger.error(
+                'Prove transaction failed for intent',
+                new Error(proveResult.error),
+                {
+                  intentHash: intent.intentHash,
+                },
+              );
               span.addEvent('svm.fulfill.prove_transaction.failed', {
                 error: proveResult.error,
               });
@@ -194,9 +195,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         } catch (error) {
           const typedError = toError(error);
 
-          this.logger.error('Solana execution error', {
-            error: typedError,
-          });
+          this.logger.error('Solana execution error', typedError);
 
           span.setAttributes({
             'svm.fulfill.result': 'error',
@@ -410,9 +409,7 @@ export class SvmExecutorService extends BaseChainExecutor {
             stage: this.determineErrorStage(typedError),
           });
 
-          this.logger.error('Solana batch withdrawal error', {
-            error: typedError,
-          });
+          this.logger.error('Solana batch withdrawal error', typedError);
           span.recordException(typedError);
           span.setStatus({
             code: api.SpanStatusCode.ERROR,
@@ -1123,9 +1120,8 @@ export class SvmExecutorService extends BaseChainExecutor {
           };
         } catch (error) {
           const typedError = toError(error);
-          this.logger.error('Failed to execute fulfill transaction for intent', {
+          this.logger.error('Failed to execute fulfill transaction for intent', typedError, {
             intentHash: intent.intentHash,
-            error: typedError,
           });
 
           txSpan.recordException(typedError);
@@ -1298,9 +1294,8 @@ export class SvmExecutorService extends BaseChainExecutor {
           };
         } catch (error) {
           const typedError = toError(error);
-          this.logger.error('Failed to execute prove transaction for intent', {
+          this.logger.error('Failed to execute prove transaction for intent', typedError, {
             intentHash: intent.intentHash,
-            error: typedError,
           });
 
           txSpan.recordException(typedError);
@@ -1506,9 +1501,8 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       return result;
     } catch (error) {
-      this.logger.error('Failed to generate prove instruction for intent', {
+      this.logger.error('Failed to generate prove instruction for intent', toError(error), {
         intentHash: intent.intentHash,
-        error: toError(error),
       });
       span.recordException(toError(error));
       return null;

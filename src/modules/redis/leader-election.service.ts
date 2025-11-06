@@ -180,7 +180,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
 
           span.setStatus({ code: 0 });
         } catch (error) {
-          this.logger.error('Error during leader election', error);
+          this.logger.error('Error during leader election', error, { instanceId: this.instanceId });
           span.recordException(error as Error);
           span.setStatus({ code: 2, message: (error as Error).message });
 
@@ -262,7 +262,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
 
           span.setStatus({ code: 0 });
         } catch (error) {
-          this.logger.error('Error renewing leadership', error);
+          this.logger.error('Error renewing leadership', error, { instanceId: this.instanceId });
           span.recordException(error as Error);
           span.setStatus({ code: 2, message: (error as Error).message });
 
@@ -337,7 +337,7 @@ export class LeaderElectionService implements OnModuleInit, OnModuleDestroy {
           this.handleLeadershipLoss();
           span.setStatus({ code: 0 });
         } catch (error) {
-          this.logger.error('Error releasing leadership', error);
+          this.logger.error('Error releasing leadership', error, { instanceId: this.instanceId });
           span.recordException(error as Error);
           span.setStatus({ code: 2, message: (error as Error).message });
           throw error;
