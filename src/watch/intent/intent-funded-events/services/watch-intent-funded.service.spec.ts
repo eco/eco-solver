@@ -76,6 +76,11 @@ describe('WatchIntentFundedService', () => {
       .withMocks([CreateIntentService, MultichainPublicClientService, EcoAnalyticsService])
       .withQueues([QUEUES.SOURCE_INTENT.queue])
 
+    // Ensure polling interval computation does not read actual config 'solvers'
+    jest
+      .spyOn(EcoConfigService.prototype, 'getSolver')
+      .mockReturnValue({ averageBlockTime: 2 } as any)
+
     service = await $.init()
     ecoConfigService = $.get(EcoConfigService)
     publicClientService = $.get(MultichainPublicClientService)
@@ -83,6 +88,10 @@ describe('WatchIntentFundedService', () => {
 
   beforeEach(async () => {
     mockDb.length = 0
+    // Ensure polling interval computation does not hit real config 'solvers'
+    jest
+      .spyOn(EcoConfigService.prototype, 'getSolver')
+      .mockReturnValue({ averageBlockTime: 2 } as any)
   })
 
   afterEach(() => {

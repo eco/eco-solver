@@ -58,6 +58,9 @@ describe('WatchIntentService', () => {
     watchIntentService['logger'].log = mockLogLog
     watchIntentService['logger'].warn = mockLogWarn
     watchIntentService['logger'].error = mockLogError
+
+    // Ensure solver mock returns numeric averageBlockTime per Solver type
+    ecoConfigService.getSolver.mockReturnValue({ averageBlockTime: 2 } as any)
   })
 
   afterEach(async () => {

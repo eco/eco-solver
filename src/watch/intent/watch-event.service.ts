@@ -365,4 +365,20 @@ export abstract class WatchEventService<T extends { chainID: number }>
   private async delay(ms: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms))
   }
+
+  protected readonly MIN_POLLING_INTERVAL = 1_000 // 1 second
+  /**
+   * Returns the polling interval for a given chain ID, using the solver's average block time.
+   * If the average block time is undefined or less than 1 second, returns 1 second.
+   * @param chainID the chain ID to get the polling interval for
+   * @returns the polling interval in milliseconds
+   */
+  protected getPollingInterval(chainID: number): number {
+    const solver = this.ecoConfigService.getSolver(chainID)
+    const seconds = solver?.averageBlockTime
+    if (typeof seconds === 'number' && seconds > 1) {
+      return Math.round(seconds * 1_000)
+    }
+    return this.MIN_POLLING_INTERVAL
+  }
 }

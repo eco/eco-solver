@@ -90,6 +90,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           )
         }
       },
+      pollingInterval: this.getPollingInterval(source.chainID),
     })
   }
 
