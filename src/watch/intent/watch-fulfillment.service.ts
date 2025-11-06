@@ -7,7 +7,7 @@ import { getIntentJobId } from '@/common/utils/strings'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
-import { PublicClient, zeroHash } from 'viem'
+import { Log, PublicClient, zeroHash } from 'viem'
 import { convertBigIntsToStrings } from '@/common/viem/utils'
 import { entries } from 'lodash'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
@@ -94,9 +94,16 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
         this.ecoAnalytics.trackWatchFulfillmentEventsDetected(logs.length, solver)
       }
 
+      // Track the highest successfully processed block and the earliest failed block.
+      // We will only advance the cursor to the last safe block that guarantees no skipped logs.
+      const chainIDNum = solver ? Number(solver.chainID) : undefined
+      let maxSuccessBlock: bigint | undefined
+      let minFailedBlock: bigint | undefined
+
       await this.processLogsResiliently(
         logs,
         async (log) => {
+          const blockNum = typeof log.blockNumber === 'bigint' ? log.blockNumber : undefined
           // bigint as it can't serialize to JSON
           const fulfillment = convertBigIntsToStrings(log)
           const jobId = getIntentJobId(
@@ -138,11 +145,70 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
                 logIndex: fulfillment.logIndex,
               },
             )
+            // Record earliest failed block so we do not advance beyond it
+            if (blockNum !== undefined) {
+              if (minFailedBlock === undefined || blockNum < minFailedBlock) {
+                minFailedBlock = blockNum
+              }
+            }
             throw error
+          }
+          // Record highest successful block
+          if (blockNum !== undefined) {
+            if (maxSuccessBlock === undefined || blockNum > maxSuccessBlock) {
+              maxSuccessBlock = blockNum
+            }
           }
         },
         'watch fulfillment',
       )
+
+      if (chainIDNum !== undefined) {
+        const previous = this['lastProcessedBlockByChain'][chainIDNum]
+
+        // If any failures occurred, only advance to just before the earliest failed block.
+        // Otherwise, advance to the highest successful block.
+        let nextCursor: bigint | undefined
+        if (minFailedBlock !== undefined) {
+          if (minFailedBlock > 0n) {
+            const candidate = minFailedBlock - 1n
+            if (previous === undefined || candidate > previous) {
+              nextCursor = candidate
+            }
+          }
+        } else if (maxSuccessBlock !== undefined) {
+          nextCursor = maxSuccessBlock
+        }
+
+        if (nextCursor !== undefined) {
+          this.recordProcessedBlock(chainIDNum, nextCursor)
+        }
+      }
     }
+  }
+
+  protected override async fetchBackfillLogs(
+    client: PublicClient,
+    solver: Solver,
+    fromBlock: bigint,
+    toBlock: bigint,
+  ): Promise<Log[]> {
+    const MAX_BACKFILL_BLOCK_RANGE = 10_000n
+    let effectiveFromBlock = fromBlock
+    if (toBlock - fromBlock > MAX_BACKFILL_BLOCK_RANGE) {
+      effectiveFromBlock =
+        toBlock > MAX_BACKFILL_BLOCK_RANGE ? toBlock - MAX_BACKFILL_BLOCK_RANGE : 0n
+    }
+
+    const logs = await client.getContractEvents({
+      address: solver.inboxAddress,
+      abi: portalAbi,
+      eventName: 'IntentFulfilled',
+      strict: true,
+      fromBlock: effectiveFromBlock,
+      toBlock,
+    })
+
+    return logs as Log[]
   }
 }
