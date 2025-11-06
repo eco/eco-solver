@@ -207,7 +207,7 @@ export abstract class WatchEventService<T extends { chainID: number }>
           if (toBlock !== undefined && toBlock >= fromBlock) {
             const missedLogs = await this.fetchBackfillLogs(client, contract, fromBlock, toBlock)
             if (missedLogs.length > 0) {
-              await this.addJob(contract)(missedLogs)
+              await this.addJob(contract, { doValidation: true })(missedLogs)
             }
           }
         } catch (backfillError) {
