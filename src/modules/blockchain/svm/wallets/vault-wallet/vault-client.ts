@@ -196,32 +196,15 @@ export class VaultClient {
         throw new Error('Public key not found in Vault key data');
       }
 
-      this.logger.log('Vault client public key', { public_key: keyData.public_key });
-
-      // Parse the public key - Vault returns it as base64-encoded DER SubjectPublicKeyInfo
-      // For ed25519, this is a 44-byte structure: 12-byte ASN.1/DER header + 32-byte raw key
-      const derBuffer = Buffer.from(keyData.public_key, 'base64');
-
-      // Validate the buffer size
-      if (derBuffer.length !== 44) {
-        throw new Error(
-          `Expected 44-byte DER-encoded public key from Vault, got ${derBuffer.length} bytes`,
-        );
-      }
-
-      // Strip the 12-byte DER header to extract the raw 32-byte Ed25519 public key
-      // DER header format: 0x302a300506032b6570032100 (12 bytes)
-      const rawPublicKeyBuffer = derBuffer.subarray(12);
+      const keyBuffer = Buffer.from(keyData.public_key, 'base64');
 
       // Validate the raw key size
-      if (rawPublicKeyBuffer.length !== 32) {
-        throw new Error(
-          `Expected 32-byte raw Ed25519 public key, got ${rawPublicKeyBuffer.length} bytes`,
-        );
+      if (keyBuffer.length !== 32) {
+        throw new Error(`Expected 32-byte raw Ed25519 public key, got ${keyBuffer.length} bytes`);
       }
 
       // Convert to Solana PublicKey
-      this.publicKey = new PublicKey(rawPublicKeyBuffer);
+      this.publicKey = new PublicKey(keyBuffer);
 
       return this.publicKey;
     } catch (error) {

@@ -422,17 +422,12 @@ describe('VaultClient', () => {
     });
 
     it('should retrieve and cache public key', async () => {
-      // Create a proper 44-byte DER-encoded public key
-      // 12-byte header + 32-byte raw key
-      const header = Buffer.from([
-        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
-      ]);
+      // 32-byte raw key
       const rawKey = Buffer.from([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
       ]);
-      const derKey = Buffer.concat([header, rawKey]);
-      const base64Key = derKey.toString('base64');
+      const base64Key = rawKey.toString('base64');
 
       mockVaultInstance.read.mockResolvedValue({
         data: {
@@ -454,31 +449,22 @@ describe('VaultClient', () => {
       // Both calls should return the same instance
       expect(publicKey1).toBe(publicKey2);
       expect(publicKey1).toBeInstanceOf(PublicKey);
-
-      // Verify logger was called
-      expect(mockLogger.log).toHaveBeenCalledWith('Vault client public key', {
-        public_key: base64Key,
-      });
     });
 
     it('should extract the latest key version', async () => {
-      const header = Buffer.from([
-        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
-      ]);
       const rawKey = Buffer.alloc(32, 1);
-      const derKey = Buffer.concat([header, rawKey]);
 
       mockVaultInstance.read.mockResolvedValue({
         data: {
           keys: {
             '1': {
-              public_key: derKey.toString('base64'),
+              public_key: rawKey.toString('base64'),
             },
             '3': {
-              public_key: derKey.toString('base64'),
+              public_key: rawKey.toString('base64'),
             },
             '2': {
-              public_key: derKey.toString('base64'),
+              public_key: rawKey.toString('base64'),
             },
           },
         },
@@ -490,7 +476,7 @@ describe('VaultClient', () => {
       expect(mockVaultInstance.read).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw error if DER key is not 44 bytes', async () => {
+    it('should throw error if key is not 32 bytes', async () => {
       const invalidDerKey = Buffer.alloc(40); // Wrong size
       const base64Key = invalidDerKey.toString('base64');
 
@@ -505,7 +491,7 @@ describe('VaultClient', () => {
       });
 
       await expect(vaultClient.getPublicKey()).rejects.toThrow(
-        'Failed to get public key from Vault: Expected 44-byte DER-encoded public key from Vault, got 40 bytes',
+        'Failed to get public key from Vault: Expected 32-byte raw Ed25519 public key, got 40 bytes',
       );
     });
 
