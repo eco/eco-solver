@@ -64,6 +64,8 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   }
 
   async subscribeTo(client: PublicClient, solver: Solver) {
+    const chainID = Number(solver.chainID)
+    const fromBlock = this.getNextFromBlock(chainID)
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch fulfillment event: subscribeToFulfillment`,
@@ -73,11 +75,12 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       }),
     )
 
-    this.unwatch[solver.chainID] = client.watchContractEvent({
+    this.unwatch[chainID] = client.watchContractEvent({
       address: solver.inboxAddress,
       abi: portalAbi,
       eventName: 'IntentFulfilled',
       strict: true,
+      fromBlock,
       onLogs: this.addJob(solver),
       onError: (error) => this.onError(error, client, solver),
       pollingInterval: this.getPollingInterval(solver.chainID),

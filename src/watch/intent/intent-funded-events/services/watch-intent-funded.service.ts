@@ -59,6 +59,8 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   }
 
   async subscribeTo(client: PublicClient, source: IntentSource) {
+    const chainID = Number(source.chainID)
+    const fromBlock = this.getNextFromBlock(chainID)
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch intent funded: subscribeToSource`,
@@ -67,13 +69,14 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         },
       }),
     )
-    this.unwatch[source.chainID] = client.watchContractEvent({
+    this.unwatch[chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
       abi: portalAbi,
       eventName: 'IntentFunded',
+      fromBlock,
       onLogs: async (logs: Log[]): Promise<void> => {
         try {
           // Track intent funded events detected
