@@ -135,13 +135,13 @@ export class QuotesService {
       destinationAmount,
     );
 
-    const route = {
+    intent.route = {
       ...intent.route,
       calls: [tokenTransferCall],
       tokens: intent.route.tokens.map((token) => ({ ...token, amount: destinationAmount })),
-    } satisfies Intent['route'];
+    };
 
-    const encodedRoute = PortalEncoder.encode(route, destinationChainType);
+    const encodedRoute = PortalEncoder.encode(intent.route, destinationChainType);
 
     // Generate unique quote ID
     const gaslessRequested = request.intentExecutionTypes.includes('GASLESS');

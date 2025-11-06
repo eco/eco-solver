@@ -310,14 +310,13 @@ export class EvmExecutorService extends BaseChainExecutor {
    * @param params Permit3 parameters
    * @returns Transaction hash
    */
-  async permit3(params: Permit3Params): Promise<Hex> {
-    const walletType = params.walletType ?? 'kernel';
+  async permit3(params: Permit3Params, walletId: WalletType): Promise<Hex> {
     return this.otelService.tracer.startActiveSpan(
       'evm.executor.permit3',
       {
         attributes: {
           'evm.chain_id': params.chainId.toString(),
-          'evm.wallet_type': walletType,
+          'evm.wallet_type': walletId,
           'evm.permit_count': params.permits.length,
           'evm.operation': 'permit3',
         },
@@ -328,7 +327,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           const call = this.buildPermit3Call(params);
 
           // Get wallet for this chain
-          const wallet = this.walletManager.getWallet(walletType, params.chainId);
+          const wallet = this.walletManager.getWallet(walletId, params.chainId);
 
           this.logger.log(
             `Executing permit3 on chain ${params.chainId} with ${params.permits.length} permits`,
@@ -370,15 +369,14 @@ export class EvmExecutorService extends BaseChainExecutor {
    * @param params FundFor parameters
    * @returns Transaction hash
    */
-  async fundFor(params: FundForParams): Promise<Hex> {
-    const walletType = params.walletType ?? 'kernel';
+  async fundFor(params: FundForParams, walletId: WalletType): Promise<Hex> {
     return this.otelService.tracer.startActiveSpan(
       'evm.executor.fundFor',
       {
         attributes: {
           'evm.chain_id': params.chainId.toString(),
           'evm.destination_chain': params.destination.toString(),
-          'evm.wallet_type': walletType,
+          'evm.wallet_type': walletId,
           'evm.allow_partial': params.allowPartial,
           'evm.operation': 'fundFor',
         },
@@ -395,7 +393,7 @@ export class EvmExecutorService extends BaseChainExecutor {
                 allowPartial: params.allowPartial,
                 funder: params.funder,
                 permitContract: params.permitContract,
-                walletType,
+                walletType: walletId,
               },
             }),
           );
@@ -404,7 +402,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           const call = this.buildFundForCall(params);
 
           // Get wallet for this chain
-          const wallet = this.walletManager.getWallet(walletType, params.chainId);
+          const wallet = this.walletManager.getWallet(walletId, params.chainId);
 
           span.setAttribute('portal.address', call.to);
 
@@ -470,10 +468,8 @@ export class EvmExecutorService extends BaseChainExecutor {
   async fundForWithPermit3(
     permit3Params: Permit3Params,
     fundForCalls: FundForParams[],
+    walletId: WalletType,
   ): Promise<Hex> {
-    // Use walletType from permit3Params, or first fundFor call as fallback, or default to 'kernel'
-    const walletType =
-      permit3Params.walletType ?? fundForCalls[0]?.walletType ?? ('kernel' as WalletType);
     const chainId = permit3Params.chainId;
 
     return this.otelService.tracer.startActiveSpan(
@@ -481,7 +477,7 @@ export class EvmExecutorService extends BaseChainExecutor {
       {
         attributes: {
           'evm.chain_id': chainId.toString(),
-          'evm.wallet_type': walletType,
+          'evm.wallet_type': walletId,
           'evm.fundFor_count': fundForCalls.length,
           'evm.operation': 'fundForWithPermit3',
           'evm.parameters': BigintSerializer.serialize({ permit3Params, fundForCalls }),
@@ -508,7 +504,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           });
 
           // Get wallet for this chain
-          const wallet = this.walletManager.getWallet(walletType, chainId);
+          const wallet = this.walletManager.getWallet(walletId, chainId);
 
           // Execute all calls atomically using multicall3 (writeContracts uses multicall3 by default)
           const [txHash] = await wallet.writeContracts(allCalls);

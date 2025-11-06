@@ -36,12 +36,13 @@ export abstract class BaseChainExecutor {
     walletId?: string,
   ): Promise<string>;
 
-  abstract permit3(params: Permit3Params): Promise<Hex>;
+  abstract permit3(params: Permit3Params, walletId: WalletType): Promise<Hex>;
 
-  abstract fundFor(params: FundForParams): Promise<Hex>;
+  abstract fundFor(params: FundForParams, walletId: WalletType): Promise<Hex>;
 
   abstract fundForWithPermit3(
     permit3Params: Permit3Params,
     fundForCalls: FundForParams[],
+    walletId: WalletType,
   ): Promise<Hex>;
 }
