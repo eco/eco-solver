@@ -1,19 +1,24 @@
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiFiAssetCacheManager } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager'
 import { KernelAccountClientService } from '@/transaction/smart-wallets/kernel/kernel-account-client.service'
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import * as viemChains from 'viem/chains'
 import { ChainsResponse } from './types'
 import { BalanceService } from '@/balance/balance.service'
 
 @Injectable()
 export class BlockchainService {
+  private readonly logger = new Logger(BlockchainService.name)
+  private readonly lifiTokenCacheManager: LiFiAssetCacheManager
+
   constructor(
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
     private readonly kernelAccountClientService: KernelAccountClientService,
-    private readonly lifiTokenCacheManager: LiFiAssetCacheManager,
-  ) {}
+  ) {
+    // Initialize the asset cache manager
+    this.lifiTokenCacheManager = new LiFiAssetCacheManager(this.ecoConfigService, this.logger)
+  }
 
   async getSupportedChainsAndTokens() {
     const supportedChains = this.ecoConfigService.getSupportedChains()
