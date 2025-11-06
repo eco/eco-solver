@@ -205,8 +205,20 @@ export abstract class WatchEventService<T extends { chainID: number }>
         try {
           const toBlock = await client.getBlockNumber()
           if (toBlock !== undefined && toBlock >= fromBlock) {
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `watch-event: fetching backfill logs`,
+                properties: { chainID, fromBlock, toBlock },
+              }),
+            )
             const missedLogs = await this.fetchBackfillLogs(client, contract, fromBlock, toBlock)
             if (missedLogs.length > 0) {
+              this.logger.debug(
+                EcoLogMessage.fromDefault({
+                  message: `watch-event: adding backfill logs to queue`,
+                  properties: { chainID, missedLogs: missedLogs.length },
+                }),
+              )
               await this.addJob(contract, { doValidation: true })(missedLogs)
             }
           }

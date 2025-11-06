@@ -128,12 +128,27 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
               ...this.watchJobConfig,
             })
 
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `addJob: watch fulfillment: added to queue`,
+                properties: { fulfillment, jobId, solver },
+              }),
+            )
+
             // Track successful job addition
             if (solver) {
               this.ecoAnalytics.trackWatchFulfillmentJobQueued(fulfillment, jobId, solver)
             }
           } catch (error) {
             // Track job queue failure with complete context
+            this.logger.error(
+              EcoLogMessage.withError({
+                message: `addJob: watch fulfillment: error adding to queue`,
+                error,
+                properties: { fulfillment, jobId, solver },
+              }),
+            )
+
             this.ecoAnalytics.trackWatchJobQueueError(
               error,
               ERROR_EVENTS.FULFILLMENT_JOB_QUEUE_FAILED,

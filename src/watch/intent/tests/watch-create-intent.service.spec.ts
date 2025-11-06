@@ -182,7 +182,7 @@ describe('WatchIntentService', () => {
     beforeEach(async () => {
       mockQueueAdd = jest.spyOn(queue, 'add')
       await watchIntentService.addJob(s)([log])
-      expect(mockLogDebug).toHaveBeenCalledTimes(1)
+      expect(mockLogDebug).toHaveBeenCalledTimes(2)
     })
     it('should convert all bigints to strings', async () => {
       expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(

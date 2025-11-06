@@ -166,10 +166,23 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
               jobId,
               ...this.watchJobConfig,
             })
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `addJob: watch intent funded: added to queue`,
+                properties: { intentFunded, jobId, source },
+              }),
+            )
 
             // Track successful job addition
             this.ecoAnalytics.trackWatchIntentFundedJobQueued(intentFunded, jobId, source)
           } catch (error) {
+            this.logger.error(
+              EcoLogMessage.withError({
+                message: `addJob: watch intent funded: error adding to queue`,
+                error,
+                properties: { intentFunded, jobId, source },
+              }),
+            )
             // Track job queue failure with complete context
             this.ecoAnalytics.trackWatchJobQueueError(
               error,
