@@ -100,6 +100,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       },
       fromBlock,
       onLogs: this.addJob(source),
+      pollingInterval: this.getPollingInterval(source.chainID),
     })
   }
 

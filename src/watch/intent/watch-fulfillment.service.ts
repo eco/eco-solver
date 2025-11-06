@@ -85,6 +85,7 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
       },
       onLogs: this.addJob(solver),
       onError: (error) => this.onError(error, client, solver),
+      pollingInterval: this.getPollingInterval(solver.chainID),
     })
   }
 
