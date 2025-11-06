@@ -35,17 +35,22 @@ export class BlockchainService {
         const clientKernel = await this.kernelAccountClientService.getClient(Number(chain))
         const kernelAddress = clientKernel.kernelAccount?.address
 
-        const tokens = supportedTokens
-          .filter((token) => token.chainId === Number(chain))
-          .map((token) => {
-            const tokenInfo = this.lifiTokenCacheManager.getTokenInfo(Number(chain), token.address)
+        const tokens = await Promise.all(
+          supportedTokens
+            .filter((token) => token.chainId === Number(chain))
+            .map(async (token) => {
+              const tokenInfo = await this.lifiTokenCacheManager.getTokenInfo(
+                Number(chain),
+                token.address,
+              )
 
-            return {
-              address: token.address,
-              decimals: tokenInfo?.decimals ?? 6,
-              symbol: tokenInfo?.symbol ?? 'Unknown',
-            }
-          })
+              return {
+                address: token.address,
+                decimals: tokenInfo?.decimals ?? 6,
+                symbol: tokenInfo?.symbol ?? 'Unknown',
+              }
+            }),
+        )
 
         return {
           chainId: Number(chain),

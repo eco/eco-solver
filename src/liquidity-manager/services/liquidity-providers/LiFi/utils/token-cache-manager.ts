@@ -340,18 +340,9 @@ export class LiFiAssetCacheManager {
    * @param tokenAddress The token address
    * @returns TokenInfo if found, undefined otherwise
    */
-  getTokenInfo(chainId: number, tokenAddress: string): TokenInfo | undefined {
+  async getTokenInfo(chainId: number, tokenAddress: string): Promise<TokenInfo | undefined> {
     if (!this.isInitialized || !this.isCacheValid()) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'LiFi: Asset cache not ready, returning undefined',
-          properties: {
-            chainId,
-            tokenAddress,
-          },
-        }),
-      )
-      return undefined
+      await this.initialize()
     }
     return this.cache.tokensInfo.get(`${chainId}:${tokenAddress.toLowerCase()}`)
   }
