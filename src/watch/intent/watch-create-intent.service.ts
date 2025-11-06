@@ -143,11 +143,25 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
               jobId,
               ...this.watchJobConfig,
             })
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `addJob: watch create intent: added to queue`,
+                properties: { createIntent, jobId, source },
+              }),
+            )
 
             // Track successful job addition
             this.ecoAnalytics.trackWatchCreateIntentJobQueued(createIntent, jobId, source)
           } catch (error) {
             // Track job queue failure with complete context
+            this.logger.error(
+              EcoLogMessage.withError({
+                message: `addJob: watch create intent: error adding to queue`,
+                error,
+                properties: { createIntent, jobId, source },
+              }),
+            )
+
             this.ecoAnalytics.trackWatchJobQueueError(
               error,
               ERROR_EVENTS.CREATE_INTENT_JOB_QUEUE_FAILED,
