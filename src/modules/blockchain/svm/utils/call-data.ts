@@ -5,7 +5,6 @@ import {
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { Keypair } from '@solana/web3.js';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
@@ -67,7 +66,7 @@ export async function buildTokenTransferInstructions(
 
 export async function getTokenAccounts(
   route: Intent['route'],
-  keypair: Keypair,
+  publicKey: web3.PublicKey,
   portalProgramIdlAddress: string,
 ): Promise<web3.AccountMeta[]> {
   const accounts: web3.AccountMeta[] = [];
@@ -79,7 +78,7 @@ export async function getTokenAccounts(
     const tokenMint = new web3.PublicKey(tokenAddr);
 
     // Source token account (solver's)
-    const sourceTokenAccount = await getAssociatedTokenAddress(tokenMint, keypair.publicKey, true);
+    const sourceTokenAccount = await getAssociatedTokenAddress(tokenMint, publicKey, true);
 
     // Destination would be the executor PDA
     const [executorPda] = web3.PublicKey.findProgramAddressSync(
