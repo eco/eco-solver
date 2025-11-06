@@ -138,6 +138,37 @@ describe('WatchFulfillmentService', () => {
           { jobId: 'watch-fulfillement-1-0' },
         )
       })
+
+      it('records the highest processed block per chain from the batch when solver is provided', async () => {
+        const solver = inboxes[0]
+        await watchFulfillmentService.addJob(solver as any)([
+          { ...log, blockNumber: 5n },
+          { ...log, blockNumber: 7n },
+        ])
+
+        expect(watchFulfillmentService['lastProcessedBlockByChain'][solver.chainID]).toBe(7n)
+      })
+
+      it('does not advance cursor past the earliest failed block within a batch', async () => {
+        const solver = inboxes[0]
+
+        const addSpy = jest.spyOn(queue, 'add')
+        addSpy.mockImplementation((_name: any, _data: any, opts: any) => {
+          // Fail the job that ends with '-2' (second log)
+          if (opts?.jobId?.endsWith('-2')) {
+            return Promise.reject(new Error('enqueue failed'))
+          }
+          return Promise.resolve({} as any)
+        })
+
+        await watchFulfillmentService.addJob(solver as any)([
+          { ...log, blockNumber: 100n, logIndex: BigInt(1) },
+          { ...log, blockNumber: 101n, logIndex: BigInt(2) },
+          { ...log, blockNumber: 102n, logIndex: BigInt(3) },
+        ])
+
+        expect(watchFulfillmentService['lastProcessedBlockByChain'][solver.chainID]).toBe(100n)
+      })
     })
   })
 })
