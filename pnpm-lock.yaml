@@ -21,8 +21,8 @@ importers:
         specifier: ^3.592.0
         version: 3.848.0
       '@eco-foundation/chains':
-        specifier: 2.0.4
-        version: 2.0.4(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
+        specifier: 2.0.6
+        version: 2.0.6(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
       '@eco-foundation/eco-kms-core':
         specifier: ^2.0.0
         version: 2.0.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -672,8 +672,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@eco-foundation/chains@2.0.4':
-    resolution: {integrity: sha512-eGTeH7gdTRZzUwhyanzoSBy+Jp/15kls+PmV9UTO3qLRDvSxPMTlpb0B710pNV6X91+LWrKkMEGkdgmUNxZKXw==}
+  '@eco-foundation/chains@2.0.6':
+    resolution: {integrity: sha512-2j04l91I83sijE+1Nmv8XCH4lPDUKVFyru6na4x5Y9Xen8YbCVCFsiIaLUdA3D+X/Ke1NSI8SME1x1+l+nnUvA==}
 
   '@eco-foundation/eco-kms-core@2.0.0':
     resolution: {integrity: sha512-hCYeg6/pQsFz1StA96FX8uG40g8H5Jj/Z4Vb0Si4yXNYZ8DdqiOHa2JYv5F24Vipu3vkSBIPllkhNisE8R83jg==}
@@ -6851,7 +6851,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@eco-foundation/chains@2.0.4(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
+  '@eco-foundation/chains@2.0.6(@samchon/openapi@3.3.0)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
     dependencies:
       typia: 8.2.0(@samchon/openapi@3.3.0)(typescript@5.8.3)
       viem: 2.37.8(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
@@ -7705,7 +7705,7 @@ snapshots:
 
   '@lifi/types@17.36.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
     dependencies:
-      viem: 2.37.3(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
+      viem: 2.37.8(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
     transitivePeerDependencies:
       - bufferutil
       - typescript
