@@ -80,9 +80,14 @@ config/*
 !config/purple-production.ts
 !config/yellow-production.ts
 !config/magenta-production.ts
+config.yaml
 
 #AI
 CLAUDE.md
 **/.claude/settings.local.json
 .env*
 !.env-cmdrc.test
+
+
+#vscode settings
+.vscode/
