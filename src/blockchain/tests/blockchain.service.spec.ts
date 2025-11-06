@@ -1,3 +1,5 @@
+jest.mock('@/liquidity-manager/services/liquidity-providers/LiFi/utils/token-cache-manager')
+
 import { createMock, DeepMocked } from '@golevelup/ts-jest'
 import { Test, TestingModule } from '@nestjs/testing'
 import { BlockchainService } from '../blockchain.service'
@@ -16,6 +18,14 @@ describe('BlockchainService', () => {
   let lifiTokenCacheManager: DeepMocked<LiFiAssetCacheManager>
 
   beforeEach(async () => {
+    // Create mock for LiFiAssetCacheManager
+    lifiTokenCacheManager = createMock<LiFiAssetCacheManager>()
+
+    // Mock the constructor to return our mock
+    ;(LiFiAssetCacheManager as jest.MockedClass<typeof LiFiAssetCacheManager>).mockImplementation(
+      () => lifiTokenCacheManager,
+    )
+
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainService,
@@ -25,10 +35,6 @@ describe('BlockchainService', () => {
           provide: KernelAccountClientService,
           useValue: createMock<KernelAccountClientService>(),
         },
-        {
-          provide: LiFiAssetCacheManager,
-          useValue: createMock<LiFiAssetCacheManager>(),
-        },
       ],
     }).compile()
 
@@ -36,7 +42,6 @@ describe('BlockchainService', () => {
     ecoConfigService = mod.get(EcoConfigService)
     balanceService = mod.get(BalanceService)
     kernelAccountClientService = mod.get(KernelAccountClientService)
-    lifiTokenCacheManager = mod.get(LiFiAssetCacheManager)
   })
 
   afterEach(async () => {
@@ -56,6 +61,10 @@ describe('BlockchainService', () => {
             },
           }
         })
+
+      // Reset the token cache manager mock
+      jest.clearAllMocks()
+      lifiTokenCacheManager.getTokenInfo = jest.fn()
     })
 
     it('should return chains with tokens and wallet information', async () => {
