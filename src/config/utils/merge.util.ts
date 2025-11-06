@@ -55,11 +55,10 @@ import mergeWith from 'lodash.mergewith';
  * // Result: { evm: { networks: [{ chainId: 137, name: 'Polygon' }] } }
  * // NOT: { evm: { networks: [{ chainId: 137, name: 'Polygon' }, { chainId: 10, name: 'Optimism' }] } }
  */
-export function arrayReplacementCustomizer(objValue: any, srcValue: any): any | undefined {
+export function arrayReplacementCustomizer<T = any>(objValue: T, srcValue: T): T | undefined {
   if (Array.isArray(srcValue)) {
-    return srcValue; // Replace arrays completely instead of merging by index
+    return srcValue;
   }
-  // Return undefined to let mergeWith handle objects and primitives normally
   return undefined;
 }
 
@@ -92,6 +91,8 @@ export function arrayReplacementCustomizer(objValue: any, srcValue: any): any | 
  * );
  * // Result: { items: [4, 5], nested: { value: 'a', extra: 'b' } }
  */
-export function mergeWithArrayReplacement(...sources: any[]): any {
-  return mergeWith({}, ...sources, arrayReplacementCustomizer);
+export function mergeWithArrayReplacement<T extends Record<string, any>>(
+  ...sources: Partial<T>[]
+): T {
+  return mergeWith({} as T, ...sources, arrayReplacementCustomizer) as T;
 }
