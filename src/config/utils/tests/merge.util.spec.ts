@@ -59,8 +59,8 @@ describe('merge.util', () => {
       });
 
       it('should handle arrays with mixed types (objects, primitives, null)', () => {
-        const objValue = [1, 'two', { three: 3 }];
-        const srcValue = [{ a: 1 }, null, undefined, 42, 'string'];
+        const objValue: any[] = [1, 'two', { three: 3 }];
+        const srcValue: any[] = [{ a: 1 }, null, undefined, 42, 'string'];
 
         const result = arrayReplacementCustomizer(objValue, srcValue);
 
@@ -86,7 +86,7 @@ describe('merge.util', () => {
 
         expect(result).toEqual(srcValue);
         expect(result).toBe(srcValue);
-        expect(result.length).toBe(2000);
+        expect(result!.length).toBe(2000);
       });
 
       it('should handle sparse arrays', () => {
@@ -98,16 +98,16 @@ describe('merge.util', () => {
         const result = arrayReplacementCustomizer(objValue, srcValue);
 
         expect(result).toBe(srcValue);
-        expect(result[0]).toBe('a');
-        expect(result[1]).toBeUndefined();
-        expect(result[4]).toBe('b');
+        expect(result![0]).toBe('a');
+        expect(result![1]).toBeUndefined();
+        expect(result![4]).toBe('b');
       });
     });
 
     describe('non-array passthrough', () => {
       it('should return undefined for object values to let mergeWith handle them', () => {
-        const objValue = { a: 1 };
-        const srcValue = { b: 2 };
+        const objValue: any = { a: 1 };
+        const srcValue: any = { b: 2 };
 
         const result = arrayReplacementCustomizer(objValue, srcValue);
 
@@ -172,7 +172,7 @@ describe('merge.util', () => {
     describe('edge cases', () => {
       it('should handle array-like objects (not true arrays)', () => {
         const objValue = [1, 2, 3];
-        const srcValue = { 0: 'a', 1: 'b', length: 2 }; // Array-like but not array
+        const srcValue: any = { 0: 'a', 1: 'b', length: 2 }; // Array-like but not array
 
         const result = arrayReplacementCustomizer(objValue, srcValue);
 
@@ -594,9 +594,9 @@ describe('merge.util', () => {
 
   describe('mergeWithArrayReplacement helper', () => {
     it('should merge multiple sources with array replacement', () => {
-      const source1 = { a: [1, 2], b: { x: 1 } };
-      const source2 = { a: [3], b: { y: 2 } };
-      const source3 = { a: [4, 5], b: { z: 3 } };
+      const source1: any = { a: [1, 2], b: { x: 1 } };
+      const source2: any = { a: [3], b: { y: 2 } };
+      const source3: any = { a: [4, 5], b: { z: 3 } };
 
       const result = mergeWithArrayReplacement(source1, source2, source3);
 
