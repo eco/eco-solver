@@ -391,7 +391,11 @@ export class GaslessIntentsService {
           });
 
           // Execute permit3 + multiple fundFor atomically in a single transaction
-          const transactionHash = await executor.fundForWithPermit3(permit3Params, fundForCalls);
+          const transactionHash = await executor.fundForWithPermit3(
+            permit3Params,
+            fundForCalls,
+            'basic',
+          );
 
           span.setAttributes({
             'batch.tx_hash': transactionHash,

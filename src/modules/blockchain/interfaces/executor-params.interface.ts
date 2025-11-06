@@ -2,7 +2,6 @@ import { Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
-import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 
 /**
  * Parameters for permit3 transaction execution
@@ -22,7 +21,6 @@ export interface Permit3Params {
   }>;
   merkleProof: Hex[];
   signature: Hex;
-  walletType?: WalletType;
 }
 
 /**
@@ -36,5 +34,4 @@ export interface FundForParams {
   allowPartial: boolean;
   funder: UniversalAddress;
   permitContract: UniversalAddress;
-  walletType?: WalletType;
 }
