@@ -136,7 +136,7 @@ export class IntentRepository {
       .findOneAndUpdate(
         {
           intentHash: eventData.intentHash,
-          status: { $ne: IntentStatus.FUNDED },
+          $or: [{ status: IntentStatus.PENDING }, { status: { $exists: false } }],
         },
         {
           status: IntentStatus.FUNDED,
