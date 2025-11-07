@@ -2,6 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { Document } from 'mongoose';
 
+import { IntentExecutionType } from '@/modules/api/quotes/enums/intent-execution-type.enum';
+
 export type QuoteDocument = Quote & Document;
 
 /**
@@ -10,13 +12,16 @@ export type QuoteDocument = Quote & Document;
  */
 @Schema({ timestamps: true })
 export class Quote {
-  @Prop({ required: true, unique: true, index: true })
+  @Prop({ required: true })
   quoteID: string;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true, enum: IntentExecutionType.enumKeys })
+  intentExecutionType: string;
+
+  @Prop({ required: true })
   sourceChainID: number;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   destinationChainID: number;
 
   @Prop({ required: true })
@@ -87,6 +92,9 @@ export class Quote {
 
 export const QuoteSchema = SchemaFactory.createForClass(Quote);
 
-QuoteSchema.index({ quoteID: 1 }, { unique: true });
-QuoteSchema.index({ sourceChainID: 1 });
-QuoteSchema.index({ destinationChainID: 1 });
+QuoteSchema.index({ quoteID: 1 }, { unique: false });
+QuoteSchema.index({ intentExecutionType: 1 }, { unique: false });
+QuoteSchema.index({ sourceChainID: 1 }, { unique: false });
+QuoteSchema.index({ destinationChainID: 1 }, { unique: false });
+QuoteSchema.index({ createdAt: 1 }, { unique: false });
+QuoteSchema.index({ updatedAt: 1 }, { unique: false });
