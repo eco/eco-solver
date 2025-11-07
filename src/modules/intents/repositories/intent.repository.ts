@@ -54,40 +54,21 @@ export class IntentRepository {
         }),
       );
 
-      const intent: Intent = {
-        intentHash,
-        intentGroupID,
-        reward: {
-          creator: intentData.reward.creator,
-          prover: intentData.reward.prover,
-          deadline: intentData.reward.deadline.toString(),
-          nativeAmount: intentData.reward.nativeAmount.toString(),
-          tokens: intentData.reward.tokens.map((token) => ({
-            amount: token.amount.toString(),
-            token: token.token,
-          })),
-        },
-        route: {
-          salt: intentData.route.salt,
-          portal: intentData.route.portal,
-          destination: intentData.destination.toString(),
-          source: intentData.sourceChainId.toString(),
-          deadline: intentData.route.deadline.toString(),
-          nativeAmount: intentData.route.nativeAmount.toString(),
-          calls: intentData.route.calls.map((call) => ({
-            data: call.data,
-            target: call.target,
-            value: call.value.toString(),
-          })),
-          tokens: intentData.route.tokens.map((token) => ({
-            amount: token.amount.toString(),
-            token: token.token,
-          })),
-        },
+      // Convert IntentData to IntentInterface first
+      const intentInterface: IntentInterface = {
+        intentHash: intentHash as `0x${string}`,
+        destination: intentData.destination,
+        sourceChainId: intentData.sourceChainId,
+        route: intentData.route,
+        reward: intentData.reward,
         status: IntentStatus.PENDING,
-      } as Intent;
+      };
 
-      const createResponse = await this._createIfNotExists(intent);
+      // Use IntentConverter to ensure consistent serialization
+      const intentSchema = IntentConverter.toSchema(intentInterface) as Intent;
+      intentSchema.intentGroupID = intentGroupID;
+
+      const createResponse = await this._createIfNotExists(intentSchema);
       return { response: createResponse };
     } catch (ex: any) {
       this.logger.error(
