@@ -72,8 +72,8 @@ export class IntentRepository {
           portal: intentData.route.portal,
           destination: intentData.destination.toString(),
           source: intentData.sourceChainId.toString(),
-          deadline: intentData.route.deadline,
-          nativeAmount: intentData.route.nativeAmount,
+          deadline: intentData.route.deadline.toString(),
+          nativeAmount: intentData.route.nativeAmount.toString(),
           calls: intentData.route.calls.map((call) => ({
             data: call.data,
             target: call.target,
@@ -84,9 +84,7 @@ export class IntentRepository {
             token: token.token,
           })),
         },
-        status: IntentStatus.FUNDED,
-        // firstSeenAt: new Date(),
-        // lastSeen: new Date(),
+        status: IntentStatus.PENDING,
       } as Intent;
 
       const createResponse = await this._createIfNotExists(intent);
@@ -155,7 +153,10 @@ export class IntentRepository {
   async updateFundedEvent(eventData: IntentFundedEvent): Promise<Intent | null> {
     return this.model
       .findOneAndUpdate(
-        { intentHash: eventData.intentHash },
+        {
+          intentHash: eventData.intentHash,
+          status: { $ne: IntentStatus.FUNDED },
+        },
         {
           status: IntentStatus.FUNDED,
           fundedEvent: {

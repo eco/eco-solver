@@ -72,7 +72,7 @@ export class EvmEventParser {
     return {
       chainId,
       intentHash: log.args.intentHash,
-      funder: log.args.funder as UniversalAddress,
+      funder: AddressNormalizer.normalizeEvm(log.args.funder),
       complete: log.args.complete,
       timestamp: new Date(),
       blockNumber: rawLog.blockNumber,

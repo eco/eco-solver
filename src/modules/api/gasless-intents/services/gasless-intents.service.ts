@@ -58,7 +58,9 @@ export class GaslessIntentsService {
         EcoLogMessage.fromDefault({
           message: `initiateGaslessIntent: gaslessIntentRequestDTO`,
           properties: {
-            gaslessIntentRequestDTO,
+            dAppID: gaslessIntentRequestDTO.dAppID,
+            intentGroupID: gaslessIntentRequestDTO.intentGroupID,
+            intentCount: gaslessIntentRequestDTO.intents.length,
           },
         }),
       );

@@ -19,10 +19,10 @@ export class IntentRoute {
   portal: UniversalAddress;
 
   @Prop({ type: String, required: true })
-  deadline: bigint; // Store bigint as string
+  deadline: string; // Store bigint as string
 
   @Prop({ type: String, required: true })
-  nativeAmount: bigint; // Store bigint as string
+  nativeAmount: string; // Store bigint as string
 
   @Prop({ type: [IntentCallSchema], required: true })
   calls: IntentCall[];
