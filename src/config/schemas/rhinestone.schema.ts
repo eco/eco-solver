@@ -12,9 +12,6 @@ const RhinestoneContractsSchema = z.object({
   ecoAdapter: z.string().refine((val) => isValidEthereumAddress(val), {
     message: 'Invalid Ethereum address',
   }),
-  ecoArbiter: z.string().refine((val) => isValidEthereumAddress(val), {
-    message: 'Invalid Ethereum address',
-  }),
 });
 
 /**

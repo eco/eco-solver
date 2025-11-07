@@ -200,28 +200,14 @@ export class RhinestoneValidationService {
       // Get adapter address from router (on-chain, cached)
       const adapterAddr = await this.contractsService.getAdapter(chainId, router, type, selector);
 
-      // Get arbiter address from adapter (on-chain, cached)
-      const arbiterAddr = await this.contractsService.getArbiter(chainId, adapterAddr);
-
       // Validate adapter matches configuration
+      // Note: ecoAdapter now contains both adapter and arbiter functionality (merged component)
       const expectedAdapter = getAddress(contracts.ecoAdapter);
       const actualAdapter = getAddress(adapterAddr);
 
       if (!isAddressEqual(actualAdapter, expectedAdapter)) {
         throw new ValidationError(
           `Invalid adapter address for chain ${chainId}. Expected ${expectedAdapter}, got ${actualAdapter}`,
-          ValidationErrorType.PERMANENT,
-          'RhinestoneValidationService.validateAdapterAndArbiter',
-        );
-      }
-
-      // Validate arbiter matches configuration
-      const expectedArbiter = getAddress(contracts.ecoArbiter);
-      const actualArbiter = getAddress(arbiterAddr);
-
-      if (!isAddressEqual(actualArbiter, expectedArbiter)) {
-        throw new ValidationError(
-          `Invalid arbiter address. Expected ${expectedArbiter}, got ${actualArbiter}`,
           ValidationErrorType.PERMANENT,
           'RhinestoneValidationService.validateAdapterAndArbiter',
         );

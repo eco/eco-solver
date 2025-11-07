@@ -22,7 +22,7 @@ describe('RhinestoneValidationService', () => {
   const mockContracts = {
     router: '0x000000000004598d17aad017bf0734a364c5588b',
     ecoAdapter: '0x0000000000000000000000000000000000000001',
-    ecoArbiter: '0x0000000000000000000000000000000000000002',
+    // ecoArbiter removed - now same as ecoAdapter
   };
 
   const mockFeeConfig = {
@@ -35,7 +35,6 @@ describe('RhinestoneValidationService', () => {
   beforeEach(async () => {
     const mockContractsService = {
       getAdapter: jest.fn(),
-      getArbiter: jest.fn(),
     };
 
     const mockConfigService = {
@@ -352,9 +351,8 @@ describe('RhinestoneValidationService', () => {
 
   describe('Execution Validations', () => {
     describe('validateAdapterAndArbiter', () => {
-      it('should pass for valid adapter and arbiter addresses', async () => {
+      it('should pass for valid adapter address', async () => {
         contractsService.getAdapter.mockResolvedValue(getAddress(mockContracts.ecoAdapter));
-        contractsService.getArbiter.mockResolvedValue(getAddress(mockContracts.ecoArbiter));
 
         await expect(
           service.validateAdapterAndArbiter(
@@ -370,10 +368,6 @@ describe('RhinestoneValidationService', () => {
           getAddress(mockContracts.router),
           'claim',
           '0x12345678',
-        );
-        expect(contractsService.getArbiter).toHaveBeenCalledWith(
-          1,
-          getAddress(mockContracts.ecoAdapter),
         );
       });
 
@@ -404,34 +398,6 @@ describe('RhinestoneValidationService', () => {
         }
       });
 
-      it('should throw ValidationError for invalid arbiter address', async () => {
-        const invalidArbiter = '0x0000000000000000000000000000000000000099';
-        contractsService.getAdapter.mockResolvedValue(getAddress(mockContracts.ecoAdapter));
-        contractsService.getArbiter.mockResolvedValue(getAddress(invalidArbiter));
-
-        await expect(
-          service.validateAdapterAndArbiter(
-            1,
-            getAddress(mockContracts.router),
-            'claim',
-            '0x12345678',
-          ),
-        ).rejects.toThrow(ValidationError);
-
-        try {
-          await service.validateAdapterAndArbiter(
-            1,
-            getAddress(mockContracts.router),
-            'claim',
-            '0x12345678',
-          );
-        } catch (error) {
-          expect(error).toBeInstanceOf(ValidationError);
-          expect((error as ValidationError).type).toBe(ValidationErrorType.PERMANENT);
-          expect((error as ValidationError).message).toContain('Invalid arbiter address');
-        }
-      });
-
       it('should skip validation during quoting mode', async () => {
         await expect(
           service.validateAdapterAndArbiter(
@@ -446,7 +412,6 @@ describe('RhinestoneValidationService', () => {
         ).resolves.not.toThrow();
 
         expect(contractsService.getAdapter).not.toHaveBeenCalled();
-        expect(contractsService.getArbiter).not.toHaveBeenCalled();
       });
 
       it('should wrap network errors as TEMPORARY ValidationErrors', async () => {
