@@ -158,7 +158,7 @@ describe.skip('Intent Discovery Flow Integration', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Verify intent was saved to database
-      const savedIntent = await intentsService.findByID(mockIntent.intentHash);
+      const savedIntent = await intentsService.findByHash(mockIntent.intentHash);
       expect(savedIntent).toBeDefined();
       expect(savedIntent?.intentHash).toBe(mockIntent.intentHash);
       expect(savedIntent?.status).toBe(IntentStatus.PENDING);

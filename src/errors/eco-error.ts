@@ -27,6 +27,7 @@ export class EcoError extends Error {
   static InvalidPermitSignature = new EcoError('Invalid permit signature for owner');
   static PermitExpired = new EcoError('Permit expired for token');
 
+  static IntentCreationError = new EcoError('Intent creation failed');
   static IntentNotFound = new EcoError('Intent not found');
 
   static isEcoError(error: any): boolean {

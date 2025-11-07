@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import {
   IntentFulfilledEvent,
+  IntentFundedEvent,
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
@@ -25,8 +26,12 @@ export class IntentsService {
     return this.intentRepository.createIfNotExists(intentData);
   }
 
-  async findByID(intentHash: string): Promise<Intent | null> {
-    return this.intentRepository.findByID(intentHash);
+  async findByHash(intentHash: string, projection: any = {}): Promise<Intent | null> {
+    return this.intentRepository.findByHash(intentHash, projection);
+  }
+
+  async isExistingIntent(intentHash: string): Promise<boolean> {
+    return this.intentRepository.exists({ intentHash });
   }
 
   async updateStatus(
@@ -35,6 +40,13 @@ export class IntentsService {
     additionalData?: Partial<Intent>,
   ): Promise<Intent | null> {
     return this.intentRepository.updateStatus(intentHash, status, additionalData);
+  }
+
+  /**
+   * Update intent with IntentFunded event data
+   */
+  async updateFundedEvent(eventData: IntentFundedEvent): Promise<Intent | null> {
+    return this.intentRepository.updateFundedEvent(eventData);
   }
 
   /**

@@ -3,15 +3,25 @@ import { InjectModel } from '@nestjs/mongoose';
 
 import { Model } from 'mongoose';
 
+import { EcoResponse } from '@/common/eco-response';
 import {
   IntentFulfilledEvent,
+  IntentFundedEvent,
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
 import { Intent as IntentInterface, IntentStatus } from '@/common/interfaces/intent.interface';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { EcoLogger } from '@/common/logging/eco-logger';
+import { EcoError } from '@/errors/eco-error';
 import { Intent, IntentDocument } from '@/modules/intents/schemas/intent.schema';
+import { IntentData } from '@/modules/intents/schemas/intent-data.schema';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
+
+export interface CreateIntentResponse {
+  intent: Intent;
+  isNew: boolean;
+}
 
 @Injectable()
 export class IntentRepository {
@@ -24,17 +34,88 @@ export class IntentRepository {
    * @param intentData The intent data to create
    * @returns Object containing the intent and whether it was newly created
    */
-  async createIfNotExists(intentData: IntentInterface): Promise<{
+  async createIfNotExists(intentData: IntentInterface): Promise<CreateIntentResponse> {
+    return this._createIfNotExists(IntentConverter.toSchema(intentData) as Intent);
+  }
+
+  async createIntentFromGaslessIntentInitiation(
+    intentHash: string,
+    intentGroupID: string,
+    intentData: IntentData,
+  ): Promise<EcoResponse<CreateIntentResponse>> {
+    try {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `createIntentFromIntentInitiation`,
+          properties: {
+            intentGroupID,
+            intent: intentData,
+          },
+        }),
+      );
+
+      const intent: Intent = {
+        intentHash,
+        intentGroupID,
+        reward: {
+          creator: intentData.reward.creator,
+          prover: intentData.reward.prover,
+          deadline: intentData.reward.deadline.toString(),
+          nativeAmount: intentData.reward.nativeAmount.toString(),
+          tokens: intentData.reward.tokens.map((token) => ({
+            amount: token.amount.toString(),
+            token: token.token,
+          })),
+        },
+        route: {
+          salt: intentData.route.salt,
+          portal: intentData.route.portal,
+          destination: intentData.destination.toString(),
+          source: intentData.sourceChainId.toString(),
+          deadline: intentData.route.deadline,
+          nativeAmount: intentData.route.nativeAmount,
+          calls: intentData.route.calls.map((call) => ({
+            data: call.data,
+            target: call.target,
+            value: call.value.toString(),
+          })),
+          tokens: intentData.route.tokens.map((token) => ({
+            amount: token.amount.toString(),
+            token: token.token,
+          })),
+        },
+        status: IntentStatus.FUNDED,
+        // firstSeenAt: new Date(),
+        // lastSeen: new Date(),
+      } as Intent;
+
+      const createResponse = await this._createIfNotExists(intent);
+      return { response: createResponse };
+    } catch (ex: any) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Error in createIntentFromIntentInitiation`,
+          properties: {
+            intentGroupID,
+            error: ex.message,
+          },
+        }),
+        ex.stack,
+      );
+
+      return { error: EcoError.IntentCreationError };
+    }
+  }
+
+  private async _createIfNotExists(intent: Intent): Promise<{
     intent: Intent;
     isNew: boolean;
   }> {
-    const schemaData = IntentConverter.toSchema(intentData);
-
     const result = await this.model.findOneAndUpdate(
-      { intentHash: intentData.intentHash },
+      { intentHash: intent.intentHash },
       {
         $setOnInsert: {
-          ...schemaData,
+          ...intent,
           firstSeenAt: new Date(),
         },
         $set: {
@@ -54,8 +135,8 @@ export class IntentRepository {
     };
   }
 
-  async findByID(intentHash: string): Promise<Intent | null> {
-    return this.model.findOne({ intentHash }).exec();
+  async findByHash(intentHash: string, projection: any = {}): Promise<Intent | null> {
+    return this.queryIntent({ intentHash }, projection);
   }
 
   async updateStatus(
@@ -65,6 +146,30 @@ export class IntentRepository {
   ): Promise<Intent | null> {
     return this.model
       .findOneAndUpdate({ intentHash }, { status, ...additionalData }, { new: true })
+      .exec();
+  }
+
+  /**
+   * Update intent with IntentFunded event data
+   */
+  async updateFundedEvent(eventData: IntentFundedEvent): Promise<Intent | null> {
+    return this.model
+      .findOneAndUpdate(
+        { intentHash: eventData.intentHash },
+        {
+          status: IntentStatus.FUNDED,
+          fundedEvent: {
+            funder: eventData.funder,
+            complete: eventData.complete,
+            txHash: eventData.transactionHash,
+            blockNumber: eventData.blockNumber?.toString(),
+            timestamp: eventData.timestamp,
+            chainId: eventData.chainId.toString(),
+          },
+          lastProcessedAt: new Date(),
+        },
+        { new: true },
+      )
       .exec();
   }
 
@@ -147,19 +252,15 @@ export class IntentRepository {
     return this.model.find(query).exec();
   }
 
-  // async create(data: any): Promise<Intent> {
-  //   return this.model.create(data);
-  // }
-
-  async getIntent(hash: string, projection: any = {}): Promise<Intent | null> {
-    return this.queryIntent({ 'intent.hash': hash }, projection);
+  async getIntentsForGroupID(intentGroupID: string, projection: any = {}): Promise<Intent[]> {
+    return this.queryIntents({ intentGroupID }, projection);
   }
 
   async getIntentsByHashes(hashes: string[], projection: any = {}): Promise<Intent[]> {
     if (hashes.length === 0) {
       return [];
     }
-    return this.queryIntents({ 'intent.hash': { $in: hashes } }, projection);
+    return this.queryIntents({ intentHash: { $in: hashes } }, projection);
   }
 
   async exists(query: any): Promise<boolean> {
