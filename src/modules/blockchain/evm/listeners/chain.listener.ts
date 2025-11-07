@@ -41,7 +41,7 @@ export class ChainListener extends BaseChainListener {
     await this.setupListeners(publicClient, evmConfig, portalAddress);
 
     this.logger.log(
-      `Listening for IntentPublished and IntentFulfilled events, portal address: ${portalAddress}`,
+      `Listening for IntentPublished, IntentFunded, IntentFulfilled, IntentWithdrawn, and IntentProven events, portal address: ${portalAddress}`,
     );
 
     // Set up polling transport listeners if available
@@ -112,6 +112,26 @@ export class ChainListener extends BaseChainListener {
 
     // Store unsubscribe function
     this.subscriptions.push(unsubscribeIntentPublished);
+
+    // Watch for IntentFunded events
+    const unsubscribeIntentFunded = publicClient.watchContractEvent({
+      ...watchOptions,
+      eventName: 'IntentFunded' as const,
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          await this.handleIntentFundedEvent(log, evmConfig, portalAddress);
+        }
+      },
+      onError: (error) => {
+        this.logger.error(
+          `Error in IntentFunded watcher for chain ${evmConfig.chainId}, portal ${portalAddress}: ${getErrorMessage(error)}`,
+          toError(error),
+        );
+      },
+    });
+
+    // Store unsubscribe function
+    this.subscriptions.push(unsubscribeIntentFunded);
 
     // Watch for IntentFulfilled events
     const unsubscribeIntentFulfilled = publicClient.watchContractEvent({
@@ -221,6 +241,43 @@ export class ChainListener extends BaseChainListener {
     } catch (error) {
       this.logger.error(
         `Failed to queue IntentPublished event: ${getErrorMessage(error)}`,
+        toError(error),
+      );
+    }
+  }
+
+  /**
+   * Handles IntentFunded event
+   */
+  private async handleIntentFundedEvent(
+    log: Log<bigint, number, false, undefined, true, typeof portalAbi, 'IntentFunded'>,
+    evmConfig: EvmChainConfig,
+    portalAddress: string,
+  ): Promise<void> {
+    try {
+      // Queue the event for processing
+      const eventJob: BlockchainEventJob = {
+        eventType: 'IntentFunded',
+        chainId: evmConfig.chainId,
+        chainType: 'evm',
+        contractName: 'portal',
+        intentHash: log.args.intentHash,
+        eventData: log,
+        metadata: {
+          txHash: log.transactionHash || undefined,
+          blockNumber: log.blockNumber || undefined,
+          logIndex: log.logIndex || undefined,
+          contractAddress: portalAddress,
+        },
+      };
+
+      await this.queueService.addBlockchainEvent(eventJob);
+      this.logger.debug(
+        `Queued IntentFunded event for intent ${log.args.intentHash} from chain ${evmConfig.chainId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to queue IntentFunded event: ${getErrorMessage(error)}`,
         toError(error),
       );
     }
