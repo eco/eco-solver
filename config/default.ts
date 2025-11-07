@@ -132,8 +132,8 @@ export default {
       },
     },
     proofs: {
-      hyperlane_duration_seconds: 1200,
-      metalayer_duration_seconds: 7200,
+      hyperlane_duration_seconds: 300, // Minimum duration for a hyperlane proof to be generated in seconds (5 minutes)
+      metalayer_duration_seconds: 7200, // Minimum duration for a metalayer proof to be generated in seconds (2 hours)
     },
     intentFundedRetries: 10,
     intentFundedRetryDelayMs: 100, // 100ms
