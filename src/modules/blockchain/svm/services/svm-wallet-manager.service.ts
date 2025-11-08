@@ -105,19 +105,22 @@ export class SvmWalletManagerService implements OnModuleInit {
         });
         wallet = this.basicWalletFactory.create(chainId);
       } else if (walletConfig.type === 'vault') {
-        this.logger.log(
-          `Initializing VaultWallet with HashiCorp Vault (${walletConfig.endpoint}) for chain ${chainId}`,
-        );
+        this.logger.log(`Initializing VaultWallet with HashiCorp Vault`, {
+          endpoint: walletConfig.endpoint,
+          chainId,
+        });
         wallet = await this.vaultWalletFactory.create(chainId);
       } else {
         throw new Error(`Unsupported wallet type: ${(walletConfig as any).type}`);
       }
 
-      // Cache the wallet under 'basic' key
+      // Cache the wallet under the 'basic' key
       chainWallets.set('basic', wallet);
-      this.logger.log(
-        `Initialized ${walletConfig.type} wallet for chain ${chainId}: ${(await wallet.getAddress()).toString()}`,
-      );
+      this.logger.log(`Initialized wallet for chain`, {
+        chainId,
+        walletType: walletConfig.type,
+        address: (await wallet.getAddress()).toString(),
+      });
     } catch (error) {
       this.logger.error('Failed to initialize wallet for chain', error, {
         chainId,

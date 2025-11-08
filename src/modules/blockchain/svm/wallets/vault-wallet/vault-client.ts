@@ -5,7 +5,7 @@ import vault from 'node-vault';
 
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { VaultAuthConfig } from '@/config/schemas/solana.schema';
-import { SystemLoggerService } from '@/modules/logging';
+import { Logger } from '@/modules/logging';
 
 /**
  * HashiCorp Vault client for Solana signing operations using Transit Secrets Engine
@@ -75,7 +75,7 @@ export class VaultClient {
     private readonly transitPath: string,
     private readonly keyName: string,
     private readonly authConfig: VaultAuthConfig,
-    private readonly logger: SystemLoggerService,
+    private readonly logger: Logger,
   ) {
     // Initialize vault client (authentication happens in authenticate method)
     this.client = vault({

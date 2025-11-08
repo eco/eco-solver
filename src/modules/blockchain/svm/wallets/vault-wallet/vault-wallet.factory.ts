@@ -4,7 +4,7 @@ import { Connection } from '@solana/web3.js';
 
 import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { SolanaConfigService } from '@/modules/config/services';
-import { SystemLoggerService } from '@/modules/logging';
+import { Logger } from '@/modules/logging';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { VaultClient } from './vault-client';
@@ -20,7 +20,7 @@ export class VaultWalletFactory {
 
   constructor(
     private readonly solanaConfigService: SolanaConfigService,
-    private readonly logger: SystemLoggerService,
+    private readonly logger: Logger,
     private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(VaultWalletFactory.name);
@@ -55,7 +55,7 @@ export class VaultWalletFactory {
         );
 
         // Authenticate with Vault
-        this.logger.log(`Authenticating with Vault using ${walletConfig.auth.type} auth`);
+        this.logger.log(`Authenticating with Vault`, { authType: walletConfig.auth.type });
         await vaultClient.authenticate();
         this.logger.log('Successfully authenticated with Vault');
 
@@ -63,15 +63,15 @@ export class VaultWalletFactory {
       }
 
       // Get public key from Vault
-      this.logger.log(`Fetching public key for signing key: ${walletConfig.keyName}`);
+      this.logger.log(`Fetching public key for signing key`, { keyName: walletConfig.keyName });
       const publicKey = await this.vaultClient.getPublicKey();
-      this.logger.log(`VaultWallet created for address: ${publicKey.toString()}`);
+      this.logger.log(`VaultWallet created for address`, { publicKey: publicKey.toString() });
 
       return new VaultWallet(this.connection, this.vaultClient, publicKey, this.otelService);
     } catch (error) {
+      this.logger.error(`Failed to create VaultWallet`, error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error during VaultWallet creation';
-      this.logger.error(`Failed to create VaultWallet: ${errorMessage}`);
       throw new Error(`Failed to create VaultWallet: ${errorMessage}`);
     }
   }
