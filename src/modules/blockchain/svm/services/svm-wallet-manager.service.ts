@@ -7,6 +7,7 @@ import { SolanaConfigService } from '@/modules/config/services';
 import { Logger } from '@/modules/logging';
 
 import { BasicWalletFactory } from '../wallets/basic-wallet';
+import { VaultWalletFactory } from '../wallets/vault-wallet';
 
 export type SvmWalletType = 'basic'; // Can be extended in the future
 
@@ -21,6 +22,7 @@ export class SvmWalletManagerService implements OnModuleInit {
   constructor(
     private readonly logger: Logger,
     private readonly basicWalletFactory: BasicWalletFactory,
+    private readonly vaultWalletFactory: VaultWalletFactory,
     private readonly solanaConfigService: SolanaConfigService,
   ) {}
 
@@ -91,17 +93,33 @@ export class SvmWalletManagerService implements OnModuleInit {
     }
 
     const chainWallets = this.wallets.get(chainId)!;
+    const walletConfig = this.solanaConfigService.wallets.basic;
 
     try {
-      // Create and cache basic wallet
-      const basicWallet = this.basicWalletFactory.create(chainId);
-      chainWallets.set('basic', basicWallet);
-      this.logger.debug('Initialized basic wallet for chain', {
-        chainId,
-        address: (await basicWallet.getAddress()).toString(),
-      });
+      // Select wallet implementation based on configuration type
+      let wallet: ISvmWallet;
+
+      if (walletConfig.type === 'basic') {
+        this.logger.debug('Initialized basic wallet for chain', {
+          chainId,
+        });
+        wallet = this.basicWalletFactory.create(chainId);
+      } else if (walletConfig.type === 'vault') {
+        this.logger.log(
+          `Initializing VaultWallet with HashiCorp Vault (${walletConfig.endpoint}) for chain ${chainId}`,
+        );
+        wallet = await this.vaultWalletFactory.create(chainId);
+      } else {
+        throw new Error(`Unsupported wallet type: ${(walletConfig as any).type}`);
+      }
+
+      // Cache the wallet under 'basic' key
+      chainWallets.set('basic', wallet);
+      this.logger.log(
+        `Initialized ${walletConfig.type} wallet for chain ${chainId}: ${(await wallet.getAddress()).toString()}`,
+      );
     } catch (error) {
-      this.logger.error('Failed to initialize basic wallet for chain', error, {
+      this.logger.error('Failed to initialize wallet for chain', error, {
         chainId,
       });
       throw error;
