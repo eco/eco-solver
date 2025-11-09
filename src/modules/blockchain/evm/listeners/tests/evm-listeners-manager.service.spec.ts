@@ -7,11 +7,15 @@ import { SystemLoggerService } from '@/modules/logging';
 import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
+import { IndexerService } from '../../indexer/indexer.service';
+import { IndexerConfigService } from '../../indexer/indexer-config.service';
+import { IndexListener } from '../../indexer/listeners/index.listener';
 import { EvmTransportService } from '../../services/evm-transport.service';
 import { ChainListener } from '../chain.listener';
 import { EvmListenersManagerService } from '../evm-listeners-manager.service';
 
 jest.mock('../chain.listener');
+jest.mock('../../indexer/listeners/index.listener');
 
 describe('EvmListenersManagerService', () => {
   let service: EvmListenersManagerService;
@@ -21,6 +25,8 @@ describe('EvmListenersManagerService', () => {
   let blockchainConfigService: jest.Mocked<BlockchainConfigService>;
   let leaderElectionService: jest.Mocked<LeaderElectionService>;
   let queueService: jest.Mocked<QueueService>;
+  let indexerService: jest.Mocked<IndexerService>;
+  let indexerConfigService: jest.Mocked<IndexerConfigService>;
   let mockWinstonLogger: any;
 
   const mockNetworks = [
@@ -45,10 +51,12 @@ describe('EvmListenersManagerService', () => {
   ];
 
   const mockListenerInstances: jest.Mocked<ChainListener>[] = [];
+  let ____mockIndexListenerInstance: jest.Mocked<IndexListener> | null = null;
 
   beforeEach(async () => {
     // Clear mock listener instances
     mockListenerInstances.length = 0;
+    ____mockIndexListenerInstance = null;
 
     // Mock ChainListener constructor
     (ChainListener as jest.MockedClass<typeof ChainListener>).mockImplementation(() => {
@@ -58,6 +66,16 @@ describe('EvmListenersManagerService', () => {
       } as any;
       mockListenerInstances.push(mockListener);
       return mockListener;
+    });
+
+    // Mock IndexListener constructor - should only be called once
+    (IndexListener as jest.MockedClass<typeof IndexListener>).mockImplementation(() => {
+      const mockIndexListener = {
+        start: jest.fn().mockResolvedValue(undefined),
+        stop: jest.fn().mockResolvedValue(undefined),
+      } as any;
+      ____mockIndexListenerInstance = mockIndexListener;
+      return mockIndexListener;
     });
 
     evmConfigService = {
@@ -91,6 +109,23 @@ describe('EvmListenersManagerService', () => {
       debug: jest.fn(),
     } as any;
 
+    indexerService = {
+      queryPublishedIntents: jest.fn(),
+      queryFulfilledIntents: jest.fn(),
+      queryWithdrawnIntents: jest.fn(),
+      queryFundedIntents: jest.fn(),
+    } as any;
+
+    indexerConfigService = {
+      isConfigured: jest.fn().mockReturnValue(true),
+      intervals: {
+        intentPublished: 2000,
+        intentFunded: 5000,
+        intentFulfilled: 5000,
+        intentWithdrawn: 60000,
+      },
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EvmListenersManagerService,
@@ -101,6 +136,8 @@ describe('EvmListenersManagerService', () => {
         { provide: 'winston', useValue: mockWinstonLogger },
         { provide: LeaderElectionService, useValue: leaderElectionService },
         { provide: QueueService, useValue: queueService },
+        { provide: IndexerService, useValue: indexerService },
+        { provide: IndexerConfigService, useValue: indexerConfigService },
       ],
     }).compile();
 
@@ -268,6 +305,8 @@ describe('EvmListenersManagerService', () => {
         mockWinstonLogger,
         leaderElectionService,
         queueService,
+        indexerService,
+        indexerConfigService,
       );
 
       await expect(newService.onModuleDestroy()).resolves.not.toThrow();
@@ -326,6 +365,111 @@ describe('EvmListenersManagerService', () => {
       expect(lastCall[3]).toBe(blockchainConfigService);
       expect(lastCall[4]).toBe(evmConfigService);
       expect(lastCall[5]).toBe(queueService);
+    });
+  });
+
+  describe('IndexListener integration', () => {
+    let integrationService: EvmListenersManagerService;
+
+    beforeEach(async () => {
+      // Reset mock instances for IndexListener integration tests
+      mockListenerInstances.length = 0;
+      ____mockIndexListenerInstance = null;
+
+      // Ensure indexerConfigService.isConfigured returns true
+      indexerConfigService.isConfigured.mockReturnValue(true);
+
+      // Don't clear mocks - just reset the instances
+      // Re-setup the mocks BEFORE creating the module
+      (ChainListener as jest.MockedClass<typeof ChainListener>).mockImplementation(() => {
+        const mockListener = {
+          start: jest.fn().mockResolvedValue(undefined),
+          stop: jest.fn().mockResolvedValue(undefined),
+        } as any;
+        mockListenerInstances.push(mockListener);
+        return mockListener;
+      });
+
+      (IndexListener as jest.MockedClass<typeof IndexListener>).mockImplementation(() => {
+        const mockIndexListener = {
+          start: jest.fn().mockResolvedValue(undefined),
+          stop: jest.fn().mockResolvedValue(undefined),
+        } as any;
+        ____mockIndexListenerInstance = mockIndexListener;
+        return mockIndexListener;
+      });
+
+      // Create a fresh service instance for these integration tests
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          EvmListenersManagerService,
+          { provide: EvmConfigService, useValue: evmConfigService },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: SystemLoggerService, useValue: logger },
+          { provide: BlockchainConfigService, useValue: blockchainConfigService },
+          { provide: 'winston', useValue: mockWinstonLogger },
+          { provide: LeaderElectionService, useValue: leaderElectionService },
+          { provide: QueueService, useValue: queueService },
+          { provide: IndexerService, useValue: indexerService },
+          { provide: IndexerConfigService, useValue: indexerConfigService },
+        ],
+      }).compile();
+
+      integrationService = module.get<EvmListenersManagerService>(EvmListenersManagerService);
+    });
+
+    afterEach(async () => {
+      if (integrationService) {
+        await integrationService.onModuleDestroy();
+      }
+    });
+
+    it('should create and start ChainListeners', async () => {
+      await integrationService.onModuleInit();
+
+      // Should create 3 chain listeners
+      expect(ChainListener).toHaveBeenCalledTimes(3);
+      expect(mockListenerInstances).toHaveLength(3);
+    });
+
+    it('should not create IndexListener when indexer service is not available', async () => {
+      // Create service without indexer
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          EvmListenersManagerService,
+          { provide: EvmConfigService, useValue: evmConfigService },
+          { provide: EvmTransportService, useValue: transportService },
+          { provide: SystemLoggerService, useValue: logger },
+          { provide: BlockchainConfigService, useValue: blockchainConfigService },
+          { provide: 'winston', useValue: mockWinstonLogger },
+          { provide: LeaderElectionService, useValue: leaderElectionService },
+          { provide: QueueService, useValue: queueService },
+        ],
+      }).compile();
+
+      const serviceWithoutIndexer = module.get<EvmListenersManagerService>(
+        EvmListenersManagerService,
+      );
+
+      await serviceWithoutIndexer.onModuleInit();
+
+      // Should create only chain listeners, no index listeners
+      expect(ChainListener).toHaveBeenCalledTimes(3);
+      expect(IndexListener).not.toHaveBeenCalled();
+    });
+
+    it('should handle module destroy gracefully', async () => {
+      await integrationService.onModuleInit();
+      await integrationService.onModuleDestroy();
+
+      // Verify chain listeners were stopped
+      mockListenerInstances.forEach((listener) => {
+        expect(listener.stop).toHaveBeenCalledTimes(1);
+      });
+
+      // Access private properties for testing
+      const listeners = (integrationService as any).listeners as Map<number, ChainListener>;
+      expect(listeners.size).toBe(0);
     });
   });
 });

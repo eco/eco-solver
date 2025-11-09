@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -12,11 +12,15 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueService } from '@/modules/queue/queue.service';
 import { LeaderElectionService } from '@/modules/redis/leader-election.service';
 
+import { IndexerService } from '../indexer/indexer.service';
+import { IndexerConfigService } from '../indexer/indexer-config.service';
+import { IndexListener } from '../indexer/listeners/index.listener';
 import { EvmTransportService } from '../services/evm-transport.service';
 
 @Injectable()
 export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy {
   private listeners: Map<number, ChainListener> = new Map();
+  private indexListener: IndexListener | null = null;
   private isListening = false;
 
   constructor(
@@ -27,6 +31,8 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
     @Inject(WINSTON_MODULE_PROVIDER) private readonly winstonLogger: Logger,
     private readonly leaderElectionService: LeaderElectionService,
     private readonly queueService: QueueService,
+    @Optional() private readonly indexerService: IndexerService | null,
+    @Optional() private readonly indexerConfigService: IndexerConfigService | null,
   ) {
     this.logger.setContext(EvmListenersManagerService.name);
   }
@@ -113,6 +119,35 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
         );
       }
     }
+
+    // Start IndexListener (single instance for all chains) - only if indexer is configured
+    if (this.indexerService && this.indexerConfigService?.isConfigured()) {
+      try {
+        // Collect all chain configurations
+        const chainConfigs = this.evmConfigService.networks.map((network) => ({
+          chainId: network.chainId,
+          portalAddresses: [network.contracts.portal],
+        }));
+
+        // Create a new logger instance for the index listener
+        const indexListenerLogger = new SystemLoggerService(this.winstonLogger);
+
+        const indexListener = new IndexListener(
+          chainConfigs,
+          this.indexerService,
+          this.queueService,
+          this.indexerConfigService,
+          indexListenerLogger,
+        );
+
+        await indexListener.start();
+        this.indexListener = indexListener;
+
+        this.logger.log(`Started EVM index listener for ${chainConfigs.length} chains`);
+      } catch (error) {
+        this.logger.error(`Unable to start index listener: ${getErrorMessage(error)}`);
+      }
+    }
   }
 
   private async stopListeners(): Promise<void> {
@@ -122,8 +157,15 @@ export class EvmListenersManagerService implements OnModuleInit, OnModuleDestroy
 
     // Stop all listeners
     const stopPromises = Array.from(this.listeners.values()).map((listener) => listener.stop());
+
+    // Stop index listener if it exists
+    if (this.indexListener) {
+      stopPromises.push(this.indexListener.stop());
+    }
+
     await Promise.all(stopPromises);
     this.listeners.clear();
+    this.indexListener = null;
     this.isListening = false;
     this.logger.log('EVM listeners stopped');
   }
