@@ -71,6 +71,8 @@
     "class-validator": "^0.14.1",
     "dd-trace": "^5.62.0",
     "es-toolkit": "^1.39.10",
+    "graphql": "^16.12.0",
+    "graphql-request": "^7.3.1",
     "helmet": "^8.1.0",
     "hot-shots": "^11.1.0",
     "ioredis": "^5.7.0",

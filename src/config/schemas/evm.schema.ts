@@ -145,12 +145,28 @@ const EvmNetworkSchema = z.object({
 });
 
 /**
+ * Indexer configuration schema
+ */
+const IndexerConfigSchema = z.object({
+  url: z.string().url(),
+  intervals: z
+    .object({
+      intentPublished: z.coerce.number().int().positive().default(2000), // 2s
+      intentFunded: z.coerce.number().int().positive().default(5000), // 5s
+      intentFulfilled: z.coerce.number().int().positive().default(5000), // 5s
+      intentWithdrawn: z.coerce.number().int().positive().default(60000), // 1m
+    })
+    .default({}),
+});
+
+/**
  * EVM configuration schema
  */
 export const EvmSchema = z.object({
   networks: z.array(EvmNetworkSchema).default([]),
   wallets: WalletsSchema,
   listenersEnabled: z.boolean().default(true),
+  indexer: IndexerConfigSchema.optional(),
 });
 
 export type EvmConfig = z.infer<typeof EvmSchema>;
@@ -159,3 +175,4 @@ export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;
+export type IndexerConfig = z.infer<typeof IndexerConfigSchema>;

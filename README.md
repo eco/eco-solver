@@ -245,7 +245,13 @@ interface Intent {
   - Wallet system with BasicWallet (EOA) and KernelWallet (smart accounts)
   - Transport service for RPC connections
   - Support for batch operations via multicall3
-  
+  - **Indexer Module** (optional): GraphQL-based historical event querying
+    - Queries Ponder.sh indexer for historical blockchain events
+    - Type-safe GraphQL queries with automatic pagination
+    - Configurable polling intervals per event type
+    - Optional loading (only when configured)
+    - See [Indexer Module Documentation](docs/modules/indexer.md) for details
+
 - **SVM Module**: Solana blockchain support including:
   - Solana-specific executor and reader implementations
   - Event listener for monitoring Solana programs
@@ -790,6 +796,7 @@ The application is designed to run in containerized environments:
 
 ### Module Documentation
 - **[Blockchain Module](docs/modules/blockchain.md)** - Multi-chain blockchain integration
+- **[Indexer Module](docs/modules/indexer.md)** - GraphQL-based historical event querying
 - **[Fulfillment Module](docs/modules/fulfillment.md)** - Intent validation and strategy system
 - **[Queue Module](docs/modules/queue.md)** - Asynchronous job processing
 - **[Config Module](docs/modules/config.md)** - Configuration management system

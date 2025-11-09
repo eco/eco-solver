@@ -37,7 +37,8 @@ export class BlockchainModule {
 
     // Only import EVM module if configured with networks
     if (configFactory.evm?.networks?.length > 0) {
-      imports.push(EvmModule);
+      const evmModule = await EvmModule.forRootAsync();
+      imports.push(evmModule as any);
     }
 
     // Only import SVM module if solana config exists
