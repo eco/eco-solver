@@ -27,7 +27,8 @@ export class RequestSignatureGuard implements CanActivate {
         expire: expiry,
       } = requestHeaders.getSignatureValidationData();
 
-      const payload = request.body;
+      const reqPath = new URL(request.url).pathname;
+      const payload = request.method === 'GET' ? { path: reqPath } : request.body;
 
       const { error } = await this.signatureVerificationService.verifySignature(
         payload,
