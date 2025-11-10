@@ -13,7 +13,6 @@ import {
   Hash,
   Hex,
   isAddress,
-  keccak256,
   LocalAccount,
   Transport,
   WalletClient,
@@ -480,34 +479,45 @@ export class KernelWallet extends BaseEvmWallet {
           // TODO: Make expiration time configurable
           const expiration = BigInt(now() + minutes(30));
 
-          const executionHash = keccak256(
-            encodeAbiParameters(
-              [
-                { type: 'address' },
-                { type: 'bytes32' },
-                { type: 'bytes' },
-                { type: 'uint256' },
-                { type: 'uint256' },
-                { type: 'uint256' },
-              ],
-              [
-                this.kernelAccount.address,
-                execution.mode,
-                execution.callData,
-                nonce,
-                expiration,
-                BigInt(this.chainId),
-              ],
-            ),
-          );
+          // EIP-712 domain and types
+          const domain = {
+            name: 'ECDSAExecutor',
+            version: '1',
+            chainId: this.chainId,
+            verifyingContract: this.ecdsaExecutorAddr,
+          } as const;
+
+          // EIP-712 types definition
+          const types = {
+            Execute: [
+              { name: 'account', type: 'address' },
+              { name: 'mode', type: 'uint256' },
+              { name: 'executionCalldata', type: 'bytes' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'expiration', type: 'uint256' },
+            ],
+          } as const;
+
+          // Message to sign
+          const message = {
+            account: this.kernelAccount.address,
+            mode: BigInt(execution.mode),
+            executionCalldata: execution.callData,
+            nonce,
+            expiration,
+          };
 
           let signature: Hex;
           try {
-            signature = await this.signerWalletClient.signMessage({
-              message: { raw: executionHash },
-            } as any);
+            signature = await this.signerWalletClient.signTypedData({
+              account: this.signer,
+              domain,
+              types,
+              primaryType: 'Execute',
+              message,
+            });
           } catch (error) {
-            const msg = `Failed to sign execution hash`;
+            const msg = `Failed to sign EIP-712 typed data`;
             this.logger.error(msg, toError(error));
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
@@ -684,7 +694,10 @@ export class KernelWallet extends BaseEvmWallet {
           });
 
           // Encode the signer address as the owner for the ECDSA executor module
-          const executorInitData = encodePacked(['address'], [this.signer.address]);
+          const executorInitData = encodeAbiParameters(
+            [{ type: 'address' }],
+            [this.signer.address],
+          );
           const moduleInitData = constructInitDataWithHook(executorInitData);
 
           // Install the module
