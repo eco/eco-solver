@@ -243,6 +243,17 @@ export class ValidateIntentService implements OnModuleInit {
         })
       }
 
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Checking if intent is funded`,
+          properties: {
+            intentHash: model.intent.hash,
+            intent: model.intent,
+            sourceChainID,
+          },
+        }),
+      )
+
       // Check if the intent is funded
       isIntentFunded = await client.readContract({
         address: intentSource.sourceAddress,
@@ -263,6 +274,19 @@ export class ValidateIntentService implements OnModuleInit {
         funded: true,
       })
     } else {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Intent not funded after retries`,
+          properties: {
+            intentHash: model.intent.hash,
+            intent: model.intent,
+            sourceChainID,
+            retryCount: retryCount - 1,
+            maxRetries: this.MAX_RETRIES,
+            retryDelayMs: this.RETRY_DELAY_MS,
+          },
+        }),
+      )
       this.ecoAnalytics.trackError(
         ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_FAILED,
         new Error('intent_not_funded_after_retries'),

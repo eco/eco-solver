@@ -132,11 +132,11 @@ export default {
       },
     },
     proofs: {
-      hyperlane_duration_seconds: 1200,
-      metalayer_duration_seconds: 7200,
+      hyperlane_duration_seconds: 300, // Minimum duration for a hyperlane proof to be generated in seconds (5 minutes)
+      metalayer_duration_seconds: 7200, // Minimum duration for a metalayer proof to be generated in seconds (2 hours)
     },
-    intentFundedRetries: 20,
-    intentFundedRetryDelayMs: 1000,
+    intentFundedRetries: 10,
+    intentFundedRetryDelayMs: 100, // 100ms
     // Gas overhead is the intent creation gas cost for the source chain, i.e. the cost of calling publishAndFund on IntentSource.
     // This is the default gas overhead
     defaultGasOverhead: 145_000,
