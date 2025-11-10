@@ -1,7 +1,6 @@
 import {
   Commitment,
   Connection,
-  Keypair,
   PublicKey,
   SendOptions,
   Transaction,
@@ -31,12 +30,6 @@ export interface ISvmWallet {
    * @returns The wallet's public key
    */
   getAddress(): Promise<PublicKey>;
-
-  /**
-   * Gets the underlying keypair (for signing)
-   * @returns The wallet's keypair
-   */
-  getKeypair(): Keypair;
 
   /**
    * Signs a transaction

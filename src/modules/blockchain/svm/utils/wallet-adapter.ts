@@ -1,29 +1,17 @@
-import { Keypair, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 
-export function getAnchorWallet(keypair: Keypair) {
+import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
+
+export function getAnchorWallet(wallet: ISvmWallet, publicKey: PublicKey) {
   return {
-    publicKey: keypair.publicKey,
+    publicKey,
     signTransaction: async <T extends Transaction | VersionedTransaction>(tx: T): Promise<T> => {
-      if ('version' in tx) {
-        // Versioned transaction
-        (tx as VersionedTransaction).sign([keypair]);
-      } else {
-        // Legacy transaction
-        (tx as Transaction).partialSign(keypair);
-      }
-      return tx;
+      return (await wallet.signTransaction(tx)) as T;
     },
     signAllTransactions: async <T extends Transaction | VersionedTransaction>(
       txs: T[],
     ): Promise<T[]> => {
-      return txs.map((tx) => {
-        if ('version' in tx) {
-          (tx as VersionedTransaction).sign([keypair]);
-        } else {
-          (tx as Transaction).partialSign(keypair);
-        }
-        return tx;
-      });
+      return Promise.all(txs.map((tx) => wallet.signTransaction(tx))) as Promise<T[]>;
     },
   };
 }

@@ -18,6 +18,8 @@ export interface TokenConfig {
   limit?: number | { min?: number; max?: number };
   /** Optional token-specific fee configuration */
   fee?: AssetsFeeSchemaType;
+  /** Optional no swap groups for the token */
+  nonSwapGroups?: string[];
 }
 
 /**
