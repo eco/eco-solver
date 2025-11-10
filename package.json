@@ -69,6 +69,7 @@
     "canonicalize": "^2.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "commander": "^14.0.1",
     "dd-trace": "^5.62.0",
     "es-toolkit": "^1.39.10",
     "helmet": "^8.1.0",
