@@ -29,7 +29,7 @@ export class SignatureGenerator {
       domain: DOMAIN,
       types: TYPES,
       primaryType: 'Registration',
-      message: { payload: canonicalPayload, expiryTime: BigInt(expiryTime) },
+      message: { payload: canonicalPayload, expiryTime },
     });
 
     return { signature, expiryTime };
