@@ -28,7 +28,8 @@ export class RequestSignatureGuard implements CanActivate {
       } = requestHeaders.getSignatureValidationData();
 
       const reqPath = new URL(request.url).pathname;
-      const payload = request.method === 'GET' ? { path: reqPath } : request.body;
+      const payload =
+        request.method === 'GET' || request.method === 'DELETE' ? { path: reqPath } : request.body;
 
       const { error } = await this.signatureVerificationService.verifySignature(
         payload,
