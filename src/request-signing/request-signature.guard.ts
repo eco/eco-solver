@@ -33,7 +33,8 @@ export class RequestSignatureGuard implements CanActivate {
       return false
     }
 
-    const payload = request.body
+    const payload =
+      request.method === 'GET' || request.method === 'DELETE' ? { path: request.url } : request.body
 
     try {
       const { error } = await this.signatureVerificationService.verifySignature(
