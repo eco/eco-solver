@@ -7,6 +7,7 @@ import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/con
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { QuoteRepository } from '@/modules/intents/repositories/quote.repository';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { QuotesService } from '../services/quotes.service';
@@ -56,6 +57,12 @@ describe('QuotesService', () => {
     }),
   };
 
+  const mockQuoteRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -75,6 +82,10 @@ describe('QuotesService', () => {
         {
           provide: BlockchainReaderService,
           useValue: mockBlockchainReaderService,
+        },
+        {
+          provide: QuoteRepository,
+          useValue: mockQuoteRepository,
         },
       ],
     }).compile();
