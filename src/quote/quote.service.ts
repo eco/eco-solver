@@ -757,12 +757,13 @@ export class QuoteService implements OnModuleInit {
     }
   }
 
+  protected readonly DEFAULT_QUOTE_EXPIRY_TIME_MINUTES = 15
   /**
    * @returns the expiry time of the quote
    */
   getQuoteExpiryTime(): string {
     //todo implement expiry time logic
-    return dayjs().add(5, 'minutes').unix().toString()
+    return dayjs().add(this.DEFAULT_QUOTE_EXPIRY_TIME_MINUTES, 'minutes').unix().toString()
   }
 
   /**
