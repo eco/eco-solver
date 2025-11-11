@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { RhinestoneConfigService } from '@/modules/config/services/rhinestone-config.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { ProverService } from '@/modules/prover/prover.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 
 import { RhinestoneActionProcessor } from '../rhinestone-action-processor.service';
@@ -61,6 +63,18 @@ const mockRhinestoneContractsService = {};
 const mockFeeResolverService = {};
 const mockTokenConfigService = {};
 
+// Mock ProverService (added for rhinestone execution)
+const mockProverService = {
+  calculateProofFee: jest.fn().mockResolvedValue(0n),
+  sendProof: jest.fn().mockResolvedValue('0x1234567890abcdef'),
+};
+
+// Mock EvmTransportService (added for rhinestone execution)
+const mockEvmTransportService = {
+  getPublicClient: jest.fn(),
+  getWalletClient: jest.fn(),
+};
+
 describe('RhinestoneActionProcessor', () => {
   let service: RhinestoneActionProcessor;
 
@@ -76,6 +90,9 @@ describe('RhinestoneActionProcessor', () => {
         { provide: RhinestoneContractsService, useValue: mockRhinestoneContractsService },
         { provide: FeeResolverService, useValue: mockFeeResolverService },
         { provide: TokenConfigService, useValue: mockTokenConfigService },
+        // Mock ProverService and EvmTransportService for execution
+        { provide: ProverService, useValue: mockProverService },
+        { provide: EvmTransportService, useValue: mockEvmTransportService },
       ],
     }).compile();
 
