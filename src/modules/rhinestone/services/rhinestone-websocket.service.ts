@@ -359,15 +359,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         error,
       });
     });
-
-    this.ws.on('ping', (_data: Buffer) => {
-      this.logger.debug('Received ping from server');
-      // ws library automatically sends pong - no action needed
-    });
-
-    this.ws.on('pong', (_data: Buffer) => {
-      this.logger.debug('Received pong from server');
-    });
   }
 
   /**
@@ -756,7 +747,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
     this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.ping();
-        this.logger.debug('Sent ping to server');
+        // this.logger.debug('Sent ping to server');
       }
     }, config.pingInterval);
   }
