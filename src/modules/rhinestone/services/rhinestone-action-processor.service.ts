@@ -36,6 +36,7 @@ import { ActionStatusError } from '../types/action-status.types';
 import { RelayerActionV1 } from '../types/relayer-action.types';
 import { decodeAdapterClaim, decodeAdapterFill } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
+import { replaceRelayerContext } from '../utils/replace-relayer-context';
 import { isValidHexData, normalizeError } from '../utils/validation';
 
 import { RhinestoneValidationService } from './rhinestone-validation.service';
@@ -234,9 +235,15 @@ export class RhinestoneActionProcessor implements OnModuleInit {
     // ========================================================================
     this.logger.log('Milestone 1: Executing CLAIM on Base...');
 
+    // Patch relayerContext to our solver address (Rhinestone uses fallback by default)
+    const patchedClaimData = replaceRelayerContext(
+      claimAction.call.data as Hex,
+      this.solverAddress,
+    );
+
     const claimTxHash = await this.baseWalletClient.sendTransaction({
       to: claimAction.call.to as Address,
-      data: claimAction.call.data as Hex,
+      data: patchedClaimData,
       value: BigInt(claimAction.call.value),
       chain: base,
       account: this.baseWalletClient.account!,
@@ -325,6 +332,7 @@ export class RhinestoneActionProcessor implements OnModuleInit {
     // We need to replace it with our solver address before executing FILL
     this.logger.log('Patching relayerContext to solver address...');
     const originalFillData = fillAction.call.data as Hex;
+    const patchedFillData = replaceRelayerContext(originalFillData, this.solverAddress);
 
     this.logger.log(
       `Starting fill ${JSON.stringify(
@@ -332,6 +340,7 @@ export class RhinestoneActionProcessor implements OnModuleInit {
           to: fillAction.call.to,
           dataPatched: true,
           originalFirstBytes: originalFillData.slice(0, 66),
+          patchedFirstBytes: patchedFillData.slice(0, 66),
           value: fillAction.call.value,
         },
         null,
@@ -341,7 +350,7 @@ export class RhinestoneActionProcessor implements OnModuleInit {
 
     const fillTxHash = await this.arbWalletClient.sendTransaction({
       to: fillAction.call.to as Address,
-      data: originalFillData,
+      data: patchedFillData, // Use patched data with our solver address
       value: BigInt(fillAction.call.value),
       chain: arbitrum,
       account: this.arbWalletClient.account as Account,
