@@ -3,6 +3,7 @@ import { DynamicModule, Global, Module } from '@nestjs/common';
 import { configurationFactory } from '@/config/configuration-factory';
 import { EvmCoreModule } from '@/modules/blockchain/evm/evm-core.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
+import { ProverModule } from '@/modules/prover/prover.module';
 import { QueueModule } from '@/modules/queue/queue.module';
 
 import {
@@ -36,7 +37,7 @@ export class RhinestoneModule {
     return {
       global: true,
       module: RhinestoneModule,
-      imports: [OpenTelemetryModule, QueueModule, EvmCoreModule],
+      imports: [OpenTelemetryModule, QueueModule, EvmCoreModule, ProverModule],
       providers: [
         RhinestoneContractsService,
         RhinestoneValidationService,
