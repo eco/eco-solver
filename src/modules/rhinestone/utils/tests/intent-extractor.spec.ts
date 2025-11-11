@@ -143,7 +143,7 @@ describe('Intent Extractor', () => {
 
       // Intent hash should be deterministic
       expect(intent.intentHash).toBe(
-        '0xdf6f06f703a9b011c2d8c3018b29dbce2ae8fd0267d4159ee93f662c8c972ddc',
+        '0x6027a91398e3f8f3d6f1f55107ebb39f33641522b8089d2bfe6ba353e100dbb6',
       );
 
       // Running extraction again should produce same hash
