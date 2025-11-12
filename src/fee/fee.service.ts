@@ -105,6 +105,16 @@ export class FeeService implements OnModuleInit {
         return feeConfig
       }
       const override = this.findRouteOverride(tuple)
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `getFeeConfig`,
+          properties: {
+            override: override || 'none',
+          },
+        }),
+      )
+
       if (override) {
         feeConfig = _.merge({}, feeConfig, override.fee)
         feeSource = 'override'
@@ -340,6 +350,17 @@ export class FeeService implements OnModuleInit {
    */
   private findRouteOverride(tuple: RouteTuple): RouteFeeOverride | undefined {
     const overrides = this.ecoConfigService.getRouteFeeOverrides() || undefined
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `findRouteOverride`,
+        properties: {
+          tuple,
+          overrides: overrides || 'none',
+        },
+      }),
+    )
+
     if (!overrides || overrides.length === 0) return undefined
     const { srcChainId, dstChainId, srcTokens, dstToken } = tuple
     if (srcTokens.length === 0 || !dstToken) return undefined
