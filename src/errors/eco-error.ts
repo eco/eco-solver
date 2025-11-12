@@ -1,5 +1,6 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { Logger } from '@nestjs/common';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 
 export class EcoError extends Error {
   // Signature Validations

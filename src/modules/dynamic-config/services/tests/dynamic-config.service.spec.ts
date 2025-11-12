@@ -1,17 +1,18 @@
 /* eslint-disable prettier/prettier */
+import { ModuleRef } from '@nestjs/core'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { Test, TestingModule } from '@nestjs/testing'
+
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import {
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
 } from '@/modules/dynamic-config/interfaces/configuration-repository.interface'
-import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service'
 import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository'
-import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service'
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service'
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service'
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service'
 import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service'
-import { EventEmitter2 } from '@nestjs/event-emitter'
-import { ModuleRef } from '@nestjs/core'
-import { ModuleRefProvider } from '@/common/services/module-ref-provider'
-import { Test, TestingModule } from '@nestjs/testing'
 
 describe('DynamicConfigService', () => {
   let service: DynamicConfigService

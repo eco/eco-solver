@@ -1,6 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 
+import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 import { ConfigFactory } from '@/config/config-factory';
 import {
   AppConfigService,
@@ -20,8 +22,6 @@ import {
 import { BullBoardConfigService } from '@/modules/config/services/bull-board-config.service';
 import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { LeaderElectionConfigService } from '@/modules/config/services/leader-election-config.service';
-import { ModuleRef } from '@nestjs/core';
-import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 

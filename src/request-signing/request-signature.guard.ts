@@ -1,8 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoLogger } from '@/common/logging/eco-logger';
 import { ConfigFactory } from '@/config/config-factory';
 import { EcoError } from '@/errors/eco-error';
-import { EcoLogger } from '@/common/logging/eco-logger';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { RequestHeaders } from '@/request-signing/request-headers';
 import { SignatureVerificationService } from '@/request-signing/signature-verification.service';
 

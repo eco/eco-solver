@@ -1,3 +1,5 @@
+import { Test, TestingModule } from '@nestjs/testing';
+
 import {
   AuditFilter,
   AuditLogEntry,
@@ -5,7 +7,6 @@ import {
 } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
 import { ConfigurationChangeEvent } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
-import { Test, TestingModule } from '@nestjs/testing';
 
 describe('DynamicConfigAuditService', () => {
   let service: DynamicConfigAuditService;

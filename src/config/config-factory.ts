@@ -1,20 +1,22 @@
-import { AwsConfig } from '@/config/schemas';
+import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { z } from 'zod';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';
+import { AwsConfig } from '@/config/schemas';
+import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
+import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
+import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
+import { EcoError } from '@/errors/eco-error';
 import { AwsSecretsManager } from '@/modules/config/utils/aws-secrets-manager';
+import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
 import {
   ConfigurationChangeEvent,
   DynamicConfigService,
 } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoError } from '@/errors/eco-error';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
-import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
-import { Logger } from '@nestjs/common';
-import { ModuleRefProvider } from '@/common/services/module-ref-provider';
-import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
-import { z } from 'zod';
-import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
 
 /**
  * Configuration factory that transforms environment variables to configuration
@@ -263,19 +265,8 @@ export class ConfigFactory {
 
   private static validateConfig(config: Record<string, any>): Config {
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateConfig`,
-          properties: {
-            configKeys: Object.keys(config),
-            config,
-          },
-        }),
-      );
-
       // Parse and validate the complete merged configuration
-      const validatedConfig = ConfigSchema.parse(config);
-      return validatedConfig;
+      return ConfigSchema.parse(config);
     } catch (error) {
       if (error instanceof z.ZodError) {
         // Convert Zod errors to a format similar to Joi
