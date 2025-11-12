@@ -1,17 +1,19 @@
-import { Configuration, ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema'
 import {
-  IConfigurationRepository,
-  CreateConfigurationDTO,
-  UpdateConfigurationDTO,
-  ConfigurationFilter,
   BulkConfigurationOperation,
   BulkOperationResult,
-  PaginationOptions,
+  ConfigurationFilter,
+  CreateConfigurationDTO,
+  IConfigurationRepository,
   PaginatedResult,
+  PaginationOptions,
+  UpdateConfigurationDTO,
 } from '@/dynamic-config/interfaces/configuration-repository.interface'
+import { Configuration, ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { FilterQuery, Model } from 'mongoose'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model, FilterQuery } from 'mongoose'
 
 @Injectable()
 export class DynamicConfigRepository implements IConfigurationRepository {
@@ -24,7 +26,11 @@ export class DynamicConfigRepository implements IConfigurationRepository {
 
   async create(data: CreateConfigurationDTO): Promise<ConfigurationDocument> {
     try {
-      this.logger.debug(`Creating configuration with key: ${data.key}`)
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `create: Creating configuration with key: ${data.key}`,
+        }),
+      )
 
       // Validate the configuration data
       const validationErrors = await this.validateConfiguration(data)
@@ -39,42 +45,77 @@ export class DynamicConfigRepository implements IConfigurationRepository {
       })
 
       const savedConfiguration = await configuration.save()
-      this.logger.debug(`Successfully created configuration: ${data.key}`)
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `create: Successfully created configuration with key: ${data.key}`,
+        }),
+      )
 
       return savedConfiguration
-    } catch (error) {
-      this.logger.error(`Failed to create configuration ${data.key}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `create: Failed to create configuration with key: ${data.key}`,
+        this.logger,
+      )
+      throw ex
     }
   }
 
   async findByKey(key: string): Promise<ConfigurationDocument | null> {
     try {
-      this.logger.debug(`Finding configuration by key: ${key}`)
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `findByKey: key: ${key})`,
+        }),
+      )
+
       return await this.configurationModel.findOne({ key }).exec()
-    } catch (error) {
-      this.logger.error(`Failed to find configuration by key ${key}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `findByKey exception: key: ${key}`, this.logger)
+      throw ex
     }
   }
 
-  async findAll(
-    filter?: ConfigurationFilter,
+  async findAllWithFilteringAndPagination(
+    filter: ConfigurationFilter,
     pagination?: PaginationOptions,
   ): Promise<PaginatedResult<ConfigurationDocument>> {
     try {
-      this.logger.debug('Finding all configurations with filter:', filter)
-
       const query = this.buildFilterQuery(filter)
       const { page = 1, limit = 50, sortBy = 'key', sortOrder = 'asc' } = pagination || {}
-
       const skip = (page - 1) * limit
       const sortObj: Record<string, 1 | -1> = { [sortBy]: sortOrder === 'asc' ? 1 : -1 }
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `findAllWithFilteringAndPagination`,
+          properties: {
+            filter,
+            pagination,
+            query,
+            sortObj,
+            skip,
+            limit,
+          },
+        }),
+      )
 
       const [data, total] = await Promise.all([
         this.configurationModel.find(query).sort(sortObj).skip(skip).limit(limit).exec(),
         this.configurationModel.countDocuments(query).exec(),
       ])
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `findAllWithFilteringAndPagination: result`,
+          properties: {
+            data,
+            total,
+          },
+        }),
+      )
 
       const totalPages = Math.ceil(total / limit)
 
@@ -89,15 +130,19 @@ export class DynamicConfigRepository implements IConfigurationRepository {
           hasPrev: page > 1,
         },
       }
-    } catch (error) {
-      this.logger.error('Failed to find configurations:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `findAll exception`, this.logger)
+      throw ex
     }
   }
 
   async update(key: string, data: UpdateConfigurationDTO): Promise<ConfigurationDocument | null> {
     try {
-      this.logger.debug(`Updating configuration with key: ${key}`)
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `update: key: ${key})`,
+        }),
+      )
 
       // Validate the update data
       const validationErrors = await this.validateConfiguration(data)
@@ -114,40 +159,64 @@ export class DynamicConfigRepository implements IConfigurationRepository {
         .exec()
 
       if (updatedConfiguration) {
-        this.logger.debug(`Successfully updated configuration: ${key}`)
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `update: Successfully updated configuration: key: ${key})`,
+          }),
+        )
       } else {
-        this.logger.warn(`Configuration not found for update: ${key}`)
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `update: Configuration not found for: key: ${key})`,
+          }),
+        )
       }
 
       return updatedConfiguration
-    } catch (error) {
-      this.logger.error(`Failed to update configuration ${key}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `update exception: key: ${key}`, this.logger)
+      throw ex
     }
   }
 
   async delete(key: string): Promise<boolean> {
     try {
-      this.logger.debug(`Deleting configuration with key: ${key}`)
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `delete: Deleting configuration with key: ${key}`,
+        }),
+      )
 
       const result = await this.configurationModel.deleteOne({ key }).exec()
       const deleted = result.deletedCount > 0
 
       if (deleted) {
-        this.logger.debug(`Successfully deleted configuration: ${key}`)
+        this.logger.debug(
+          EcoLogMessage.fromDefault({
+            message: `delete: Successfully deleted configuration: ${key}`,
+          }),
+        )
       } else {
-        this.logger.warn(`Configuration not found for deletion: ${key}`)
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `delete: Configuration not found for deletion: ${key}`,
+          }),
+        )
       }
 
       return deleted
-    } catch (error) {
-      this.logger.error(`Failed to delete configuration ${key}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `delete: Failed to delete configuration ${key}`, this.logger)
+      throw ex
     }
   }
 
   async bulkOperations(operations: BulkConfigurationOperation[]): Promise<BulkOperationResult> {
-    this.logger.debug(`Executing ${operations.length} bulk operations`)
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `bulkOperations: Executing ${operations.length} bulk operations`,
+      }),
+    )
 
     const result: BulkOperationResult = {
       successful: [],
@@ -199,24 +268,34 @@ export class DynamicConfigRepository implements IConfigurationRepository {
           default:
             throw new Error(`Unknown operation: ${operation.operation}`)
         }
-      } catch (error) {
+      } catch (ex) {
         result.failed.push({
           key: operation.key,
           operation: operation.operation,
-          error: error instanceof Error ? error.message : String(error),
+          error: ex instanceof Error ? ex.message : String(ex),
         })
       }
     }
 
     this.logger.debug(
-      `Bulk operations completed: ${result.successful.length} successful, ${result.failed.length} failed`,
+      EcoLogMessage.fromDefault({
+        message: `bulkOperations: Bulk operations completed`,
+        properties: {
+          successful: result.successful.length,
+          failed: result.failed.length,
+        },
+      }),
     )
 
     return result
   }
 
   async bulkCreate(configurations: CreateConfigurationDTO[]): Promise<BulkOperationResult> {
-    this.logger.debug(`Bulk creating ${configurations.length} configurations`)
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `bulkCreate: Bulk creating ${configurations.length} configurations`,
+      }),
+    )
 
     const operations: BulkConfigurationOperation[] = configurations.map((config) => ({
       key: config.key,
@@ -230,7 +309,11 @@ export class DynamicConfigRepository implements IConfigurationRepository {
   async bulkUpdate(
     updates: Array<{ key: string; data: UpdateConfigurationDTO }>,
   ): Promise<BulkOperationResult> {
-    this.logger.debug(`Bulk updating ${updates.length} configurations`)
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `bulkUpdate: Bulk updating ${updates.length} configurations`,
+      }),
+    )
 
     const operations: BulkConfigurationOperation[] = updates.map((update) => ({
       key: update.key,
@@ -242,7 +325,11 @@ export class DynamicConfigRepository implements IConfigurationRepository {
   }
 
   async bulkDelete(keys: string[]): Promise<BulkOperationResult> {
-    this.logger.debug(`Bulk deleting ${keys.length} configurations`)
+    this.logger.debug(
+      EcoLogMessage.fromDefault({
+        message: `bulkDelete: Bulk deleting ${keys.length} configurations`,
+      }),
+    )
 
     const operations: BulkConfigurationOperation[] = keys.map((key) => ({
       key,
@@ -301,27 +388,18 @@ export class DynamicConfigRepository implements IConfigurationRepository {
     try {
       const query = this.buildFilterQuery(filter)
       return await this.configurationModel.countDocuments(query).exec()
-    } catch (error) {
-      this.logger.error('Failed to count configurations:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `count: Failed to count configurations`, this.logger)
+      throw ex
     }
   }
 
   async findRequired(): Promise<ConfigurationDocument[]> {
     try {
       return await this.configurationModel.find({ isRequired: true }).sort({ key: 1 }).exec()
-    } catch (error) {
-      this.logger.error('Failed to find required configurations:', error)
-      throw error
-    }
-  }
-
-  async findSecrets(): Promise<ConfigurationDocument[]> {
-    try {
-      return await this.configurationModel.find({ isSecret: true }).sort({ key: 1 }).exec()
-    } catch (error) {
-      this.logger.error('Failed to find secret configurations:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `findRequired: Failed to find required configurations`, this.logger)
+      throw ex
     }
   }
 
@@ -330,9 +408,13 @@ export class DynamicConfigRepository implements IConfigurationRepository {
   ): Promise<ConfigurationDocument[]> {
     try {
       return await this.configurationModel.find({ type }).sort({ key: 1 }).exec()
-    } catch (error) {
-      this.logger.error(`Failed to find configurations by type ${type}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `findByType: Failed to find configurations by type ${type}`,
+        this.logger,
+      )
+      throw ex
     }
   }
 
@@ -342,10 +424,14 @@ export class DynamicConfigRepository implements IConfigurationRepository {
   ): Promise<PaginatedResult<ConfigurationDocument>> {
     try {
       const filter: ConfigurationFilter = { lastModifiedBy: userId }
-      return await this.findAll(filter, pagination)
-    } catch (error) {
-      this.logger.error(`Failed to find configurations by modifier ${userId}:`, error)
-      throw error
+      return await this.findAllWithFilteringAndPagination(filter, pagination)
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `findByModifier: Failed to find configurations by modifier ${userId}`,
+        this.logger,
+      )
+      throw ex
     }
   }
 
@@ -358,9 +444,16 @@ export class DynamicConfigRepository implements IConfigurationRepository {
 
       const existingKeys = existingConfigs.map((config) => config.key)
       return requiredKeys.filter((key) => !existingKeys.includes(key))
-    } catch (error) {
-      this.logger.error('Failed to find missing required configurations:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `findMissingRequired: Failed to find missing required configurations`,
+        this.logger,
+        {
+          requiredKeys,
+        },
+      )
+      throw ex
     }
   }
 
@@ -368,8 +461,8 @@ export class DynamicConfigRepository implements IConfigurationRepository {
     try {
       await this.configurationModel.findOne().limit(1).exec()
       return true
-    } catch (error) {
-      this.logger.error('Health check failed:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `healthCheck: health check failed`, this.logger)
       return false
     }
   }
@@ -378,17 +471,15 @@ export class DynamicConfigRepository implements IConfigurationRepository {
     total: number
     byType: Record<string, number>
     required: number
-    secrets: number
     lastModified: Date | null
   }> {
     try {
-      const [total, typeStats, required, secrets, lastModifiedDoc] = await Promise.all([
+      const [total, typeStats, required, lastModifiedDoc] = await Promise.all([
         this.configurationModel.countDocuments().exec(),
         this.configurationModel
           .aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }])
           .exec(),
         this.configurationModel.countDocuments({ isRequired: true }).exec(),
-        this.configurationModel.countDocuments({ isSecret: true }).exec(),
         this.configurationModel.findOne().sort({ updatedAt: -1 }).select('updatedAt').exec(),
       ])
 
@@ -404,12 +495,11 @@ export class DynamicConfigRepository implements IConfigurationRepository {
         total,
         byType,
         required,
-        secrets,
         lastModified: lastModifiedDoc?.updatedAt || null,
       }
-    } catch (error) {
-      this.logger.error('Failed to get statistics:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `getStatistics: Failed to get statistics`, this.logger)
+      throw ex
     }
   }
 
@@ -428,10 +518,6 @@ export class DynamicConfigRepository implements IConfigurationRepository {
 
     if (filter.isRequired !== undefined) {
       query.isRequired = filter.isRequired
-    }
-
-    if (filter.isSecret !== undefined) {
-      query.isSecret = filter.isSecret
     }
 
     if (filter.lastModifiedBy) {

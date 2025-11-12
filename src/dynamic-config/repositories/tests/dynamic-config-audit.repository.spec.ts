@@ -1,12 +1,12 @@
 import {
+  AuditFilter,
+  AuditLogEntry,
+  DynamicConfigAuditRepository,
+} from '@/dynamic-config/repositories/dynamic-config-audit.repository'
+import {
   ConfigurationAudit,
   ConfigurationAuditDocument,
 } from '@/dynamic-config/schemas/configuration-audit.schema'
-import {
-  DynamicConfigAuditRepository,
-  AuditLogEntry,
-  AuditFilter,
-} from '@/dynamic-config/repositories/dynamic-config-audit.repository'
 import { getModelToken } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { Test, TestingModule } from '@nestjs/testing'
@@ -74,7 +74,7 @@ describe('DynamicConfigAuditRepository', () => {
   describe('create', () => {
     it('should create audit log successfully', async () => {
       const mockSave = jest.fn().mockResolvedValue(mockAuditDocument)
-      ;(model as any).mockImplementation(() => ({
+      ;(model as any).mockImplementationOnce(() => ({
         ...mockAuditDocument,
         save: mockSave,
       }))
@@ -96,7 +96,7 @@ describe('DynamicConfigAuditRepository', () => {
 
     it('should handle database errors', async () => {
       const mockSave = jest.fn().mockRejectedValue(new Error('Database error'))
-      ;(model as any).mockImplementation(() => ({
+      ;(model as any).mockImplementationOnce(() => ({
         ...mockAuditDocument,
         save: mockSave,
       }))
@@ -317,22 +317,33 @@ describe('DynamicConfigAuditRepository', () => {
     })
   })
 
-  describe('findWithFilter', () => {
+  describe('findWithFilterPaginated', () => {
     it('should find audit logs with no filter', async () => {
       const mockExec = jest.fn().mockResolvedValue([mockAuditDocument])
+      const mockCountExec = jest.fn().mockResolvedValue(1)
+
       model.find.mockReturnValue({
         sort: jest.fn().mockReturnValue({
-          exec: mockExec,
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              exec: mockExec,
+            }),
+          }),
         }),
       } as any)
 
-      const result = await repository.findWithFilter({})
+      model.countDocuments.mockReturnValue({
+        exec: mockCountExec,
+      } as any)
+
+      const result = await repository.findWithFilterPaginated({})
 
       expect(model.find).toHaveBeenCalledWith({})
-      expect(result).toEqual([mockAuditDocument])
+      expect(model.countDocuments).toHaveBeenCalledWith({})
+      expect(result).toEqual({ logs: [mockAuditDocument], total: 1 })
     })
 
-    it('should find audit logs with filter', async () => {
+    it('should find audit logs with filter and custom pagination', async () => {
       const filter: AuditFilter = {
         configKey: 'test.key',
         userId: 'user123',
@@ -352,16 +363,55 @@ describe('DynamicConfigAuditRepository', () => {
       }
 
       const mockExec = jest.fn().mockResolvedValue([mockAuditDocument])
+      const mockCountExec = jest.fn().mockResolvedValue(1)
+
       model.find.mockReturnValue({
         sort: jest.fn().mockReturnValue({
-          exec: mockExec,
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              exec: mockExec,
+            }),
+          }),
         }),
       } as any)
 
-      const result = await repository.findWithFilter(filter)
+      model.countDocuments.mockReturnValue({
+        exec: mockCountExec,
+      } as any)
+
+      const result = await repository.findWithFilterPaginated(filter, 20, 10)
 
       expect(model.find).toHaveBeenCalledWith(expectedQuery)
-      expect(result).toEqual([mockAuditDocument])
+      expect(model.countDocuments).toHaveBeenCalledWith(expectedQuery)
+
+      // Verify pagination parameters
+      const sortMock = model.find().sort as jest.Mock
+      const skipMock = sortMock().skip as jest.Mock
+      const limitMock = skipMock().limit as jest.Mock
+
+      expect(skipMock).toHaveBeenCalledWith(10)
+      expect(limitMock).toHaveBeenCalledWith(20)
+
+      expect(result).toEqual({ logs: [mockAuditDocument], total: 1 })
+    })
+
+    it('should handle database errors', async () => {
+      const mockExec = jest.fn().mockRejectedValue(new Error('Database error'))
+      model.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              exec: mockExec,
+            }),
+          }),
+        }),
+      } as any)
+
+      model.countDocuments.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
+      } as any)
+
+      await expect(repository.findWithFilterPaginated({})).rejects.toThrow('Database error')
     })
   })
 

@@ -1,10 +1,12 @@
 import { ConfigurationSchemas } from '@/dynamic-config/schemas/configuration-schemas'
 import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Inject, Logger } from '@nestjs/common'
-import { z } from 'zod'
 import { EcoResponse } from '@/common/eco-response'
+import { Inject, Injectable } from '@nestjs/common'
+import { z } from 'zod'
 
 export interface AllConfigsValidationResult {
   valid: boolean
@@ -40,7 +42,7 @@ export interface ValidationWarning {
  */
 @Injectable()
 export class DynamicConfigValidationService {
-  private readonly logger = new Logger(DynamicConfigValidationService.name)
+  private readonly logger = new EcoLogger(DynamicConfigValidationService.name)
 
   constructor(
     @Inject(DynamicConfigService) private readonly configurationService: DynamicConfigService,
@@ -105,17 +107,18 @@ export class DynamicConfigValidationService {
       )
 
       return result
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Configuration validation failed: ${error.message}`,
-        }),
+    } catch (ex) {
+      const errorMessage = EcoError.logError(
+        ex,
+        `validateAllConfigurations: exception`,
+        this.logger,
       )
+
       result.valid = false
       result.errors.push({
         key: 'VALIDATION_ERROR',
         type: 'SCHEMA_VIOLATION',
-        message: `Validation process failed: ${error.message}`,
+        message: `Validation process failed: ${errorMessage}`,
       })
       return result
     }
@@ -147,10 +150,16 @@ export class DynamicConfigValidationService {
       const performanceWarnings = this.checkPerformanceIssues(key, value)
       warnings.push(...performanceWarnings)
     } catch (ex) {
+      const errorMessage = EcoError.logError(
+        ex,
+        `validateSingleConfiguration: exception`,
+        this.logger,
+      )
+
       errors.push({
         key,
         type: 'SCHEMA_VIOLATION',
-        message: `Validation error: ${ex.message}`,
+        message: `Validation error: ${errorMessage}`,
       })
     }
 
@@ -310,10 +319,16 @@ export class DynamicConfigValidationService {
     try {
       const result = await this.configurationService.getAll()
       return new Set(result.data.map((config) => config.key))
-    } catch (error) {
+    } catch (ex) {
+      const errorMessage = EcoError.logError(
+        ex,
+        `getExistingConfigurationKeys: exception`,
+        this.logger,
+      )
+
       this.logger.warn(
         EcoLogMessage.fromDefault({
-          message: `Failed to retrieve existing configurations: ${error.message}`,
+          message: `Failed to retrieve existing configurations: ${errorMessage}`,
         }),
       )
       return new Set()
@@ -394,13 +409,15 @@ export class DynamicConfigValidationService {
         identical: differences.length === 0,
         differences,
       }
-    } catch (error) {
+    } catch (ex) {
+      const errorMessage = EcoError.logError(ex, `compareWithAws: exception`, this.logger)
+
       this.logger.error(
         EcoLogMessage.fromDefault({
-          message: `Failed to compare configurations: ${error.message}`,
+          message: `Failed to compare configurations: ${errorMessage}`,
         }),
       )
-      throw error
+      throw ex
     }
   }
 }

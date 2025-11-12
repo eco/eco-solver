@@ -1,5 +1,5 @@
 import { AuditOperation } from '@/dynamic-config/enums/audit-operation.enum'
-import { IsOptional, IsNumber, IsString, IsEnum, Min, Max, IsDateString } from 'class-validator'
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
 import { Type } from 'class-transformer'
 
@@ -38,7 +38,6 @@ export class AuditQueryDTO {
   sortBy?: string = 'timestamp'
 
   @IsOptional()
-  @IsEnum(['asc', 'desc'])
   @IsEnum(SortOrder)
   sortOrder?: SortOrder = SortOrder.DESC
 }

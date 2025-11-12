@@ -1,41 +1,43 @@
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger'
-import { AuditQueryDTO } from '@/dynamic-config/dtos/audit-query.dto'
-import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto'
 import {
+  AuditLogResponseDTO,
+  PaginatedAuditResponseDTO,
+} from '@/dynamic-config/dtos/audit-response.dto'
+import { AuditQueryDTO } from '@/dynamic-config/dtos/audit-query.dto'
+import {
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpException,
+  HttpStatus,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  HttpStatus,
-  HttpException,
-  Logger,
   Req,
   UseGuards,
 } from '@nestjs/common'
+import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto'
+import {
+  ConfigurationResponseDTO,
+  PaginatedConfigurationResponseDTO,
+} from '@/dynamic-config/dtos/configuration-response.dto'
 import { CreateConfigurationDTO } from '@/dynamic-config/dtos/create-configuration.dto'
 import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service'
-import {
-  PaginatedAuditResponseDTO,
-  AuditLogResponseDTO,
-} from '@/dynamic-config/dtos/audit-response.dto'
-import {
-  PaginatedConfigurationResponseDTO,
-  ConfigurationResponseDTO,
-} from '@/dynamic-config/dtos/configuration-response.dto'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogger } from '@/common/logging/eco-logger'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Request } from 'express'
-import { UpdateConfigurationDTO } from '@/dynamic-config/dtos/update-configuration.dto'
-import { RequestSignatureGuard } from '@/request-signing/request-signature.guard'
 import { RequestHeaders } from '@/request-signing/request-headers'
+import { RequestSignatureGuard } from '@/request-signing/request-signature.guard'
+import { UpdateConfigurationDTO } from '@/dynamic-config/dtos/update-configuration.dto'
 
 @ApiTags('Configuration')
 @Controller('api/v1/configuration')
 @UseGuards(RequestSignatureGuard)
 export class DynamicConfigController {
-  private readonly logger = new Logger(DynamicConfigController.name)
+  private readonly logger = new EcoLogger(DynamicConfigController.name)
 
   constructor(private readonly configurationService: DynamicConfigService) {}
 
@@ -65,7 +67,15 @@ export class DynamicConfigController {
     @Query() query: ConfigurationQueryDTO,
   ): Promise<PaginatedConfigurationResponseDTO> {
     try {
-      this.logger.log('Getting all configurations with filters:', query)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `getAllConfigurations`,
+          properties: {
+            query,
+          },
+        }),
+      )
+
       const result = await this.configurationService.getAllQuery(query)
 
       // Transform to response DTOs
@@ -75,8 +85,8 @@ export class DynamicConfigController {
         data: responseData,
         pagination: result.pagination,
       }
-    } catch (error) {
-      this.logger.error('Failed to get configurations:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `getAllConfigurations: exception`, this.logger)
       throw new HttpException('Failed to retrieve configurations', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
@@ -114,7 +124,14 @@ export class DynamicConfigController {
   })
   async getConfiguration(@Param('key') key: string): Promise<ConfigurationResponseDTO> {
     try {
-      this.logger.log(`Getting configuration: ${key}`)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `getConfiguration`,
+          properties: {
+            key,
+          },
+        }),
+      )
 
       const config = await this.configurationService.get(key)
       if (!config) {
@@ -122,7 +139,7 @@ export class DynamicConfigController {
       }
 
       // Get the full configuration document for response
-      const configDoc = await this.configurationService['configRepository'].findByKey(key)
+      const configDoc = await this.configurationService.findByKey(key)
       if (!configDoc) {
         throw new HttpException(`Configuration not found: ${key}`, HttpStatus.NOT_FOUND)
       }
@@ -132,15 +149,15 @@ export class DynamicConfigController {
         value: config, // This will be masked if secret
         type: configDoc.type,
         isRequired: configDoc.isRequired,
-        isSecret: configDoc.isSecret,
         description: configDoc.description,
         lastModified: configDoc.updatedAt,
       })
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error
+    } catch (ex) {
+      if (ex instanceof HttpException) {
+        throw ex
       }
-      this.logger.error(`Failed to get configuration ${key}:`, error)
+
+      EcoError.logError(ex, `Failed to get configuration ${key}`, this.logger)
       throw new HttpException('Failed to retrieve configuration', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
@@ -180,7 +197,14 @@ export class DynamicConfigController {
     @Req() request: Request,
   ): Promise<ConfigurationResponseDTO> {
     try {
-      this.logger.log(`Creating configuration: ${createConfigurationDTO.key}`)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `createConfiguration`,
+          properties: {
+            createConfigurationDTO,
+          },
+        }),
+      )
 
       // Check if configuration already exists
       const exists = await this.configurationService.exists(createConfigurationDTO.key)
@@ -202,22 +226,25 @@ export class DynamicConfigController {
 
       return this.toResponseDTO({
         key: config.key,
-        value: config.isSecret ? '***MASKED***' : config.value,
+        value: config.value,
         type: config.type,
         isRequired: config.isRequired,
-        isSecret: config.isSecret,
         description: config.description,
         lastModified: config.updatedAt,
       })
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error
+    } catch (ex) {
+      if (ex instanceof HttpException) {
+        throw ex
       }
-      this.logger.error(`Failed to create configuration ${createConfigurationDTO.key}:`, error)
+      EcoError.logError(
+        ex,
+        `Failed to create configuration ${createConfigurationDTO.key}`,
+        this.logger,
+      )
 
       // Handle validation errors
-      if (error.message?.includes('validation failed')) {
-        throw new HttpException(error.message, HttpStatus.BAD_REQUEST)
+      if (ex instanceof Error && ex.message?.includes('validation failed')) {
+        throw new HttpException(ex.message, HttpStatus.BAD_REQUEST)
       }
 
       throw new HttpException('Failed to create configuration', HttpStatus.INTERNAL_SERVER_ERROR)
@@ -265,7 +292,15 @@ export class DynamicConfigController {
     @Req() request: Request,
   ): Promise<ConfigurationResponseDTO> {
     try {
-      this.logger.log(`Updating configuration: ${key}`)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `updateConfiguration`,
+          properties: {
+            key,
+            updateDTO,
+          },
+        }),
+      )
 
       // Extract user context
       const { userId, userAgent } = this.getUserContext(request)
@@ -278,22 +313,21 @@ export class DynamicConfigController {
 
       return this.toResponseDTO({
         key: config.key,
-        value: config.isSecret ? '***MASKED***' : config.value,
+        value: config.value,
         type: config.type,
         isRequired: config.isRequired,
-        isSecret: config.isSecret,
         description: config.description,
         lastModified: config.updatedAt,
       })
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error
+    } catch (ex) {
+      if (ex instanceof HttpException) {
+        throw ex
       }
-      this.logger.error(`Failed to update configuration ${key}:`, error)
+      EcoError.logError(ex, `Failed to update configuration ${key}`, this.logger)
 
       // Handle validation errors
-      if (error.message?.includes('validation failed')) {
-        throw new HttpException(error.message, HttpStatus.BAD_REQUEST)
+      if (ex instanceof Error && ex.message?.includes('validation failed')) {
+        throw new HttpException(ex.message, HttpStatus.BAD_REQUEST)
       }
 
       throw new HttpException('Failed to update configuration', HttpStatus.INTERNAL_SERVER_ERROR)
@@ -339,7 +373,14 @@ export class DynamicConfigController {
     @Req() request: Request,
   ): Promise<{ message: string }> {
     try {
-      this.logger.log(`Deleting configuration: ${key}`)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `deleteConfiguration`,
+          properties: {
+            key,
+          },
+        }),
+      )
 
       // Extract user context
       const { userId, userAgent } = this.getUserContext(request)
@@ -351,15 +392,16 @@ export class DynamicConfigController {
       }
 
       return { message: `Configuration deleted successfully: ${key}` }
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error
+    } catch (ex) {
+      if (ex instanceof HttpException) {
+        throw ex
       }
-      this.logger.error(`Failed to delete configuration ${key}:`, error)
+
+      EcoError.logError(ex, `Failed to delete configuration ${key}`, this.logger)
 
       // Handle required configuration error
-      if (error.message?.includes('Cannot delete required configuration')) {
-        throw new HttpException(error.message, HttpStatus.BAD_REQUEST)
+      if (ex instanceof Error && ex.message?.includes('Cannot delete required configuration')) {
+        throw new HttpException(ex.message, HttpStatus.BAD_REQUEST)
       }
 
       throw new HttpException('Failed to delete configuration', HttpStatus.INTERNAL_SERVER_ERROR)
@@ -402,7 +444,15 @@ export class DynamicConfigController {
     @Query() query: AuditQueryDTO,
   ): Promise<PaginatedAuditResponseDTO> {
     try {
-      this.logger.log(`Getting audit history for configuration: ${key}`)
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `getConfigurationAuditHistory`,
+          properties: {
+            key,
+            query,
+          },
+        }),
+      )
 
       // Check if configuration exists
       const exists = await this.configurationService.exists(key)
@@ -416,23 +466,23 @@ export class DynamicConfigController {
       const auditLogs = await this.configurationService.getAuditHistory(key, limit, offset)
 
       // Transform to response DTOs
-      const responseData = auditLogs.map((log) => this.toAuditResponseDTO(log))
+      const responseData = auditLogs.logs.map((log) => this.toAuditResponseDTO(log))
 
       // Get total count for the specific configuration
       // Note: This is a simplified approach. In a real implementation, you might want
       // to add a count method to the audit service for better performance
-      const allLogs = await this.configurationService.getAuditHistory(key, 1000, 0)
-      const total = allLogs.length
+      const total = await this.configurationService.getAuditHistoryCountForKey(key)
 
       return {
         data: responseData,
         total,
       }
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error
+    } catch (ex) {
+      if (ex instanceof HttpException) {
+        throw ex
       }
-      this.logger.error(`Failed to get audit history for ${key}:`, error)
+
+      EcoError.logError(ex, `Failed to get audit history for ${key}`, this.logger)
       throw new HttpException('Failed to retrieve audit history', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
@@ -442,12 +492,11 @@ export class DynamicConfigController {
    */
   private toResponseDTO(config: any): ConfigurationResponseDTO {
     return {
-      id: config._id || 'generated-id',
+      id: config._id?.toString?.(),
       key: config.key,
       value: config.value,
       type: config.type,
       isRequired: config.isRequired,
-      isSecret: config.isSecret,
       description: config.description,
       lastModifiedBy: config.lastModifiedBy,
       createdAt: config.createdAt || config.lastModified,
@@ -481,7 +530,7 @@ export class DynamicConfigController {
 
     return {
       userId: address,
-      userAgent: requestHeaders.getHeader('User-Agent'),
+      userAgent: requestHeaders.getUserAgent(),
     }
   }
 }

@@ -1,11 +1,12 @@
-import { ConfigurationAuditDocument } from '@/dynamic-config/schemas/configuration-audit.schema'
 import {
-  DynamicConfigAuditRepository,
-  AuditLogEntry,
   AuditFilter,
+  AuditLogEntry,
   AuditStatistics,
+  DynamicConfigAuditRepository,
 } from '@/dynamic-config/repositories/dynamic-config-audit.repository'
+import { ConfigurationAuditDocument } from '@/dynamic-config/schemas/configuration-audit.schema'
 import { ConfigurationChangeEvent } from '@/dynamic-config/services/dynamic-config.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { Inject, Injectable, Logger } from '@nestjs/common'
 
 @Injectable()
@@ -26,10 +27,20 @@ export class DynamicConfigAuditService {
       const savedLog = await this.auditRepository.create(entry)
       this.logger.debug(`Audit log created with ID: ${savedLog._id}`)
       return savedLog
-    } catch (error) {
-      this.logger.error(`Failed to create audit log for ${entry.configKey}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to create audit log for ${entry.configKey}`, this.logger)
+
+      throw ex
     }
+  }
+
+  /**
+   * Get the count of configuration history entries for a specific key
+   * @param configKey The configuration key to filter by
+   * @returns The count of history entries
+   */
+  getConfigurationHistoryCount(configKey: string): Promise<number> {
+    return this.auditRepository.count({ configKey })
   }
 
   /**
@@ -39,13 +50,15 @@ export class DynamicConfigAuditService {
     configKey: string,
     limit: number = 50,
     offset: number = 0,
-  ): Promise<ConfigurationAuditDocument[]> {
+  ): Promise<{
+    logs: ConfigurationAuditDocument[]
+    total: number
+  }> {
     try {
-      const { logs } = await this.auditRepository.findHistory(configKey, limit, offset)
-      return logs
-    } catch (error) {
-      this.logger.error(`Failed to get history for ${configKey}:`, error)
-      throw error
+      return await this.auditRepository.findHistory(configKey, limit, offset)
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to get history for ${configKey}`, this.logger)
+      throw ex
     }
   }
 
@@ -61,16 +74,11 @@ export class DynamicConfigAuditService {
     total: number
   }> {
     try {
-      const logs = await this.auditRepository.findWithFilter(filter)
-      const total = await this.auditRepository.count(filter)
-
-      // Apply pagination manually since the repository method doesn't support it yet
-      const paginatedLogs = logs.slice(offset, offset + limit)
-
-      return { logs: paginatedLogs, total }
-    } catch (error) {
-      this.logger.error('Failed to get audit logs:', error)
-      throw error
+      // Use the new paginated repository method for efficient database-level pagination
+      return await this.auditRepository.findWithFilterPaginated(filter, limit, offset)
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to get audit logs`, this.logger)
+      throw ex
     }
   }
 
@@ -80,9 +88,9 @@ export class DynamicConfigAuditService {
   async getAuditStatistics(startDate?: Date, endDate?: Date): Promise<AuditStatistics> {
     try {
       return await this.auditRepository.getStatistics(startDate, endDate)
-    } catch (error) {
-      this.logger.error('Failed to get audit statistics:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to get audit statistics`, this.logger)
+      throw ex
     }
   }
 
@@ -97,9 +105,9 @@ export class DynamicConfigAuditService {
     try {
       const { logs } = await this.auditRepository.findUserActivity(userId, limit, offset)
       return logs
-    } catch (error) {
-      this.logger.error(`Failed to get user activity for ${userId}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to get user activity for ${userId}`, this.logger)
+      throw ex
     }
   }
 
@@ -112,9 +120,9 @@ export class DynamicConfigAuditService {
       const deletedCount = await this.auditRepository.deleteOlderThan(olderThan)
       this.logger.log(`Cleaned up ${deletedCount} old audit logs`)
       return deletedCount
-    } catch (error) {
-      this.logger.error('Failed to cleanup old audit logs:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to cleanup old audit logs`, this.logger)
+      throw ex
     }
   }
 
@@ -132,8 +140,8 @@ export class DynamicConfigAuditService {
         userAgent: event.userAgent,
         timestamp: event.timestamp,
       })
-    } catch (error) {
-      this.logger.error('Failed to handle configuration change event:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to handle configuration change event`, this.logger)
       // Don't throw here to avoid breaking the main operation
     }
   }
@@ -143,7 +151,7 @@ export class DynamicConfigAuditService {
    */
   async exportAuditLogs(filter: AuditFilter = {}): Promise<string> {
     try {
-      const logs = await this.auditRepository.findWithFilter(filter)
+      const { logs } = await this.auditRepository.findWithFilterPaginated(filter)
 
       return JSON.stringify(
         logs.map((log) => ({
@@ -159,9 +167,9 @@ export class DynamicConfigAuditService {
         null,
         2,
       )
-    } catch (error) {
-      this.logger.error('Failed to export audit logs:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to export audit logs`, this.logger)
+      throw ex
     }
   }
 
@@ -169,9 +177,6 @@ export class DynamicConfigAuditService {
    * Mask sensitive values for security
    */
   private maskSensitiveValue(value: any): any {
-    if (value && typeof value === 'object' && value.isSecret) {
-      return '***MASKED***'
-    }
     return value
   }
 }

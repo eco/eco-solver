@@ -49,6 +49,14 @@ export class DynamicConfigSanitizerService {
     for (const [key, value] of Object.entries(obj)) {
       // Sanitize the key as well
       const sanitizedKey = this.sanitizeString(key.toString())
+
+      // Validate the key before using it as a property name
+      const keyValidation = this.validateConfigurationKey(sanitizedKey)
+      if (!keyValidation.isValid) {
+        this.logger.warn(`Skipping invalid key during sanitization: ${sanitizedKey}`)
+        continue
+      }
+
       sanitized[sanitizedKey] = this.sanitizeValue(value)
     }
 

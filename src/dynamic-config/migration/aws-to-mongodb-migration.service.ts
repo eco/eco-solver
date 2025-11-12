@@ -1,8 +1,11 @@
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { CreateConfigurationDTO } from '@/dynamic-config/interfaces/configuration-repository.interface'
 import { DynamicConfigService } from '@/dynamic-config/services/dynamic-config.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogger } from '@/common/logging/eco-logger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { Injectable, Logger, Inject } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { SecretsManager } from '@aws-sdk/client-secrets-manager'
 
 export interface MigrationResult {
@@ -24,7 +27,6 @@ export interface MigrationResult {
 export interface MigrationOptions {
   dryRun?: boolean
   overwriteExisting?: boolean
-  keyPrefix?: string
   userId?: string
   keys?: string // Comma-separated list of top-level keys
   keysFile?: string // Path to file containing keys
@@ -36,7 +38,7 @@ export interface MigrationOptions {
  */
 @Injectable()
 export class AwsToMongoDbMigrationService {
-  private readonly logger = new Logger(AwsToMongoDbMigrationService.name)
+  private readonly logger = new EcoLogger(AwsToMongoDbMigrationService.name)
 
   constructor(
     @Inject(DynamicConfigService) private readonly configurationService: DynamicConfigService,
@@ -50,7 +52,6 @@ export class AwsToMongoDbMigrationService {
     const {
       dryRun = false,
       overwriteExisting = false,
-      keyPrefix = '',
       userId = 'migration-script',
       keys,
       keysFile,
@@ -100,7 +101,7 @@ export class AwsToMongoDbMigrationService {
 
       // Process each configuration
       for (const [key, value] of Object.entries(awsConfigurations)) {
-        const fullKey = keyPrefix ? `${keyPrefix}.${key}` : key
+        const fullKey = key
 
         try {
           // Check if configuration already exists
@@ -137,17 +138,21 @@ export class AwsToMongoDbMigrationService {
               message: `${dryRun ? '[DRY RUN] ' : ''}Migrated configuration: ${fullKey}`,
             }),
           )
-        } catch (error) {
+        } catch (ex) {
+          const errorMessage = EcoError.logError(
+            ex,
+            `Failed to migrate configuration`,
+            this.logger,
+            {
+              key: fullKey,
+            },
+          )
+
           result.errorCount++
           result.errors.push({
             key: fullKey,
-            error: error.message,
+            error: errorMessage,
           })
-          this.logger.error(
-            EcoLogMessage.fromDefault({
-              message: `Failed to migrate configuration ${fullKey}: ${error.message}`,
-            }),
-          )
         }
       }
 
@@ -160,16 +165,12 @@ export class AwsToMongoDbMigrationService {
       )
 
       return result
-    } catch (error) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `Migration failed: ${error.message}`,
-        }),
-      )
+    } catch (ex) {
+      const errorMessage = EcoError.logError(ex, `Migration failed`, this.logger)
       result.success = false
       result.errors.push({
         key: 'MIGRATION_ERROR',
-        error: error.message,
+        error: errorMessage,
       })
       return result
     }
@@ -238,8 +239,15 @@ export class AwsToMongoDbMigrationService {
     const { keys, keysFile, migrateAll } = options
 
     // If migrate-all is explicitly set or no filtering options provided, return all
-    if (migrateAll || (!keys && !keysFile)) {
+    if (migrateAll) {
       return configurations
+    }
+
+    if (!keys && !keysFile) {
+      this.logger.warn(
+        'No keys specified. Use --migrate-all to migrate everything or provide --keys/--keys-file.',
+      )
+      return {}
     }
 
     let allowedKeys: string[] = []
@@ -262,8 +270,11 @@ export class AwsToMongoDbMigrationService {
           .map((line) => line.trim())
           .filter((line) => line.length > 0 && !line.startsWith('#')) // Allow comments
         allowedKeys = [...allowedKeys, ...fileKeys]
-      } catch (error) {
-        this.logger.error(`Failed to read keys file ${keysFile}: ${error.message}`)
+      } catch (ex) {
+        EcoError.logError(ex, `Failed to read keys file`, this.logger, {
+          keysFile,
+        })
+
         throw new Error(`Cannot read keys file: ${keysFile}`)
       }
     }
@@ -299,12 +310,9 @@ export class AwsToMongoDbMigrationService {
     try {
       const result = await this.configurationService.getAll()
       return new Set(result.data.map((config) => config.key))
-    } catch (error) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: `Failed to retrieve existing MongoDB configurations: ${error.message}`,
-        }),
-      )
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to retrieve existing MongoDB configurations`, this.logger)
+
       return new Set()
     }
   }
@@ -314,13 +322,11 @@ export class AwsToMongoDbMigrationService {
    */
   private createConfigurationDTO(key: string, value: any): CreateConfigurationDTO {
     const type = this.inferConfigurationType(value)
-    const isSecret = this.isSecretConfiguration(key, value)
 
     return {
       key,
       value,
       type,
-      isSecret,
       isRequired: this.isRequiredConfiguration(key),
       description: `Migrated from AWS Secrets Manager - ${key}`,
     }
@@ -331,39 +337,18 @@ export class AwsToMongoDbMigrationService {
    */
   private inferConfigurationType(value: any): 'string' | 'number' | 'boolean' | 'object' | 'array' {
     if (Array.isArray(value)) {
-      return 'array'
+      return ConfigurationType.ARRAY
     }
     if (value !== null && typeof value === 'object') {
-      return 'object'
+      return ConfigurationType.OBJECT
     }
     if (typeof value === 'boolean') {
-      return 'boolean'
+      return ConfigurationType.BOOLEAN
     }
     if (typeof value === 'number') {
-      return 'number'
+      return ConfigurationType.NUMBER
     }
-    return 'string'
-  }
-
-  /**
-   * Determine if a configuration should be marked as secret
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private isSecretConfiguration(key: string, value: any): boolean {
-    const secretKeywords = [
-      'password',
-      'secret',
-      'key',
-      'token',
-      'credential',
-      'auth',
-      'private',
-      'api_key',
-      'apikey',
-    ]
-
-    const keyLower = key.toLowerCase()
-    return secretKeywords.some((keyword) => keyLower.includes(keyword))
+    return ConfigurationType.STRING
   }
 
   /**
@@ -478,8 +463,14 @@ export class AwsToMongoDbMigrationService {
     for (const key of rollbackPlan.configurationsToDelete) {
       try {
         await this.configurationService.delete(key, userId)
-      } catch (error) {
-        errors.push(`Failed to delete ${key}: ${error.message}`)
+      } catch (ex) {
+        const errorMessage = EcoError.logError(
+          ex,
+          `executeRollback: Failed to delete configuration ${key}`,
+          this.logger,
+        )
+
+        errors.push(`Failed to delete ${key}: ${errorMessage}`)
       }
     }
 
@@ -491,14 +482,19 @@ export class AwsToMongoDbMigrationService {
             key,
             value: originalValue,
             type: this.inferConfigurationType(originalValue),
-            isSecret: this.isSecretConfiguration(key, originalValue),
             isRequired: this.isRequiredConfiguration(key),
             description: 'Restored from rollback',
           },
           userId,
         )
-      } catch (error) {
-        errors.push(`Failed to restore ${key}: ${error.message}`)
+      } catch (ex) {
+        const errorMessage = EcoError.logError(
+          ex,
+          `executeRollback: Failed to restore ${key}`,
+          this.logger,
+        )
+
+        errors.push(`Failed to restore ${key}: ${errorMessage}`)
       }
     }
 

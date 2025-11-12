@@ -1,18 +1,23 @@
+import { AuditStatistics } from '@/dynamic-config/repositories/dynamic-config-audit.repository'
+import { ConfigurationAuditDocument } from '@/dynamic-config/schemas/configuration-audit.schema'
 import { ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema'
 import {
   ConfigurationFilter,
-  PaginationOptions,
-  PaginatedResult,
   CreateConfigurationDTO,
+  PaginatedResult,
+  PaginationOptions,
   UpdateConfigurationDTO,
 } from '@/dynamic-config/interfaces/configuration-repository.interface'
 import { ConfigurationQueryDTO } from '@/dynamic-config/dtos/configuration-query.dto'
+import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
 import { DynamicConfigAuditService } from '@/dynamic-config/services/dynamic-config-audit.service'
 import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository'
 import { DynamicConfigSanitizerService } from '@/dynamic-config/services/dynamic-config-sanitizer.service'
 import { DynamicConfigValidatorService } from '@/dynamic-config/services/dynamic-config-validator.service'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogger } from '@/common/logging/eco-logger'
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
-import { Injectable, Logger, OnModuleInit, Inject, OnModuleDestroy } from '@nestjs/common'
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
@@ -33,14 +38,13 @@ export interface CachedConfiguration {
   value: any
   type: 'string' | 'number' | 'boolean' | 'object' | 'array'
   isRequired: boolean
-  isSecret: boolean
   description?: string
   lastModified: Date
 }
 
 @Injectable()
 export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(DynamicConfigService.name)
+  private readonly logger = new EcoLogger(DynamicConfigService.name)
   private readonly configCache = new Map<string, CachedConfiguration>()
 
   private cacheInitialized = false
@@ -69,7 +73,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn('EventEmitter2 not available - configuration change events will be skipped')
     }
 
-    await this.loadConfigurationsIntoCache()
+    await this.loadDynamicConfigIntoCache()
 
     // Only start cache refresh timer and change streams if EventEmitter is available (indicates full app context)
     if (this.eventEmitter) {
@@ -95,7 +99,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     if (this.cacheInitialized && this.configCache.has(key)) {
       const cached = this.configCache.get(key)!
       this.logger.debug(`Configuration retrieved from cache: ${key}`)
-      return (cached.isSecret ? this.maskSecretValue() : cached.value) as T
+      return cached.value as T
     }
 
     // Fallback to database
@@ -105,10 +109,14 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     if (config) {
       // Update cache
       this.updateCacheEntry(config)
-      return (config.isSecret ? this.maskSecretValue() : config.value) as T
+      return config.value as T
     }
 
     return null
+  }
+
+  async findByKey(key: string): Promise<ConfigurationDocument | null> {
+    return this.configRepository.findByKey(key)
   }
 
   /**
@@ -127,7 +135,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     const filter: ConfigurationFilter = {}
     if (query.type) filter.type = query.type
     if (query.isRequired !== undefined) filter.isRequired = query.isRequired
-    if (query.isSecret !== undefined) filter.isSecret = query.isSecret
     if (query.lastModifiedBy) filter.lastModifiedBy = query.lastModifiedBy
     if (query.createdAfter) filter.createdAfter = new Date(query.createdAfter)
     if (query.createdBefore) filter.createdBefore = new Date(query.createdBefore)
@@ -142,19 +149,38 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       sortOrder: query.sortOrder || SortOrder.DESC,
     }
 
-    return await this.getAll(filter, pagination)
+    return await this.getAllWithFilteringAndPagination(filter, pagination)
   }
 
   /**
    * Get all configurations with filtering and pagination
    */
-  async getAll(
-    filter?: ConfigurationFilter,
+  async getAll(): Promise<PaginatedResult<CachedConfiguration>> {
+    const filter = {}
+
+    const pagination: PaginationOptions = {
+      page: 1,
+      limit: Number.MAX_SAFE_INTEGER,
+      sortBy: 'key',
+      sortOrder: SortOrder.ASC,
+    }
+
+    return await this.getAllWithFilteringAndPagination(filter, pagination)
+  }
+
+  /**
+   * Get all configurations with filtering and pagination
+   */
+  async getAllWithFilteringAndPagination(
+    filter: ConfigurationFilter,
     pagination?: PaginationOptions,
   ): Promise<PaginatedResult<CachedConfiguration>> {
-    const dbResult = await this.configRepository.findAll(filter, pagination)
+    const dbResult = await this.configRepository.findAllWithFilteringAndPagination(
+      filter,
+      pagination,
+    )
 
-    // Convert to cached format and mask secrets
+    // Convert to cached format
     const data = dbResult.data.map((config) => this.convertToCachedFormat(config))
 
     return {
@@ -181,12 +207,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
     // Sanitize configuration value
     const sanitizedValue = this.sanitizer.sanitizeValue(data.value)
-
-    // Auto-detect sensitive values if not explicitly marked
-    if (!data.isSecret && this.sanitizer.detectSensitiveValue(data.key, sanitizedValue)) {
-      this.logger.warn(`Auto-detected sensitive value for key '${data.key}', marking as secret`)
-      data.isSecret = true
-    }
 
     // Create sanitized data object
     const sanitizedData = {
@@ -256,15 +276,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     if (data.value !== undefined) {
       // Sanitize the value
       sanitizedData.value = this.sanitizer.sanitizeValue(data.value)
-
-      // Auto-detect sensitive values if not explicitly marked
-      if (data.isSecret === undefined) {
-        const oldConfig = await this.configRepository.findByKey(key)
-        if (!oldConfig?.isSecret && this.sanitizer.detectSensitiveValue(key, sanitizedData.value)) {
-          this.logger.warn(`Auto-detected sensitive value for key '${key}', marking as secret`)
-          sanitizedData.isSecret = true
-        }
-      }
 
       const validationResult = await this.validator.validateConfiguration(key, sanitizedData.value)
       if (!validationResult.isValid) {
@@ -387,14 +398,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Get all secret configurations (values will be masked)
-   */
-  async getSecrets(): Promise<CachedConfiguration[]> {
-    const configs = await this.configRepository.findSecrets()
-    return configs.map((config) => this.convertToCachedFormat(config))
-  }
-
-  /**
    * Find missing required configurations
    */
   async findMissingRequired(requiredKeys: string[]): Promise<string[]> {
@@ -422,7 +425,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    */
   async refreshCache(): Promise<void> {
     this.logger.log('Refreshing configuration cache...')
-    await this.loadConfigurationsIntoCache()
+    await this.loadDynamicConfigIntoCache()
     this.logger.log('Configuration cache refreshed successfully')
   }
 
@@ -460,18 +463,85 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       const cacheHealthy = this.cacheInitialized
 
       return repoHealthy && cacheHealthy
-    } catch (error) {
-      this.logger.error('Health check failed:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `Health check failed`, this.logger)
       return false
+    }
+  }
+
+  /**
+   * Detailed health check with service status for monitoring
+   * Use this for comprehensive health monitoring and alerting on change stream status
+   */
+  async getDetailedHealthCheck(): Promise<{
+    healthy: boolean
+    repository: boolean
+    cache: boolean
+    changeStreams: {
+      enabled: boolean
+      active: boolean
+      mode: 'real-time' | 'polling' | 'hybrid'
+    }
+    metrics: {
+      cacheSize: number
+      refreshInterval: number
+    }
+  }> {
+    try {
+      const repoHealthy = await this.healthCheck()
+      const status = this.getServiceStatus()
+
+      return {
+        healthy: repoHealthy && this.cacheInitialized,
+        repository: repoHealthy,
+        cache: this.cacheInitialized,
+        changeStreams: {
+          enabled: status.changeStreamsEnabled,
+          active: status.changeStreamsActive,
+          mode: status.mode,
+        },
+        metrics: {
+          cacheSize: status.cacheSize,
+          refreshInterval: status.cacheRefreshInterval,
+        },
+      }
+    } catch (ex) {
+      EcoError.logError(ex, `Detailed health check failed`, this.logger)
+      return {
+        healthy: false,
+        repository: false,
+        cache: false,
+        changeStreams: {
+          enabled: false,
+          active: false,
+          mode: 'polling',
+        },
+        metrics: {
+          cacheSize: 0,
+          refreshInterval: 0,
+        },
+      }
     }
   }
 
   /**
    * Load all configurations into cache
    */
-  private async loadConfigurationsIntoCache(): Promise<void> {
+  private async loadDynamicConfigIntoCache(): Promise<void> {
     try {
-      const allConfigs = await this.configRepository.findAll()
+      const filter = {}
+
+      const pagination: PaginationOptions = {
+        page: 1,
+        limit: Number.MAX_SAFE_INTEGER,
+        sortBy: 'key',
+        sortOrder: SortOrder.ASC,
+      }
+
+      const allConfigs = await this.configRepository.findAllWithFilteringAndPagination(
+        filter,
+        pagination,
+      )
 
       this.configCache.clear()
 
@@ -481,10 +551,10 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
       this.cacheInitialized = true
       this.logger.log(`Loaded ${allConfigs.data.length} configurations into cache`)
-    } catch (error) {
-      this.logger.error('Failed to load configurations into cache:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to load configurations into cache`, this.logger)
       this.cacheInitialized = false
-      throw error
+      throw ex
     }
   }
 
@@ -497,7 +567,6 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       value: config.value,
       type: config.type,
       isRequired: config.isRequired,
-      isSecret: config.isSecret,
       description: config.description,
       lastModified: config.updatedAt,
     }
@@ -511,20 +580,12 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   private convertToCachedFormat(config: ConfigurationDocument): CachedConfiguration {
     return {
       key: config.key,
-      value: config.isSecret ? this.maskSecretValue() : config.value,
+      value: config.value,
       type: config.type,
       isRequired: config.isRequired,
-      isSecret: config.isSecret,
       description: config.description,
       lastModified: config.updatedAt,
     }
-  }
-
-  /**
-   * Mask secret values for security
-   */
-  private maskSecretValue(): string {
-    return '***MASKED***'
   }
 
   /**
@@ -554,21 +615,36 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get configuration audit history
    */
-  async getAuditHistory(configKey: string, limit: number = 50, offset: number = 0) {
+  async getAuditHistoryCountForKey(configKey: string): Promise<number> {
+    return await this.auditService.getConfigurationHistoryCount(configKey)
+  }
+
+  /**
+   * Get configuration audit history
+   */
+  async getAuditHistory(
+    configKey: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
     return await this.auditService.getConfigurationHistory(configKey, limit, offset)
   }
 
   /**
    * Get user activity
    */
-  async getUserActivity(userId: string, limit: number = 50, offset: number = 0) {
+  async getUserActivity(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<ConfigurationAuditDocument[]> {
     return await this.auditService.getUserActivity(userId, limit, offset)
   }
 
   /**
    * Get audit statistics
    */
-  async getAuditStatistics(startDate?: Date, endDate?: Date) {
+  async getAuditStatistics(startDate?: Date, endDate?: Date): Promise<AuditStatistics> {
     return await this.auditService.getAuditStatistics(startDate, endDate)
   }
 
@@ -584,10 +660,12 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
         return
       }
 
-      // This should never be reached since we only emit 'api' and 'change-stream' events
-      this.logger.warn(`Unexpected event source: ${event.source} for key: ${event.key}`)
-    } catch (error) {
-      this.logger.error('Failed to handle configuration change event:', error)
+      if (event.source !== 'api') {
+        // This should never be reached since we only emit 'api' and 'change-stream' events
+        this.logger.warn(`Unexpected event source: ${event.source} for key: ${event.key}`)
+      }
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to handle configuration change event`, this.logger)
     }
   }
 
@@ -603,8 +681,8 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
     this.cacheRefreshTimer = setInterval(async () => {
       try {
         await this.refreshCache()
-      } catch (error) {
-        this.logger.error('Periodic cache refresh failed:', error)
+      } catch (ex) {
+        EcoError.logError(ex, `Periodic cache refresh failed`, this.logger)
       }
     }, interval)
 
@@ -637,15 +715,25 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Start MongoDB Change Streams monitoring for real-time configuration updates
+   *
+   * Requirements:
+   * - MongoDB >= 6.0 for reliable pre-image support
+   * - Pre-images must be enabled on the collection/database
+   * - Replica set or sharded cluster (change streams don't work on standalone)
+   *
+   * Fallback behavior:
+   * - If change streams fail to start, falls back to polling-only mode
+   * - If change streams disconnect, automatically attempts reconnection
+   * - Polling frequency increases when change streams are unavailable
    */
   private async startChangeStreamMonitoring(): Promise<void> {
     try {
       // Create change stream with pipeline to filter only configuration changes
+      // Note: Don't filter by fullDocument.key as it excludes delete operations (fullDocument is null for deletes)
       const pipeline = [
         {
           $match: {
-            'fullDocument.key': { $exists: true },
-            operationType: { $in: ['insert', 'update', 'delete'] },
+            operationType: { $in: ['insert', 'update', 'delete', 'replace'] },
           },
         },
       ]
@@ -662,7 +750,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
         })
 
         // Handle change stream errors
-        this.changeStream.on('error', (error) => {
+        this.changeStream.on('error', (error: unknown) => {
           this.logger.error('MongoDB Change Stream error:', error)
           this.handleChangeStreamError(error)
         })
@@ -678,9 +766,9 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
       // Restart cache refresh timer with longer interval since we have real-time updates
       this.restartCacheRefreshTimer()
-    } catch (error) {
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to start MongoDB Change Streams`, this.logger)
       this.changeStreamActive = false
-      this.logger.error('Failed to start MongoDB Change Streams:', error)
       this.logger.log('Falling back to polling-only mode')
 
       // Ensure we have frequent polling as fallback
@@ -697,20 +785,61 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       const fullDocument = change.fullDocument as any
       const fullDocumentBeforeChange = change.fullDocumentBeforeChange as any
 
-      // Extract configuration key and values
-      const key = fullDocument?.key || fullDocumentBeforeChange?.key
-      const newValue = fullDocument?.value
-      const oldValue = fullDocumentBeforeChange?.value
+      // Extract configuration key and values based on operation type
+      let key: string
+      let newValue: any
+      let oldValue: any
+
+      switch (operationType) {
+        case 'insert':
+        case 'replace':
+          // For inserts/replaces, key and value are in fullDocument
+          key = fullDocument?.key
+          newValue = fullDocument?.value
+          oldValue = fullDocumentBeforeChange?.value // May be undefined for inserts
+          break
+        case 'update':
+          // For updates, key can be in either document, prefer fullDocument
+          key = fullDocument?.key || fullDocumentBeforeChange?.key
+          newValue = fullDocument?.value
+          oldValue = fullDocumentBeforeChange?.value
+          break
+        case 'delete':
+          // For deletes, fullDocument is null, so key must come from fullDocumentBeforeChange
+          key = fullDocumentBeforeChange?.key
+          newValue = undefined // No new value for deletes
+          oldValue = fullDocumentBeforeChange?.value
+          break
+        default:
+          this.logger.warn(`Unsupported change stream operation type: ${operationType}`)
+          return
+      }
 
       if (!key) {
-        this.logger.warn('Change stream event missing configuration key:', change)
+        this.logger.warn(`Change stream event missing configuration key for ${operationType}:`, {
+          operationType,
+          hasFullDocument: !!fullDocument,
+          hasFullDocumentBeforeChange: !!fullDocumentBeforeChange,
+          fullDocumentKeys: fullDocument ? Object.keys(fullDocument) : [],
+          fullDocumentBeforeChangeKeys: fullDocumentBeforeChange
+            ? Object.keys(fullDocumentBeforeChange)
+            : [],
+        })
         return
+      }
+
+      // Map MongoDB operation types to service operation types
+      const opMap: Record<string, 'CREATE' | 'UPDATE' | 'DELETE'> = {
+        insert: 'CREATE',
+        update: 'UPDATE',
+        replace: 'UPDATE',
+        delete: 'DELETE',
       }
 
       // Create configuration change event
       const event: ConfigurationChangeEvent = {
         key,
-        operation: operationType.toUpperCase() as 'CREATE' | 'UPDATE' | 'DELETE',
+        operation: opMap[operationType],
         newValue,
         oldValue,
         timestamp: new Date(),
@@ -720,15 +849,23 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.debug(`Change stream detected: ${key} - ${event.operation}`)
 
-      // Update local cache based on operation type
-      this.updateCacheFromChangeStream(event)
+      // Use fullDocument metadata to update cache; fall back only if absent
+      if (fullDocument) {
+        // Trust DB document
+        this.updateCacheEntry(fullDocument as unknown as ConfigurationDocument)
+        const sanitizedValue = fullDocument.value
+        this.logger.debug(`Cache updated: ${key} = ${sanitizedValue}`)
+      } else {
+        // Fallback when pre-image/full document not available
+        this.updateCacheFromChangeStream(event)
+      }
 
       // Emit event for other services (like EcoConfigService)
       if (this.eventEmitter) {
         this.eventEmitter.emit('configuration.changed', event)
       }
-    } catch (error) {
-      this.logger.error('Error handling change stream event:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `Error handling change stream event`, this.logger)
     }
   }
 
@@ -737,13 +874,13 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
    */
   private inferConfigurationType(value: any): 'string' | 'number' | 'boolean' | 'object' | 'array' {
     if (Array.isArray(value)) {
-      return 'array'
+      return ConfigurationType.ARRAY
     }
     if (value === null || value === undefined) {
-      return 'string'
+      return ConfigurationType.STRING
     }
     if (typeof value === 'object') {
-      return 'object'
+      return ConfigurationType.OBJECT
     }
     return typeof value as 'string' | 'number' | 'boolean'
   }
@@ -764,16 +901,15 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
           value: event.newValue,
           type: this.inferConfigurationType(event.newValue),
           isRequired: false, // Will be determined by validation
-          isSecret: this.sanitizer.detectSensitiveValue(event.key, event.newValue),
           lastModified: event.timestamp,
         }
 
         this.configCache.set(event.key, cachedConfig)
-        const sanitizedValue = cachedConfig.isSecret ? '[REDACTED]' : event.newValue
+        const sanitizedValue = event.newValue
         this.logger.debug(`Cache updated: ${event.key} = ${sanitizedValue}`)
       }
-    } catch (error) {
-      this.logger.error('Error updating cache from change stream:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `Error updating cache from change stream`, this.logger)
     }
   }
 
@@ -802,7 +938,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       try {
         await this.startChangeStreamMonitoring()
       } catch (reconnectError) {
-        this.logger.error('Failed to reconnect change stream:', reconnectError)
+        EcoError.logError(reconnectError, `Failed to reconnect change stream`, this.logger)
         this.logger.log('Continuing with polling-only mode')
       }
     }, 5000) // 5 second delay before reconnection attempt
@@ -822,6 +958,7 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Get configuration service status information
+   * Use this for monitoring and alerting on change stream health
    */
   getServiceStatus(): {
     changeStreamsEnabled: boolean

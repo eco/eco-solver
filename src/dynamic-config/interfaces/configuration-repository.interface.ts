@@ -1,11 +1,11 @@
 import { ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema'
+import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
 
 export interface CreateConfigurationDTO {
   key: string
   value: any
   type: 'string' | 'number' | 'boolean' | 'object' | 'array'
   isRequired?: boolean
-  isSecret?: boolean
   description?: string
   lastModifiedBy?: string
 }
@@ -14,7 +14,6 @@ export interface UpdateConfigurationDTO {
   value?: any
   type?: 'string' | 'number' | 'boolean' | 'object' | 'array'
   isRequired?: boolean
-  isSecret?: boolean
   description?: string
   lastModifiedBy?: string
 }
@@ -23,7 +22,6 @@ export interface ConfigurationFilter {
   keys?: string[]
   type?: 'string' | 'number' | 'boolean' | 'object' | 'array'
   isRequired?: boolean
-  isSecret?: boolean
   lastModifiedBy?: string
   createdAfter?: Date
   createdBefore?: Date
@@ -54,7 +52,7 @@ export interface PaginationOptions {
   page?: number
   limit?: number
   sortBy?: string
-  sortOrder?: 'asc' | 'desc'
+  sortOrder?: SortOrder
 }
 
 export interface PaginatedResult<T> {
@@ -73,8 +71,8 @@ export interface IConfigurationRepository {
   // Basic CRUD operations
   create(data: CreateConfigurationDTO): Promise<ConfigurationDocument>
   findByKey(key: string): Promise<ConfigurationDocument | null>
-  findAll(
-    filter?: ConfigurationFilter,
+  findAllWithFilteringAndPagination(
+    filter: ConfigurationFilter,
     pagination?: PaginationOptions,
   ): Promise<PaginatedResult<ConfigurationDocument>>
   update(key: string, data: UpdateConfigurationDTO): Promise<ConfigurationDocument | null>
@@ -95,7 +93,6 @@ export interface IConfigurationRepository {
 
   // Specialized queries
   findRequired(): Promise<ConfigurationDocument[]>
-  findSecrets(): Promise<ConfigurationDocument[]>
   findByType(
     type: 'string' | 'number' | 'boolean' | 'object' | 'array',
   ): Promise<ConfigurationDocument[]>
@@ -111,7 +108,6 @@ export interface IConfigurationRepository {
     total: number
     byType: Record<string, number>
     required: number
-    secrets: number
     lastModified: Date | null
   }>
 }

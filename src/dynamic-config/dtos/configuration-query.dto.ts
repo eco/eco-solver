@@ -1,5 +1,5 @@
 import { ConfigurationType } from '@/dynamic-config/enums/configuration-type.enum'
-import { IsOptional, IsNumber, IsString, IsEnum, Min, Max } from 'class-validator'
+import { IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 import { SortOrder } from '@/dynamic-config/enums/sort-order.enum'
 import { Transform, Type } from 'class-transformer'
 
@@ -26,12 +26,12 @@ export class ConfigurationQueryDTO {
   type?: ConfigurationType
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined
+    const v = String(value).toLowerCase()
+    return v === 'true' || v === '1' || v === 'yes' || v === 'on'
+  })
   isRequired?: boolean
-
-  @IsOptional()
-  @Transform(({ value }) => value === 'true')
-  isSecret?: boolean
 
   @IsOptional()
   @IsString()

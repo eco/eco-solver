@@ -16,7 +16,7 @@ describe('DynamicConfigValidatorService', () => {
   describe('getSchema', () => {
     it('should return null for unregistered schema', () => {
       const retrieved = service.getSchema('nonexistent.key')
-      expect(retrieved).toBeUndefined()
+      expect(retrieved).toBeNull()
     })
   })
 
@@ -237,40 +237,18 @@ describe('DynamicConfigValidatorService', () => {
 
   describe('Validate Schemas', () => {
     it('should validate common schema patterns', async () => {
-      // Test port validation
-      const validPort = await service.validateConfiguration('port', 3000)
-      expect(validPort.isValid).toBe(true)
-
-      const invalidPort = await service.validateConfiguration('port', 99999)
-      expect(invalidPort.isValid).toBe(false)
-
-      // Test server validation
-      const validServer = await service.validateConfiguration('server', {
-        url: 'https://api.example.com',
-      })
-      expect(validServer.isValid).toBe(true)
-
-      const invalidServer = await service.validateConfiguration('server', { url: 'not-a-url' })
-      expect(invalidServer.isValid).toBe(false)
-
       // Test database validation
-      const validDatabase = await service.validateConfiguration('database', {
-        auth: {
-          enabled: true,
-          username: 'user',
-          password: 'pass',
-          type: 'basic',
-        },
-        uriPrefix: 'mongodb://',
+      const validDatabase = await service.validateConfiguration('mongodb', {
         uri: 'mongodb://localhost:27017',
-        dbName: 'testdb',
-        enableJournaling: true,
       })
       expect(validDatabase.isValid).toBe(true)
 
       // Test AWS validation
       const validAws = await service.validateConfiguration('aws', [
-        { region: 'us-east-1', secretID: 'secret-1' },
+        {
+          region: 'us-east-1',
+          secretID: 'secret-1',
+        },
       ])
       expect(validAws.isValid).toBe(true)
     })

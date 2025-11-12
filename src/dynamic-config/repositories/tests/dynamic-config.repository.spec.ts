@@ -1,10 +1,13 @@
-import { Configuration, ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema'
 import {
+  BulkConfigurationOperation,
+  ConfigurationFilter,
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
-  ConfigurationFilter,
-  BulkConfigurationOperation,
 } from '@/dynamic-config/interfaces/configuration-repository.interface'
+import {
+  Configuration,
+  ConfigurationDocument,
+} from '@/dynamic-config/schemas/configuration.schema'
 import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository'
 import { getModelToken } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
@@ -20,7 +23,6 @@ describe('DynamicConfigRepository', () => {
     value: 'test-value',
     type: 'string',
     isRequired: false,
-    isSecret: false,
     description: 'Test config',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -75,13 +77,12 @@ describe('DynamicConfigRepository', () => {
       value: 'test-value',
       type: 'string',
       isRequired: false,
-      isSecret: false,
       description: 'Test configuration',
     }
 
     it('should create a configuration successfully', async () => {
       const mockSave = jest.fn().mockResolvedValue(mockConfigurationDocument)
-      ;(model as any).mockImplementation(() => ({
+      ;(model as any).mockImplementationOnce(() => ({
         ...mockConfigurationDocument,
         save: mockSave,
       }))
@@ -115,7 +116,7 @@ describe('DynamicConfigRepository', () => {
 
     it('should handle database errors', async () => {
       const mockSave = jest.fn().mockRejectedValue(new Error('Database error'))
-      ;(model as any).mockImplementation(() => ({
+      ;(model as any).mockImplementationOnce(() => ({
         ...mockConfigurationDocument,
         save: mockSave,
       }))
@@ -174,7 +175,13 @@ describe('DynamicConfigRepository', () => {
 
       model.countDocuments.mockReturnValue({ exec: mockCountExec } as any)
 
-      const result = await repository.findAll(undefined, { page: 1, limit: 10 })
+      const result = await repository.findAllWithFilteringAndPagination(
+        {},
+        {
+          page: 1,
+          limit: 10,
+        },
+      )
 
       expect(result.data).toEqual(mockConfigs)
       expect(result.pagination).toEqual({
@@ -209,7 +216,7 @@ describe('DynamicConfigRepository', () => {
 
       model.countDocuments.mockReturnValue({ exec: mockCountExec } as any)
 
-      await repository.findAll(filter)
+      await repository.findAllWithFilteringAndPagination(filter)
 
       expect(model.find).toHaveBeenCalledWith({
         key: { $in: ['test.key1', 'test.key2'] },
@@ -301,7 +308,7 @@ describe('DynamicConfigRepository', () => {
 
       // Mock create operation
       const mockSave = jest.fn().mockResolvedValue(mockConfigurationDocument)
-      ;(model as any).mockImplementation(() => ({
+      ;(model as any).mockImplementationOnce(() => ({
         ...mockConfigurationDocument,
         save: mockSave,
       }))
@@ -428,22 +435,6 @@ describe('DynamicConfigRepository', () => {
     })
   })
 
-  describe('findSecrets', () => {
-    it('should find all secret configurations', async () => {
-      const mockExec = jest.fn().mockResolvedValue([mockConfigurationDocument])
-      model.find.mockReturnValue({
-        sort: jest.fn().mockReturnValue({
-          exec: mockExec,
-        }),
-      } as any)
-
-      const result = await repository.findSecrets()
-
-      expect(model.find).toHaveBeenCalledWith({ isSecret: true })
-      expect(result).toEqual([mockConfigurationDocument])
-    })
-  })
-
   describe('findMissingRequired', () => {
     it('should find missing required configurations', async () => {
       const requiredKeys = ['key1', 'key2', 'key3']
@@ -479,6 +470,7 @@ describe('DynamicConfigRepository', () => {
 
     it('should return false when database is unhealthy', async () => {
       const mockExec = jest.fn().mockRejectedValue(new Error('Database error'))
+
       model.findOne.mockReturnValue({
         limit: jest.fn().mockReturnValue({
           exec: mockExec,
@@ -503,7 +495,6 @@ describe('DynamicConfigRepository', () => {
         .mockResolvedValueOnce(10) // total
         .mockResolvedValueOnce(mockStats) // typeStats
         .mockResolvedValueOnce(3) // required
-        .mockResolvedValueOnce(2) // secrets
         .mockResolvedValueOnce({ updatedAt: new Date('2023-01-01') }) // lastModified
 
       model.countDocuments.mockReturnValue({ exec: mockExec } as any)
@@ -522,7 +513,6 @@ describe('DynamicConfigRepository', () => {
         total: 10,
         byType: { string: 5, number: 3 },
         required: 3,
-        secrets: 2,
         lastModified: new Date('2023-01-01'),
       })
     })

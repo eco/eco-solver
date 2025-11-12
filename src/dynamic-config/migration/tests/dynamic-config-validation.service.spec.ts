@@ -13,23 +13,9 @@ describe('DynamicConfigValidationService', () => {
       key: 'database',
       value: {
         uri: 'mongodb://localhost:27017/test',
-        dbName: 'test-db',
-        auth: { enabled: true },
       },
       type: 'object' as const,
       isRequired: true,
-      isSecret: false,
-      lastModified: new Date(),
-    },
-    {
-      key: 'server',
-      value: {
-        url: 'https://api.example.com',
-        port: 3000,
-      },
-      type: 'object' as const,
-      isRequired: true,
-      isSecret: false,
       lastModified: new Date(),
     },
     {
@@ -39,17 +25,6 @@ describe('DynamicConfigValidationService', () => {
       },
       type: 'object' as const,
       isRequired: true,
-      isSecret: false,
-      lastModified: new Date(),
-    },
-    {
-      key: 'eth',
-      value: {
-        privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-      },
-      type: 'object' as const,
-      isRequired: false,
-      isSecret: true,
       lastModified: new Date(),
     },
   ]
@@ -109,7 +84,6 @@ describe('DynamicConfigValidationService', () => {
           },
           type: 'object' as const,
           isRequired: false,
-          isSecret: true,
           lastModified: new Date(),
         },
       ]
@@ -151,7 +125,6 @@ describe('DynamicConfigValidationService', () => {
     it('should validate a valid configuration', async () => {
       const result = await service.validateSingleConfiguration('database', {
         uri: 'mongodb://localhost:27017/test',
-        dbName: 'test-db',
       })
 
       expect(result.errors).toEqual([])

@@ -2,6 +2,8 @@ import {
   ConfigurationAudit,
   ConfigurationAuditDocument,
 } from '@/dynamic-config/schemas/configuration-audit.schema'
+import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
@@ -57,11 +59,21 @@ export class DynamicConfigAuditRepository {
       })
 
       const savedLog = await auditLog.save()
-      this.logger.debug(`Audit log created for config: ${entry.configKey}`)
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `create: Audit log created for config: ${entry.configKey}}`,
+        }),
+      )
+
       return savedLog
-    } catch (error) {
-      this.logger.error(`Failed to create audit log for ${entry.configKey}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `create: Failed to create audit log for ${entry.configKey})`,
+        this.logger,
+      )
+      throw ex
     }
   }
 
@@ -82,9 +94,9 @@ export class DynamicConfigAuditRepository {
       ])
 
       return { logs, total }
-    } catch (error) {
-      this.logger.error(`Failed to get history for ${configKey}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `findHistory: Failed to get history for ${configKey})`, this.logger)
+      throw ex
     }
   }
 
@@ -105,9 +117,13 @@ export class DynamicConfigAuditRepository {
       ])
 
       return { logs, total }
-    } catch (error) {
-      this.logger.error(`Failed to get user activity for ${userId}:`, error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `findUserActivity: Failed to get user activity for ${userId})`,
+        this.logger,
+      )
+      throw ex
     }
   }
 
@@ -170,9 +186,9 @@ export class DynamicConfigAuditRepository {
         topConfigs: result.topConfigs,
         recentActivity,
       }
-    } catch (error) {
-      this.logger.error('Failed to get audit statistics:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `getStatistics: Failed to get audit statistics`, this.logger)
+      throw ex
     }
   }
 
@@ -183,9 +199,36 @@ export class DynamicConfigAuditRepository {
     try {
       const query = this.buildQuery(filter)
       return await this.auditModel.find(query).sort({ timestamp: -1 }).exec()
-    } catch (error) {
-      this.logger.error('Failed to find audit logs with filter:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `findWithFilter: Failed to find audit logs with filter`, this.logger)
+      throw ex
+    }
+  }
+
+  /**
+   * Find audit logs with filtering and pagination
+   */
+  async findWithFilterPaginated(
+    filter: AuditFilter,
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
+    try {
+      const query = this.buildQuery(filter)
+
+      const [logs, total] = await Promise.all([
+        this.auditModel.find(query).sort({ timestamp: -1 }).skip(offset).limit(limit).exec(),
+        this.auditModel.countDocuments(query).exec(),
+      ])
+
+      return { logs, total }
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `findWithFilterPaginated: Failed to find audit logs with filter and pagination`,
+        this.logger,
+      )
+      throw ex
     }
   }
 
@@ -195,11 +238,17 @@ export class DynamicConfigAuditRepository {
   async deleteOlderThan(date: Date): Promise<number> {
     try {
       const result = await this.auditModel.deleteMany({ timestamp: { $lt: date } }).exec()
-      this.logger.log(`Deleted ${result.deletedCount} old audit logs`)
+
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: `deleteOlderThan: Deleted ${result.deletedCount} old audit logs`,
+        }),
+      )
+
       return result.deletedCount || 0
-    } catch (error) {
-      this.logger.error('Failed to delete old audit logs:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `deleteOlderThan: Failed to delete old audit logs`, this.logger)
+      throw ex
     }
   }
 
@@ -210,9 +259,9 @@ export class DynamicConfigAuditRepository {
     try {
       const query = filter ? this.buildQuery(filter) : {}
       return await this.auditModel.countDocuments(query).exec()
-    } catch (error) {
-      this.logger.error('Failed to count audit logs:', error)
-      throw error
+    } catch (ex) {
+      EcoError.logError(ex, `count: Failed to count audit logs`, this.logger)
+      throw ex
     }
   }
 
@@ -254,8 +303,8 @@ export class DynamicConfigAuditRepository {
     try {
       await this.auditModel.findOne().limit(1).exec()
       return true
-    } catch (error) {
-      this.logger.error('Audit repository health check failed:', error)
+    } catch (ex) {
+      EcoError.logError(ex, `healthCheck: Audit repository health check failed`, this.logger)
       return false
     }
   }

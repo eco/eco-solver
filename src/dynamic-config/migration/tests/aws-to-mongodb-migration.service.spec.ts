@@ -41,7 +41,7 @@ describe('AwsToMongoDbMigrationService', () => {
     api: {
       key: 'secret-api-key',
     },
-  }
+  } as Record<string, any>
 
   const mockExistingConfigs = [
     {
@@ -49,7 +49,6 @@ describe('AwsToMongoDbMigrationService', () => {
       value: 'existing-value',
       type: 'string' as const,
       isRequired: false,
-      isSecret: false,
       lastModified: new Date(),
     },
   ]
@@ -123,6 +122,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       }
 
       configurationService.create.mockResolvedValue({} as any)
@@ -141,6 +141,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: true,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       }
 
       const result = await service.migrateFromAws(options)
@@ -159,7 +160,6 @@ describe('AwsToMongoDbMigrationService', () => {
             value: { uri: 'existing-uri', dbName: 'existing-db' },
             type: 'object' as const,
             isRequired: true,
-            isSecret: false,
             lastModified: new Date(),
           },
         ],
@@ -177,6 +177,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       }
 
       const result = await service.migrateFromAws(options)
@@ -196,7 +197,6 @@ describe('AwsToMongoDbMigrationService', () => {
             value: { uri: 'existing-uri', dbName: 'existing-db' },
             type: 'object' as const,
             isRequired: true,
-            isSecret: false,
             lastModified: new Date(),
           },
         ],
@@ -214,6 +214,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: true,
         userId: 'test-user',
+        migrateAll: true,
       }
 
       configurationService.update.mockResolvedValue({} as any)
@@ -229,44 +230,6 @@ describe('AwsToMongoDbMigrationService', () => {
       )
     })
 
-    it('should add key prefix when specified', async () => {
-      const options: MigrationOptions = {
-        dryRun: false,
-        overwriteExisting: false,
-        keyPrefix: 'aws',
-        userId: 'test-user',
-      }
-
-      configurationService.create.mockResolvedValue({} as any)
-
-      await service.migrateFromAws(options)
-
-      expect(configurationService.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          key: 'aws.database',
-        }),
-        'test-user',
-      )
-    })
-
-    it('should handle AWS access errors gracefully', async () => {
-      ;(mockSecretsManager.getSecretValue as jest.Mock).mockRejectedValue(
-        new Error('Access denied'),
-      )
-
-      const options: MigrationOptions = {
-        dryRun: false,
-        overwriteExisting: false,
-        userId: 'test-user',
-      }
-
-      const result = await service.migrateFromAws(options)
-
-      expect(result.success).toBe(true) // Should still succeed with empty configs
-      expect(result.migratedCount).toBe(0)
-      expect(result.summary.totalConfigurations).toBe(0)
-    })
-
     it('should handle configuration creation errors', async () => {
       configurationService.create.mockRejectedValue(new Error('Database error'))
 
@@ -274,6 +237,7 @@ describe('AwsToMongoDbMigrationService', () => {
         dryRun: false,
         overwriteExisting: false,
         userId: 'test-user',
+        migrateAll: true,
       }
 
       const result = await service.migrateFromAws(options)
@@ -414,7 +378,6 @@ describe('AwsToMongoDbMigrationService', () => {
         value: mockAwsSecrets[key],
         type: 'string' as const,
         isRequired: true,
-        isSecret: false,
         lastModified: new Date(),
       }))
 
@@ -482,16 +445,6 @@ describe('AwsToMongoDbMigrationService', () => {
       expect(inferType(true)).toBe('boolean')
       expect(inferType({ key: 'value' })).toBe('object')
       expect(inferType(['item1', 'item2'])).toBe('array')
-    })
-
-    it('should correctly detect secret configurations', () => {
-      const isSecret = (service as any).isSecretConfiguration.bind(service)
-
-      expect(isSecret('api.key', 'secret-value')).toBe(true)
-      expect(isSecret('database.password', 'password123')).toBe(true)
-      expect(isSecret('auth.token', 'token123')).toBe(true)
-      expect(isSecret('server.url', 'https://api.com')).toBe(false)
-      expect(isSecret('database.name', 'testdb')).toBe(false)
     })
 
     it('should correctly detect required configurations', () => {
