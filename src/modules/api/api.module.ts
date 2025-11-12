@@ -1,6 +1,6 @@
 import { DynamicModule, Module, OnModuleInit } from '@nestjs/common';
 
-import { configurationFactory } from '@/config/configuration-factory';
+import { ConfigFactory } from '@/config/config-factory';
 import { ConfigModule } from '@/modules/config/config.module';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -17,7 +17,7 @@ export class ApiModule implements OnModuleInit {
   ) {}
 
   static async forRootAsync(): Promise<DynamicModule> {
-    const config = await configurationFactory();
+    const config = await ConfigFactory.loadConfig();
 
     const imports = [ConfigModule, LoggingModule, BlockchainApiModule];
 
