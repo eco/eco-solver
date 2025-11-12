@@ -71,7 +71,8 @@
       "Bash(src/modules/rhinestone/services/tests/rhinestone-action-processor.spec.ts )",
       "Bash(src/modules/rhinestone/services/index.ts)",
       "Bash(src/modules/blockchain/blockchain-executor.service.ts )",
-      "Bash(src/modules/blockchain/evm/services/evm.executor.service.ts)"
+      "Bash(src/modules/blockchain/evm/services/evm.executor.service.ts)",
+      "Bash(src/modules/blockchain/blockchain.processor.ts)"
     ],
     "deny": [],
     "ask": []
