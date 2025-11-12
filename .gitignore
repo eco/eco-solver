@@ -59,6 +59,7 @@ config.yml
 
 CLAUDE.md
 /config*
+.vscode/
 
 # Secret detection
 # Note: .secretlintrc.json and .secretlintignore are tracked to share configuration with the team

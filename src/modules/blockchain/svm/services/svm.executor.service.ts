@@ -25,6 +25,7 @@ import {
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
+import { ISvmWallet } from '@/common/interfaces/svm-wallet.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -56,7 +57,8 @@ import { SvmWalletManagerService, SvmWalletType } from './svm-wallet-manager.ser
 export class SvmExecutorService extends BaseChainExecutor {
   private readonly connection: Connection;
   private portalProgram: Program<PortalIdl> | null = null;
-  private keypair: Keypair | null = null;
+  private wallet: ISvmWallet | null = null;
+  private publicKey: PublicKey | null = null;
   private isInitialized = false;
 
   constructor(
@@ -108,8 +110,8 @@ export class SvmExecutorService extends BaseChainExecutor {
           }
         }
 
-        if (!this.portalProgram || !this.keypair) {
-          const error = new Error('Portal program or keypair not properly initialized');
+        if (!this.portalProgram || !this.wallet || !this.publicKey) {
+          const error = new Error('Portal program or wallet not properly initialized');
           span.recordException(error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           span.end();
@@ -278,8 +280,8 @@ export class SvmExecutorService extends BaseChainExecutor {
             span.addEvent('svm.batch_withdraw.initialization.completed');
           }
 
-          if (!this.portalProgram || !this.keypair) {
-            const error = new Error('Portal program or keypair not properly initialized');
+          if (!this.portalProgram || !this.wallet || !this.publicKey) {
+            const error = new Error('Portal program or wallet not properly initialized');
             span.recordException(error);
             span.setStatus({ code: api.SpanStatusCode.ERROR });
             throw error;
@@ -295,7 +297,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           span.setAttributes({
             'svm.destinations_count': withdrawalData.destinations?.length || 0,
             'svm.portal_program_id': this.portalProgram.programId.toString(),
-            'svm.payer_address': this.keypair.publicKey.toString(),
+            'svm.payer_address': this.publicKey.toString(),
           });
 
           // Track instruction generation phase
@@ -347,7 +349,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           const transaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
-            feePayer: wallet.getKeypair().publicKey,
+            feePayer: await wallet.getAddress(),
           })
             .add(computeBudgetIx)
             .add(...ataCreationInstructions)
@@ -572,7 +574,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
         const withdrawalIx = await this.portalProgram!.methods.withdraw(withdrawArgs)
           .accounts({
-            payer: this.keypair!.publicKey,
+            payer: this.publicKey!,
             claimant: claimantPublicKey,
             vault: vaultPDA,
             proof: proofPDA,
@@ -741,7 +743,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         if (!claimantATAInfo) {
           // Create ATA instruction for claimant
           const createATAIx = createAssociatedTokenAccountInstruction(
-            this.keypair!.publicKey,
+            this.publicKey!,
             claimantATA,
             claimantPublicKey,
             mintPublicKey,
@@ -868,15 +870,15 @@ export class SvmExecutorService extends BaseChainExecutor {
   }
 
   private async generateFulfillIxWithSpan(intent: Intent, span: api.Span) {
-    if (!this.portalProgram || !this.keypair) {
-      throw new Error('Portal program not initialized');
+    if (!this.portalProgram || !this.wallet || !this.publicKey) {
+      throw new Error('Portal program or wallet not initialized');
     }
 
     span.addEvent('svm.fulfill.token_accounts.generation.started');
 
     const tokenAccounts = await getTokenAccounts(
       intent.route,
-      this.keypair,
+      this.publicKey,
       this.portalProgram.idl.address,
     );
 
@@ -987,8 +989,8 @@ export class SvmExecutorService extends BaseChainExecutor {
     const fulfillmentIx = await this.portalProgram.methods
       .fulfill(fulfillArgs)
       .accounts({
-        payer: this.keypair.publicKey,
-        solver: this.keypair.publicKey,
+        payer: this.publicKey,
+        solver: this.publicKey,
         executor: executorPDA,
         fulfillMarker: fulfillMarkerPDA,
       })
@@ -1054,7 +1056,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           const transaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
-            feePayer: wallet.getKeypair().publicKey,
+            feePayer: await wallet.getAddress(),
           })
             .add(computeBudgetIx)
             .add(...transferInstructions)
@@ -1174,17 +1176,18 @@ export class SvmExecutorService extends BaseChainExecutor {
           txSpan.addEvent('svm.prove.transaction_build.started');
 
           const { blockhash } = await this.connection.getLatestBlockhash('processed');
+          const wallet = this.walletManager.getWallet();
+          const walletPublicKey = await wallet.getAddress();
 
           const messageV0 = new TransactionMessage({
-            payerKey: this.walletManager.getWallet().getKeypair().publicKey,
+            payerKey: walletPublicKey,
             recentBlockhash: blockhash,
             instructions: [computeBudgetIx, proveResult.instruction],
           }).compileToV0Message();
-          const versionedTx = new VersionedTransaction(messageV0);
+          let versionedTx = new VersionedTransaction(messageV0);
 
-          // sign with wallet keypair first
-          const wallet = this.walletManager.getWallet();
-          versionedTx.sign([wallet.getKeypair()]);
+          // sign with wallet first
+          versionedTx = (await wallet.signTransaction(versionedTx)) as VersionedTransaction;
 
           // sign with additional signers (unique message keypair)
           versionedTx.sign(proveResult.signers);
@@ -1446,7 +1449,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
       const context = {
         portalProgram: this.portalProgram,
-        keypair: this.keypair!,
+        publicKey: this.publicKey!,
         proverAddress,
         intentHash: intentHashBuffer,
         fulfillMarkerPDA,
@@ -1637,7 +1640,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           });
 
           const wallet = this.walletManager.getWallet();
-          const payer = wallet.getKeypair().publicKey;
+          const payer = await wallet.getAddress();
 
           const {
             instruction: payForGasInstruction,
@@ -1662,7 +1665,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           const { blockhash, lastValidBlockHeight } =
             await this.connection.getLatestBlockhash('processed');
-          const payForGasTransaction = new Transaction({
+          let payForGasTransaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
             feePayer: payer,
@@ -1675,8 +1678,11 @@ export class SvmExecutorService extends BaseChainExecutor {
           payForGasTransaction.add(computeBudgetIx);
           payForGasTransaction.add(payForGasInstruction);
 
-          // Sign the transaction with both wallet keypair and unique gas payment keypair
-          payForGasTransaction.sign(wallet.getKeypair(), uniqueGasPaymentKeypair);
+          // Sign the transaction with wallet first, then with unique gas payment keypair
+          payForGasTransaction = (await wallet.signTransaction(
+            payForGasTransaction,
+          )) as Transaction;
+          payForGasTransaction.partialSign(uniqueGasPaymentKeypair);
 
           span.addEvent('svm.gas_payment.submitting', {
             quoted_amount: quotedAmount.toString(),
@@ -1761,11 +1767,12 @@ export class SvmExecutorService extends BaseChainExecutor {
   private async initializeProgramWithSpan(span: api.Span): Promise<void> {
     span.addEvent('svm.initialize.wallet_setup.started');
 
-    // Get cached wallet instance and extract keypair for Anchor
+    // Get cached wallet instance and public key
     const svmWallet = this.walletManager.getWallet();
-    this.keypair = svmWallet.getKeypair();
+    this.wallet = svmWallet;
+    this.publicKey = await svmWallet.getAddress();
 
-    const walletAddress = this.keypair.publicKey.toString();
+    const walletAddress = this.publicKey.toString();
 
     span.setAttributes({
       'svm.wallet_address': walletAddress,
@@ -1778,7 +1785,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     // Create Anchor provider with wallet adapter
     span.addEvent('svm.initialize.provider_creation.started');
 
-    const anchorWallet = getAnchorWallet(this.keypair);
+    const anchorWallet = getAnchorWallet(this.wallet, this.publicKey);
 
     const provider = new AnchorProvider(this.connection, anchorWallet, {
       commitment: 'confirmed',
