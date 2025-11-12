@@ -50,11 +50,13 @@ export class RequestSignatureGuard implements CanActivate {
             message: EcoError.getErrorMessage(error),
           }),
         )
+
+        throw new UnauthorizedException(`Invalid or expired signature`)
       }
 
-      return !error
+      return true
     } catch (ex) {
-      throw new UnauthorizedException(`Invalid or expired signature: ${ex.message}`)
+      throw new UnauthorizedException(`Invalid or expired signature`)
     }
   }
 }

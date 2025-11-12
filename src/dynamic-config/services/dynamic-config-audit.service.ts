@@ -151,7 +151,7 @@ export class DynamicConfigAuditService {
    */
   async exportAuditLogs(filter: AuditFilter = {}): Promise<string> {
     try {
-      const { logs } = await this.auditRepository.findWithFilterPaginated(filter)
+      const { logs } = await this.auditRepository.getAll(filter)
 
       return JSON.stringify(
         logs.map((log) => ({
