@@ -19,6 +19,7 @@ import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 import { RhinestoneModule } from '@/modules/rhinestone/rhinestone.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
+import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,
+    DynamicConfigModule,
   ],
   providers: [Logger],
 })

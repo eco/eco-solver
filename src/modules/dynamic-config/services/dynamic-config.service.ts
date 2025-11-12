@@ -1,0 +1,1006 @@
+import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
+import {
+  ConfigurationFilter,
+  CreateConfigurationDTO,
+  PaginatedResult,
+  PaginationOptions,
+  UpdateConfigurationDTO,
+} from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
+import { AuditStatistics } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
+import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
+import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
+import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
+import { ConfigFactory } from '@/config/config-factory';
+import { EcoError } from '@/errors/eco-error';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
+
+export interface ConfigurationChangeEvent {
+  key: string;
+  operation: 'CREATE' | 'UPDATE' | 'DELETE';
+  oldValue?: any;
+  newValue?: any;
+  userId?: string;
+  userAgent?: string;
+  timestamp: Date;
+  source?: 'api' | 'change-stream' | 'migration' | 'external';
+}
+
+export interface CachedConfiguration {
+  key: string;
+  value: any;
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  isRequired: boolean;
+  description?: string;
+  lastModified: Date;
+}
+
+@Injectable()
+export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new EcoLogger(DynamicConfigService.name);
+  private readonly configCache = new Map<string, CachedConfiguration>();
+
+  private cacheInitialized = false;
+  private readonly CACHE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes (fallback polling)
+  private readonly CACHE_REFRESH_INTERVAL_WITH_CHANGE_STREAMS = 30 * 60 * 1000; // 30 minutes (reduced polling when change streams work)
+  private cacheRefreshTimer?: NodeJS.Timeout;
+  private changeStream?: any;
+  private changeStreamEnabled = process.env.MONGODB_CHANGE_STREAMS_ENABLED !== 'false'; // Default enabled
+  private changeStreamActive = false; // Track if change streams are working
+
+  constructor(
+    @Inject(DynamicConfigRepository) private readonly configRepository: DynamicConfigRepository,
+    private readonly eventEmitter: EventEmitter2,
+    @Inject(DynamicConfigValidatorService)
+    private readonly validator: DynamicConfigValidatorService,
+    @Inject(DynamicConfigAuditService) private readonly auditService: DynamicConfigAuditService,
+    @Inject(DynamicConfigSanitizerService)
+    private readonly sanitizer: DynamicConfigSanitizerService,
+    @InjectModel('Configuration') private readonly configModel: Model<ConfigurationDocument>,
+  ) {}
+
+  async onModuleInit() {
+    this.logger.log('Initializing ConfigurationService...');
+
+    if (!this.eventEmitter) {
+      this.logger.warn('EventEmitter2 not available - configuration change events will be skipped');
+    }
+
+    await this.loadDynamicConfigIntoCache();
+
+    // Only start cache refresh timer and change streams if EventEmitter is available (indicates full app context)
+    if (this.eventEmitter) {
+      // Start MongoDB Change Streams for real-time updates
+      if (this.changeStreamEnabled) {
+        await this.startChangeStreamMonitoring();
+      }
+
+      // Start cache refresh timer with appropriate interval based on change stream status
+      this.startCacheRefreshTimer();
+    } else {
+      this.logger.log('Cache refresh timer and change streams skipped (CLI context)');
+    }
+
+    this.logger.log('ConfigurationService initialized successfully');
+    await ConfigFactory.connectDynamicConfig();
+  }
+
+  /**
+   * Get a configuration value by key with caching
+   */
+  async get<T = any>(key: string): Promise<T | null> {
+    // Try cache first
+    if (this.cacheInitialized && this.configCache.has(key)) {
+      const cached = this.configCache.get(key)!;
+      this.logger.debug(`Configuration retrieved from cache: ${key}`);
+      return cached.value as T;
+    }
+
+    // Fallback to database
+    this.logger.debug(`Configuration not in cache, fetching from database: ${key}`);
+    const config = await this.configRepository.findByKey(key);
+
+    if (config) {
+      // Update cache
+      this.updateCacheEntry(config);
+      return config.value as T;
+    }
+
+    return null;
+  }
+
+  async findByKey(key: string): Promise<ConfigurationDocument | null> {
+    return this.configRepository.findByKey(key);
+  }
+
+  /**
+   * Get a configuration value with a default fallback
+   */
+  async getWithDefault<T = any>(key: string, defaultValue: T): Promise<T> {
+    const value = await this.get<T>(key);
+    return value !== null ? value : defaultValue;
+  }
+
+  /**
+   * Get all configurations with filtering and pagination
+   */
+  async getAllQuery(query: ConfigurationQueryDTO): Promise<PaginatedResult<CachedConfiguration>> {
+    // Build filter from query parameters
+    const filter: ConfigurationFilter = {};
+    if (query.type) filter.type = query.type;
+    if (query.isRequired !== undefined) filter.isRequired = query.isRequired;
+    if (query.lastModifiedBy) filter.lastModifiedBy = query.lastModifiedBy;
+    if (query.createdAfter) filter.createdAfter = new Date(query.createdAfter);
+    if (query.createdBefore) filter.createdBefore = new Date(query.createdBefore);
+    if (query.updatedAfter) filter.updatedAfter = new Date(query.updatedAfter);
+    if (query.updatedBefore) filter.updatedBefore = new Date(query.updatedBefore);
+
+    // Build pagination options
+    const pagination = {
+      page: query.page || 1,
+      limit: query.limit || 50,
+      sortBy: query.sortBy || 'key',
+      sortOrder: query.sortOrder || SortOrder.DESC,
+    };
+
+    return await this.getAllWithFilteringAndPagination(filter, pagination);
+  }
+
+  /**
+   * Get all configurations with filtering and pagination
+   */
+  async getAll(): Promise<PaginatedResult<CachedConfiguration>> {
+    const filter = {};
+
+    const pagination: PaginationOptions = {
+      page: 1,
+      limit: Number.MAX_SAFE_INTEGER,
+      sortBy: 'key',
+      sortOrder: SortOrder.ASC,
+    };
+
+    return await this.getAllWithFilteringAndPagination(filter, pagination);
+  }
+
+  /**
+   * Get all configurations with filtering and pagination
+   */
+  async getAllWithFilteringAndPagination(
+    filter: ConfigurationFilter,
+    pagination?: PaginationOptions,
+  ): Promise<PaginatedResult<CachedConfiguration>> {
+    const dbResult = await this.configRepository.findAllWithFilteringAndPagination(
+      filter,
+      pagination,
+    );
+
+    // Convert to cached format
+    const data = dbResult.data.map((config) => this.convertToCachedFormat(config));
+
+    return {
+      data,
+      pagination: dbResult.pagination,
+    };
+  }
+
+  /**
+   * Create a new configuration with user context
+   */
+  async create(
+    data: CreateConfigurationDTO,
+    userId?: string,
+    userAgent?: string,
+  ): Promise<ConfigurationDocument> {
+    this.logger.log(`Creating configuration: ${data.key}`);
+
+    // Validate and sanitize configuration key
+    const keyValidation = this.sanitizer.validateConfigurationKey(data.key);
+    if (!keyValidation.isValid) {
+      throw new Error(`Invalid configuration key: ${keyValidation.error}`);
+    }
+
+    // Sanitize configuration value
+    const sanitizedValue = this.sanitizer.sanitizeValue(data.value);
+
+    // Create sanitized data object
+    const sanitizedData = {
+      ...data,
+      value: sanitizedValue,
+    };
+
+    // Validate configuration value
+    const validationResult = await this.validator.validateConfiguration(
+      sanitizedData.key,
+      sanitizedData.value,
+    );
+    if (!validationResult.isValid) {
+      throw new Error(`Configuration validation failed: ${validationResult.errors.join(', ')}`);
+    }
+
+    // Log warnings if any
+    if (validationResult.warnings.length > 0) {
+      this.logger.warn(
+        `Configuration warnings for '${sanitizedData.key}': ${validationResult.warnings.join(', ')}`,
+      );
+    }
+
+    const config = await this.configRepository.create(sanitizedData);
+
+    // Update cache
+    this.updateCacheEntry(config);
+
+    // Create audit log directly for API calls
+    await this.auditService.createAuditLog({
+      configKey: data.key,
+      operation: 'CREATE',
+      newValue: data.value,
+      userId: userId || 'unknown',
+      userAgent,
+      timestamp: new Date(),
+    });
+
+    // Emit change event
+    this.emitConfigurationChange({
+      key: data.key,
+      operation: 'CREATE',
+      newValue: data.value,
+      userId,
+      userAgent,
+      timestamp: new Date(),
+      source: 'api',
+    });
+
+    this.logger.log(`Configuration created successfully: ${data.key}`);
+    return config;
+  }
+
+  /**
+   * Update an existing configuration with user context
+   */
+  async update(
+    key: string,
+    data: UpdateConfigurationDTO,
+    userId?: string,
+    userAgent?: string,
+  ): Promise<ConfigurationDocument | null> {
+    this.logger.log(`Updating configuration: ${key}`);
+
+    // Sanitize and validate configuration value if provided
+    const sanitizedData = { ...data };
+    if (data.value !== undefined) {
+      // Sanitize the value
+      sanitizedData.value = this.sanitizer.sanitizeValue(data.value);
+
+      const validationResult = await this.validator.validateConfiguration(key, sanitizedData.value);
+      if (!validationResult.isValid) {
+        throw new Error(`Configuration validation failed: ${validationResult.errors.join(', ')}`);
+      }
+
+      // Log warnings if any
+      if (validationResult.warnings.length > 0) {
+        this.logger.warn(
+          `Configuration warnings for '${key}': ${validationResult.warnings.join(', ')}`,
+        );
+      }
+    }
+
+    // Get old value for audit
+    const oldConfig = await this.configRepository.findByKey(key);
+    const oldValue = oldConfig?.value;
+
+    const updatedConfig = await this.configRepository.update(key, sanitizedData);
+
+    if (updatedConfig) {
+      // Update cache
+      this.updateCacheEntry(updatedConfig);
+
+      // Create audit log directly for API calls
+      await this.auditService.createAuditLog({
+        configKey: key,
+        operation: 'UPDATE',
+        oldValue,
+        newValue: data.value,
+        userId: userId || 'unknown',
+        userAgent,
+        timestamp: new Date(),
+      });
+
+      // Emit change event
+      this.emitConfigurationChange({
+        key,
+        operation: 'UPDATE',
+        oldValue,
+        newValue: data.value,
+        userId,
+        userAgent,
+        timestamp: new Date(),
+        source: 'api',
+      });
+
+      this.logger.log(`Configuration updated successfully: ${key}`);
+    } else {
+      this.logger.warn(`Configuration not found for update: ${key}`);
+    }
+
+    return updatedConfig;
+  }
+
+  /**
+   * Delete a configuration with user context
+   */
+  async delete(key: string, userId?: string, userAgent?: string): Promise<boolean> {
+    this.logger.log(`Deleting configuration: ${key}`);
+
+    // Get old value for audit
+    const oldConfig = await this.configRepository.findByKey(key);
+    const oldValue = oldConfig?.value;
+
+    // Check if configuration is required
+    if (oldConfig?.isRequired) {
+      throw new Error(`Cannot delete required configuration: ${key}`);
+    }
+
+    const deleted = await this.configRepository.delete(key);
+
+    if (deleted) {
+      // Remove from cache
+      this.configCache.delete(key);
+
+      // Create audit log directly for API calls
+      await this.auditService.createAuditLog({
+        configKey: key,
+        operation: 'DELETE',
+        oldValue,
+        userId: userId || 'unknown',
+        userAgent,
+        timestamp: new Date(),
+      });
+
+      // Emit change event
+      this.emitConfigurationChange({
+        key,
+        operation: 'DELETE',
+        oldValue,
+        userId,
+        userAgent,
+        timestamp: new Date(),
+        source: 'api',
+      });
+
+      this.logger.log(`Configuration deleted successfully: ${key}`);
+    } else {
+      this.logger.warn(`Configuration not found for deletion: ${key}`);
+    }
+
+    return deleted;
+  }
+
+  /**
+   * Check if a configuration exists
+   */
+  async exists(key: string): Promise<boolean> {
+    // Always check database for existence to avoid stale cache issues
+    return await this.configRepository.exists(key);
+  }
+
+  /**
+   * Get all required configurations
+   */
+  async getRequired(): Promise<CachedConfiguration[]> {
+    const configs = await this.configRepository.findRequired();
+    return configs.map((config) => this.convertToCachedFormat(config));
+  }
+
+  /**
+   * Find missing required configurations
+   */
+  async findMissingRequired(requiredKeys: string[]): Promise<string[]> {
+    return await this.configRepository.findMissingRequired(requiredKeys);
+  }
+
+  /**
+   * Get configuration statistics
+   */
+  async getStatistics() {
+    const dbStats = await this.configRepository.getStatistics();
+
+    return {
+      ...dbStats,
+      cache: {
+        size: this.configCache.size,
+        initialized: this.cacheInitialized,
+        lastRefresh: new Date(),
+      },
+    };
+  }
+
+  /**
+   * Refresh the configuration cache
+   */
+  async refreshCache(): Promise<void> {
+    this.logger.log('Refreshing configuration cache...');
+    await this.loadDynamicConfigIntoCache();
+    this.logger.log('Configuration cache refreshed successfully');
+  }
+
+  /**
+   * Clear the configuration cache
+   */
+  clearCache(): void {
+    this.logger.log('Clearing configuration cache...');
+    this.configCache.clear();
+    this.cacheInitialized = false;
+    this.logger.log('Configuration cache cleared');
+  }
+
+  /**
+   * Get cache status and metrics
+   */
+  getCacheMetrics() {
+    return {
+      size: this.configCache.size,
+      initialized: this.cacheInitialized,
+      keys: Array.from(this.configCache.keys()),
+      memoryUsage: process.memoryUsage(),
+    };
+  }
+
+  /**
+   * Health check for the configuration service
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      // Check repository health
+      const repoHealthy = await this.configRepository.healthCheck();
+
+      // Check cache status
+      const cacheHealthy = this.cacheInitialized;
+
+      return repoHealthy && cacheHealthy;
+    } catch (ex) {
+      EcoError.logError(ex, `Health check failed`, this.logger);
+      return false;
+    }
+  }
+
+  /**
+   * Detailed health check with service status for monitoring
+   * Use this for comprehensive health monitoring and alerting on change stream status
+   */
+  async getDetailedHealthCheck(): Promise<{
+    healthy: boolean;
+    repository: boolean;
+    cache: boolean;
+    changeStreams: {
+      enabled: boolean;
+      active: boolean;
+      mode: 'real-time' | 'polling' | 'hybrid';
+    };
+    metrics: {
+      cacheSize: number;
+      refreshInterval: number;
+    };
+  }> {
+    try {
+      const repoHealthy = await this.healthCheck();
+      const status = this.getServiceStatus();
+
+      return {
+        healthy: repoHealthy && this.cacheInitialized,
+        repository: repoHealthy,
+        cache: this.cacheInitialized,
+        changeStreams: {
+          enabled: status.changeStreamsEnabled,
+          active: status.changeStreamsActive,
+          mode: status.mode,
+        },
+        metrics: {
+          cacheSize: status.cacheSize,
+          refreshInterval: status.cacheRefreshInterval,
+        },
+      };
+    } catch (ex) {
+      EcoError.logError(ex, `Detailed health check failed`, this.logger);
+      return {
+        healthy: false,
+        repository: false,
+        cache: false,
+        changeStreams: {
+          enabled: false,
+          active: false,
+          mode: 'polling',
+        },
+        metrics: {
+          cacheSize: 0,
+          refreshInterval: 0,
+        },
+      };
+    }
+  }
+
+  /**
+   * Load all configurations into cache
+   */
+  private async loadDynamicConfigIntoCache(): Promise<void> {
+    try {
+      const filter = {};
+
+      const pagination: PaginationOptions = {
+        page: 1,
+        limit: Number.MAX_SAFE_INTEGER,
+        sortBy: 'key',
+        sortOrder: SortOrder.ASC,
+      };
+
+      const allConfigs = await this.configRepository.findAllWithFilteringAndPagination(
+        filter,
+        pagination,
+      );
+
+      this.configCache.clear();
+
+      for (const config of allConfigs.data) {
+        this.updateCacheEntry(config);
+      }
+
+      this.cacheInitialized = true;
+      this.logger.log(`Loaded ${allConfigs.data.length} configurations into cache`);
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to load configurations into cache`, this.logger);
+      this.cacheInitialized = false;
+      throw ex;
+    }
+  }
+
+  /**
+   * Update a single cache entry
+   */
+  private updateCacheEntry(config: ConfigurationDocument): void {
+    const cached: CachedConfiguration = {
+      key: config.key,
+      value: config.value,
+      type: config.type,
+      isRequired: config.isRequired,
+      description: config.description,
+      lastModified: config.updatedAt,
+    };
+
+    this.configCache.set(config.key, cached);
+  }
+
+  /**
+   * Convert database document to cached format
+   */
+  private convertToCachedFormat(config: ConfigurationDocument): CachedConfiguration {
+    return {
+      key: config.key,
+      value: config.value,
+      type: config.type,
+      isRequired: config.isRequired,
+      description: config.description,
+      lastModified: config.updatedAt,
+    };
+  }
+
+  /**
+   * Emit configuration change event
+   */
+  private emitConfigurationChange(event: ConfigurationChangeEvent): void {
+    if (this.eventEmitter) {
+      this.eventEmitter.emit('configuration.changed', event);
+      this.logger.debug(`Configuration change event emitted: ${event.key} - ${event.operation}`);
+    } else {
+      this.logger.debug(
+        `Configuration change event skipped (no eventEmitter): ${event.key} - ${event.operation}`,
+      );
+    }
+  }
+
+  /**
+   * Validate a configuration value without saving
+   */
+  async validateValue(
+    key: string,
+    value: any,
+  ): Promise<{ isValid: boolean; errors: string[]; warnings: string[] }> {
+    return await this.validator.validateConfiguration(key, value);
+  }
+
+  /**
+   * Get configuration audit history
+   */
+  async getAuditHistoryCountForKey(configKey: string): Promise<number> {
+    return await this.auditService.getConfigurationHistoryCount(configKey);
+  }
+
+  /**
+   * Get configuration audit history
+   */
+  async getAuditHistory(
+    configKey: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
+    return await this.auditService.getConfigurationHistory(configKey, limit, offset);
+  }
+
+  /**
+   * Get user activity
+   */
+  async getUserActivity(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<ConfigurationAuditDocument[]> {
+    return await this.auditService.getUserActivity(userId, limit, offset);
+  }
+
+  /**
+   * Get audit statistics
+   */
+  async getAuditStatistics(startDate?: Date, endDate?: Date): Promise<AuditStatistics> {
+    return await this.auditService.getAuditStatistics(startDate, endDate);
+  }
+
+  /**
+   * Handle configuration change events for audit logging
+   */
+  @OnEvent('configuration.changed')
+  private async handleConfigurationChanged(event: ConfigurationChangeEvent): Promise<void> {
+    try {
+      // Skip audit for all change stream events - only API calls create audit logs
+      if (event.source === 'change-stream') {
+        this.logger.debug(`Skipping audit for change stream event: ${event.key}`);
+        return;
+      }
+
+      if (event.source !== 'api') {
+        // This should never be reached since we only emit 'api' and 'change-stream' events
+        this.logger.warn(`Unexpected event source: ${event.source} for key: ${event.key}`);
+      }
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to handle configuration change event`, this.logger);
+    }
+  }
+
+  /**
+   * Start periodic cache refresh timer with appropriate interval
+   */
+  private startCacheRefreshTimer(): void {
+    // Choose interval based on change stream availability
+    const interval = this.changeStreamActive
+      ? this.CACHE_REFRESH_INTERVAL_WITH_CHANGE_STREAMS
+      : this.CACHE_REFRESH_INTERVAL;
+
+    this.cacheRefreshTimer = setInterval(async () => {
+      try {
+        await this.refreshCache();
+      } catch (ex) {
+        EcoError.logError(ex, `Periodic cache refresh failed`, this.logger);
+      }
+    }, interval);
+
+    const intervalMinutes = Math.round(interval / 60000);
+    const mode = this.changeStreamActive ? 'with change streams' : 'fallback mode';
+    this.logger.log(`Cache refresh timer started (${intervalMinutes}min interval, ${mode})`);
+  }
+
+  /**
+   * Restart cache refresh timer with updated interval
+   */
+  private restartCacheRefreshTimer(): void {
+    // Stop existing timer
+    this.stopCacheRefreshTimer();
+
+    // Start with new interval
+    this.startCacheRefreshTimer();
+  }
+
+  /**
+   * Stop the cache refresh timer (useful for cleanup)
+   */
+  stopCacheRefreshTimer(): void {
+    if (this.cacheRefreshTimer) {
+      clearInterval(this.cacheRefreshTimer);
+      this.cacheRefreshTimer = undefined;
+      this.logger.log('Cache refresh timer stopped');
+    }
+  }
+
+  /**
+   * Start MongoDB Change Streams monitoring for real-time configuration updates
+   *
+   * Requirements:
+   * - MongoDB >= 6.0 for reliable pre-image support
+   * - Pre-images must be enabled on the collection/database
+   * - Replica set or sharded cluster (change streams don't work on standalone)
+   *
+   * Fallback behavior:
+   * - If change streams fail to start, falls back to polling-only mode
+   * - If change streams disconnect, automatically attempts reconnection
+   * - Polling frequency increases when change streams are unavailable
+   */
+  private async startChangeStreamMonitoring(): Promise<void> {
+    try {
+      // Create change stream with pipeline to filter only configuration changes
+      // Note: Don't filter by fullDocument.key as it excludes delete operations (fullDocument is null for deletes)
+      const pipeline = [
+        {
+          $match: {
+            operationType: { $in: ['insert', 'update', 'delete', 'replace'] },
+          },
+        },
+      ];
+
+      this.changeStream = this.configModel.watch(pipeline, {
+        fullDocument: 'updateLookup',
+        fullDocumentBeforeChange: 'whenAvailable',
+      });
+
+      if (this.changeStream) {
+        // Handle change stream events
+        this.changeStream.on('change', (change: any) => {
+          this.handleChangeStreamEvent(change);
+        });
+
+        // Handle change stream errors
+        this.changeStream.on('error', (error: unknown) => {
+          this.logger.error('MongoDB Change Stream error:', error);
+          this.handleChangeStreamError(error);
+        });
+
+        // Handle change stream close
+        this.changeStream.on('close', () => {
+          this.logger.warn('MongoDB Change Stream closed');
+        });
+      }
+
+      this.changeStreamActive = true;
+      this.logger.log('MongoDB Change Streams monitoring started successfully');
+
+      // Restart cache refresh timer with longer interval since we have real-time updates
+      this.restartCacheRefreshTimer();
+    } catch (ex) {
+      EcoError.logError(ex, `Failed to start MongoDB Change Streams`, this.logger);
+      this.changeStreamActive = false;
+      this.logger.log('Falling back to polling-only mode');
+
+      // Ensure we have frequent polling as fallback
+      this.restartCacheRefreshTimer();
+    }
+  }
+
+  /**
+   * Handle MongoDB Change Stream events
+   */
+  private handleChangeStreamEvent(change: any): void {
+    try {
+      const operationType = change.operationType;
+      const fullDocument = change.fullDocument as any;
+      const fullDocumentBeforeChange = change.fullDocumentBeforeChange as any;
+
+      // Extract configuration key and values based on operation type
+      let key: string;
+      let newValue: any;
+      let oldValue: any;
+
+      switch (operationType) {
+        case 'insert':
+        case 'replace':
+          // For inserts/replaces, key and value are in fullDocument
+          key = fullDocument?.key;
+          newValue = fullDocument?.value;
+          oldValue = fullDocumentBeforeChange?.value; // May be undefined for inserts
+          break;
+        case 'update':
+          // For updates, key can be in either document, prefer fullDocument
+          key = fullDocument?.key || fullDocumentBeforeChange?.key;
+          newValue = fullDocument?.value;
+          oldValue = fullDocumentBeforeChange?.value;
+          break;
+        case 'delete':
+          // For deletes, fullDocument is null, so key must come from fullDocumentBeforeChange
+          key = fullDocumentBeforeChange?.key;
+          newValue = undefined; // No new value for deletes
+          oldValue = fullDocumentBeforeChange?.value;
+          break;
+        default:
+          this.logger.warn(`Unsupported change stream operation type: ${operationType}`);
+          return;
+      }
+
+      if (!key) {
+        this.logger.warn(`Change stream event missing configuration key for ${operationType}:`, {
+          operationType,
+          hasFullDocument: !!fullDocument,
+          hasFullDocumentBeforeChange: !!fullDocumentBeforeChange,
+          fullDocumentKeys: fullDocument ? Object.keys(fullDocument) : [],
+          fullDocumentBeforeChangeKeys: fullDocumentBeforeChange
+            ? Object.keys(fullDocumentBeforeChange)
+            : [],
+        });
+        return;
+      }
+
+      // Map MongoDB operation types to service operation types
+      const opMap: Record<string, 'CREATE' | 'UPDATE' | 'DELETE'> = {
+        insert: 'CREATE',
+        update: 'UPDATE',
+        replace: 'UPDATE',
+        delete: 'DELETE',
+      };
+
+      // Create configuration change event
+      const event: ConfigurationChangeEvent = {
+        key,
+        operation: opMap[operationType],
+        newValue,
+        oldValue,
+        timestamp: new Date(),
+        userId: 'change-stream', // Indicates this came from change stream
+        source: 'change-stream', // Mark as external change for audit
+      };
+
+      this.logger.debug(`Change stream detected: ${key} - ${event.operation}`);
+
+      // Use fullDocument metadata to update cache; fall back only if absent
+      if (fullDocument) {
+        // Trust DB document
+        this.updateCacheEntry(fullDocument as unknown as ConfigurationDocument);
+        const sanitizedValue = fullDocument.value;
+        this.logger.debug(`Cache updated: ${key} = ${sanitizedValue}`);
+      } else {
+        // Fallback when pre-image/full document not available
+        this.updateCacheFromChangeStream(event);
+      }
+
+      // Emit event for other services (like EcoConfigService)
+      if (this.eventEmitter) {
+        this.eventEmitter.emit('configuration.changed', event);
+      }
+    } catch (ex) {
+      EcoError.logError(ex, `Error handling change stream event`, this.logger);
+    }
+  }
+
+  /**
+   * Infer configuration type from value
+   */
+  private inferConfigurationType(value: any): 'string' | 'number' | 'boolean' | 'object' | 'array' {
+    if (Array.isArray(value)) {
+      return ConfigurationType.ARRAY;
+    }
+    if (value === null || value === undefined) {
+      return ConfigurationType.STRING;
+    }
+    if (typeof value === 'object') {
+      return ConfigurationType.OBJECT;
+    }
+    return typeof value as 'string' | 'number' | 'boolean';
+  }
+
+  /**
+   * Update local cache based on change stream event
+   */
+  private updateCacheFromChangeStream(event: ConfigurationChangeEvent): void {
+    try {
+      if (event.operation === 'DELETE') {
+        // Remove from cache
+        this.configCache.delete(event.key);
+        this.logger.debug(`Cache updated: removed ${event.key}`);
+      } else {
+        // Add or update cache
+        const cachedConfig: CachedConfiguration = {
+          key: event.key,
+          value: event.newValue,
+          type: this.inferConfigurationType(event.newValue),
+          isRequired: false, // Will be determined by validation
+          lastModified: event.timestamp,
+        };
+
+        this.configCache.set(event.key, cachedConfig);
+        const sanitizedValue = event.newValue;
+        this.logger.debug(`Cache updated: ${event.key} = ${sanitizedValue}`);
+      }
+    } catch (ex) {
+      EcoError.logError(ex, `Error updating cache from change stream`, this.logger);
+    }
+  }
+
+  /**
+   * Handle change stream errors with reconnection logic
+   */
+  private handleChangeStreamError(error: any): void {
+    this.logger.error('Change stream error occurred:', error);
+
+    // Mark change streams as inactive
+    this.changeStreamActive = false;
+
+    // Close existing change stream
+    if (this.changeStream) {
+      this.changeStream.close();
+      this.changeStream = undefined;
+    }
+
+    // Switch to more frequent polling immediately
+    this.restartCacheRefreshTimer();
+    this.logger.log('Switched to frequent polling due to change stream failure');
+
+    // Attempt to reconnect after a delay
+    setTimeout(async () => {
+      this.logger.log('Attempting to reconnect change stream...');
+      try {
+        await this.startChangeStreamMonitoring();
+      } catch (reconnectError) {
+        EcoError.logError(reconnectError, `Failed to reconnect change stream`, this.logger);
+        this.logger.log('Continuing with polling-only mode');
+      }
+    }, 5000); // 5 second delay before reconnection attempt
+  }
+
+  /**
+   * Stop MongoDB Change Streams monitoring
+   */
+  private stopChangeStreamMonitoring(): void {
+    if (this.changeStream) {
+      this.changeStream.close();
+      this.changeStream = undefined;
+      this.changeStreamActive = false;
+      this.logger.log('MongoDB Change Streams monitoring stopped');
+    }
+  }
+
+  /**
+   * Get configuration service status information
+   * Use this for monitoring and alerting on change stream health
+   */
+  getServiceStatus(): {
+    changeStreamsEnabled: boolean;
+    changeStreamsActive: boolean;
+    cacheRefreshInterval: number;
+    cacheSize: number;
+    mode: 'real-time' | 'polling' | 'hybrid';
+  } {
+    const interval = this.changeStreamActive
+      ? this.CACHE_REFRESH_INTERVAL_WITH_CHANGE_STREAMS
+      : this.CACHE_REFRESH_INTERVAL;
+
+    let mode: 'real-time' | 'polling' | 'hybrid' = 'polling';
+    if (this.changeStreamActive && this.changeStreamEnabled) {
+      mode = 'real-time';
+    } else if (this.changeStreamEnabled) {
+      mode = 'hybrid'; // Change streams enabled but not active (fallback mode)
+    }
+
+    return {
+      changeStreamsEnabled: this.changeStreamEnabled,
+      changeStreamsActive: this.changeStreamActive,
+      cacheRefreshInterval: interval,
+      cacheSize: this.configCache.size,
+      mode,
+    };
+  }
+
+  /**
+   * Cleanup method called when module is destroyed
+   */
+  async onModuleDestroy(): Promise<void> {
+    this.logger.log('ConfigurationService shutting down...');
+
+    // Stop cache refresh timer
+    this.stopCacheRefreshTimer();
+
+    // Stop change stream monitoring
+    this.stopChangeStreamMonitoring();
+
+    this.logger.log('ConfigurationService shutdown complete');
+  }
+}

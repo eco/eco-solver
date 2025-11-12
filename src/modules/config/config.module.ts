@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule, ConfigService } from '@nestjs/config';
 
-import { configurationFactory } from '@/config/configuration-factory';
+import { ConfigFactory } from '@/config/config-factory';
 import {
   AppConfigService,
   AwsConfigService,
@@ -21,6 +21,8 @@ import {
 import { BullBoardConfigService } from '@/modules/config/services/bull-board-config.service';
 import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { LeaderElectionConfigService } from '@/modules/config/services/leader-election-config.service';
+import { ModuleRef } from '@nestjs/core';
+import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 
@@ -51,10 +53,21 @@ const configProviders = [
   imports: [
     NestConfigModule.forRoot({
       isGlobal: false,
-      load: [configurationFactory],
+      load: [ConfigFactory.loadConfig.bind(ConfigFactory)],
     }),
   ],
-  providers: [ConfigService, ...configProviders],
+  providers: [
+    {
+      provide: 'ModuleRefProviderInit',
+      inject: [ModuleRef],
+      useFactory: (moduleRef: ModuleRef) => {
+        ModuleRefProvider.setModuleRef(moduleRef);
+        return true;
+      },
+    },
+    ConfigService,
+    ...configProviders,
+  ],
   exports: configProviders,
 })
 export class ConfigModule {}

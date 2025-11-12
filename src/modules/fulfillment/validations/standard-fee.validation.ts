@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
+import { parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { normalize } from '@/common/tokens/normalize';
+import { sum } from '@/common/utils/math';
 import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
 import { TokenConfigService } from '@/modules/config/services/token-config.service';
 import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-
-import { FeeCalculationHelper } from '../utils/fee-calculation.helper';
 
 import { FeeCalculationValidation, FeeDetails } from './fee-calculation.interface';
 
@@ -99,37 +100,67 @@ export class StandardFeeValidation implements FeeCalculationValidation {
       );
     }
 
+    const sourceTokenAddress = intent.reward.tokens[0].token;
     // Get the single token address from the route
-    const tokenAddress = intent.route.tokens[0].token;
-
+    const destinationTokenAddress = intent.route.tokens[0].token;
     // Get fee logic using the hierarchical resolver (token > network > fulfillment)
-    const feeConfig = this.feeResolverService.resolveFee(intent.destination, tokenAddress);
-
-    // Use shared fee calculation helper
-    const feeResult = FeeCalculationHelper.calculateFees(
-      intent,
-      feeConfig,
-      this.tokenConfigService,
+    const tokenFee = this.feeResolverService.resolveTokenFee(
+      intent.destination,
+      destinationTokenAddress,
+      intent.sourceChainId,
+      sourceTokenAddress,
     );
+    if (!tokenFee) {
+      throw new ValidationError(
+        `No fee configuration found for chain ${intent.destination}`,
+        ValidationErrorType.PERMANENT,
+        StandardFeeValidation.name,
+      );
+    }
+    const baseFee = normalize(parseUnits(tokenFee.flatFee.toString(), 18), 18);
+
+    // Calculate reward values
+    const rewardTokens = sum(
+      this.tokenConfigService.normalize(intent.sourceChainId, intent.reward.tokens),
+      'amount',
+    );
+    const rewardNative = intent.reward.nativeAmount;
+
+    // Calculate route values
+    const routeTokens = sum(
+      this.tokenConfigService.normalize(intent.destination, intent.route.tokens),
+      'amount',
+    );
+    const routeNative = intent.route.nativeAmount;
+
+    // Calculate percentage fee from reward tokens (for token transfers)
+    const base = 10_000;
+    const scalarBpsInt = BigInt(Math.floor(tokenFee.scalarBps * base));
+    const percentageFee = (rewardTokens * scalarBpsInt) / BigInt(base * 10000);
+    const totalFee = baseFee + percentageFee;
+
+    // Calculate route maximum (reward.tokens - total fee for tokens, 0 for native in standard fee)
+    const routeMaximumTokens = rewardTokens > totalFee ? rewardTokens - totalFee : 0n;
+    const routeMaximumNative = 0n; // Standard fee validation is for token transfers
 
     return {
       reward: {
-        native: feeResult.rewardNative,
-        tokens: feeResult.rewardTokens,
+        native: rewardNative,
+        tokens: rewardTokens,
       },
       route: {
-        native: feeResult.routeNative,
-        tokens: feeResult.routeTokens,
+        native: routeNative,
+        tokens: routeTokens,
         maximum: {
-          native: 0n, // Standard fee validation is for token transfers
-          tokens: feeResult.routeMaximumTokens,
+          native: routeMaximumNative,
+          tokens: routeMaximumTokens,
         },
       },
       fee: {
-        base: feeResult.baseFee,
-        percentage: feeResult.percentageFee,
-        total: feeResult.totalFee,
-        bps: feeConfig.tokens.scalarBps,
+        base: baseFee,
+        percentage: percentageFee,
+        total: totalFee,
+        bps: tokenFee.scalarBps,
       },
     };
   }
