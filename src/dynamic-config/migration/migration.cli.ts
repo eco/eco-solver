@@ -1,13 +1,13 @@
-#!/usr/bin/env node
+import {
+  AwsToMongoDbMigrationService,
+  MigrationOptions,
+} from '@/dynamic-config/migration/aws-to-mongodb-migration.service'
 import { Command } from 'commander'
 import { DynamicConfigValidationService } from '@/dynamic-config/migration/dynamic-config-validation.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoError } from '@/common/errors/eco-error'
 import { Logger } from '@nestjs/common'
 import { MigrationModule } from '@/dynamic-config/migration/migration.module'
-import {
-  MigrationOptions,
-  AwsToMongoDbMigrationService,
-} from '@/dynamic-config/migration/aws-to-mongodb-migration.service'
 import { NestFactory } from '@nestjs/core'
 
 /**
@@ -25,10 +25,9 @@ class MigrationCLI {
 
       this.logger.log('Application context created successfully')
       return app
-    } catch (error) {
-      this.logger.error(`Failed to create application context: ${error.message}`)
-      this.logger.error(`Stack trace: ${error.stack}`)
-      throw error
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `Failed to create application context`, this.logger)
+      throw ex
     }
   }
 
@@ -68,7 +67,6 @@ class MigrationCLI {
         await this.executeMigration({
           dryRun: options.dryRun,
           overwriteExisting: options.overwrite,
-          keyPrefix: options.keyPrefix,
           userId: options.userId,
           keys: options.keys,
           keysFile: options.keysFile,
@@ -96,7 +94,7 @@ class MigrationCLI {
       .command('rollback')
       .description('Rollback migration by removing migrated configurations')
       .option('--user-id <userId>', 'User ID for audit logging', 'rollback-cli')
-      .action(async (options) => {
+      .action(async (options: any) => {
         await this.executeRollback(options.userId)
       })
 
@@ -122,8 +120,8 @@ class MigrationCLI {
 
       await app.close()
       process.exit(result.success ? 0 : 1)
-    } catch (error) {
-      this.logger.error(`Migration failed: ${error.message}`)
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `Migration failed`, this.logger)
       process.exit(1)
     }
   }
@@ -141,8 +139,8 @@ class MigrationCLI {
 
       await app.close()
       process.exit(validation.valid ? 0 : 1)
-    } catch (error) {
-      this.logger.error(`Validation failed: ${error.message}`)
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `Validation failed`, this.logger)
       process.exit(1)
     }
   }
@@ -160,8 +158,8 @@ class MigrationCLI {
 
       await app.close()
       process.exit(result.valid ? 0 : 1)
-    } catch (error) {
-      this.logger.error(`Comprehensive validation failed: ${error.message}`)
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `Comprehensive validation failed`, this.logger)
       process.exit(1)
     }
   }
@@ -193,8 +191,8 @@ class MigrationCLI {
 
       await app.close()
       process.exit(result.success ? 0 : 1)
-    } catch (error) {
-      this.logger.error(`Rollback failed: ${error.message}`)
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `Rollback failed`, this.logger)
       process.exit(1)
     }
   }
@@ -225,7 +223,9 @@ class MigrationCLI {
           `MongoDB integration: ${ecoConfigService.isMongoConfigurationEnabled() ? 'Enabled' : 'Disabled'}`,
         )
       } catch (configError) {
-        this.logger.error(`Configuration access failed: ${configError.message}`)
+        const errorMessage =
+          configError instanceof Error ? configError.message : String(configError)
+        this.logger.error(`Configuration access failed: ${errorMessage}`)
         this.logger.log('\n=== Configuration Status ===')
         this.logger.log('Unable to retrieve configuration status due to initialization errors')
         this.logger.log(
@@ -234,9 +234,8 @@ class MigrationCLI {
       }
 
       await app.close()
-    } catch (error) {
-      this.logger.error(`Status check failed: ${error.message}`)
-      this.logger.error(`Stack trace: ${error.stack}`)
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `Status check failed`, this.logger)
       process.exit(1)
     }
   }
