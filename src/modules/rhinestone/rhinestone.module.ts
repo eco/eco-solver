@@ -2,13 +2,15 @@ import { DynamicModule, Global, Module } from '@nestjs/common';
 
 import { configurationFactory } from '@/config/configuration-factory';
 import { EvmCoreModule } from '@/modules/blockchain/evm/evm-core.module';
+import { IntentsModule } from '@/modules/intents/intents.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
-import { ProverModule } from '@/modules/prover/prover.module';
 import { QueueModule } from '@/modules/queue/queue.module';
+import { RedisModule } from '@/modules/redis/redis.module';
 
 import {
   RhinestoneActionProcessor,
   RhinestoneContractsService,
+  RhinestoneMetadataService,
   RhinestoneValidationService,
   RhinestoneWebsocketService,
 } from './services';
@@ -37,17 +39,19 @@ export class RhinestoneModule {
     return {
       global: true,
       module: RhinestoneModule,
-      imports: [OpenTelemetryModule, QueueModule, EvmCoreModule, ProverModule],
+      imports: [OpenTelemetryModule, QueueModule, IntentsModule, RedisModule, EvmCoreModule],
       providers: [
         RhinestoneContractsService,
         RhinestoneValidationService,
         RhinestoneWebsocketService,
+        RhinestoneMetadataService,
         RhinestoneActionProcessor,
       ],
       exports: [
         RhinestoneContractsService,
         RhinestoneValidationService,
         RhinestoneWebsocketService,
+        RhinestoneMetadataService,
       ],
     };
   }

@@ -157,7 +157,7 @@ export abstract class FulfillmentStrategy implements IFulfillmentStrategy {
 
     // TVM and SVM only support basic wallets
     // EVM can use kernel wallets for advanced features
-    const walletType: WalletType = chainType === ChainType.EVM ? 'kernel' : 'basic';
+    const walletType: WalletType = chainType === ChainType.EVM ? 'basic' : 'basic';
 
     return Promise.resolve(walletType);
   }

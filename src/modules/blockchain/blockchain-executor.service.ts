@@ -11,6 +11,7 @@ import { BlockchainConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
 import { SvmExecutorService } from './svm/services/svm.executor.service';
@@ -25,6 +26,7 @@ export class BlockchainExecutorService {
     private intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private rhinestoneMetadataService: RhinestoneMetadataService,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
     @Optional() private tvmExecutor?: TvmExecutorService,
@@ -122,6 +124,145 @@ export class BlockchainExecutorService {
           span.recordException(error as Error);
           span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });
           throw error; // Re-throw to trigger BullMQ retry
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Execute Rhinestone 4-phase fulfillment flow
+   * CLAIM (source) → FILL (destination) → PROVE (destination) → WITHDRAW (via existing system)
+   * Retrieves Rhinestone payload from Redis metadata service
+   * Returns the fill transaction hash for preconfirmation
+   */
+  async executeRhinestone(intent: Intent, walletId?: WalletType): Promise<string> {
+    return this.otelService.tracer.startActiveSpan(
+      'rhinestone.execute',
+      {
+        attributes: {
+          'intent.hash': intent.intentHash,
+          'rhinestone.source_chain': intent.sourceChainId?.toString() || '',
+          'rhinestone.destination_chain': intent.destination.toString(),
+        },
+      },
+      async (span) => {
+        try {
+          // Retrieve Rhinestone payload from Redis
+          const rhinestonePayload = await this.rhinestoneMetadataService.get(intent.intentHash);
+          if (!rhinestonePayload) {
+            throw new Error(`No Rhinestone payload found in Redis for intent ${intent.intentHash}`);
+          }
+
+          span.setAttribute('rhinestone.payload_retrieved', true);
+
+          const sourceChainId = Number(intent.sourceChainId);
+          const destChainId = Number(intent.destination);
+
+          // Get executors for both chains
+          const sourceExecutor = this.getExecutorForChain(sourceChainId) as EvmExecutorService;
+          const destExecutor = this.getExecutorForChain(destChainId) as EvmExecutorService;
+
+          // Use provided walletId or default to 'basic'
+          const effectiveWalletId = (walletId || 'basic') as WalletType;
+
+          // Phase 1: CLAIM on source chain (Base)
+          this.logger.log(`Rhinestone Phase 1: CLAIM on chain ${sourceChainId}`);
+          span.addEvent('rhinestone.phase.claim.start');
+          const claimTxHash = await sourceExecutor.executeRhinestoneClaim(
+            sourceChainId,
+            rhinestonePayload.claimTo,
+            rhinestonePayload.claimData,
+            rhinestonePayload.claimValue,
+            effectiveWalletId,
+          );
+          span.setAttribute('rhinestone.claim_tx', claimTxHash);
+          span.addEvent('rhinestone.phase.claim.complete', { txHash: claimTxHash });
+
+          // Phase 2: FILL on destination chain (Arbitrum)
+          this.logger.log(`Rhinestone Phase 2: FILL on chain ${destChainId}`);
+          span.addEvent('rhinestone.phase.fill.start');
+          const fillTxHash = await destExecutor.executeRhinestoneFill(
+            destChainId,
+            intent,
+            rhinestonePayload.fillTo,
+            rhinestonePayload.fillData,
+            rhinestonePayload.fillValue,
+            effectiveWalletId,
+          );
+          span.setAttribute('rhinestone.fill_tx', fillTxHash);
+          span.addEvent('rhinestone.phase.fill.complete', { txHash: fillTxHash });
+
+          // Phase 3: PROVE on destination chain
+          this.logger.log(`Rhinestone Phase 3: PROVE on chain ${destChainId}`);
+          span.addEvent('rhinestone.phase.prove.start');
+          const { txHash: proveTxHash, receipt } = await destExecutor.executeRhinestoneProve(
+            destChainId,
+            intent,
+            effectiveWalletId,
+          );
+          span.setAttribute('rhinestone.prove_tx', proveTxHash);
+          span.addEvent('rhinestone.phase.prove.complete', { txHash: proveTxHash });
+
+          // Mark as proven - withdrawal system handles Phase 4 automatically
+          this.logger.log('Marking intent as proven for withdrawal system');
+
+          this.logger.log(`Updating intent as proven for ${intent.intentHash}`, {
+            claimant: await destExecutor.getWalletAddress(effectiveWalletId, BigInt(destChainId)),
+            transactionHash: proveTxHash,
+            blockNumber: receipt.blockNumber.toString(),
+            timestamp: new Date().toISOString(),
+            chainId: destChainId.toString(),
+            txHash: proveTxHash,
+          });
+
+          const updatedIntent = await this.intentsService.updateProvenEvent({
+            intentHash: intent.intentHash,
+            claimant: await destExecutor.getWalletAddress(effectiveWalletId, BigInt(destChainId)),
+            transactionHash: proveTxHash,
+            blockNumber: receipt.blockNumber,
+            timestamp: new Date(),
+            chainId: BigInt(destChainId),
+          });
+
+          if (updatedIntent) {
+            this.logger.log(`Successfully updated intent ${intent.intentHash} as proven`, {
+              intentHash: intent.intentHash,
+              claimant: updatedIntent.provenEvent?.claimant,
+              transactionHash: updatedIntent.provenEvent?.txHash,
+              blockNumber: updatedIntent.provenEvent?.blockNumber,
+              timestamp: updatedIntent.provenEvent?.timestamp.toISOString(),
+              chainId: updatedIntent.provenEvent?.chainId,
+              txHash: updatedIntent.provenEvent?.txHash,
+            });
+          }
+
+          // Update intent status
+          await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
+
+          // Clean up Rhinestone payload from Redis
+          await this.rhinestoneMetadataService.delete(intent.intentHash);
+          this.logger.log('Cleaned up Rhinestone payload from Redis');
+
+          this.logger.log(`Rhinestone fulfillment complete: ${intent.intentHash}`);
+          span.setStatus({ code: SpanStatusCode.OK });
+
+          // Return fill tx hash for preconfirmation
+          return fillTxHash;
+        } catch (error) {
+          this.logger.error(
+            `Rhinestone fulfillment failed for ${intent.intentHash}:`,
+            getErrorMessage(error),
+          );
+          await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+
+          // Clean up payload even on failure
+          await this.rhinestoneMetadataService.delete(intent.intentHash);
+
+          span.recordException(error as Error);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });
+          throw error;
         } finally {
           span.end();
         }

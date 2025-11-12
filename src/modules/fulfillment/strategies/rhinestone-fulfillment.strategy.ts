@@ -12,7 +12,6 @@ import {
   DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  IntentFundedValidation,
   ProverSupportValidation,
   RhinestoneValidation,
   RouteAmountLimitValidation,
@@ -23,6 +22,7 @@ import {
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
@@ -36,11 +36,11 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     protected readonly blockchainReader: BlockchainReaderService,
     protected readonly otelService: OpenTelemetryService,
     @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
-    // Inject all validations needed for rhinestone strategy (excluding route calls)
-    private readonly intentFundedValidation: IntentFundedValidation,
+    // Inject all validations needed for rhinestone strategy
+    // NOTE: IntentFundedValidation is EXCLUDED - Rhinestone solver funds via CLAIM phase
+    // NOTE: RouteCallsValidation is EXCLUDED - Smart accounts have custom call patterns
     private readonly duplicateRewardTokensValidation: DuplicateRewardTokensValidation,
     private readonly routeTokenValidation: RouteTokenValidation,
-    // Note: RouteCallsValidation is intentionally excluded
     private readonly routeAmountLimitValidation: RouteAmountLimitValidation,
     private readonly expirationValidation: ExpirationValidation,
     private readonly chainSupportValidation: ChainSupportValidation,
@@ -48,14 +48,15 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     private readonly proverSupportValidation: ProverSupportValidation,
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly rhinestoneValidation: RhinestoneValidation,
+    private readonly metadataService: RhinestoneMetadataService,
   ) {
     super(blockchainExecutor, blockchainReader, otelService);
-    // Define immutable validations for this strategy (skips route calls validation)
+    // Define immutable validations for this strategy
+    // IntentFundedValidation is EXCLUDED because in Rhinestone's model,
+    // the solver (not the user) funds the intent during the CLAIM phase.
     this.validations = Object.freeze([
-      this.intentFundedValidation,
       this.duplicateRewardTokensValidation,
       this.routeTokenValidation,
-      // RouteCallsValidation is intentionally skipped for Rhinestone
       this.routeAmountLimitValidation,
       this.expirationValidation,
       this.chainSupportValidation,
@@ -67,12 +68,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   }
 
   canHandle(_intent: Intent): boolean {
-    // Rhinestone strategy for smart account abstraction
-    // Currently requires explicit configuration
-    // In the future, could detect smart account requirements from:
-    // - Specific call patterns that require account abstraction
-    // - Target addresses that are known smart accounts
-    return false; // Only enabled via configuration
+    return true;
   }
 
   async execute(intent: Intent): Promise<void> {
@@ -87,14 +83,25 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
         'strategy.skips_route_calls_validation': true,
       });
 
+      // Retrieve Rhinestone payload from Redis
+      const rhinestonePayload = await this.metadataService.get(intent.intentHash);
+
+      if (!rhinestonePayload) {
+        throw new Error(
+          `No Rhinestone payload found for intent ${intent.intentHash}. ` +
+            'Payload must be stored before queueing to FulfillmentQueue.',
+        );
+      }
+
       // Get wallet ID for this intent
       const walletId = await this.getWalletIdForIntent(intent);
 
       span.setAttributes({
         'wallet.id': walletId,
+        'rhinestone.payload_verified': true,
       });
 
-      // Rhinestone fulfillment uses only EVM executor with custom execution flow
+      // Queue to ExecutionQueue (payload will be retrieved from Redis during execution)
       await this.queueService.addIntentToExecutionQueue({
         strategy: this.name,
         intent,

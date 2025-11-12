@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../eco-solver"
+		},
+		{
+			"path": "../../../../../rhinestone-bundle-generator"
+		},
+		{
+			"path": "../../../../../rhinestone-eco-arbiter"
+		},
+		{
+			"path": "../../../../../eco-routes"
+		},
+		{
+			"path": "../../../../../compact-utils"
+		},
+		{
+			"path": "../../../../../rhinestone-relayer"
+		}
+	],
+	"settings": {}
+}
