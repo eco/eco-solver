@@ -78,7 +78,12 @@
       "Bash(src/modules/fulfillment/validations/rhinestone.validation.ts )",
       "Bash(src/modules/fulfillment/validations/index.ts )",
       "Bash(src/modules/fulfillment/utils/fee-calculation.helper.ts )",
-      "Bash(src/modules/fulfillment/fulfillment.module.ts)"
+      "Bash(src/modules/fulfillment/fulfillment.module.ts)",
+      "Bash(src/modules/rhinestone/rhinestone.module.ts )",
+      "Bash(src/modules/queue/interfaces/execution-job.interface.ts )",
+      "Bash(src/config/schemas/rhinestone.schema.ts )",
+      "Bash(src/modules/config/services/rhinestone-config.service.ts )",
+      "Bash(src/modules/prover/provers/hyper.prover.ts)"
     ],
     "deny": [],
     "ask": []

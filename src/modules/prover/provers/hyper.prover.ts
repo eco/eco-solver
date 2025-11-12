@@ -33,7 +33,8 @@ export class HyperProver extends BaseProver {
 
   getDeadlineBuffer(): bigint {
     // TODO: Move to validation
-    // HyperProver requires 1 hour (3600 seconds) for processing
-    return 3600n;
+    // Reduced buffer for Rhinestone compatibility (SDK sets ~5 minute deadlines)
+    // Original was 3600 seconds (1 hour), reduced to 120 seconds (2 minutes)
+    return 120n;
   }
 }
