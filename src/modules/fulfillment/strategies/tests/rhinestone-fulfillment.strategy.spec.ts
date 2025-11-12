@@ -98,6 +98,18 @@ describe('RhinestoneFulfillmentStrategy', () => {
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
     };
+    const mockMetadataService = {
+      get: jest.fn().mockResolvedValue({
+        claimTo: '0x123...',
+        claimData: '0xabc...',
+        claimValue: 0n,
+        fillTo: '0x456...',
+        fillData: '0xdef...',
+        fillValue: 0n,
+      }),
+      set: jest.fn(),
+      delete: jest.fn(),
+    };
     const mockOtelService = {
       tracer: {
         startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
@@ -166,10 +178,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
           useValue: mockOtelService,
         },
         {
-          provide: IntentFundedValidation,
-          useValue: intentFundedValidation,
-        },
-        {
           provide: DuplicateRewardTokensValidation,
           useValue: duplicateRewardTokensValidation,
         },
@@ -212,6 +220,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
         {
           provide: RhinestoneValidation,
           useValue: rhinestoneValidation,
+        },
+        {
+          provide: 'RhinestoneMetadataService',
+          useValue: mockMetadataService,
         },
       ],
     }).compile();
