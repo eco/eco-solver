@@ -418,7 +418,25 @@ export class RhinestoneValidationService {
       const tokenAddress = intent.route.tokens[0].token;
 
       // Get fee configuration using the hierarchical resolver (token > network > fulfillment)
-      const feeConfig = this.feeResolverService.resolveFee(intent.destination, tokenAddress);
+      const tokenFeeConfig = this.feeResolverService.resolveTokenFee(
+        intent.destination,
+        tokenAddress,
+      );
+
+      if (!tokenFeeConfig) {
+        throw new ValidationError(
+          `No fee configuration found for chain ${intent.destination} and token ${tokenAddress}`,
+          ValidationErrorType.PERMANENT,
+          'RhinestoneValidationService.calculateAndValidateFees',
+        );
+      }
+
+      // Wrap token fee in AssetsFeeSchemaType structure for FeeCalculationHelper
+      const feeConfig = {
+        tokens: tokenFeeConfig,
+        nonSwapTokens: tokenFeeConfig,
+        native: tokenFeeConfig,
+      };
 
       // Use shared fee calculation helper
       const feeResult = FeeCalculationHelper.calculateFees(

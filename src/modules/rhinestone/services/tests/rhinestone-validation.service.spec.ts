@@ -42,7 +42,7 @@ describe('RhinestoneValidationService', () => {
     };
 
     const mockFeeResolver = {
-      resolveFee: jest.fn().mockReturnValue(mockFeeConfig),
+      resolveTokenFee: jest.fn().mockReturnValue(mockFeeConfig.tokens),
     };
 
     const mockTokenConfig = {
@@ -780,7 +780,7 @@ describe('RhinestoneValidationService', () => {
         // Verify the route is under the maximum
         expect(result.route.maximum.tokens[0].amount).toBeGreaterThan(routeAmount);
 
-        expect(feeResolverService.resolveFee).toHaveBeenCalledWith(
+        expect(feeResolverService.resolveTokenFee).toHaveBeenCalledWith(
           intent.destination,
           intent.route.tokens[0].token,
         );

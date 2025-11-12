@@ -1,6 +1,6 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 
-import { configurationFactory } from '@/config/configuration-factory';
+import { ConfigFactory } from '@/config/config-factory';
 import { EvmCoreModule } from '@/modules/blockchain/evm/evm-core.module';
 import { IntentsModule } from '@/modules/intents/intents.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry/opentelemetry.module';
@@ -23,7 +23,7 @@ import {
 @Module({})
 export class RhinestoneModule {
   static async forRootAsync(): Promise<DynamicModule> {
-    const config = await configurationFactory();
+    const config = await ConfigFactory.loadConfig();
 
     // Only load if config exists (schema validates url/apiKey)
     if (!config.rhinestone) {
