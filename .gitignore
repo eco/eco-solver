@@ -76,6 +76,7 @@ config/*
 !config/preproduction.ts
 !config/production.ts
 !config/test.ts
+!config/blue.ts
 !config/green-production.ts
 !config/purple-production.ts
 !config/yellow-production.ts
@@ -91,3 +92,5 @@ CLAUDE.md
 
 #vscode settings
 .vscode/
+
+.venv/
