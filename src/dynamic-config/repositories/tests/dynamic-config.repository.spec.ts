@@ -4,10 +4,7 @@ import {
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
 } from '@/dynamic-config/interfaces/configuration-repository.interface'
-import {
-  Configuration,
-  ConfigurationDocument,
-} from '@/dynamic-config/schemas/configuration.schema'
+import { Configuration, ConfigurationDocument } from '@/dynamic-config/schemas/configuration.schema'
 import { DynamicConfigRepository } from '@/dynamic-config/repositories/dynamic-config.repository'
 import { getModelToken } from '@nestjs/mongoose'
 import { Model } from 'mongoose'

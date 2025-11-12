@@ -193,7 +193,7 @@ export class EcoError extends Error {
   }
 
   static logError(error: any, caller: string, srcLogger: Logger, properties: object = {}): string {
-    return this._logError(this.getErrorObject(error), caller, srcLogger, properties, false);
+    return this._logError(this.getErrorObject(error), caller, srcLogger, properties, false)
   }
 
   static _logError(
@@ -203,7 +203,7 @@ export class EcoError extends Error {
     properties: object,
     logStack?: boolean,
   ): string {
-    const errorMessage = this.getErrorMessage(error);
+    const errorMessage = this.getErrorMessage(error)
 
     srcLogger.error(
       EcoLogMessage.fromDefault({
@@ -215,9 +215,9 @@ export class EcoError extends Error {
       }),
 
       logStack && error.stack,
-    );
+    )
 
-    return errorMessage;
+    return errorMessage
   }
 
   static getErrorMessage(error: any): string {

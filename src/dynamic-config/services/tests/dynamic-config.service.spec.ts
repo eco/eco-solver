@@ -671,7 +671,9 @@ describe('DynamicConfigService', () => {
         }
 
         // Get the change handler that was registered
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
@@ -700,7 +702,9 @@ describe('DynamicConfigService', () => {
           },
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
@@ -725,7 +729,9 @@ describe('DynamicConfigService', () => {
           },
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
@@ -750,7 +756,9 @@ describe('DynamicConfigService', () => {
           fullDocumentBeforeChange: null,
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         // Should not throw
         expect(() => changeHandler(changeEvent)).not.toThrow()
@@ -789,7 +797,9 @@ describe('DynamicConfigService', () => {
         const error = new Error('Connection lost')
 
         // Get the error handler that was registered
-        const errorHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'error')[1]
+        const errorHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'error',
+        )[1]
 
         // Reset the mock to track reconnection calls
         mockConfigModel.watch.mockClear()
@@ -843,7 +853,9 @@ describe('DynamicConfigService', () => {
           },
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
@@ -868,7 +880,9 @@ describe('DynamicConfigService', () => {
           },
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
@@ -889,7 +903,9 @@ describe('DynamicConfigService', () => {
           },
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
@@ -1025,7 +1041,9 @@ describe('DynamicConfigService', () => {
           },
         }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
+        const changeHandler = mockChangeStream.on.mock.calls.find(
+          (call: string[]) => call[0] === 'change',
+        )[1]
 
         changeHandler(changeEvent)
 
