@@ -81,11 +81,11 @@ export class DynamicConfigService implements OnModuleInit, OnModuleDestroy {
       if (this.changeStreamEnabled) {
         await this.startChangeStreamMonitoring()
       }
+    } else {
+      this.logger.log('Cache refresh timer and change streams skipped (CLI context)')
 
       // Start cache refresh timer with appropriate interval based on change stream status
       this.startCacheRefreshTimer()
-    } else {
-      this.logger.log('Cache refresh timer and change streams skipped (CLI context)')
     }
 
     this.logger.log('ConfigurationService initialized successfully')

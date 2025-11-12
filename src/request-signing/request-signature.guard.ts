@@ -20,6 +20,10 @@ export class RequestSignatureGuard implements CanActivate {
       return true
     }
 
+    const allowedAddresses = this.ecoConfigService
+      .getDynamicConfigAllowedAddresses()
+      .map((a) => a.toLowerCase())
+
     const request = context.switchToHttp().getRequest()
     const requestHeaders = new RequestHeaders(request.headers)
 
@@ -52,6 +56,16 @@ export class RequestSignatureGuard implements CanActivate {
         )
 
         throw new UnauthorizedException(`Invalid or expired signature`)
+      }
+
+      if (!allowedAddresses.includes(claimedAddress.toLowerCase())) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Address ${claimedAddress} is not authorized to make dynamic config changes`,
+          }),
+        )
+
+        throw new UnauthorizedException(`Address not authorized for dynamic config changes`)
       }
 
       return true

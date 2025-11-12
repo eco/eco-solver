@@ -187,6 +187,10 @@ export class EcoConfigService implements OnModuleInit {
     return this.get<boolean>('requestSignatureValidationEnabled')
   }
 
+  getDynamicConfigAllowedAddresses(): string[] {
+    return this.get<string[]>('dynamicConfigAllowedAddresses') || []
+  }
+
   /**
    * Get configuration value with MongoDB override support
    * This method first checks MongoDB configurations, then falls back to static configs
