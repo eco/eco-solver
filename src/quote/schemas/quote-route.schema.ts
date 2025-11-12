@@ -37,8 +37,8 @@ export class QuoteRouteDataModel implements QuoteRouteDataInterface {
 
   getQuoteRouteData?(): QuoteRouteDataInterface {
     return {
-      source: this.source,
-      destination: this.destination,
+      source: BigInt(this.source.toString()),
+      destination: BigInt(this.destination.toString()),
       inbox: this.inbox,
       tokens: this.tokens.map((token) => token.getRewardTokensInterface!()),
       calls: this.calls.map((call) => call.getCallDataInterface!()),

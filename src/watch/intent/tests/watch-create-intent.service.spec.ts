@@ -19,13 +19,13 @@ describe('WatchIntentService', () => {
   let queue: DeepMocked<Queue>
   const mockLogDebug = jest.fn()
   const mockLogLog = jest.fn()
+  const mockLogWarn = jest.fn()
   const mockLogError = jest.fn()
 
   const sources = [
     { chainID: 1n, sourceAddress: '0x1234', provers: ['0x88'], network: 'testnet1' },
     { chainID: 2n, sourceAddress: '0x5678', provers: ['0x88', '0x99'], network: 'testnet2' },
   ] as any
-  const supportedChains = sources.map((s) => BigInt(s.chainID))
 
   beforeEach(async () => {
     const chainMod: TestingModule = await Test.createTestingModule({
@@ -56,7 +56,11 @@ describe('WatchIntentService', () => {
 
     watchIntentService['logger'].debug = mockLogDebug
     watchIntentService['logger'].log = mockLogLog
+    watchIntentService['logger'].warn = mockLogWarn
     watchIntentService['logger'].error = mockLogError
+
+    // Ensure solver mock returns numeric averageBlockTime per Solver type
+    ecoConfigService.getSolver.mockReturnValue({ averageBlockTime: 2 } as any)
   })
 
   afterEach(async () => {
@@ -64,6 +68,7 @@ describe('WatchIntentService', () => {
     jest.restoreAllMocks()
     mockLogDebug.mockClear()
     mockLogLog.mockClear()
+    mockLogWarn.mockClear()
   })
 
   describe('on lifecycle', () => {
@@ -85,13 +90,14 @@ describe('WatchIntentService', () => {
         expect(mockWatch).toHaveBeenCalledTimes(2)
 
         for (const [index, s] of sources.entries()) {
-          const { address, eventName, args } = mockWatch.mock.calls[index][0]
+          const { address, eventName, args, fromBlock } = mockWatch.mock.calls[index][0]
           const partial = { address, eventName, args }
           expect(partial).toEqual({
             address: s.sourceAddress,
-            eventName: 'IntentCreated',
+            eventName: 'IntentPublished',
             args: { prover: s.provers },
           })
+          expect(fromBlock).toBeUndefined()
         }
       })
 
@@ -128,6 +134,19 @@ describe('WatchIntentService', () => {
         await expect(watchIntentService.subscribe()).rejects.toThrow('boom')
         expect(errorSpy).toHaveBeenCalled()
       })
+
+      it('passes stored fromBlock when resubscribing to a chain', async () => {
+        const chainID = Number(sources[0].chainID)
+        watchIntentService['lastProcessedBlockByChain'][chainID] = 42n
+        const mockWatch = jest.fn().mockReturnValue(jest.fn())
+        await watchIntentService.subscribeTo({ watchContractEvent: mockWatch } as any, sources[0])
+
+        expect(mockWatch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            fromBlock: 43n,
+          }),
+        )
+      })
     })
 
     describe('on destroy', () => {
@@ -153,13 +172,17 @@ describe('WatchIntentService', () => {
 
   describe('on intent', () => {
     const s = sources[0]
-    const log: any = { logIndex: 2, args: { hash: '0x1' } as Partial<IntentCreatedLog['args']> }
+    const log: any = {
+      logIndex: 2,
+      args: { intentHash: '0x1' } as Partial<IntentCreatedLog['args']>,
+      blockNumber: 5n,
+    }
     let mockQueueAdd: jest.SpyInstance<Promise<Job<any, any, string>>>
 
     beforeEach(async () => {
       mockQueueAdd = jest.spyOn(queue, 'add')
       await watchIntentService.addJob(s)([log])
-      expect(mockLogDebug).toHaveBeenCalledTimes(1)
+      expect(mockLogDebug).toHaveBeenCalledTimes(2)
     })
     it('should convert all bigints to strings', async () => {
       expect(mockLogDebug.mock.calls[0][0].createIntent).toEqual(
@@ -187,6 +210,49 @@ describe('WatchIntentService', () => {
       )
     })
 
+    it('records the highest processed block per chain from the batch', async () => {
+      await watchIntentService.addJob(s)([
+        { ...log, blockNumber: 8n },
+        { ...log, blockNumber: 12n },
+      ])
+
+      expect(watchIntentService['lastProcessedBlockByChain'][Number(s.chainID)]).toBe(12n)
+    })
+
+    it('does not advance cursor past the earliest failed block within a batch', async () => {
+      // Ensure no prior cursor
+      delete watchIntentService['lastProcessedBlockByChain'][Number(s.chainID)]
+
+      // Create three logs across consecutive blocks; make the middle one fail
+      const logs: any[] = [
+        { ...log, blockNumber: 100n, logIndex: 1, args: { intentHash: '0x1' } },
+        { ...log, blockNumber: 101n, logIndex: 2, args: { intentHash: '0x1' } },
+        { ...log, blockNumber: 102n, logIndex: 3, args: { intentHash: '0x1' } },
+      ]
+
+      const addSpy = jest.spyOn(queue, 'add')
+      addSpy.mockImplementation((name: any, _data: any, opts: any) => {
+        // Reject only the job for logIndex 2 (block 101)
+        if (opts?.jobId?.endsWith('-2')) {
+          return Promise.reject(new Error('enqueue failed'))
+        }
+        return Promise.resolve({} as any)
+      })
+
+      await watchIntentService.addJob(s)(logs as any)
+
+      // Cursor should advance only to 100 (just before the earliest failed block 101)
+      expect(watchIntentService['lastProcessedBlockByChain'][Number(s.chainID)]).toBe(100n)
+    })
+
+    it('skips cursor updates when logs lack block numbers', async () => {
+      delete watchIntentService['lastProcessedBlockByChain'][Number(s.chainID)]
+
+      await watchIntentService.addJob(s)([{ ...log, blockNumber: undefined } as any])
+
+      expect(watchIntentService['lastProcessedBlockByChain'][Number(s.chainID)]).toBeUndefined()
+    })
+
     it('tracks analytics when job is queued successfully', async () => {
       const spy = jest.spyOn(ecoAnalyticsService, 'trackWatchCreateIntentJobQueued')
       await watchIntentService.addJob(s)([log])
@@ -198,16 +264,7 @@ describe('WatchIntentService', () => {
       mockQueueAdd.mockRejectedValueOnce(err)
       const analyticsSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchJobQueueError')
 
-      // Spy on Promise.allSettled to verify resilient processing is used
-      const allSettledSpy = jest.spyOn(Promise, 'allSettled')
-
-      // The method completes successfully despite the queue error being thrown internally
-      await expect(watchIntentService.addJob(s)([log])).resolves.not.toThrow()
-
-      // Verify that Promise.allSettled was used (proves resilient error handling)
-      expect(allSettledSpy).toHaveBeenCalled()
-
-      // Verify analytics tracking occurred (proves the error was thrown and caught internally)
+      await watchIntentService.addJob(s)([log])
       expect(analyticsSpy).toHaveBeenCalledWith(
         err,
         expect.any(String),
@@ -225,9 +282,48 @@ describe('WatchIntentService', () => {
           failures: ['queue down'],
         }),
       )
+    })
+  })
 
-      // Clean up
-      allSettledSpy.mockRestore()
+  describe('fetchBackfillLogs', () => {
+    const source = sources[0]
+
+    beforeEach(() => {
+      ecoConfigService.getSupportedChains.mockReturnValue([BigInt(source.chainID)])
+    })
+
+    it('caps the range and filters unsupported destinations', async () => {
+      const client = {
+        getContractEvents: jest.fn().mockResolvedValue([
+          {
+            args: { destination: BigInt(source.chainID) },
+            blockNumber: 20_400n,
+          },
+          {
+            args: { destination: 999n },
+            blockNumber: 20_300n,
+          },
+        ]),
+      }
+
+      const toBlock = 20_500n
+      const fromBlock = 1n
+
+      const logs = await (watchIntentService as any).fetchBackfillLogs(
+        client as any,
+        source,
+        fromBlock,
+        toBlock,
+      )
+
+      expect(client.getContractEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromBlock: 10_500n,
+          toBlock,
+        }),
+      )
+      expect(logs).toHaveLength(1)
+      expect(logs[0].blockNumber).toBe(20_400n)
     })
   })
 
@@ -235,6 +331,8 @@ describe('WatchIntentService', () => {
     let mockUnwatch1: jest.Mock = jest.fn()
     let mockUnwatch2: jest.Mock = jest.fn()
     beforeEach(async () => {
+      // ensure call counts from prior tests don't leak into this group
+      mockLogError.mockClear()
       mockUnwatch1 = jest.fn()
       mockUnwatch2 = jest.fn()
       watchIntentService['unwatch'] = {
@@ -255,7 +353,8 @@ describe('WatchIntentService', () => {
       await watchIntentService.unsubscribe()
       expect(mockUnwatch1).toHaveBeenCalledTimes(1)
       expect(mockUnwatch2).toHaveBeenCalledTimes(1)
-      expect(mockLogError).toHaveBeenCalledTimes(2)
+      // Only one error should be logged for the thrown unwatch
+      expect(mockLogError).toHaveBeenCalledTimes(1)
       expect(mockLogError).toHaveBeenCalledWith({
         msg: 'watch-event: unsubscribe',
         error: EcoError.WatchEventUnsubscribeError.toString(),
@@ -343,15 +442,25 @@ describe('WatchIntentService', () => {
 
   describe('onError (recovery)', () => {
     const chainID = 1
-    const client: any = {} as any
+    const client: any = {
+      getBlockNumber: jest.fn().mockResolvedValue(0n),
+    }
     const contract: any = { chainID } as any
     const error = new Error('rpc error')
+    let fetchBackfillSpy: jest.SpyInstance
+    let addJobSpy: jest.SpyInstance
 
     beforeEach(() => {
       // make delay instant to simplify tests
       ;(watchIntentService as any)['delay'] = jest.fn().mockResolvedValue(undefined)
       jest.spyOn(watchIntentService as any, 'unsubscribeFrom').mockResolvedValue(undefined)
       jest.spyOn(watchIntentService as any, 'subscribeTo').mockResolvedValue(undefined)
+      fetchBackfillSpy = jest
+        .spyOn(watchIntentService as any, 'fetchBackfillLogs')
+        .mockResolvedValue([])
+      addJobSpy = jest
+        .spyOn(watchIntentService, 'addJob')
+        .mockReturnValue(jest.fn().mockResolvedValue(undefined) as any)
       // ensure backoff config is set (onModuleInit not invoked in these unit tests)
       ;(watchIntentService as any)['recoveryBackoffBaseMs'] = 1_000
       ;(watchIntentService as any)['recoveryBackoffMaxMs'] = 30_000
@@ -373,14 +482,15 @@ describe('WatchIntentService', () => {
       expect(occurSpy).not.toHaveBeenCalled()
     })
 
-    it('applies capped exponential backoff and resubscribes; tracks error occurrence with context', async () => {
+    it('resubscribes after applying pre-attempt backoff when recovery succeeds; tracks context', async () => {
       ;(watchIntentService as any)['recoveryAttempts'][chainID] = 2 // 1s * 2^2 = 4s (capped below max)
       const delaySpy = jest.spyOn(watchIntentService as any, 'delay')
       const occurSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorOccurred')
 
       await watchIntentService.onError(error, client, contract)
 
-      expect(delaySpy).toHaveBeenCalledWith(expect.any(Number))
+      // Expect pre-attempt backoff to be applied: base 1000ms * 2^2 = 4000ms
+      expect(delaySpy).toHaveBeenCalledWith(4000)
       expect((watchIntentService as any).unsubscribeFrom).toHaveBeenCalledWith(chainID)
       expect((watchIntentService as any).subscribeTo).toHaveBeenCalledWith(client, contract)
       // attempts increment and are not reset on immediate success
@@ -397,6 +507,49 @@ describe('WatchIntentService', () => {
       )
     })
 
+    it('backfills missed logs before resubscribing when a cursor exists', async () => {
+      const addJobReturn = jest.fn().mockResolvedValue(undefined)
+      ;(addJobSpy as jest.Mock).mockReturnValue(addJobReturn)
+      const missedLog = { blockNumber: 11n } as any
+      fetchBackfillSpy.mockResolvedValueOnce([missedLog])
+      client.getBlockNumber.mockResolvedValueOnce(12n)
+      watchIntentService['lastProcessedBlockByChain'][chainID] = 10n
+
+      await watchIntentService.onError(error, client, contract)
+
+      expect(client.getBlockNumber).toHaveBeenCalled()
+      expect(fetchBackfillSpy).toHaveBeenCalledWith(client, contract, 11n, 12n)
+      expect(addJobReturn).toHaveBeenCalledWith([missedLog])
+    })
+
+    it('skips backfill when latest block is behind the cursor', async () => {
+      watchIntentService['lastProcessedBlockByChain'][chainID] = 10n
+      client.getBlockNumber.mockResolvedValueOnce(8n)
+
+      await watchIntentService.onError(error, client, contract)
+
+      expect(fetchBackfillSpy).not.toHaveBeenCalled()
+    })
+
+    it('logs a warning when backfill fails but still resubscribes', async () => {
+      watchIntentService['lastProcessedBlockByChain'][chainID] = 10n
+      client.getBlockNumber.mockResolvedValueOnce(12n)
+      const backfillError = new Error('backfill failed')
+      fetchBackfillSpy.mockRejectedValueOnce(backfillError)
+
+      await watchIntentService.onError(error, client, contract)
+
+      expect(mockLogWarn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          msg: 'watch-event: backfill failed',
+          error: backfillError.toString(),
+          chainID,
+          fromBlock: 11n,
+        }),
+      )
+      expect((watchIntentService as any).subscribeTo).toHaveBeenCalledWith(client, contract)
+    })
+
     it('tracks analytics on recovery start and failure', async () => {
       const startSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorRecoveryStarted')
       const failSpy = jest.spyOn(ecoAnalyticsService, 'trackWatchErrorRecoveryFailed')
@@ -411,6 +564,7 @@ describe('WatchIntentService', () => {
 
       expect(startSpy).toHaveBeenCalled()
       expect(failSpy).toHaveBeenCalled()
+      expect((watchIntentService as any)['delay']).toHaveBeenCalledWith(expect.any(Number))
     })
   })
 })

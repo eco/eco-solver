@@ -37,8 +37,12 @@ export class IntentFulfillmentQueue {
       { queue: this.queueName, prefix: IntentFulfillmentQueue.prefix },
       {
         defaultJobOptions: {
-          removeOnFail: true,
-          removeOnComplete: true,
+          removeOnComplete: {
+            age: 86400, // 24 hours in seconds
+          },
+          removeOnFail: {
+            age: 604800, // 7 days in seconds
+          },
         },
       },
     )

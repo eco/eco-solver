@@ -5,11 +5,11 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { IntentCreatedLog } from '../contracts'
 import { IntentSource } from '../eco-configs/eco-config.types'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { IntentSourceModel } from '../intent/schemas/intent-source.schema'
 import { KernelAccountClientService } from '../transaction/smart-wallets/kernel/kernel-account-client.service'
 import { Model } from 'mongoose'
 import { WatchCreateIntentService } from '../watch/intent/watch-create-intent.service'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * Service class for syncing any missing transactions for all the source intent contracts.
@@ -72,8 +72,8 @@ export class IntentCreatedChainSyncService extends ChainSyncService {
 
     const allCreateIntentLogs = await client.getContractEvents({
       address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
+      abi: portalAbi,
+      eventName: 'IntentPublished',
       strict: true,
       args: {
         prover: source.provers,

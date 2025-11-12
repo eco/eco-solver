@@ -170,6 +170,13 @@ export class EcoError extends Error {
     return new EcoError(`Gas overhead is negative: ${gasOverhead}`)
   }
 
+  // V2 Quote Service
+  static InvalidQuoteV2Request(errorMessage: string) {
+    return new EcoError(`Invalid V2 quote request: ${errorMessage}`)
+  }
+
+  static InvalidQuoteResponse = new EcoError(`Failed to transform quote to V2 format`)
+
   static DefaultGasOverheadUndefined() {
     return new EcoError(`Default gas overhead is undefined`)
   }

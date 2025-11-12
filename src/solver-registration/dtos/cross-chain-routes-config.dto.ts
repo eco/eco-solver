@@ -1,7 +1,3 @@
-import { RouteTokensDTO } from './route-tokens.dto'
+import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
 
-export class CrossChainRoutesConfigDTO {
-  [from: string]: {
-    [to: string]: RouteTokensDTO[]
-  }
-}
+export type CrossChainRoutesConfigDTO = Record<string, Record<string, RouteTokensDTO[]>>

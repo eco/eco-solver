@@ -1,9 +1,12 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Chain, Client, ClientConfig, createClient, extractChain, Hex, zeroAddress } from 'viem'
 import { EcoError } from '@/common/errors/eco-error'
 import { getTransport } from '@/common/chains/transport'
 import { ChainsSupported } from '@/common/chains/supported'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+
+const logger = new Logger('ViemMultichainClientService')
 
 @Injectable()
 export class ViemMultichainClientService<T extends Client, V extends ClientConfig>
@@ -80,11 +83,25 @@ export class ViemMultichainClientService<T extends Client, V extends ClientConfi
   }
 
   private async loadInstance(chainID: number): Promise<T> {
-    if (!this.instances.has(chainID)) {
-      const client = await this.createInstanceClient(await this.getChainConfig(chainID))
-      this.instances.set(chainID, client)
+    try {
+      if (!this.instances.has(chainID)) {
+        const client = await this.createInstanceClient(await this.getChainConfig(chainID))
+        this.instances.set(chainID, client)
+      }
+
+      return this.instances.get(chainID)!
+    } catch (ex) {
+      logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `loadInstance: exception loading instance for chain ${chainID}`,
+          properties: {
+            error: ex.message,
+          },
+        }),
+      )
+
+      throw new Error(`Error creating client for chain ID ${chainID}: ${ex.message}`)
     }
-    return this.instances.get(chainID)!
   }
 
   private isSupportedNetwork(chainID: number): boolean {

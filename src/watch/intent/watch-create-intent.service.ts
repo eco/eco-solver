@@ -9,17 +9,19 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { IntentCreatedLog } from '@/contracts'
 import { Log, PublicClient } from 'viem'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { WatchEventService } from '@/watch/intent/watch-event.service'
 import * as BigIntSerializer from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
 import { ERROR_EVENTS } from '@/analytics/events.constants'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * This service subscribes to IntentSource contracts for IntentCreated events. It subscribes on all
  * supported chains and prover addresses. When an event is emitted, it mutates the event log, and then
  * adds it intent queue for processing.
  */
+const MAX_BACKFILL_BLOCK_RANGE = 10_000n
+
 @Injectable()
 export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   protected logger = new Logger(WatchCreateIntentService.name)
@@ -72,6 +74,9 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
   }
 
   async subscribeTo(client: PublicClient, source: IntentSource) {
+    const chainID = Number(source.chainID)
+    const fromBlock = this.getNextFromBlock(chainID)
+
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch create intent: subscribeToSource`,
@@ -81,19 +86,21 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
       }),
     )
 
-    this.unwatch[source.chainID] = client.watchContractEvent({
+    this.unwatch[chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
-      abi: IntentSourceAbi,
-      eventName: 'IntentCreated',
+      abi: portalAbi,
+      eventName: 'IntentPublished',
       args: {
         // // restrict by acceptable chains, chain ids must be bigints
         // _destinationChain: solverSupportedChains,
         prover: source.provers,
       },
+      fromBlock,
       onLogs: this.addJob(source),
+      pollingInterval: this.getPollingInterval(source.chainID),
     })
   }
 
@@ -104,9 +111,15 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
         this.ecoAnalytics.trackWatchCreateIntentEventsDetected(logs.length, source)
       }
 
+      // Track the highest successfully processed block and the earliest failed block.
+      // We will only advance the cursor to the last safe block that guarantees no skipped logs.
+      let maxSuccessBlock: bigint | undefined
+      let minFailedBlock: bigint | undefined
+
       await this.processLogsResiliently(
         logs,
         async (log) => {
+          const blockNum = typeof log.blockNumber === 'bigint' ? log.blockNumber : undefined
           log.sourceChainID = BigInt(source.chainID)
           log.sourceNetwork = source.network
 
@@ -114,7 +127,7 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
           const createIntent = BigIntSerializer.serialize(log)
           const jobId = getIntentJobId(
             'watch-create-intent',
-            createIntent.args.hash,
+            createIntent.args.intentHash,
             createIntent.logIndex,
           )
           this.logger.debug(
@@ -130,11 +143,25 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
               jobId,
               ...this.watchJobConfig,
             })
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `addJob: watch create intent: added to queue`,
+                properties: { createIntent, jobId, source },
+              }),
+            )
 
             // Track successful job addition
             this.ecoAnalytics.trackWatchCreateIntentJobQueued(createIntent, jobId, source)
           } catch (error) {
             // Track job queue failure with complete context
+            this.logger.error(
+              EcoLogMessage.withError({
+                message: `addJob: watch create intent: error adding to queue`,
+                error,
+                properties: { createIntent, jobId, source },
+              }),
+            )
+
             this.ecoAnalytics.trackWatchJobQueueError(
               error,
               ERROR_EVENTS.CREATE_INTENT_JOB_QUEUE_FAILED,
@@ -146,11 +173,73 @@ export class WatchCreateIntentService extends WatchEventService<IntentSource> {
                 logIndex: createIntent.logIndex,
               },
             )
+            // Record earliest failed block so we do not advance beyond it
+            if (blockNum !== undefined) {
+              if (minFailedBlock === undefined || blockNum < minFailedBlock) {
+                minFailedBlock = blockNum
+              }
+            }
             throw error
+          }
+          // Record highest successful block
+          if (blockNum !== undefined) {
+            if (maxSuccessBlock === undefined || blockNum > maxSuccessBlock) {
+              maxSuccessBlock = blockNum
+            }
           }
         },
         'watch create-intent',
       )
+
+      const chainIDNum = Number(source.chainID)
+      const previous = this['lastProcessedBlockByChain'][chainIDNum]
+
+      // If any failures occurred, only advance to just before the earliest failed block.
+      // Otherwise, advance to the highest successful block.
+      let nextCursor: bigint | undefined
+      if (minFailedBlock !== undefined) {
+        if (minFailedBlock > 0n) {
+          const candidate = minFailedBlock - 1n
+          if (previous === undefined || candidate > previous) {
+            nextCursor = candidate
+          }
+        }
+      } else if (maxSuccessBlock !== undefined) {
+        nextCursor = maxSuccessBlock
+      }
+
+      if (nextCursor !== undefined) {
+        this.recordProcessedBlock(chainIDNum, nextCursor)
+      }
     }
+  }
+
+  protected override async fetchBackfillLogs(
+    client: PublicClient,
+    source: IntentSource,
+    fromBlock: bigint,
+    toBlock: bigint,
+  ): Promise<Log[]> {
+    let effectiveFromBlock = fromBlock
+    if (toBlock - fromBlock > MAX_BACKFILL_BLOCK_RANGE) {
+      effectiveFromBlock =
+        toBlock > MAX_BACKFILL_BLOCK_RANGE ? toBlock - MAX_BACKFILL_BLOCK_RANGE : 0n
+    }
+
+    const supportedChains = this.ecoConfigService.getSupportedChains()
+
+    const logs = await client.getContractEvents({
+      address: source.sourceAddress,
+      abi: portalAbi,
+      eventName: 'IntentPublished',
+      strict: true,
+      args: {
+        prover: source.provers,
+      },
+      fromBlock: effectiveFromBlock,
+      toBlock,
+    })
+
+    return logs.filter((log) => supportedChains.includes(log.args.destination)) as Log[]
   }
 }

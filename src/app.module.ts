@@ -1,6 +1,7 @@
 import { AnalyticsModule } from '@/analytics/analytics.module'
 import { ApiModule } from '@/api/api.module'
 import { BalanceModule } from '@/balance/balance.module'
+import { BullBoardModule } from '@/bull-board/bull-board.module'
 import { ChainMonitorModule } from '@/chain-monitor/chain-monitor.module'
 import { EcoConfigModule } from '@/eco-configs/eco-config.module'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
@@ -99,6 +100,7 @@ import { BlockchainModule } from '@/blockchain/blockchain.module'
     WatchModule,
     IntentProcessorModule,
     IntentFulfillmentModule,
+    BullBoardModule,
     ...getPino(),
   ],
   controllers: [],

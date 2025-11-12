@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Hex } from 'viem'
 import { JobsOptions, Queue } from 'bullmq'
 import { InjectQueue } from '@nestjs/bullmq'
-import { IntentSourceAbi } from '@eco-foundation/routes-ts'
 import { Solver } from '@/eco-configs/eco-config.types'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentProcessData, UtilsIntentService } from './utils-intent.service'
@@ -17,6 +16,7 @@ import { IntentDataModel } from '@/intent/schemas/intent-data.schema'
 import { ValidationChecks, ValidationService, validationsFailed } from '@/intent/validation.sevice'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS, ERROR_EVENTS } from '@/analytics/events.constants'
+import { IntentV2Pure, portalAbi } from '@/contracts/v2-abi/Portal'
 
 /**
  * Type that merges the {@link ValidationChecks} with the intentFunded check
@@ -228,6 +228,8 @@ export class ValidateIntentService implements OnModuleInit {
             message: `intentFunded check failed, retrying... (${retryCount}/${this.MAX_RETRIES})`,
             properties: {
               intentHash: model.intent.hash,
+              portal: intentSource.sourceAddress,
+              chainId: sourceChainID,
             },
           }),
         )
@@ -241,12 +243,23 @@ export class ValidateIntentService implements OnModuleInit {
         })
       }
 
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Checking if intent is funded`,
+          properties: {
+            intentHash: model.intent.hash,
+            intent: model.intent,
+            sourceChainID,
+          },
+        }),
+      )
+
       // Check if the intent is funded
       isIntentFunded = await client.readContract({
         address: intentSource.sourceAddress,
-        abi: IntentSourceAbi,
+        abi: portalAbi,
         functionName: 'isIntentFunded',
-        args: [IntentDataModel.toChainIntent(model.intent)],
+        args: [IntentDataModel.toIntentV2(model.intent) as IntentV2Pure],
       })
 
       retryCount++
@@ -261,6 +274,19 @@ export class ValidateIntentService implements OnModuleInit {
         funded: true,
       })
     } else {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Intent not funded after retries`,
+          properties: {
+            intentHash: model.intent.hash,
+            intent: model.intent,
+            sourceChainID,
+            retryCount: retryCount - 1,
+            maxRetries: this.MAX_RETRIES,
+            retryDelayMs: this.RETRY_DELAY_MS,
+          },
+        }),
+      )
       this.ecoAnalytics.trackError(
         ANALYTICS_EVENTS.INTENT.FUNDING_CHECK_FAILED,
         new Error('intent_not_funded_after_retries'),

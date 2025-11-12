@@ -1,22 +1,13 @@
 export interface IndexerIntent {
-  hash: string
+  // V2 fields
+  intentHash: string
   creator: string
   prover: string
-  salt: string
-  source: string
   destination: string
-  inbox: string
-  routeTokens: {
-    token: string
-    amount: string
-  }[]
-  calls: {
-    target: string
-    data: string
-    value: string
-  }[]
-  deadline: string
-  nativeValue: string
+  source: string
+  route: string // bytes-encoded Route struct
+  rewardDeadline: string
+  rewardNativeAmount: string
   rewardTokens: {
     token: string
     amount: string

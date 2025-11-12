@@ -1,5 +1,6 @@
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { CreateIntentService } from '@/intent/create-intent.service'
+import { EcoAnalyticsService } from '@/analytics'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
@@ -76,7 +77,7 @@ describe('IntentInitiationController', () => {
           },
         },
       ])
-      .withMocks([QuoteService, QuoteRepository, CreateIntentService])
+      .withMocks([QuoteService, QuoteRepository, CreateIntentService, EcoAnalyticsService])
 
     controller = await $.init()
     service = $.get(IntentInitiationService)

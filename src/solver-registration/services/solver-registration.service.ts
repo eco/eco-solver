@@ -79,7 +79,7 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   }
 
   private async getRequestSignatureHeaders(payload: object): Promise<SignatureHeaders> {
-    const expiryTime = Date.now() + 1000 * 60 * 2 // 2 minutes
+    const expiryTime = Date.now() + 1000 * 60 * 5 // 5 minutes
     return this.signingService.getHeaders(payload, expiryTime)
   }
 

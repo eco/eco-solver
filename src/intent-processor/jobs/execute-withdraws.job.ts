@@ -8,12 +8,12 @@ import {
   IntentProcessorJob,
   IntentProcessorJobManager,
 } from '@/intent-processor/jobs/intent-processor.job'
-import { IntentType } from '@eco-foundation/routes-ts'
+import { WithdrawData } from '@/intent-processor/utils/intent'
 
 export type ExecuteWithdrawsJobData = {
   chainId: number
   intentSourceAddr: Hex
-  intents: IntentType[]
+  withdrawals: WithdrawData[]
 }
 
 export type ExecuteWithdrawsJob = Job<

@@ -1,22 +1,23 @@
-import { decodeCreateIntentLog, IntentCreatedLog } from '../contracts'
+import { decodeAbiParameters, decodeEventLog, Hex } from 'viem'
 import { deserialize, Serialize } from '@/common/utils/serialize'
 import { EcoAnalyticsService } from '@/analytics'
-import { EcoConfigService } from '../eco-configs/eco-config.service'
+import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '../common/logging/eco-log-message'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
-import { FlagService } from '../flags/flags.service'
-import { getIntentJobId } from '../common/utils/strings'
-import { Hex } from 'viem'
+import { FlagService } from '@/flags/flags.service'
+import { getIntentJobId } from '@/common/utils/strings'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { InjectQueue } from '@nestjs/bullmq'
+import { IntentCreatedLog, routeStructAbiItem } from '@/contracts'
 import { IntentDataModel } from './schemas/intent-data.schema'
 import { IntentSourceModel } from './schemas/intent-source.schema'
 import { IntentSourceRepository } from '@/intent/repositories/intent-source.repository'
 import { JobsOptions, Queue } from 'bullmq'
-import { QUEUES } from '../common/redis/constants'
-import { ValidSmartWalletService } from '../solver/filters/valid-smart-wallet.service'
+import { portalAbi } from '@/contracts/v2-abi/Portal'
+import { QUEUES } from '@/common/redis/constants'
+import { ValidSmartWalletService } from '@/solver/filters/valid-smart-wallet.service'
 
 /**
  * This service is responsible for creating a new intent record in the database. It is
@@ -56,7 +57,7 @@ export class CreateIntentService implements OnModuleInit {
         message: `createIntent ${intentWs.transactionHash}`,
         properties: {
           transactionHash: intentWs.transactionHash,
-          intentHash: intentWs.args?.hash,
+          intentHash: intentWs.args?.intentHash,
         },
       }),
     )
@@ -142,8 +143,37 @@ export class CreateIntentService implements OnModuleInit {
   }
 
   private getIntentFromIntentCreatedLog(intentWs: IntentCreatedLog): IntentDataModel {
-    const ei = decodeCreateIntentLog(intentWs.data, intentWs.topics)
-    const intent = IntentDataModel.fromEvent(ei, intentWs.logIndex || 0)
+    const ei = decodeEventLog({
+      abi: portalAbi,
+      eventName: 'IntentPublished',
+      strict: true,
+      topics: intentWs.topics,
+      data: intentWs.data,
+    })
+
+    // route in the event is bytes encoded with a length prefix
+    // skipping the first 32 bytes (length prefix) and decode the actual Route struct
+    const { salt, deadline, portal, nativeAmount, tokens, calls } = decodeAbiParameters(
+      [routeStructAbiItem],
+      ei.args.route,
+    )[0]
+
+    const decodedRoute = {
+      salt,
+      deadline,
+      portal,
+      nativeAmount,
+      tokens,
+      calls,
+    }
+
+    const intent = IntentDataModel.fromEvent(
+      intentWs.sourceChainID,
+      intentWs.logIndex || 0,
+      ei,
+      decodedRoute,
+    )
+
     return intent
   }
 

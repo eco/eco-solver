@@ -3,7 +3,7 @@ import { EcoTester } from '@/common/test-utils/eco-tester/eco-tester'
 import { FeeService } from '@/fee/fee.service'
 import { FulfillmentEstimateService } from '@/fulfillment-estimate/fulfillment-estimate.service'
 import { InfeasibleQuote, InvalidQuoteIntent } from '@/quote/errors'
-import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
+import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { Logger } from '@nestjs/common'
 import { parseGwei } from 'viem'
 import { EcoAnalyticsService } from '@/analytics'
@@ -22,7 +22,7 @@ describe('QuoteService', () => {
   let quoteRepository: QuoteRepository
   let feeService: FeeService
   let validationService: ValidationService
-  let intentInitiationService: IntentInitiationService
+  let intentInitiationService: IntentInitiationV2Service
 
   const quoteTestUtils = new QuoteTestUtils()
 
@@ -66,7 +66,7 @@ describe('QuoteService', () => {
         },
       ])
       .withMocks([
-        IntentInitiationService,
+        IntentInitiationV2Service,
         FulfillmentEstimateService,
         QuoteRepository,
         EcoAnalyticsService,
@@ -83,7 +83,7 @@ describe('QuoteService', () => {
 
     quoteService = await $.init()
     quoteRepository = await $.get(QuoteRepository)
-    intentInitiationService = await $.get(IntentInitiationService)
+    intentInitiationService = await $.get(IntentInitiationV2Service)
     feeService = await $.get(FeeService)
     validationService = await $.get(ValidationService)
     quoteService.onModuleInit()

@@ -32,8 +32,8 @@ export class QuoteRewardDataModel implements QuoteRewardDataType {
     return {
       creator: this.creator,
       prover: this.prover,
-      deadline: this.deadline,
-      nativeValue: this.nativeValue,
+      deadline: BigInt(this.deadline.toString()),
+      nativeValue: BigInt(this.nativeValue.toString()),
       tokens: this.tokens.map((token) => token.getRewardTokensInterface!()),
     }
   }

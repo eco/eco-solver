@@ -24,12 +24,20 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
   ) {}
 
   async onModuleInit() {
-    const squidConfig = this.ecoConfigService.getSquid()
-    this.squid = new Squid({
-      baseUrl: squidConfig.baseUrl,
-      integratorId: squidConfig.integratorId,
-    })
-    await this.squid.init()
+    try {
+      const squidConfig = this.ecoConfigService.getSquid()
+      if (!squidConfig?.integratorId) {
+        this.logger.warn('Squid configuration not found or incomplete, service will be disabled')
+        return
+      }
+      this.squid = new Squid({
+        baseUrl: squidConfig.baseUrl,
+        integratorId: squidConfig.integratorId,
+      })
+      await this.squid.init()
+    } catch (error) {
+      this.logger.warn('Failed to initialize Squid service, it will be disabled', error)
+    }
   }
 
   getStrategy() {
