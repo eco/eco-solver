@@ -18,6 +18,7 @@ import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
+import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     BullBoardDashboardModule.forRootAsync(),
     ApiModule.forRootAsync(),
     HealthModule,
+    DynamicConfigModule,
   ],
   providers: [Logger],
 })
