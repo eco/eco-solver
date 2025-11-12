@@ -66,7 +66,10 @@
       "Bash(src/modules/rhinestone/services/rhinestone-contracts.service.ts )",
       "Bash(src/modules/rhinestone/services/rhinestone-validation.service.ts )",
       "Bash(src/modules/rhinestone/services/tests/rhinestone-validation.service.spec.ts )",
-      "Bash(src/modules/rhinestone/services/tests/fixtures/action-fixtures.ts)"
+      "Bash(src/modules/rhinestone/services/tests/fixtures/action-fixtures.ts)",
+      "Bash(src/modules/rhinestone/services/rhinestone-action-processor.service.ts )",
+      "Bash(src/modules/rhinestone/services/tests/rhinestone-action-processor.spec.ts )",
+      "Bash(src/modules/rhinestone/services/index.ts)"
     ],
     "deny": [],
     "ask": []
