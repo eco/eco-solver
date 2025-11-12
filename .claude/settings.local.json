@@ -72,7 +72,13 @@
       "Bash(src/modules/rhinestone/services/index.ts)",
       "Bash(src/modules/blockchain/blockchain-executor.service.ts )",
       "Bash(src/modules/blockchain/evm/services/evm.executor.service.ts)",
-      "Bash(src/modules/blockchain/blockchain.processor.ts)"
+      "Bash(src/modules/blockchain/blockchain.processor.ts)",
+      "Bash(src/modules/fulfillment/strategies/rhinestone-fulfillment.strategy.ts )",
+      "Bash(src/modules/fulfillment/strategies/tests/rhinestone-fulfillment.strategy.spec.ts )",
+      "Bash(src/modules/fulfillment/validations/rhinestone.validation.ts )",
+      "Bash(src/modules/fulfillment/validations/index.ts )",
+      "Bash(src/modules/fulfillment/utils/fee-calculation.helper.ts )",
+      "Bash(src/modules/fulfillment/fulfillment.module.ts)"
     ],
     "deny": [],
     "ask": []
