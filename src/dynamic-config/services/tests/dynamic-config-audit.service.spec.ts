@@ -32,6 +32,7 @@ describe('DynamicConfigAuditService', () => {
       findHistory: jest.fn(),
       findUserActivity: jest.fn(),
       getStatistics: jest.fn(),
+      getAll: jest.fn(),
       findWithFilterPaginated: jest.fn(),
       count: jest.fn(),
       deleteOlderThan: jest.fn(),
@@ -292,14 +293,14 @@ describe('DynamicConfigAuditService', () => {
     })
 
     it('should export audit logs as JSON', async () => {
-      repository.findWithFilterPaginated.mockResolvedValue({
+      repository.getAll.mockResolvedValue({
         logs: [mockAuditDocument],
         total: 1,
       })
 
       const result = await service.exportAuditLogs({})
 
-      expect(repository.findWithFilterPaginated).toHaveBeenCalledWith({})
+      expect(repository.getAll).toHaveBeenCalledWith({})
       expect(result).toContain('"configKey": "test.key"')
       expect(result).toContain('"operation": "CREATE"')
       expect(result).toContain('"oldValue": "masked-old"')
