@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 
@@ -15,8 +15,9 @@ import { RhinestoneValidationService } from '@/modules/rhinestone/services/rhine
 @Injectable()
 export class RhinestoneValidation implements FeeCalculationValidation {
   constructor(
-    private readonly validationService: RhinestoneValidationService,
     private readonly otelService: OpenTelemetryService,
+    @Optional()
+    private readonly validationService?: RhinestoneValidationService,
   ) {}
 
   async validate(intent: Intent, context: ValidationContext): Promise<boolean> {
@@ -31,6 +32,12 @@ export class RhinestoneValidation implements FeeCalculationValidation {
       });
 
       try {
+        if (!this.validationService) {
+          throw new Error(
+            'RhinestoneValidationService is missing. Rhinestone module may not be enabled.',
+          );
+        }
+
         // Validate native token support
         this.validationService.validateNativeToken(intent);
         span.addEvent('native-token-validated');
@@ -76,6 +83,12 @@ export class RhinestoneValidation implements FeeCalculationValidation {
       });
 
       try {
+        if (!this.validationService) {
+          throw new Error(
+            'RhinestoneValidationService is missing. Rhinestone module may not be enabled.',
+          );
+        }
+
         // Delegate to service for fee calculation
         const feeDetails = await this.validationService.calculateAndValidateFees(intent, {
           skipCalculation: context.quoting,

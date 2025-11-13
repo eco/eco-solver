@@ -26,7 +26,7 @@ export class BlockchainExecutorService {
     private intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    private rhinestoneMetadataService: RhinestoneMetadataService,
+    @Optional() private rhinestoneMetadataService?: RhinestoneMetadataService,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
     @Optional() private tvmExecutor?: TvmExecutorService,
@@ -150,7 +150,7 @@ export class BlockchainExecutorService {
       async (span) => {
         try {
           // Retrieve Rhinestone payload from Redis
-          const rhinestonePayload = await this.rhinestoneMetadataService.get(intent.intentHash);
+          const rhinestonePayload = await this.rhinestoneMetadataService!.get(intent.intentHash);
           if (!rhinestonePayload) {
             throw new Error(`No Rhinestone payload found in Redis for intent ${intent.intentHash}`);
           }
@@ -242,7 +242,7 @@ export class BlockchainExecutorService {
           await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FULFILLED);
 
           // Clean up Rhinestone payload from Redis
-          await this.rhinestoneMetadataService.delete(intent.intentHash);
+          await this.rhinestoneMetadataService!.delete(intent.intentHash);
           this.logger.log('Cleaned up Rhinestone payload from Redis');
 
           this.logger.log(`Rhinestone fulfillment complete: ${intent.intentHash}`);
@@ -258,7 +258,7 @@ export class BlockchainExecutorService {
           await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
 
           // Clean up payload even on failure
-          await this.rhinestoneMetadataService.delete(intent.intentHash);
+          await this.rhinestoneMetadataService!.delete(intent.intentHash);
 
           span.recordException(error as Error);
           span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });

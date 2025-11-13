@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
@@ -48,7 +48,8 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     private readonly proverSupportValidation: ProverSupportValidation,
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly rhinestoneValidation: RhinestoneValidation,
-    private readonly metadataService: RhinestoneMetadataService,
+    @Optional()
+    private readonly metadataService?: RhinestoneMetadataService,
   ) {
     super(blockchainExecutor, blockchainReader, otelService);
     // Define immutable validations for this strategy
@@ -82,6 +83,10 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
         'strategy.name': this.name,
         'strategy.skips_route_calls_validation': true,
       });
+
+      if (!this.metadataService) {
+        throw new Error('MetadataService is missing. Rhinestone module may not be enabled.');
+      }
 
       // Retrieve Rhinestone payload from Redis
       const rhinestonePayload = await this.metadataService.get(intent.intentHash);
