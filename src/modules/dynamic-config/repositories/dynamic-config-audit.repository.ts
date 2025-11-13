@@ -211,7 +211,7 @@ export class DynamicConfigAuditRepository {
   async getAll(
     filter: AuditFilter,
   ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
-    return this.findWithFilterPaginated(filter, Number.MAX_SAFE_INTEGER, 0)
+    return this.findWithFilterPaginated(filter, Number.MAX_SAFE_INTEGER, 0);
   }
 
   /**

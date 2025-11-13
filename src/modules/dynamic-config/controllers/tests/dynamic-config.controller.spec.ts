@@ -8,7 +8,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
-import { getSignatureHeaders } from '@/request-signing/signature-headers'
+import { getSignatureHeaders } from '@/request-signing/signature-headers';
 
 describe('ConfigurationController', () => {
   let controller: DynamicConfigController;
