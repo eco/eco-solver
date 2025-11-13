@@ -74,7 +74,7 @@ describe('DynamicConfigAuditRepository', () => {
   describe('create', () => {
     it('should create audit log successfully', async () => {
       const mockSave = jest.fn().mockResolvedValue(mockAuditDocument);
-      (model as any).mockImplementation(() => ({
+      (model as any).mockImplementationOnce(() => ({
         ...mockAuditDocument,
         save: mockSave,
       }));
@@ -96,7 +96,7 @@ describe('DynamicConfigAuditRepository', () => {
 
     it('should handle database errors', async () => {
       const mockSave = jest.fn().mockRejectedValue(new Error('Database error'));
-      (model as any).mockImplementation(() => ({
+      (model as any).mockImplementationOnce(() => ({
         ...mockAuditDocument,
         save: mockSave,
       }));

@@ -6,13 +6,9 @@ import { DynamicConfigController } from '@/modules/dynamic-config/controllers/dy
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
-import {
-  SIGNATURE_ADDRESS_HEADER,
-  SIGNATURE_EXPIRE_HEADER,
-  SIGNATURE_HEADER,
-} from '@/request-signing/interfaces/signature-headers.interface';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
+import { getSignatureHeaders } from '@/request-signing/signature-headers'
 
 describe('ConfigurationController', () => {
   let controller: DynamicConfigController;
@@ -21,9 +17,11 @@ describe('ConfigurationController', () => {
   const mockRequest = {
     headers: {
       'user-agent': 'Mozilla/5.0',
-      [SIGNATURE_HEADER]: 'mock-signature',
-      [SIGNATURE_ADDRESS_HEADER]: '0x1234567890123456789012345678901234567890',
-      [SIGNATURE_EXPIRE_HEADER]: '1234567890',
+      ...getSignatureHeaders(
+        '0xdeadbeef',
+        '0x1234567890123456789012345678901234567890',
+        1234567890,
+      ),
     },
     get: jest.fn(),
   } as any;
