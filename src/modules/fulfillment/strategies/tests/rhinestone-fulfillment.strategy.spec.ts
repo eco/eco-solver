@@ -52,7 +52,6 @@ import {
   DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  IntentFundedValidation,
   ProverSupportValidation,
   RhinestoneValidation,
   RouteAmountLimitValidation,
@@ -65,6 +64,7 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { RhinestoneFulfillmentStrategy } from '../rhinestone-fulfillment.strategy';
 
@@ -75,7 +75,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let queueService: jest.Mocked<IQueueService>;
   let _otelService: jest.Mocked<OpenTelemetryService>;
   // Mock validation services
-  let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let duplicateRewardTokensValidation: jest.Mocked<any>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
@@ -143,7 +142,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
       constructor: { name },
     });
 
-    intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
     duplicateRewardTokensValidation = createMockValidation(
       'DuplicateRewardTokensValidation',
     ) as any;
@@ -222,7 +220,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
           useValue: rhinestoneValidation,
         },
         {
-          provide: 'RhinestoneMetadataService',
+          provide: RhinestoneMetadataService,
           useValue: mockMetadataService,
         },
       ],
@@ -245,18 +243,18 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     it('should have the correct validations in order WITHOUT RouteCallsValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(10); // One less than standard strategy (which has 11)
-      expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(duplicateRewardTokensValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      // RouteCallsValidation is intentionally skipped
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(routeEnabledValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(rhinestoneValidation);
+      expect(validations).toHaveLength(9); // Excludes IntentFundedValidation and RouteCallsValidation
+      // NOTE: IntentFundedValidation excluded (Rhinestone solver funds via CLAIM)
+      // NOTE: RouteCallsValidation excluded (smart accounts have custom patterns)
+      expect(validations[0]).toBe(duplicateRewardTokensValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[2]).toBe(routeAmountLimitValidation);
+      expect(validations[3]).toBe(expirationValidation);
+      expect(validations[4]).toBe(chainSupportValidation);
+      expect(validations[5]).toBe(routeEnabledValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(rhinestoneValidation);
     });
 
     it('should exclude RouteCallsValidation from validations', () => {
@@ -279,12 +277,12 @@ describe('RhinestoneFulfillmentStrategy', () => {
   });
 
   describe('canHandle', () => {
-    it('should always return false (only enabled via configuration)', () => {
+    it('should always return true (Rhinestone intents explicitly queued)', () => {
       const mockIntent = createMockIntent();
-      expect(strategy.canHandle(mockIntent)).toBe(false);
+      expect(strategy.canHandle(mockIntent)).toBe(true);
     });
 
-    it('should return false for various smart account scenarios', () => {
+    it('should return true for various smart account scenarios', () => {
       const intents = [
         // Normal intent
         createMockIntent(),
@@ -332,11 +330,11 @@ describe('RhinestoneFulfillmentStrategy', () => {
       ];
 
       intents.forEach((intent) => {
-        expect(strategy.canHandle(intent)).toBe(false);
+        expect(strategy.canHandle(intent)).toBe(true);
       });
     });
 
-    it('should return false even for EIP-4337 UserOperation patterns', () => {
+    it('should return true even for EIP-4337 UserOperation patterns', () => {
       // Even with patterns that indicate account abstraction,
       // the strategy currently only activates via configuration
       const userOpIntent = createMockIntent({
@@ -352,7 +350,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
         } as any,
       });
 
-      expect(strategy.canHandle(userOpIntent)).toBe(false);
+      expect(strategy.canHandle(userOpIntent)).toBe(true);
     });
   });
 
@@ -363,11 +361,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
       expect(result).toBe(true);
 
-      // Verify validations were called (excluding RouteCallsValidation)
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
+      // Verify validations were called (excluding IntentFundedValidation and RouteCallsValidation)
       expect(routeTokenValidation.validate).toHaveBeenCalledWith(
         mockIntent,
         expect.objectContaining({ strategy }),
@@ -402,9 +396,8 @@ describe('RhinestoneFulfillmentStrategy', () => {
         expect.objectContaining({ strategy }),
       );
 
-      // Verify each validation was called exactly once (except RouteCallsValidation)
+      // Verify each validation was called exactly once (except IntentFundedValidation and RouteCallsValidation)
       [
-        intentFundedValidation,
         routeTokenValidation,
         routeAmountLimitValidation,
         expirationValidation,
@@ -453,10 +446,9 @@ describe('RhinestoneFulfillmentStrategy', () => {
       );
 
       // Verify validations were called in order until failure
-      expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
       expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
       expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
-      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(0); // Skipped
+      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(0); // Excluded
       expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
       expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
 
@@ -611,7 +603,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(10); // One less than standard (which has 11)
+      expect(validations).toHaveLength(9); // Excludes IntentFundedValidation and RouteCallsValidation
       expect(Object.isFrozen(validations)).toBe(true);
     });
 
@@ -626,17 +618,17 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       // Check that validations are in the expected order
-      expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(duplicateRewardTokensValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      // RouteCallsValidation is intentionally skipped
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(routeEnabledValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(rhinestoneValidation);
+      // NOTE: IntentFundedValidation is excluded (Rhinestone solver funds via CLAIM phase)
+      // NOTE: RouteCallsValidation is excluded (smart accounts have custom patterns)
+      expect(validations[0]).toBe(duplicateRewardTokensValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[2]).toBe(routeAmountLimitValidation);
+      expect(validations[3]).toBe(expirationValidation);
+      expect(validations[4]).toBe(chainSupportValidation);
+      expect(validations[5]).toBe(routeEnabledValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(rhinestoneValidation);
     });
   });
 });

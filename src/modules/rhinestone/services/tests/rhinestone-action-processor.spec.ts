@@ -1,590 +1,196 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
-import { FeeResolverService } from '@/modules/config/services/fee-resolver.service';
-import { RhinestoneConfigService } from '@/modules/config/services/rhinestone-config.service';
-import { TokenConfigService } from '@/modules/config/services/token-config.service';
+import { IntentsService } from '@/modules/intents/intents.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { ProverService } from '@/modules/prover/prover.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 
 import { RhinestoneActionProcessor } from '../rhinestone-action-processor.service';
-import { RhinestoneContractsService } from '../rhinestone-contracts.service';
+import { RhinestoneMetadataService } from '../rhinestone-metadata.service';
 import { RhinestoneValidationService } from '../rhinestone-validation.service';
 import { RhinestoneWebsocketService } from '../rhinestone-websocket.service';
-
-import {
-  createActionWithEmptyClaims,
-  createActionWithInvalidCalldata,
-  createActionWithInvalidClaimRouter,
-  createActionWithInvalidFillRouter,
-  createActionWithInvalidSettlementLayer,
-  createActionWithMissingSettlementLayer,
-  createActionWithMultipleBeforeFillClaims,
-  createActionWithNoBeforeFillClaim,
-  createActionWithNonZeroClaimValue,
-  createActionWithNonZeroFillValue,
-  createActionWithSameChains,
-  VALID_ACTION,
-} from './fixtures/action-fixtures';
-
-const mockQueueService = {
-  addIntentToFulfillmentQueue: jest.fn(),
-};
-
-const mockWebsocketService = {
-  sendActionStatus: jest.fn().mockResolvedValue(undefined),
-};
-
-const mockOtelService = {
-  tracer: {
-    startActiveSpan: jest.fn((name, options, fn) =>
-      fn({
-        setAttribute: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      }),
-    ),
-  },
-};
-
-const mockRhinestoneConfigService = {
-  getContracts: jest.fn().mockReturnValue({
-    router: '0x000000000004598d17aad017bf0734a364c5588b',
-    ecoAdapter: '0x0000000000000000000000000000000000000001',
-    ecoArbiter: '0x0000000000000000000000000000000000000002',
-  }),
-};
-
-// Minimal mocks for RhinestoneValidationService dependencies
-const mockRhinestoneContractsService = {};
-const mockFeeResolverService = {};
-const mockTokenConfigService = {};
-
-// Mock ProverService (added for rhinestone execution)
-const mockProverService = {
-  calculateProofFee: jest.fn().mockResolvedValue(0n),
-  sendProof: jest.fn().mockResolvedValue('0x1234567890abcdef'),
-};
-
-// Mock EvmTransportService (added for rhinestone execution)
-const mockEvmTransportService = {
-  getPublicClient: jest.fn(),
-  getWalletClient: jest.fn(),
-};
+import { sampleAction } from '../../utils/tests/sample-action';
 
 describe('RhinestoneActionProcessor', () => {
   let service: RhinestoneActionProcessor;
+  let intentsService: jest.Mocked<IntentsService>;
+  let metadataService: jest.Mocked<RhinestoneMetadataService>;
+  let queueService: jest.Mocked<any>;
+  let websocketService: jest.Mocked<RhinestoneWebsocketService>;
+  let validationService: jest.Mocked<RhinestoneValidationService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RhinestoneActionProcessor,
-        RhinestoneValidationService, // Use real service
-        { provide: QUEUE_SERVICE, useValue: mockQueueService },
-        { provide: RhinestoneWebsocketService, useValue: mockWebsocketService },
-        { provide: OpenTelemetryService, useValue: mockOtelService },
-        { provide: RhinestoneConfigService, useValue: mockRhinestoneConfigService },
-        { provide: RhinestoneContractsService, useValue: mockRhinestoneContractsService },
-        { provide: FeeResolverService, useValue: mockFeeResolverService },
-        { provide: TokenConfigService, useValue: mockTokenConfigService },
-        // Mock ProverService and EvmTransportService for execution
-        { provide: ProverService, useValue: mockProverService },
-        { provide: EvmTransportService, useValue: mockEvmTransportService },
+        {
+          provide: RhinestoneWebsocketService,
+          useValue: {
+            sendActionStatus: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: {
+            tracer: {
+              startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+                const span = {
+                  setAttribute: jest.fn(),
+                  setAttributes: jest.fn(),
+                  addEvent: jest.fn(),
+                  setStatus: jest.fn(),
+                  recordException: jest.fn(),
+                  end: jest.fn(),
+                };
+                return fn(span);
+              }),
+            },
+          },
+        },
+        {
+          provide: RhinestoneValidationService,
+          useValue: {
+            validateSettlementLayerFromMetadata: jest.fn(),
+            validateActionIntegrity: jest.fn(),
+          },
+        },
+        {
+          provide: IntentsService,
+          useValue: {
+            createIfNotExists: jest.fn().mockResolvedValue({ isNew: true }),
+          },
+        },
+        {
+          provide: RhinestoneMetadataService,
+          useValue: {
+            set: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: QUEUE_SERVICE,
+          useValue: {
+            addIntentToFulfillmentQueue: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<RhinestoneActionProcessor>(RhinestoneActionProcessor);
+    intentsService = module.get(IntentsService);
+    metadataService = module.get(RhinestoneMetadataService);
+    queueService = module.get(QUEUE_SERVICE);
+    websocketService = module.get(RhinestoneWebsocketService);
+    validationService = module.get(RhinestoneValidationService);
 
     jest.clearAllMocks();
   });
 
-  describe('Settlement Layer Validation', () => {
-    it('should reject actions with ACROSS settlement layer', async () => {
-      const action = createActionWithInvalidSettlementLayer();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Unsupported settlement layer: ACROSS'),
-        }),
-      );
-    });
-
-    it('should reject actions with missing settlement layer', async () => {
-      const action = createActionWithMissingSettlementLayer();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Settlement layer not specified'),
-        }),
-      );
-    });
-
-    it('should reject actions with no beforeFill claim', async () => {
-      const action = createActionWithNoBeforeFillClaim();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('No beforeFill claim found'),
-        }),
-      );
-    });
-
-    it('should accept actions with ECO settlement layer', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-  });
-
-  describe('Router Address Validation', () => {
-    it('should accept valid matching router addresses', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should reject mismatched claim router address', async () => {
-      const action = createActionWithInvalidClaimRouter();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Invalid router address'),
-        }),
-      );
-    });
-
-    it('should reject mismatched fill router address', async () => {
-      const action = createActionWithInvalidFillRouter();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Invalid router address'),
-        }),
-      );
-    });
-
-    it('should handle checksum address validation correctly', async () => {
-      const actionWithLowercase = {
-        ...VALID_ACTION,
-        fill: {
-          ...VALID_ACTION.fill,
-          call: {
-            ...VALID_ACTION.fill.call,
-            to: '0x000000000004598d17aad017bf0734a364c5588b',
-          },
-        },
+  describe('handleRelayerAction', () => {
+    it('should process valid RelayerAction and queue to FulfillmentQueue', async () => {
+      const payload = {
+        messageId: 'test-message-123',
+        action: sampleAction.action as any,
       };
 
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: actionWithLowercase,
-      });
+      await service.handleRelayerAction(payload);
 
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
+      // Verify validation was called
+      expect(validationService.validateSettlementLayerFromMetadata).toHaveBeenCalled();
+      expect(validationService.validateActionIntegrity).toHaveBeenCalled();
+
+      // Verify intent was stored in DB
+      expect(intentsService.createIfNotExists).toHaveBeenCalledWith(
+        expect.objectContaining({
+          intentHash: expect.any(String),
+        }),
+      );
+
+      // Verify metadata was stored in Redis
+      expect(metadataService.set).toHaveBeenCalledWith(
+        expect.any(String), // intentHash
+        expect.objectContaining({
+          claimTo: expect.any(String),
+          claimData: expect.any(String),
+          fillTo: expect.any(String),
+          fillData: expect.any(String),
+        }),
+      );
+
+      // Verify intent was queued to FulfillmentQueue
+      expect(queueService.addIntentToFulfillmentQueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          intentHash: expect.any(String),
+        }),
+        'rhinestone',
+      );
     });
-  });
 
-  describe('Zero Value Validation', () => {
-    it('should accept "0" value', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
+    it('should skip duplicate intents', async () => {
+      intentsService.createIfNotExists.mockResolvedValue({ isNew: false } as any);
 
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should accept "0x0" value', async () => {
-      const actionWithHexZero = {
-        ...VALID_ACTION,
-        fill: {
-          ...VALID_ACTION.fill,
-          call: {
-            ...VALID_ACTION.fill.call,
-            value: '0x0',
-          },
-        },
-        claims: [
-          {
-            ...VALID_ACTION.claims[0],
-            call: {
-              ...VALID_ACTION.claims[0].call,
-              value: '0x0',
-            },
-          },
-        ],
+      const payload = {
+        messageId: 'test-message-123',
+        action: sampleAction.action as any,
       };
 
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: actionWithHexZero,
-      });
+      await service.handleRelayerAction(payload);
 
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
+      // Should still validate and store
+      expect(validationService.validateSettlementLayerFromMetadata).toHaveBeenCalled();
+      expect(intentsService.createIfNotExists).toHaveBeenCalled();
+
+      // But should NOT queue or store metadata for duplicates
+      expect(metadataService.set).not.toHaveBeenCalled();
+      expect(queueService.addIntentToFulfillmentQueue).not.toHaveBeenCalled();
     });
 
-    it('should reject non-zero claim value', async () => {
-      const action = createActionWithNonZeroClaimValue();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
+    it('should send error status on validation failure', async () => {
+      validationService.validateSettlementLayerFromMetadata.mockImplementation(() => {
+        throw new Error('Invalid settlement layer');
       });
 
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Router call must have zero value'),
-        }),
-      );
-    });
-
-    it('should reject non-zero fill value', async () => {
-      const action = createActionWithNonZeroFillValue();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Router call must have zero value'),
-        }),
-      );
-    });
-  });
-
-  describe('Cross-Chain Validation', () => {
-    it('should accept different source and destination chains', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should reject same source and destination chains', async () => {
-      const action = createActionWithSameChains();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Source and destination chains must be different'),
-        }),
-      );
-    });
-  });
-
-  describe('Intent Extraction', () => {
-    it('should attempt to decode real sample action from Rhinestone', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should call OpenTelemetry tracer for processing', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockOtelService.tracer.startActiveSpan).toHaveBeenCalledWith(
-        'rhinestone.action_processor.handle',
-        expect.objectContaining({
-          attributes: expect.objectContaining({
-            'rhinestone.message_id': 'test-message-id',
-            'rhinestone.action_id': VALID_ACTION.id,
-          }),
-        }),
-        expect.any(Function),
-      );
-    });
-
-    it('should pass validation steps before extraction', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should reject invalid adapter calldata', async () => {
-      const action = createActionWithInvalidCalldata();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.any(String),
-        }),
-      );
-    });
-
-    it('should reject malformed hex data', async () => {
-      const actionWithMalformed = {
-        ...VALID_ACTION,
-        claims: [
-          {
-            ...VALID_ACTION.claims[0],
-            call: {
-              ...VALID_ACTION.claims[0].call,
-              data: 'not-hex-data' as any,
-            },
-          },
-        ],
+      const payload = {
+        messageId: 'test-message-123',
+        action: sampleAction.action as any,
       };
 
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: actionWithMalformed,
-      });
+      await expect(service.handleRelayerAction(payload)).rejects.toThrow(
+        'Invalid settlement layer',
+      );
 
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
+      // Verify error status was sent
+      expect(websocketService.sendActionStatus).toHaveBeenCalledWith(
+        'test-message-123',
         expect.objectContaining({
           type: 'Error',
           reason: 'PreconditionFailed',
+          message: 'Invalid settlement layer',
         }),
       );
+
+      // Verify intent was NOT queued
+      expect(queueService.addIntentToFulfillmentQueue).not.toHaveBeenCalled();
     });
 
-    it('should provide clear error messages on decode failure', async () => {
-      const action = createActionWithInvalidCalldata();
+    it('should send error status on extraction failure', async () => {
+      const invalidAction = {
+        ...sampleAction.action,
+        claims: [],
+      } as any;
 
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      const errorCall = mockWebsocketService.sendActionStatus.mock.calls[0];
-      expect(errorCall[1].message).toBeTruthy();
-      expect(typeof errorCall[1].message).toBe('string');
-      expect(errorCall[1].message.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should handle empty claims array', async () => {
-      const action = createActionWithEmptyClaims();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('No beforeFill claim found'),
-        }),
-      );
-    });
-
-    it('should handle multiple beforeFill claims', async () => {
-      const action = createActionWithMultipleBeforeFillClaims();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should handle missing metadata', async () => {
-      const action = createActionWithMissingSettlementLayer();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Settlement layer not specified'),
-        }),
-      );
-    });
-
-    it('should handle missing contracts configuration', async () => {
-      mockRhinestoneConfigService.getContracts.mockImplementationOnce(() => {
-        throw new Error('Rhinestone contracts not configured');
-      });
-
-      const action = createActionWithMultipleBeforeFillClaims();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Rhinestone contracts not configured'),
-        }),
-      );
-    });
-  });
-
-  describe('Integration', () => {
-    it('should process valid action through all validation steps', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockOtelService.tracer.startActiveSpan).toHaveBeenCalled();
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
-    });
-
-    it('should send ActionStatus error on validation failure', async () => {
-      const action = createActionWithInvalidSettlementLayer();
-
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action,
-      });
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalledWith(
-        'test-message-id',
-        expect.objectContaining({
-          type: 'Error',
-          reason: 'PreconditionFailed',
-          message: expect.stringContaining('Unsupported settlement layer'),
-        }),
-      );
-    });
-
-    it('should emit OpenTelemetry spans with proper attributes', async () => {
-      await service.handleRelayerAction({
-        messageId: 'test-message-id',
-        action: VALID_ACTION,
-      });
-
-      expect(mockOtelService.tracer.startActiveSpan).toHaveBeenCalledWith(
-        'rhinestone.action_processor.handle',
-        expect.objectContaining({
-          attributes: expect.objectContaining({
-            'rhinestone.message_id': 'test-message-id',
-            'rhinestone.action_id': VALID_ACTION.id,
-            'rhinestone.action_timestamp': VALID_ACTION.timestamp,
-          }),
-        }),
-        expect.any(Function),
-      );
-
-      const spanFn = mockOtelService.tracer.startActiveSpan.mock.calls[0][2];
-
-      const mockSpan = {
-        setAttribute: jest.fn(),
-        addEvent: jest.fn(),
-        setStatus: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
+      const payload = {
+        messageId: 'test-message-456',
+        action: invalidAction,
       };
 
-      await spanFn(mockSpan);
+      await expect(service.handleRelayerAction(payload)).rejects.toThrow();
 
-      expect(mockSpan.setStatus).toHaveBeenCalled();
-      expect(mockSpan.end).toHaveBeenCalled();
-    });
-
-    it('should handle ActionStatus send failures gracefully', async () => {
-      mockWebsocketService.sendActionStatus.mockRejectedValueOnce(
-        new Error('WebSocket connection failed'),
-      );
-
-      const action = createActionWithInvalidSettlementLayer();
-
-      await expect(
-        service.handleRelayerAction({
-          messageId: 'test-message-id',
-          action,
+      // Verify error status was sent
+      expect(websocketService.sendActionStatus).toHaveBeenCalledWith(
+        'test-message-456',
+        expect.objectContaining({
+          type: 'Error',
         }),
-      ).resolves.not.toThrow();
-
-      expect(mockWebsocketService.sendActionStatus).toHaveBeenCalled();
+      );
     });
   });
 });
