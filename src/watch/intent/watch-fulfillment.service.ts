@@ -217,8 +217,8 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
 
     const logs = await client.getContractEvents({
       address: solver.inboxAddress,
-      abi: portalAbi,
-      eventName: 'IntentFulfilled',
+      abi: InboxAbi,
+      eventName: 'Fulfillment',
       strict: true,
       fromBlock: effectiveFromBlock,
       toBlock,
