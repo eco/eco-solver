@@ -4,11 +4,11 @@ import { IntentsService } from '@/modules/intents/intents.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 
-import { sampleAction } from '../../utils/tests/sample-action';
 import { RhinestoneActionProcessor } from '../rhinestone-action-processor.service';
 import { RhinestoneMetadataService } from '../rhinestone-metadata.service';
 import { RhinestoneValidationService } from '../rhinestone-validation.service';
 import { RhinestoneWebsocketService } from '../rhinestone-websocket.service';
+import { sampleAction } from '../../utils/tests/sample-action';
 
 describe('RhinestoneActionProcessor', () => {
   let service: RhinestoneActionProcessor;

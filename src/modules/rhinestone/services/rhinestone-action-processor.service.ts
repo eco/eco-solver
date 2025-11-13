@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { Address, Hex } from 'viem';
@@ -33,8 +33,8 @@ export class RhinestoneActionProcessor {
     private readonly otelService: OpenTelemetryService,
     private readonly validationService: RhinestoneValidationService,
     private readonly intentsService: IntentsService,
+    private readonly metadataService: RhinestoneMetadataService,
     @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
-    @Optional() private readonly metadataService?: RhinestoneMetadataService,
   ) {}
 
   /**
@@ -55,10 +55,6 @@ export class RhinestoneActionProcessor {
         },
       },
       async (span) => {
-        if (!this.metadataService) {
-          throw new Error('Rhinestone module not enabled');
-        }
-
         try {
           // 1. Validate
           const claim = payload.action.claims.find((c) => c.beforeFill === true);
