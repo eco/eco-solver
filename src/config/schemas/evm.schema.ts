@@ -123,7 +123,11 @@ const OwnableExecutorConfigSchema = z.object({
       // Convert string keys to numbers for chainId mapping
       const result: Record<number, Address> = {};
       for (const [key, address] of Object.entries(value)) {
-        result[parseInt(key, 10)] = address;
+        const chainId = parseInt(key, 10);
+        if (isNaN(chainId)) {
+          throw new Error(`Invalid chainId key in overrideModuleAddress: ${key}`);
+        }
+        result[chainId] = address;
       }
       return result;
     }),
