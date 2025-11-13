@@ -2,8 +2,9 @@ import {
   SIGNATURE_HEADER,
   SIGNATURE_ADDRESS_HEADER,
   SIGNATURE_EXPIRE_HEADER,
-} from '@/request-signing/interfaces/signature-headers.interface'
-import { SignatureValidationData } from '@/request-signing/signature-validation-data.interface'
+} from '@/request-signing/signature-headers'
+import { Hex } from 'viem'
+import { SignatureValidationData } from '@/request-signing/interfaces/signature-validation-data.interface'
 
 export class RequestHeaders {
   private headers: object
@@ -14,9 +15,9 @@ export class RequestHeaders {
 
   getSignatureValidationData(): SignatureValidationData {
     return {
-      signature: this.getHeader(SIGNATURE_HEADER),
-      address: this.getHeader(SIGNATURE_ADDRESS_HEADER),
-      expire: this.getHeader(SIGNATURE_EXPIRE_HEADER),
+      signature: this.getSignature(),
+      address: this.getAddress(),
+      expire: this.getExpire(),
     }
   }
 
@@ -36,11 +37,27 @@ export class RequestHeaders {
     return this.headers
   }
 
+  getSignature(): Hex {
+    return this.getHexHeader(SIGNATURE_HEADER)
+  }
+
+  getAddress(): Hex {
+    return this.getHexHeader(SIGNATURE_ADDRESS_HEADER)
+  }
+
+  getExpire(): string {
+    return this.getHeader(SIGNATURE_EXPIRE_HEADER)
+  }
+
   getUserAgent(): string {
     return this.getHeader('user-agent')
   }
 
-  getHeader(name: string) {
+  getHeader(name: string): string {
     return this.headers[name.toLowerCase()]
+  }
+
+  getHexHeader(name: string): Hex {
+    return this.getHeader(name) as Hex
   }
 }

@@ -23,7 +23,7 @@ import {
 } from '@/eco-configs/eco-config.types'
 import { ModuleRef } from '@nestjs/core'
 import { RouteTokensDTO } from '@/solver-registration/dtos/route-tokens.dto'
-import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
+import { SignatureHeaders } from '@/request-signing/signature-headers'
 import { SigningService } from '../../request-signing/signing.service'
 import { SolverRegistrationDTO } from '@/solver-registration/dtos/solver-registration.dto'
 import * as _ from 'lodash'
