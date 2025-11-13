@@ -489,7 +489,7 @@ export class KernelWallet extends BaseEvmWallet {
           const types = {
             Execute: [
               { name: 'account', type: 'address' },
-              { name: 'mode', type: 'uint256' },
+              { name: 'mode', type: 'bytes32' },
               { name: 'executionCalldata', type: 'bytes' },
               { name: 'nonce', type: 'uint256' },
               { name: 'expiration', type: 'uint256' },
@@ -499,7 +499,7 @@ export class KernelWallet extends BaseEvmWallet {
           // Message to sign
           const message = {
             account: this.kernelAccount.address,
-            mode: BigInt(execution.mode),
+            mode: execution.mode as Hex,
             executionCalldata: execution.callData,
             nonce,
             expiration,
