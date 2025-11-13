@@ -1,3 +1,21 @@
+/**
+ * ECDSA Executor ABI
+ *
+ * This ABI was completely rewritten in PR #326 and requires verification against deployed contracts.
+ *
+ * VERIFICATION REQUIRED:
+ * 1. Obtain deployed contract addresses from network configurations
+ * 2. Fetch verified ABIs from block explorers (Etherscan, etc.)
+ * 3. Compare function signatures, especially the 'execute' function with bytes32 mode parameter
+ * 4. Update this comment with verification details once confirmed
+ *
+ * Expected deployments:
+ * - Mainnet: TBD (verify against EVM_NETWORKS_X_CONTRACTS_ECDSA_EXECUTOR config)
+ * - Testnets: TBD (verify against respective network configs)
+ *
+ * Last modified: PR #326
+ * Verification status: PENDING
+ */
 export const ecdsaExecutorAbi = [
   {
     inputs: [{ internalType: 'address', name: 'smartAccount', type: 'address' }],
