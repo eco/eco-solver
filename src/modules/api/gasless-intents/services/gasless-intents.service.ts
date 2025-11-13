@@ -154,10 +154,14 @@ export class GaslessIntentsService {
           const intentsByChain = await this.groupIntentsByChain(intents);
 
           // Save the permit data to the database
-          await this.gaslessInitiationIntentRepository.addIntent({
+          const { error: addIntentError } = await this.gaslessInitiationIntentRepository.addIntent({
             intentGroupID,
             permit3: gaslessIntentData.permit3,
           });
+
+          if (addIntentError) {
+            return { error: addIntentError };
+          }
 
           // Execute transactions for each chain in parallel
           const executionPromises = Array.from(intentsByChain.entries()).map(
@@ -255,7 +259,9 @@ export class GaslessIntentsService {
               EcoLogMessage.fromDefault({
                 message: `validatePermit3: permit validation failed`,
                 properties: {
-                  permit3,
+                  owner: permit3.owner,
+                  deadline: permit3.deadline.toString(),
+                  permitContract: permit3.permitContract,
                   error: permitValidationError,
                 },
               }),

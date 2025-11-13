@@ -37,8 +37,14 @@ export class GaslessInitiationIntentRepository {
   async getIntentForTransactionHash(
     txHash: string,
     projection: object = {},
-  ): Promise<GaslessInitiationIntent | null> {
-    return this.queryIntent({ destinationChainTxHash: txHash }, projection);
+  ): Promise<EcoResponse<GaslessInitiationIntent>> {
+    const intent = await this.queryIntent({ destinationChainTxHash: txHash }, projection);
+
+    if (!intent) {
+      return { error: EcoError.IntentNotFound };
+    }
+
+    return { response: intent };
   }
 
   async exists(query: object): Promise<boolean> {
@@ -54,8 +60,17 @@ export class GaslessInitiationIntentRepository {
     return this.model.find(query, projection).lean();
   }
 
-  async addIntent(data: GaslessInitiationIntent): Promise<boolean> {
-    return this.createWithDupCheck(data, 'intentGroupID');
+  async addIntent(data: GaslessInitiationIntent): Promise<EcoResponse<boolean>> {
+    try {
+      const createdOK = await this.createWithDupCheck(data, 'intentGroupID');
+      return { response: createdOK };
+    } catch (ex) {
+      EcoError.logErrorWithStack(ex, `addIntent: exception`, this.logger, {
+        intentGroupID: data.intentGroupID,
+      });
+
+      return { error: EcoError.GaslessIntentInitiationError };
+    }
   }
 
   private async createWithDupCheck(
@@ -113,17 +128,6 @@ export class GaslessInitiationIntentRepository {
     updates: object,
     options?: object,
   ): Promise<GaslessInitiationIntent | null> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `updateIntent`,
-        properties: {
-          intentGroupID,
-          updates,
-          options,
-        },
-      }),
-    );
-
     const query = { intentGroupID };
     return this.update(query, updates, options);
   }
