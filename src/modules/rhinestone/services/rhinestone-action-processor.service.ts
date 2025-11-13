@@ -97,8 +97,19 @@ export class RhinestoneActionProcessor {
             fillValue: BigInt(fill.call.value),
           };
 
+          this.logger.log('Rhinestone payload:', {
+            claimTo: rhinestonePayload.claimTo,
+            claimData: rhinestonePayload.claimData,
+            claimValue: rhinestonePayload.claimValue.toString(),
+            fillTo: rhinestonePayload.fillTo,
+            fillData: rhinestonePayload.fillData,
+            fillValue: rhinestonePayload.fillValue.toString,
+          });
+
           // 5. Store payload in Redis (strategy will retrieve it)
           await this.metadataService.set(intent.intentHash, rhinestonePayload);
+
+          this.logger.log('Rhinestone payload stored in Redis');
 
           // 6. Queue to FulfillmentQueue (validations will run in strategy)
           await this.queueService.addIntentToFulfillmentQueue(
