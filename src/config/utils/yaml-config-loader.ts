@@ -3,6 +3,8 @@ import { join } from 'path';
 
 import * as yaml from 'js-yaml';
 
+import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
+
 /**
  * Loads configuration from YAML files
  * @param configPaths - Array of paths to YAML files (relative or absolute)
@@ -28,7 +30,7 @@ export function loadYamlConfig(configPaths?: string | string[]): Record<string, 
 
       if (parsedConfig && typeof parsedConfig === 'object') {
         console.log(`[YamlConfigLoader] Loaded configuration from: ${absolutePath}`);
-        mergedConfig = { ...mergedConfig, ...parsedConfig };
+        mergedConfig = mergeWithArrayReplacement(mergedConfig, parsedConfig);
       }
     } catch (error) {
       console.error(`[YamlConfigLoader] Failed to load configuration from ${absolutePath}:`, error);

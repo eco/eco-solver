@@ -14,6 +14,6 @@ import { QuotesService } from './services/quotes.service';
   imports: [BlockchainModule, ConfigModule, FulfillmentModule, HttpModule, LoggingModule],
   controllers: [QuotesController],
   providers: [QuotesService, QuoteRegistrationService],
-  exports: [QuotesService, QuoteRegistrationService],
+  exports: [],
 })
 export class QuotesModule {}

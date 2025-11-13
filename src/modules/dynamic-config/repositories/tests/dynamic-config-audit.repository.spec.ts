@@ -1,3 +1,8 @@
+import { getModelToken } from '@nestjs/mongoose';
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { Model } from 'mongoose';
+
 import {
   AuditFilter,
   AuditLogEntry,
@@ -7,9 +12,6 @@ import {
   ConfigurationAudit,
   ConfigurationAuditDocument,
 } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
-import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Test, TestingModule } from '@nestjs/testing';
 
 describe('DynamicConfigAuditRepository', () => {
   let repository: DynamicConfigAuditRepository;

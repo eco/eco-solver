@@ -1,18 +1,19 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { DynamicConfigController } from '@/modules/dynamic-config/controllers/dynamic-config.controller';
 import { AuditQueryDTO } from '@/modules/dynamic-config/dtos/audit-query.dto';
 import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
-import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { CreateConfigurationDTO } from '@/modules/dynamic-config/dtos/create-configuration.dto';
-import { DynamicConfigController } from '@/modules/dynamic-config/controllers/dynamic-config.controller';
+import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
 import {
   SIGNATURE_ADDRESS_HEADER,
   SIGNATURE_EXPIRE_HEADER,
   SIGNATURE_HEADER,
 } from '@/request-signing/interfaces/signature-headers.interface';
-import { Test, TestingModule } from '@nestjs/testing';
-import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
+import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
 
 describe('ConfigurationController', () => {
   let controller: DynamicConfigController;

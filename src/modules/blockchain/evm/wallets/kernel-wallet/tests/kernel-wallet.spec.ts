@@ -458,9 +458,7 @@ describe('KernelWallet', () => {
         mockEncodeAbiParameters.mockReturnValueOnce('0xEncodedAbiParameters');
 
         // Mock encodePacked - first call for signer address, second call for constructInitDataWithHook
-        mockEncodePacked
-          .mockReturnValueOnce('0xSignerData') // First call for signer address
-          .mockReturnValueOnce('0xInitData'); // Second call for constructInitDataWithHook
+        mockEncodePacked.mockReturnValueOnce('0xInitData'); // Second call for constructInitDataWithHook
 
         // Mock encodeFunctionData for installModule
         mockEncodeFunctionData.mockReturnValueOnce('0xInstallModuleData');

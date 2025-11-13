@@ -83,6 +83,7 @@ export function envVarToPath(envVar: string): string[] {
     { parts: ['secret', 'name'], combined: 'secretName' },
     { parts: ['enable', 'cluster'], combined: 'enableCluster' },
     { parts: ['default', 'fee'], combined: 'defaultFee' },
+    { parts: ['non', 'swap', 'tokens'], combined: 'nonSwapTokens' },
   ];
 
   // Sort patterns by length (descending) to match longer patterns first

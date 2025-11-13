@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HealthCheckError, HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
+
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 
 @Injectable()

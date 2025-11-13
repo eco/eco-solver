@@ -1,20 +1,22 @@
-import { AwsConfig } from '@/config/schemas';
+import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { z } from 'zod';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 import { AwsSchema, BaseSchema, Config, ConfigSchema } from '@/config/config.schema';
+import { AwsConfig } from '@/config/schemas';
+import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
+import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
+import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
+import { EcoError } from '@/errors/eco-error';
 import { AwsSecretsManager } from '@/modules/config/utils/aws-secrets-manager';
+import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
 import {
   ConfigurationChangeEvent,
   DynamicConfigService,
 } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoError } from '@/errors/eco-error';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { getEcoNpmPackageConfig } from '@/config/utils/eco-package';
-import { loadYamlConfig } from '@/config/utils/yaml-config-loader';
-import { Logger } from '@nestjs/common';
-import { ModuleRefProvider } from '@/common/services/module-ref-provider';
-import { transformEnvVarsToConfig } from '@/modules/config/utils/schema-transformer';
-import { z } from 'zod';
-import merge from 'lodash.merge';
 
 /**
  * Configuration factory that transforms environment variables to configuration
@@ -89,14 +91,14 @@ export class ConfigFactory {
     const envConfiguration = transformEnvVarsToConfig(process.env, ConfigSchema);
 
     // First merge to get the configFiles path from env vars if specified
-    let mergedConfig = merge({}, envConfiguration);
+    let mergedConfig = mergeWithArrayReplacement(envConfiguration);
 
     // Load YAML configuration if files are specified
     const { configFiles } = BaseSchema.parse(mergedConfig);
     const yamlConfiguration = loadYamlConfig(configFiles);
 
     // Merge in order: base defaults, YAML config, then environment vars (env vars take precedence)
-    mergedConfig = merge({}, yamlConfiguration, envConfiguration);
+    mergedConfig = mergeWithArrayReplacement(yamlConfiguration, envConfiguration);
 
     // Check if AWS secrets should be loaded
     mergedConfig = await this.loadAWSConfig(mergedConfig);
@@ -191,7 +193,7 @@ export class ConfigFactory {
       this.awsConfigValues = secrets;
 
       // Merge AWS secrets into the configuration
-      config = merge({}, secrets, config);
+      config = mergeWithArrayReplacement(secrets, config);
     }
 
     return config;
@@ -209,7 +211,7 @@ export class ConfigFactory {
     if (config.useEcoPackageConfig) {
       const npmPackageConfig = getEcoNpmPackageConfig(config);
 
-      config = merge({}, config, npmPackageConfig);
+      config = mergeWithArrayReplacement(config, npmPackageConfig);
     }
 
     return config;
@@ -224,7 +226,7 @@ export class ConfigFactory {
   private static mergeConfigurations() {
     // Start with external configs, then static configs, then MongoDB configs
     const savedConfig = this.cachedConfig;
-    const merged = merge({}, this.cachedConfig, this.mongoConfig || {});
+    const merged = mergeWithArrayReplacement(this.cachedConfig, this.mongoConfig || {});
     try {
       this.cachedConfig = this.validateConfig(merged);
     } catch (ex) {
@@ -263,19 +265,8 @@ export class ConfigFactory {
 
   private static validateConfig(config: Record<string, any>): Config {
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateConfig`,
-          properties: {
-            configKeys: Object.keys(config),
-            config,
-          },
-        }),
-      );
-
       // Parse and validate the complete merged configuration
-      const validatedConfig = ConfigSchema.parse(config);
-      return validatedConfig;
+      return ConfigSchema.parse(config);
     } catch (error) {
       if (error instanceof z.ZodError) {
         // Convert Zod errors to a format similar to Joi
