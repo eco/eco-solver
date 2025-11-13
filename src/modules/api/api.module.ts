@@ -14,17 +14,15 @@ import { QuotesModule } from './quotes/quotes.module';
 })
 export class ApiModule implements OnModuleInit {
   constructor(
-    private readonly quotesConfigService?: QuotesConfigService,
-    private readonly logger?: SystemLoggerService,
+    private readonly quotesConfigService: QuotesConfigService,
+    private readonly logger: SystemLoggerService,
   ) {}
 
   onModuleInit() {
-    if (this.quotesConfigService && this.logger) {
-      if (this.quotesConfigService.isEnabled) {
-        this.logger.log('Quotes API enabled at /api/v1/quotes');
-      } else {
-        this.logger.log('Quotes API disabled');
-      }
+    if (this.quotesConfigService.isEnabled) {
+      this.logger.log('Quotes API enabled at /api/v1/quotes');
+    } else {
+      this.logger.log('Quotes API disabled');
     }
   }
 }
