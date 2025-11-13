@@ -17,7 +17,11 @@ describe('ConfigurationController', () => {
   const mockRequest = {
     headers: {
       'user-agent': 'Mozilla/5.0',
-      ...getSignatureHeaders('0xdeadbeef', '0x1234567890123456789012345678901234567890', 1234567890),
+      ...getSignatureHeaders(
+        '0xdeadbeef',
+        '0x1234567890123456789012345678901234567890',
+        1234567890,
+      ),
     },
     get: jest.fn(),
   } as any
