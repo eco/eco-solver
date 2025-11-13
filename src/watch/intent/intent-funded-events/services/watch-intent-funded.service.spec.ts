@@ -19,6 +19,11 @@ let service: WatchIntentFundedService
 let ecoConfigService: EcoConfigService
 let publicClientService: MultichainPublicClientService
 
+const mockLogDebug = jest.fn()
+const mockLogLog = jest.fn()
+const mockLogWarn = jest.fn()
+const mockLogError = jest.fn()
+
 describe('WatchIntentFundedService', () => {
   const mockDb: any[] = []
 
@@ -76,17 +81,36 @@ describe('WatchIntentFundedService', () => {
       .withMocks([CreateIntentService, MultichainPublicClientService, EcoAnalyticsService])
       .withQueues([QUEUES.SOURCE_INTENT.queue])
 
+    // Ensure polling interval computation does not read actual config 'solvers'
+    jest
+      .spyOn(EcoConfigService.prototype, 'getSolver')
+      .mockReturnValue({ averageBlockTime: 2 } as any)
+
     service = await $.init()
     ecoConfigService = $.get(EcoConfigService)
     publicClientService = $.get(MultichainPublicClientService)
+
+    // hijack logger to avoid BigInt serialization in jest-worker
+    ;(service as any)['logger'].debug = mockLogDebug
+    ;(service as any)['logger'].log = mockLogLog
+    ;(service as any)['logger'].warn = mockLogWarn
+    ;(service as any)['logger'].error = mockLogError
   })
 
   beforeEach(async () => {
     mockDb.length = 0
+    // Ensure polling interval computation does not hit real config 'solvers'
+    jest
+      .spyOn(EcoConfigService.prototype, 'getSolver')
+      .mockReturnValue({ averageBlockTime: 2 } as any)
   })
 
   afterEach(() => {
     jest.clearAllMocks()
+    mockLogDebug.mockClear()
+    mockLogLog.mockClear()
+    mockLogWarn.mockClear()
+    mockLogError.mockClear()
   })
 
   afterAll(async () => {})
@@ -393,5 +417,132 @@ describe('WatchIntentFundedService', () => {
       '0xvalidIntent2',
       expect.any(Object),
     )
+  })
+
+  it('records the highest processed block per chain from the batch', async () => {
+    const source = {
+      chainID: 10,
+      sourceAddress: '0xabc',
+      provers: ['0x1'],
+      network: 'mainnet',
+    } as unknown as IntentSource
+
+    // Ensure no prior cursor for this chain from earlier tests
+    delete (service as any)['lastProcessedBlockByChain'][Number(source.chainID)]
+
+    const logs: IntentFundedLog[] = [
+      {
+        address: '0xabc',
+        blockHash: '0xblock1',
+        blockNumber: 8n,
+        logIndex: 0,
+        transactionHash: '0xrec1',
+        transactionIndex: 0,
+        data: '0x',
+        removed: false,
+        topics: [],
+        eventName: 'IntentFunded',
+        sourceNetwork: Network.ETH_MAINNET,
+        sourceChainID: 1n,
+        args: { intentHash: '0xih1', funder: '0x1', complete: true },
+      },
+      {
+        address: '0xabc',
+        blockHash: '0xblock2',
+        blockNumber: 12n,
+        logIndex: 1,
+        transactionHash: '0xrec2',
+        transactionIndex: 0,
+        data: '0x',
+        removed: false,
+        topics: [],
+        eventName: 'IntentFunded',
+        sourceNetwork: Network.ETH_MAINNET,
+        sourceChainID: 1n,
+        args: { intentHash: '0xih2', funder: '0x1', complete: true },
+      },
+    ]
+
+    jest.spyOn(service as any, 'isOurIntent').mockResolvedValue(true)
+    await service['addJob'](source, { doValidation: true })(logs)
+
+    expect(service['lastProcessedBlockByChain'][Number(source.chainID)]).toBe(12n)
+  })
+
+  it('does not advance cursor past the earliest failed block within a batch', async () => {
+    const source = {
+      chainID: 10,
+      sourceAddress: '0xabc',
+      provers: ['0x1'],
+      network: 'mainnet',
+    } as unknown as IntentSource
+
+    // Ensure no prior cursor for this chain from earlier tests
+    delete (service as any)['lastProcessedBlockByChain'][Number(source.chainID)]
+
+    const logs: IntentFundedLog[] = [
+      {
+        address: '0xabc',
+        blockHash: '0xblock100',
+        blockNumber: 100n,
+        logIndex: 1,
+        transactionHash: '0xrec100',
+        transactionIndex: 0,
+        data: '0x',
+        removed: false,
+        topics: [],
+        eventName: 'IntentFunded',
+        sourceNetwork: Network.ETH_MAINNET,
+        sourceChainID: 1n,
+        args: { intentHash: '0xih100', funder: '0x1', complete: true },
+      },
+      {
+        address: '0xabc',
+        blockHash: '0xblock101',
+        blockNumber: 101n,
+        logIndex: 2,
+        transactionHash: '0xrec101',
+        transactionIndex: 0,
+        data: '0x',
+        removed: false,
+        topics: [],
+        eventName: 'IntentFunded',
+        sourceNetwork: Network.ETH_MAINNET,
+        sourceChainID: 1n,
+        args: { intentHash: '0xih101', funder: '0x1', complete: true },
+      },
+      {
+        address: '0xabc',
+        blockHash: '0xblock102',
+        blockNumber: 102n,
+        logIndex: 3,
+        transactionHash: '0xrec102',
+        transactionIndex: 0,
+        data: '0x',
+        removed: false,
+        topics: [],
+        eventName: 'IntentFunded',
+        sourceNetwork: Network.ETH_MAINNET,
+        sourceChainID: 1n,
+        args: { intentHash: '0xih102', funder: '0x1', complete: true },
+      },
+    ]
+
+    jest.spyOn(service as any, 'isOurIntent').mockResolvedValue(true)
+
+    const queue = $.mockOfQueue(QUEUES.SOURCE_INTENT.queue)
+    const addSpy = jest.spyOn(queue, 'add')
+    addSpy.mockImplementation((_name: any, _data: any, opts: any) => {
+      // Fail the middle job (logIndex 2 -> block 101)
+      if (opts?.jobId?.endsWith('-2')) {
+        return Promise.reject(new Error('enqueue failed'))
+      }
+      return Promise.resolve({} as any)
+    })
+
+    await service['addJob'](source, { doValidation: true })(logs)
+
+    // Cursor should advance only to 100 (just before the earliest failed block 101)
+    expect(service['lastProcessedBlockByChain'][Number(source.chainID)]).toBe(100n)
   })
 })

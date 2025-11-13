@@ -22,6 +22,8 @@ import { ERROR_EVENTS } from '@/analytics/events.constants'
  * supported chains and prover addresses. When an event is emitted, it mutates the event log, and then
  * adds it intent queue for processing.
  */
+const MAX_BACKFILL_BLOCK_RANGE = 10_000n
+
 @Injectable()
 export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   protected logger = new Logger(WatchIntentFundedService.name)
@@ -59,6 +61,8 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
   }
 
   async subscribeTo(client: PublicClient, source: IntentSource) {
+    const chainID = Number(source.chainID)
+    const fromBlock = this.getNextFromBlock(chainID)
     this.logger.debug(
       EcoLogMessage.fromDefault({
         message: `watch intent funded: subscribeToSource`,
@@ -67,13 +71,14 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
         },
       }),
     )
-    this.unwatch[source.chainID] = client.watchContractEvent({
+    this.unwatch[chainID] = client.watchContractEvent({
       onError: async (error) => {
         await this.onError(error, client, source)
       },
       address: source.sourceAddress,
       abi: IntentSourceAbi,
       eventName: 'IntentFunded',
+      fromBlock,
       onLogs: async (logs: Log[]): Promise<void> => {
         try {
           // Track intent funded events detected
@@ -90,6 +95,7 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
           )
         }
       },
+      pollingInterval: this.getPollingInterval(source.chainID),
     })
   }
 
@@ -117,9 +123,16 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
 
   addJob(source: IntentSource, opts?: { doValidation?: boolean }): (logs: Log[]) => Promise<void> {
     return async (logs: IntentFundedLog[]) => {
+      // Track the highest successfully processed block and the earliest failed block.
+      // We will only advance the cursor to the last safe block that guarantees no skipped logs.
+      const chainIDNum = Number(source.chainID)
+      let maxSuccessBlock: bigint | undefined
+      let minFailedBlock: bigint | undefined
+
       await this.processLogsResiliently(
         logs,
         async (log) => {
+          const blockNum = typeof log.blockNumber === 'bigint' ? log.blockNumber : undefined
           // Validate the log to ensure it is an IntentFunded event we care about
           if (opts?.doValidation) {
             const isValidLog = await this.isOurIntent(log)
@@ -153,10 +166,23 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
               jobId,
               ...this.watchJobConfig,
             })
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `addJob: watch intent funded: added to queue`,
+                properties: { intentFunded, jobId, source },
+              }),
+            )
 
             // Track successful job addition
             this.ecoAnalytics.trackWatchIntentFundedJobQueued(intentFunded, jobId, source)
           } catch (error) {
+            this.logger.error(
+              EcoLogMessage.withError({
+                message: `addJob: watch intent funded: error adding to queue`,
+                error,
+                properties: { intentFunded, jobId, source },
+              }),
+            )
             // Track job queue failure with complete context
             this.ecoAnalytics.trackWatchJobQueueError(
               error,
@@ -170,11 +196,43 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
                 logIndex: intentFunded.logIndex,
               },
             )
+            // Record earliest failed block so we do not advance beyond it
+            if (blockNum !== undefined) {
+              if (minFailedBlock === undefined || blockNum < minFailedBlock) {
+                minFailedBlock = blockNum
+              }
+            }
             throw error
+          }
+          // Record highest successful block
+          if (blockNum !== undefined) {
+            if (maxSuccessBlock === undefined || blockNum > maxSuccessBlock) {
+              maxSuccessBlock = blockNum
+            }
           }
         },
         'watch intent-funded',
       )
+
+      const previous = this['lastProcessedBlockByChain'][chainIDNum]
+
+      // If any failures occurred, only advance to just before the earliest failed block.
+      // Otherwise, advance to the highest successful block.
+      let nextCursor: bigint | undefined
+      if (minFailedBlock !== undefined) {
+        if (minFailedBlock > 0n) {
+          const candidate = minFailedBlock - 1n
+          if (previous === undefined || candidate > previous) {
+            nextCursor = candidate
+          }
+        }
+      } else if (maxSuccessBlock !== undefined) {
+        nextCursor = maxSuccessBlock
+      }
+
+      if (nextCursor !== undefined) {
+        this.recordProcessedBlock(chainIDNum, nextCursor)
+      }
     }
   }
 
@@ -210,5 +268,29 @@ export class WatchIntentFundedService extends WatchEventService<IntentSource> {
    */
   async getLastRecordedTx(sourceChainID: bigint): Promise<IntentFundedEventModel | undefined> {
     return this.intentFundedEventRepository.getLastRecordedTx(sourceChainID)
+  }
+
+  protected override async fetchBackfillLogs(
+    client: PublicClient,
+    source: IntentSource,
+    fromBlock: bigint,
+    toBlock: bigint,
+  ): Promise<Log[]> {
+    let effectiveFromBlock = fromBlock
+    if (toBlock - fromBlock > MAX_BACKFILL_BLOCK_RANGE) {
+      effectiveFromBlock =
+        toBlock > MAX_BACKFILL_BLOCK_RANGE ? toBlock - MAX_BACKFILL_BLOCK_RANGE : 0n
+    }
+
+    const logs = await client.getContractEvents({
+      address: source.sourceAddress,
+      abi: portalAbi,
+      eventName: 'IntentFunded',
+      strict: true,
+      fromBlock: effectiveFromBlock,
+      toBlock,
+    })
+
+    return logs as Log[]
   }
 }
