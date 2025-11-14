@@ -36,6 +36,10 @@ describe('TronListener Integration - Real Blockchain Events', () => {
         flatFee: 100000,
         scalarBps: 10,
       },
+      nonSwapTokens: {
+        flatFee: 100000,
+        scalarBps: 10,
+      },
       native: {
         flatFee: 500000,
         scalarBps: 50,

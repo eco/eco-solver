@@ -83,13 +83,24 @@ A high-performance, multi-chain blockchain intent solving system built with Nest
    pnpm install
    ```
 
-3. **Set up environment variables**
+3. **Set up configuration**
+
+   Choose your preferred configuration method:
+
+   **Option A: Environment Variables**
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
-   
-   The `.env.example` file contains comprehensive documentation for all configuration options, including detailed explanations and examples.
+
+   **Option B: YAML Configuration (Recommended for Development)**
+   ```bash
+   cp config.example.yaml config.yaml
+   # Edit config.yaml with your configuration
+   echo "CONFIG_FILES=config.yaml" >> .env
+   ```
+
+   The `.env.example` and `config.example.yaml` files contain comprehensive documentation for all configuration options.
 
 4. **Start required services**
    ```bash
@@ -476,18 +487,94 @@ The application uses a schema-driven configuration system with Zod validation an
 ### Configuration Documentation
 - **[Configuration Module Guide](docs/modules/config.md)** - Complete configuration system documentation
 - **[Environment Variables](.env.example)** - Example configuration with all available options
+- **[YAML Configuration](config.example.yaml)** - Example YAML configuration file
 
-The `.env.example` file contains comprehensive documentation for all configuration options. Copy it to `.env` and update with your values:
+### Configuration Methods
+
+The application supports multiple configuration methods that can be used independently or combined:
+
+#### 1. Environment Variables
+
+The traditional method using `.env` files:
 
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
 ```
 
+Environment variables provide:
+- Simple key-value configuration
+- Easy integration with container orchestration (Docker, Kubernetes)
+- Highest precedence (always override other methods)
+
+#### 2. YAML Configuration Files
+
+Use structured YAML files for complex configurations:
+
+```bash
+# 1. Copy the example YAML file
+cp config.example.yaml config.yaml
+
+# 2. Edit config.yaml with your configuration
+# 3. Specify the file using CONFIG_FILES environment variable
+echo "CONFIG_FILES=config.yaml" >> .env
+
+# Or use multiple files for layered configuration
+echo "CONFIG_FILES=config.yaml,config.prod.yaml" >> .env
+```
+
+YAML configuration provides:
+- Better structure for nested configurations
+- Comments for documentation
+- Easier to read and maintain
+- Version control friendly (without secrets)
+- Support for multiple configuration files
+
+**Note**: Relative paths in `CONFIG_FILES` are resolved from the project root (where `package.json` is located).
+
+#### 3. AWS Secrets Manager (Recommended for Sensitive Data)
+
+Store sensitive credentials securely in AWS:
+
+```bash
+USE_AWS_SECRETS=true
+AWS_SECRET_NAME=blockchain-intent-solver-secrets
+AWS_REGION=us-east-1
+```
+
+See the `.env.example` file for detailed AWS Secrets Manager configuration.
+
+### Configuration Precedence
+
+When multiple configuration methods are used, they are merged with the following precedence (highest to lowest):
+
+1. **Environment variables** - Always take precedence
+2. **AWS Secrets Manager** - Overrides YAML and defaults
+3. **YAML configuration files** - Overrides defaults only
+4. **Zod schema defaults** - Used when no value is provided
+
+**Best Practice**: Use YAML for base configuration structure, environment variables for environment-specific overrides, and AWS Secrets Manager for sensitive data.
+
+Example workflow:
+```bash
+# Base configuration in YAML
+# config.yaml contains structure and development defaults
+
+# Environment-specific overrides in .env
+CONFIG_FILES=config.yaml
+NODE_ENV=production
+PORT=8080
+
+# Sensitive data in AWS Secrets Manager
+USE_AWS_SECRETS=true
+AWS_SECRET_NAME=solver-prod-secrets
+```
+
 ### Key Features
 - **Type-safe configuration** with Zod schemas
 - **Automatic environment variable mapping** from nested config structure
 - **AWS Secrets Manager integration** for secure credential storage
+- **Multiple configuration files** with deep merging
 - **Per-module configuration services** for clean separation
 
 ## 💼 Wallet System

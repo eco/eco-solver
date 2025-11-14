@@ -9,6 +9,7 @@ import { BullBoardDashboardModule } from '@/modules/bull-board/bull-board.module
 import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService } from '@/modules/config/services';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
+import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { HealthModule } from '@/modules/health/health.module';
@@ -52,6 +53,7 @@ import { SolverRegistrationModule } from './modules/api/solver-registration/solv
     ApiModule,
     HealthModule,
     RequestSigningModule,
+    DynamicConfigModule,
     SolverRegistrationModule,
   ],
   providers: [Logger],

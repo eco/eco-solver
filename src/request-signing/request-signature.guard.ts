@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { EcoLogger } from '@/common/logging/eco-logger';
+import { ConfigFactory } from '@/config/config-factory';
 import { EcoError } from '@/errors/eco-error';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { RequestHeaders } from '@/request-signing/request-headers';
 import { SignatureVerificationService } from '@/request-signing/signature-verification.service';
 
@@ -13,9 +13,13 @@ export class RequestSignatureGuard implements CanActivate {
   constructor(private readonly signatureVerificationService: SignatureVerificationService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // if (!ConfigFactory.isRequestSignatureValidationEnabled()) {
-    //   return true;
-    // }
+    if (!ConfigFactory.isRequestSignatureValidationEnabled()) {
+      return true;
+    }
+
+    const allowedAddresses = ConfigFactory.getDynamicConfigAllowedAddresses().map((a) =>
+      a.toLowerCase(),
+    );
 
     try {
       const request = context.switchToHttp().getRequest();
@@ -45,11 +49,23 @@ export class RequestSignatureGuard implements CanActivate {
             message: EcoError.getErrorMessage(error),
           }),
         );
+
+        throw new UnauthorizedException(`Invalid or expired signature`);
       }
 
-      return !error;
+      if (!allowedAddresses.includes(claimedAddress.toLowerCase())) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Address ${claimedAddress} is not authorized to make dynamic config changes`,
+          }),
+        );
+
+        throw new UnauthorizedException(`Address not authorized for dynamic config changes`);
+      }
+
+      return true;
     } catch (ex) {
-      throw new UnauthorizedException(`Invalid or expired signature: ${(ex as any).message}`);
+      throw new UnauthorizedException(`Invalid or expired signature`);
     }
   }
 }
