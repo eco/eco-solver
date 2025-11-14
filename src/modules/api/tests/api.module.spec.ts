@@ -11,7 +11,10 @@ describe('ApiModule - Module Structure', () => {
     });
 
     it('should implement OnModuleInit for lifecycle hooks', () => {
-      const instance = new ApiModule();
+      // Mock the dependencies
+      const mockQuotesConfigService = { isEnabled: true };
+      const mockLogger = { log: jest.fn() };
+      const instance = new ApiModule(mockQuotesConfigService as any, mockLogger as any);
       expect(instance.onModuleInit).toBeDefined();
       expect(typeof instance.onModuleInit).toBe('function');
     });
