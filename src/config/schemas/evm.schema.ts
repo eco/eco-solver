@@ -139,6 +139,13 @@ const OwnableExecutorConfigSchema = z.object({
 const KernelWalletConfigSchema = z.object({
   signer: z.union([KmsSignerConfigSchema, EOASignerConfigSchema]),
   ownableExecutor: OwnableExecutorConfigSchema.optional(),
+  executorSignatureExpiration: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(1800)
+    .describe('Signature expiration time in seconds (default: 1800 = 30 minutes)'),
 });
 
 /**
