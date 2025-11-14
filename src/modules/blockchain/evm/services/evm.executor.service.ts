@@ -18,8 +18,8 @@ import { BlockchainConfigService, EvmConfigService } from '@/modules/config/serv
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
-import { replaceRelayerContext } from '@/modules/rhinestone/utils/replace-relayer-context';
 import { RhinestoneWebsocketService } from '@/modules/rhinestone/services/rhinestone-websocket.service';
+import { replaceRelayerContext } from '@/modules/rhinestone/utils/replace-relayer-context';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { EvmTransportService } from './evm-transport.service';
