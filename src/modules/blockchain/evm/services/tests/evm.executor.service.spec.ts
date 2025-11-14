@@ -184,6 +184,7 @@ describe('EvmExecutorService', () => {
       // Verify transaction receipt was waited for
       expect(mockPublicClient.waitForTransactionReceipt).toHaveBeenCalledWith({
         hash: '0xTransactionHash',
+        confirmations: 2,
       });
     });
 
