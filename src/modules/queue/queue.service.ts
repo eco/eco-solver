@@ -71,6 +71,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
     const serializedData = BigintSerializer.serialize(jobData);
     await this.fulfillmentQueue.add('process-intent', serializedData, {
+      jobId: intent.intentHash,
       attempts,
       backoff: {
         type: 'exponential',
