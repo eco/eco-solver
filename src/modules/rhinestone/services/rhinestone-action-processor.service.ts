@@ -89,6 +89,7 @@ export class RhinestoneActionProcessor {
 
           // 4. Prepare Rhinestone payload
           const rhinestonePayload: RhinestonePayload = {
+            messageId: payload.messageId,
             claimTo: claim.call.to as Address,
             claimData: claim.call.data as Hex,
             claimValue: BigInt(claim.call.value),

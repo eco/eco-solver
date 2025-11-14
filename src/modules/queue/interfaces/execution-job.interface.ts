@@ -5,6 +5,7 @@ import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 
 export interface RhinestonePayload {
+  messageId: string; // Rhinestone WebSocket message ID for preconfirmation callback
   claimTo: Address; // Router address for CLAIM transaction
   claimData: Hex;
   claimValue: bigint;

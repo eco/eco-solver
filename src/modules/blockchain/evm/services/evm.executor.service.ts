@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi, Hex, pad, TransactionReceipt } from 'viem';
@@ -19,6 +19,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
 import { replaceRelayerContext } from '@/modules/rhinestone/utils/replace-relayer-context';
+import { RhinestoneWebsocketService } from '@/modules/rhinestone/services/rhinestone-websocket.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { EvmTransportService } from './evm-transport.service';
@@ -34,6 +35,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     private proverService: ProverService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @Optional() private rhinestoneWebsocketService?: RhinestoneWebsocketService,
   ) {
     super();
     this.logger.setContext(EvmExecutorService.name);
@@ -339,7 +341,6 @@ export class EvmExecutorService extends BaseChainExecutor {
           const publicClient = this.transportService.getPublicClient(chainId);
           const receipt = await publicClient.waitForTransactionReceipt({
             hash: txHash,
-            confirmations: 2,
           });
 
           if (receipt.status !== 'success') {
@@ -372,6 +373,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     fillData: Hex,
     fillValue: bigint,
     walletId: WalletType,
+    messageId: string,
   ): Promise<Hex> {
     return this.otelService.tracer.startActiveSpan(
       'evm.rhinestone.fill',
@@ -417,11 +419,30 @@ export class EvmExecutorService extends BaseChainExecutor {
 
           span.setAttribute('evm.tx_hash', txHash);
 
+          // Send preconfirmation IMMEDIATELY after tx submission (don't wait for mining)
+          if (this.rhinestoneWebsocketService) {
+            try {
+              await this.rhinestoneWebsocketService.sendActionStatus(messageId, {
+                type: 'Success',
+                preconfirmation: { txId: txHash },
+              });
+              this.logger.log(`Sent preconfirmation for FILL tx: ${txHash}`);
+              span.addEvent('rhinestone.preconfirmation.sent', { txHash });
+            } catch (error) {
+              // Log error but don't fail execution
+              this.logger.warn(
+                `Failed to send preconfirmation: ${error instanceof Error ? error.message : String(error)}`,
+              );
+              span.addEvent('rhinestone.preconfirmation.failed', {
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
           // Wait for confirmation
           const publicClient = this.transportService.getPublicClient(chainId);
           const receipt = await publicClient.waitForTransactionReceipt({
             hash: txHash,
-            confirmations: 2,
           });
 
           if (receipt.status !== 'success') {
@@ -516,7 +537,6 @@ export class EvmExecutorService extends BaseChainExecutor {
           const publicClient = this.transportService.getPublicClient(chainId);
           const receipt = await publicClient.waitForTransactionReceipt({
             hash: txHash,
-            confirmations: 2,
           });
 
           if (receipt.status !== 'success') {
