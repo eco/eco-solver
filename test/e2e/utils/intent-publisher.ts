@@ -1,8 +1,9 @@
-import { Address, Hex, parseUnits } from 'viem';
+import { Address, createPublicClient, Hex, http, parseUnits } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 
+import { getRpcUrl } from '../helpers/e2e-config';
 import { IntentBuilder } from '../helpers/intent-builder.helper';
 import {
   BASE_MAINNET_CHAIN_ID,
@@ -101,8 +102,6 @@ export async function publishIntent(
     tokenAmount = parseUnits('10', 6), // 10 USDC (within 50 USDC limit)
     rewardTokenAmount = parseUnits('12', 6), // 12 USDC reward (covers route + fees)
     recipient = TEST_ACCOUNTS.ACCOUNT_1.address as Address,
-    routeDeadline = BigInt(Math.floor(Date.now() / 1000)) + 5_400n, // 1 hour from now
-    rewardDeadline = BigInt(Math.floor(Date.now() / 1000)) + 5_400n, // 1 hour from now
     proverAddress,
     creatorAddress = TEST_ACCOUNTS.ACCOUNT_0.address as Address,
     nativeAmount = 0n,
@@ -114,6 +113,18 @@ export async function publishIntent(
     allowInvalidChain,
     fundingOptions,
   } = options;
+
+  // Get current blockchain timestamp from source chain to ensure deadlines are valid
+  // This is critical for forked environments where block.timestamp != Date.now()
+  const publicClient = createPublicClient({
+    transport: http(getRpcUrl(sourceChainId)),
+  });
+  const block = await publicClient.getBlock();
+  const blockTimestamp = BigInt(block.timestamp);
+
+  // Use provided deadlines or calculate from blockchain time
+  const routeDeadline = options.routeDeadline ?? blockTimestamp + 5_400n; // 1.5 hours from blockchain time
+  const rewardDeadline = options.rewardDeadline ?? blockTimestamp + 5_400n; // 1.5 hours from blockchain time
 
   // Build the intent using a fresh IntentBuilder instance
   const builder = new IntentBuilder()
