@@ -4,16 +4,16 @@ describe('EIP-712 Signature Verification', () => {
   const types = {
     Execute: [
       { name: 'account', type: 'address' },
-      { name: 'mode', type: 'bytes32' },
+      { name: 'mode', type: 'uint256' },
       { name: 'executionCalldata', type: 'bytes' },
       { name: 'nonce', type: 'uint256' },
       { name: 'expiration', type: 'uint256' },
     ],
   } as const;
 
-  it('should define mode as bytes32 type in EIP-712 types', () => {
+  it('should define mode as uint256 type in EIP-712 types', () => {
     expect(types.Execute[1].name).toBe('mode');
-    expect(types.Execute[1].type).toBe('bytes32');
+    expect(types.Execute[1].type).toBe('uint256');
   });
 
   it('should verify signature format with executor contract expectations', () => {
@@ -32,12 +32,12 @@ describe('EIP-712 Signature Verification', () => {
       expiration: BigInt(Date.now() + 1000 * 60 * 30),
     };
 
-    // Verify mode is formatted as bytes32 (32 bytes = 64 hex chars)
+    // Verify mode is formatted as uint256 (uint256 = 64 hex chars)
     expect(message.mode).toMatch(/^0x[0-9a-f]{64}$/i);
     expect(message.mode.length).toBe(66); // 0x + 64 chars
   });
 
-  it('should encode mode as bytes32 for single call', () => {
+  it('should encode mode as uint256 for single call', () => {
     const mode = encodeExecutionMode({
       type: 'call',
       revertOnError: false,
@@ -53,7 +53,7 @@ describe('EIP-712 Signature Verification', () => {
     expect(mode.substring(2, 4)).toBe('00');
   });
 
-  it('should encode mode as bytes32 for batch call', () => {
+  it('should encode mode as uint256 for batch call', () => {
     const mode = encodeExecutionMode({
       type: 'batchcall',
       revertOnError: true,
@@ -72,7 +72,7 @@ describe('EIP-712 Signature Verification', () => {
     expect(mode.substring(4, 6)).toBe('01');
   });
 
-  it('should encode mode as bytes32 for delegate call', () => {
+  it('should encode mode as uint256 for delegate call', () => {
     const mode = encodeExecutionMode({
       type: 'delegatecall',
       revertOnError: false,
