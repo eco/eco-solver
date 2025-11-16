@@ -1,5 +1,5 @@
 export const portalIdl = {
-  address: '8H7qa6zZ1qpTxdSXRh6H619G5a99KJafKzDrkdgWb8mX',
+  address: '5nCJDkRg8mhj9XHkjuFoR6Mcs6VcDZVsCbZ7pTJhRFEF',
   metadata: {
     name: 'portal',
     version: '0.1.0',
@@ -545,12 +545,16 @@ export const portalIdl = {
           },
           {
             name: 'claimant',
-            type: 'pubkey',
+            type: {
+              defined: {
+                name: 'Bytes32',
+              },
+            },
           },
           {
             name: 'destination',
             type: 'u64',
-          },
+          }
         ],
       },
     },
@@ -832,6 +836,68 @@ export const portalIdl = {
             type: {
               defined: {
                 name: 'Reward',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'Calldata',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'data',
+            type: 'bytes',
+          },
+          {
+            name: 'account_count',
+            type: 'u8',
+          },
+        ],
+      },
+    },
+    {
+      name: 'SerializableAccountMeta',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'pubkey',
+            type: 'pubkey',
+          },
+          {
+            name: 'is_signer',
+            type: 'bool',
+          },
+          {
+            name: 'is_writable',
+            type: 'bool',
+          },
+        ],
+      },
+    },
+    {
+      name: 'CalldataWithAccounts',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'calldata',
+            type: {
+              defined: {
+                name: 'Calldata',
+              },
+            },
+          },
+          {
+            name: 'accounts',
+            type: {
+              vec: {
+                defined: {
+                  name: 'SerializableAccountMeta',
+                },
               },
             },
           },
