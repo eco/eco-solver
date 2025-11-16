@@ -94,7 +94,9 @@ export class SolanaListener extends BaseChainListener {
         this.logger.error(`Failed to subscribe to Hyper Prover program logs:`, toError(error));
       }
     } else {
-      this.logger.warn('Hyper Prover address not configured, IntentProven events will not be captured');
+      this.logger.warn(
+        'Hyper Prover address not configured, IntentProven events will not be captured',
+      );
     }
   }
 
