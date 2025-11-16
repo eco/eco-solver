@@ -1,4 +1,15 @@
-import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { InjectModel } from '@nestjs/mongoose';
+
+import { Model } from 'mongoose';
+
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { ConfigFactory } from '@/config/config-factory';
+import { EcoError } from '@/errors/eco-error';
+import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
+import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
 import {
   ConfigurationFilter,
   CreateConfigurationDTO,
@@ -6,22 +17,13 @@ import {
   PaginationOptions,
   UpdateConfigurationDTO,
 } from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
-import { AuditStatistics } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
-import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
-import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
-import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
-import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
 import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
+import { AuditStatistics } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
+import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
+import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
 import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
 import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
-import { ConfigFactory } from '@/config/config-factory';
-import { EcoError } from '@/errors/eco-error';
-import { EcoLogger } from '@/common/logging/eco-logger';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
 
 export interface ConfigurationChangeEvent {
   key: string;

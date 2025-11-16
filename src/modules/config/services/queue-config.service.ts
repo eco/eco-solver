@@ -34,6 +34,10 @@ export class QueueConfigService {
     return this.configService.get<number>('queue.retryDelayMs');
   }
 
+  get fulfillmentJobDelay(): QueueConfig['fulfillmentJobDelay'] {
+    return this.configService.get<number>('queue.fulfillmentJobDelay', 0);
+  }
+
   /**
    * Get retry configuration for temporary errors specifically
    */

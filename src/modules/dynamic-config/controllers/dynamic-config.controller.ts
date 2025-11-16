@@ -13,25 +13,27 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { Request } from 'express';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { EcoError } from '@/errors/eco-error';
+import { AuditQueryDTO } from '@/modules/dynamic-config/dtos/audit-query.dto';
 import {
   AuditLogResponseDTO,
   PaginatedAuditResponseDTO,
 } from '@/modules/dynamic-config/dtos/audit-response.dto';
-import { AuditQueryDTO } from '@/modules/dynamic-config/dtos/audit-query.dto';
 import { ConfigurationQueryDTO } from '@/modules/dynamic-config/dtos/configuration-query.dto';
 import {
   ConfigurationResponseDTO,
   PaginatedConfigurationResponseDTO,
 } from '@/modules/dynamic-config/dtos/configuration-response.dto';
 import { CreateConfigurationDTO } from '@/modules/dynamic-config/dtos/create-configuration.dto';
+import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoError } from '@/errors/eco-error';
-import { EcoLogger } from '@/common/logging/eco-logger';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { Request } from 'express';
 import { RequestHeaders } from '@/request-signing/request-headers';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
-import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
 
 @ApiTags('Configuration')
 @Controller('api/v1/configuration')

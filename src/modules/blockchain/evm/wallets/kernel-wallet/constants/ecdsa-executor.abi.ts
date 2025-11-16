@@ -1,292 +1,139 @@
 export const ecdsaExecutorAbi = [
   {
+    inputs: [{ internalType: 'address', name: 'smartAccount', type: 'address' }],
+    name: 'AlreadyInitialized',
+    type: 'error',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'account', type: 'address' },
+      { internalType: 'uint256', name: 'expected', type: 'uint256' },
+      { internalType: 'uint256', name: 'actual', type: 'uint256' },
+    ],
+    name: 'InvalidNonce',
+    type: 'error',
+  },
+  { inputs: [], name: 'InvalidOwner', type: 'error' },
+  { inputs: [], name: 'InvalidSignature', type: 'error' },
+  {
+    inputs: [{ internalType: 'address', name: 'smartAccount', type: 'address' }],
+    name: 'NotInitialized',
+    type: 'error',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'account', type: 'address' },
+      { internalType: 'uint256', name: 'expiration', type: 'uint256' },
+    ],
+    name: 'SignatureExpired',
+    type: 'error',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'kernel', type: 'address' },
+      { indexed: true, internalType: 'bytes32', name: 'executionHash', type: 'bytes32' },
+    ],
+    name: 'ExecutionRequested',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'kernel', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'owner', type: 'address' },
+    ],
+    name: 'OwnerRegistered',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'kernel', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'owner', type: 'address' },
+    ],
+    name: 'OwnerUnregistered',
+    type: 'event',
+  },
+  {
+    inputs: [],
+    name: 'eip712Domain',
+    outputs: [
+      { internalType: 'bytes1', name: 'fields', type: 'bytes1' },
+      { internalType: 'string', name: 'name', type: 'string' },
+      { internalType: 'string', name: 'version', type: 'string' },
+      { internalType: 'uint256', name: 'chainId', type: 'uint256' },
+      { internalType: 'address', name: 'verifyingContract', type: 'address' },
+      { internalType: 'bytes32', name: 'salt', type: 'bytes32' },
+      { internalType: 'uint256[]', name: 'extensions', type: 'uint256[]' },
+    ],
+    stateMutability: 'view',
     type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'account', type: 'address' },
+      { internalType: 'ExecMode', name: 'mode', type: 'bytes32' },
+      { internalType: 'bytes', name: 'executionCalldata', type: 'bytes' },
+      { internalType: 'uint256', name: 'nonce', type: 'uint256' },
+      { internalType: 'uint256', name: 'expiration', type: 'uint256' },
+      { internalType: 'bytes', name: 'signature', type: 'bytes' },
+    ],
     name: 'execute',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'mode',
-        type: 'bytes32',
-        internalType: 'ExecMode',
-      },
-      {
-        name: 'executionCalldata',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-      {
-        name: 'nonce',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'expiration',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'signature',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: 'returnData',
-        type: 'bytes[]',
-        internalType: 'bytes[]',
-      },
-    ],
+    outputs: [{ internalType: 'bytes[]', name: 'returnData', type: 'bytes[]' }],
     stateMutability: 'payable',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [
+      { internalType: 'address', name: 'account', type: 'address' },
+      { internalType: 'uint192', name: 'key', type: 'uint192' },
+    ],
     name: 'getNonce',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'uint192',
-        internalType: 'uint192',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    outputs: [{ internalType: 'uint64', name: '', type: 'uint64' }],
     stateMutability: 'view',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
     name: 'getOwner',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [{ internalType: 'uint192', name: 'key', type: 'uint192' }],
     name: 'incrementNonce',
-    inputs: [
-      {
-        name: 'key',
-        type: 'uint192',
-        internalType: 'uint192',
-      },
-    ],
     outputs: [],
     stateMutability: 'nonpayable',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [{ internalType: 'address', name: 'smartAccount', type: 'address' }],
     name: 'isInitialized',
-    inputs: [
-      {
-        name: 'smartAccount',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
     stateMutability: 'view',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [{ internalType: 'uint256', name: 'typeID', type: 'uint256' }],
     name: 'isModuleType',
-    inputs: [
-      {
-        name: 'typeID',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
     stateMutability: 'pure',
+    type: 'function',
   },
   {
-    type: 'function',
+    inputs: [{ internalType: 'bytes', name: '_data', type: 'bytes' }],
     name: 'onInstall',
-    inputs: [
-      {
-        name: '_data',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
     outputs: [],
     stateMutability: 'payable',
-  },
-  {
     type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'bytes', name: '', type: 'bytes' }],
     name: 'onUninstall',
-    inputs: [
-      {
-        name: '',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
     outputs: [],
     stateMutability: 'payable',
-  },
-  {
-    type: 'event',
-    name: 'ExecutionRequested',
-    inputs: [
-      {
-        name: 'kernel',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'executionHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'OwnerRegistered',
-    inputs: [
-      {
-        name: 'kernel',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'owner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'OwnerUnregistered',
-    inputs: [
-      {
-        name: 'kernel',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'owner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'AlreadyInitialized',
-    inputs: [
-      {
-        name: 'smartAccount',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InvalidNonce',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InvalidOwner',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'InvalidSignature',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'NotInitialized',
-    inputs: [
-      {
-        name: 'smartAccount',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SignatureExpired',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expiration',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    type: 'function',
   },
 ] as const;

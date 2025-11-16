@@ -1,7 +1,8 @@
-import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
-import { IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
-import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
 import { Transform, Type } from 'class-transformer';
+import { IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
+import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
 
 export class ConfigurationQueryDTO {
   @IsOptional()

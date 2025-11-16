@@ -1,4 +1,13 @@
+import { Module } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { MongooseModule } from '@nestjs/mongoose';
+
+import { ModuleRefProvider } from '@/common/services/module-ref-provider';
+import { ConfigFactory } from '@/config/config-factory';
 import { AwsToMongoDbMigrationService } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
+import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
+import { DynamicConfigAuditRepository } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
 import {
   Configuration,
   ConfigurationSchema,
@@ -7,19 +16,11 @@ import {
   ConfigurationAudit,
   ConfigurationAuditSchema,
 } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
-import { DynamicConfigAuditRepository } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
-import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
-import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
-import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
 import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
-import { ConfigFactory } from '@/config/config-factory';
 import { EventsModule } from '@/modules/events';
-import { Module } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
-import { ModuleRefProvider } from '@/common/services/module-ref-provider';
-import { MongooseModule } from '@nestjs/mongoose';
 
 /**
  * Migration module that handles configuration migration and validation

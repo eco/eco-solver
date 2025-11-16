@@ -74,7 +74,16 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit {
           try {
             this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
             span.addEvent('execution.started');
-            await this.blockchainService.executeIntent(intent, walletId);
+
+            // Route based on strategy
+            if (strategy === 'rhinestone') {
+              span.setAttribute('execution.type', 'rhinestone');
+              await this.blockchainService.executeRhinestone(intent, walletId);
+            } else {
+              span.setAttribute('execution.type', 'standard');
+              await this.blockchainService.executeIntent(intent, walletId);
+            }
+
             span.addEvent('execution.completed');
             this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
           } catch (error) {

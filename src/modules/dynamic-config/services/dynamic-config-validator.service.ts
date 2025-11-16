@@ -1,6 +1,8 @@
-import { ConfigurationSchemas } from '@/modules/dynamic-config/schemas/configuration-schemas';
 import { Injectable, Logger } from '@nestjs/common';
+
 import { z } from 'zod';
+
+import { ConfigurationSchemas } from '@/modules/dynamic-config/schemas/configuration-schemas';
 
 export interface ValidationResult {
   isValid: boolean;

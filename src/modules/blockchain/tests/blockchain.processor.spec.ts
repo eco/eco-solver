@@ -84,9 +84,11 @@ describe('BlockchainProcessor', () => {
     otelService = {
       startNewTraceWithCorrelation: jest.fn().mockImplementation(async (name, id, stage, fn) => {
         const span = {
+          setAttribute: jest.fn(),
           setAttributes: jest.fn(),
           addEvent: jest.fn(),
           recordException: jest.fn(),
+          setStatus: jest.fn(),
           end: jest.fn(),
         };
         return fn(span);

@@ -12,6 +12,7 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { BlockchainExecutorService } from '../blockchain-executor.service';
 import { EvmExecutorService } from '../evm/services/evm.executor.service';
@@ -114,6 +115,14 @@ describe('BlockchainExecutorService', () => {
         { provide: IntentsService, useValue: intentsService },
         { provide: SystemLoggerService, useValue: systemLoggerService },
         { provide: OpenTelemetryService, useValue: otelService },
+        {
+          provide: RhinestoneMetadataService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
         { provide: EvmExecutorService, useValue: evmExecutor },
         { provide: SvmExecutorService, useValue: svmExecutor },
       ],
@@ -160,6 +169,10 @@ describe('BlockchainExecutorService', () => {
           { provide: IntentsService, useValue: intentsService },
           { provide: SystemLoggerService, useValue: systemLoggerService },
           { provide: OpenTelemetryService, useValue: otelService },
+          {
+            provide: RhinestoneMetadataService,
+            useValue: { get: jest.fn(), set: jest.fn(), delete: jest.fn() },
+          },
           { provide: EvmExecutorService, useValue: evmExecutor },
           { provide: SvmExecutorService, useValue: svmExecutor },
         ],
@@ -186,6 +199,10 @@ describe('BlockchainExecutorService', () => {
           { provide: IntentsService, useValue: intentsService },
           { provide: SystemLoggerService, useValue: systemLoggerService },
           { provide: OpenTelemetryService, useValue: otelService },
+          {
+            provide: RhinestoneMetadataService,
+            useValue: { get: jest.fn(), set: jest.fn(), delete: jest.fn() },
+          },
         ],
       }).compile();
 

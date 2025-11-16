@@ -110,10 +110,31 @@ const EOASignerConfigSchema = z.object({
 });
 
 /**
+ * OwnableExecutor module configuration schema
+ */
+const OwnableExecutorConfigSchema = z.object({
+  owner: EvmAddressSchema,
+  excludeChains: z.array(z.coerce.number().int().positive()).optional(),
+  overrideModuleAddress: z
+    .record(z.coerce.string(), EvmAddressSchema)
+    .optional()
+    .transform((value) => {
+      if (!value) return undefined;
+      // Convert string keys to numbers for chainId mapping
+      const result: Record<number, Address> = {};
+      for (const [key, address] of Object.entries(value)) {
+        result[parseInt(key, 10)] = address;
+      }
+      return result;
+    }),
+});
+
+/**
  * Kernel wallet configuration schema
  */
 const KernelWalletConfigSchema = z.object({
   signer: z.union([KmsSignerConfigSchema, EOASignerConfigSchema]),
+  ownableExecutor: OwnableExecutorConfigSchema.optional(),
 });
 
 /**
@@ -159,3 +180,4 @@ export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;
+export type OwnableExecutorConfig = z.infer<typeof OwnableExecutorConfigSchema>;

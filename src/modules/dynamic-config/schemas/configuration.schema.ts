@@ -1,6 +1,8 @@
-import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
-import { Document, Schema as MongooseSchema } from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+
+import { Document, Schema as MongooseSchema } from 'mongoose';
+
+import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 
 export type ConfigurationDocument = Configuration & Document;
 

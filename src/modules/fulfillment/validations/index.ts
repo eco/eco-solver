@@ -8,6 +8,7 @@ export * from './intent-funded.validation';
 export * from './minimum-route-amount.validation';
 export * from './native-fee.validation';
 export * from './prover-support.validation';
+export * from './rhinestone.validation';
 export * from './route-amount-limit.validation';
 export * from './route-calls.validation';
 export * from './route-enabled.validation';

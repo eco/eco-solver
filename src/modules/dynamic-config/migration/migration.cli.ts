@@ -1,14 +1,16 @@
+import { Logger } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+
+import { Command } from 'commander';
+
+import { ConfigFactory } from '@/config/config-factory';
+import { EcoError } from '@/errors/eco-error';
 import {
   AwsToMongoDbMigrationService,
   MigrationOptions,
 } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
-import { Command } from 'commander';
 import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
-import { ConfigFactory } from '@/config/config-factory';
-import { EcoError } from '@/errors/eco-error';
-import { Logger } from '@nestjs/common';
 import { MigrationModule } from '@/modules/dynamic-config/migration/migration.module';
-import { NestFactory } from '@nestjs/core';
 
 /**
  * CLI tool for migrating configurations from AWS Secrets Manager to MongoDB

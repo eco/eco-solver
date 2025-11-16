@@ -1,10 +1,11 @@
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { ConfigFactory } from '@/config/config-factory';
 import {
   AwsToMongoDbMigrationService,
   MigrationOptions,
 } from '@/modules/dynamic-config/migration/aws-to-mongodb-migration.service';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { ConfigFactory } from '@/config/config-factory';
-import { Test, TestingModule } from '@nestjs/testing';
 
 // Mock AWS SDK
 jest.mock('@aws-sdk/client-secrets-manager');

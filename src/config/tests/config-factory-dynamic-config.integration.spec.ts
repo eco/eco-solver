@@ -1,9 +1,10 @@
+import { ModuleRef } from '@nestjs/core';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { ModuleRefProvider } from '@/common/services/module-ref-provider';
 import { ConfigFactory } from '@/config/config-factory';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ModuleRef } from '@nestjs/core';
-import { ModuleRefProvider } from '@/common/services/module-ref-provider';
-import { Test, TestingModule } from '@nestjs/testing';
 
 describe('ConfigFactory + DynamicConfigService Integration', () => {
   let configFactory: typeof ConfigFactory;

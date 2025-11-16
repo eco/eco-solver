@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
-import { ConfigFactory } from '@/config/config-factory';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { ConfigFactory } from '@/config/config-factory';
+import { DynamicConfigValidationService } from '@/modules/dynamic-config/migration/dynamic-config-validation.service';
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
 
 describe('DynamicConfigValidationService', () => {
   let service: DynamicConfigValidationService;

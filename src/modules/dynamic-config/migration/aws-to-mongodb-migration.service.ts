@@ -1,11 +1,12 @@
+import { Inject, Injectable } from '@nestjs/common';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { ConfigFactory } from '@/config/config-factory';
+import { EcoError } from '@/errors/eco-error';
 import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { CreateConfigurationDTO } from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { ConfigFactory } from '@/config/config-factory';
-import { EcoError } from '@/errors/eco-error';
-import { EcoLogger } from '@/common/logging/eco-logger';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { Inject, Injectable } from '@nestjs/common';
 
 export interface MigrationResult {
   success: boolean;

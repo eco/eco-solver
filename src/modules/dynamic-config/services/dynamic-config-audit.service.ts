@@ -1,3 +1,6 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+
+import { EcoError } from '@/errors/eco-error';
 import {
   AuditFilter,
   AuditLogEntry,
@@ -6,8 +9,6 @@ import {
 } from '@/modules/dynamic-config/repositories/dynamic-config-audit.repository';
 import { ConfigurationAuditDocument } from '@/modules/dynamic-config/schemas/configuration-audit.schema';
 import { ConfigurationChangeEvent } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { EcoError } from '@/errors/eco-error';
-import { Inject, Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class DynamicConfigAuditService {

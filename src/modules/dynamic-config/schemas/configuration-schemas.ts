@@ -1,5 +1,6 @@
-import { ConfigSchema } from '@/config/config.schema';
 import { z } from 'zod';
+
+import { ConfigSchema } from '@/config/config.schema';
 
 /**
  * Helper class to access config schemas dynamically

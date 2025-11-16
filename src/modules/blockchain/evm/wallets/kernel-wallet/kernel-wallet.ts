@@ -13,7 +13,6 @@ import {
   Hash,
   Hex,
   isAddress,
-  keccak256,
   LocalAccount,
   Transport,
   WalletClient,
@@ -40,16 +39,21 @@ import { constructInitDataWithHook } from './utils/encode-module';
 const kernelVersion = KERNEL_V3_1;
 const entryPoint = getEntryPoint('0.7');
 
+// Default OwnableExecutor module address (Rhinestone)
+const DEFAULT_OWNABLE_EXECUTOR_ADDRESS: Address = '0x4Fd8d57b94966982B62e9588C27B4171B55E8354';
+
 type KernelAccount = Awaited<ReturnType<typeof createKernelAccount>>;
 
 export class KernelWallet extends BaseEvmWallet {
   private kernelAccount!: KernelAccount;
   private readonly ecdsaExecutorAddr?: Address;
+  private readonly ownableExecutorAddr?: Address;
   private readonly publicClient: ReturnType<EvmTransportService['getPublicClient']>;
   private readonly signerWalletClient: WalletClient<Transport, Chain<ChainFormatters>>;
 
   private initialized = false;
   private executorEnabled = false;
+  private ownableExecutorEnabled = false;
 
   constructor(
     private readonly chainId: number,
@@ -72,13 +76,31 @@ export class KernelWallet extends BaseEvmWallet {
       transport,
     });
 
-    // Validate executor address if provided
+    // Validate ECDSA executor address if provided
     const executorAddr = this.networkConfig.contracts?.ecdsaExecutor;
     if (executorAddr) {
       if (!isAddress(executorAddr)) {
         throw new Error(`Invalid ECDSA executor address: ${executorAddr}`);
       }
       this.ecdsaExecutorAddr = executorAddr as Address;
+    }
+
+    // Configure OwnableExecutor address if enabled
+    const ownableConfig = this.kernelWalletConfig.ownableExecutor;
+    if (ownableConfig) {
+      // Check if this chain is excluded
+      const isExcluded = ownableConfig.excludeChains?.includes(chainId) ?? false;
+
+      if (!isExcluded) {
+        // Use override address if provided for this chain, otherwise use default
+        const moduleAddr =
+          ownableConfig.overrideModuleAddress?.[chainId] ?? DEFAULT_OWNABLE_EXECUTOR_ADDRESS;
+
+        if (!isAddress(moduleAddr)) {
+          throw new Error(`Invalid OwnableExecutor module address: ${moduleAddr}`);
+        }
+        this.ownableExecutorAddr = moduleAddr as Address;
+      }
     }
 
     this.signerWalletClient = signerWalletClient;
@@ -165,14 +187,16 @@ export class KernelWallet extends BaseEvmWallet {
             });
           }
 
-          // Install ECDSA Executor module if configured
-          await this.installEcdsaExecutorModule();
+          // Install configured modules
+          await this.installConfiguredModules();
 
           this.initialized = true;
           span.setAttribute('kernel.executor_enabled', this.executorEnabled);
+          span.setAttribute('kernel.ownable_executor_enabled', this.ownableExecutorEnabled);
 
           this.logger.log('Kernel wallet initialization complete', {
             executorEnabled: this.executorEnabled,
+            ownableExecutorEnabled: this.ownableExecutorEnabled,
           });
 
           span.setStatus({ code: api.SpanStatusCode.OK });
@@ -424,8 +448,6 @@ export class KernelWallet extends BaseEvmWallet {
             totalValue: totalValue.toString(),
           });
 
-          await this.checkKernelAccountBalance(totalValue, span);
-
           const execution = encodeKernelExecuteParams(calls);
 
           if (!this.ecdsaExecutorAddr) {
@@ -455,34 +477,45 @@ export class KernelWallet extends BaseEvmWallet {
           // TODO: Make expiration time configurable
           const expiration = BigInt(now() + minutes(30));
 
-          const executionHash = keccak256(
-            encodeAbiParameters(
-              [
-                { type: 'address' },
-                { type: 'bytes32' },
-                { type: 'bytes' },
-                { type: 'uint256' },
-                { type: 'uint256' },
-                { type: 'uint256' },
-              ],
-              [
-                this.kernelAccount.address,
-                execution.mode,
-                execution.callData,
-                nonce,
-                expiration,
-                BigInt(this.chainId),
-              ],
-            ),
-          );
+          // EIP-712 domain and types
+          const domain = {
+            name: 'ECDSAExecutor',
+            version: '1',
+            chainId: this.chainId,
+            verifyingContract: this.ecdsaExecutorAddr,
+          } as const;
+
+          // EIP-712 types definition
+          const types = {
+            Execute: [
+              { name: 'account', type: 'address' },
+              { name: 'mode', type: 'uint256' },
+              { name: 'executionCalldata', type: 'bytes' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'expiration', type: 'uint256' },
+            ],
+          } as const;
+
+          // Message to sign
+          const message = {
+            account: this.kernelAccount.address,
+            mode: BigInt(execution.mode),
+            executionCalldata: execution.callData,
+            nonce,
+            expiration,
+          };
 
           let signature: Hex;
           try {
-            signature = await this.signerWalletClient.signMessage({
-              message: { raw: executionHash },
-            } as any);
+            signature = await this.signerWalletClient.signTypedData({
+              account: this.signer,
+              domain,
+              types,
+              primaryType: 'Execute',
+              message,
+            });
           } catch (error) {
-            const msg = `Failed to sign execution hash`;
+            const msg = `Failed to sign EIP-712 typed data`;
             this.logger.error(msg, toError(error));
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
@@ -558,6 +591,44 @@ export class KernelWallet extends BaseEvmWallet {
     );
   }
 
+  /**
+   * Installs all configured modules on the kernel account.
+   * This method orchestrates the installation of ECDSA Executor and OwnableExecutor modules.
+   */
+  private async installConfiguredModules(): Promise<void> {
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan(
+      'kernel.wallet.installConfiguredModules',
+      {
+        attributes: {
+          'kernel.chain_id': this.chainId,
+          'kernel.ecdsa_executor_configured': !!this.ecdsaExecutorAddr,
+          'kernel.ownable_executor_configured': !!this.ownableExecutorAddr,
+        },
+      },
+      async (span: api.Span) => {
+        try {
+          // Install ECDSA Executor module if configured
+          await this.installEcdsaExecutorModule();
+
+          // Install OwnableExecutor module if configured
+          await this.installOwnableExecutorModule();
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
   private async installEcdsaExecutorModule(): Promise<void> {
     if (!this.ecdsaExecutorAddr) {
       this.logger.debug(
@@ -621,7 +692,10 @@ export class KernelWallet extends BaseEvmWallet {
           });
 
           // Encode the signer address as the owner for the ECDSA executor module
-          const executorInitData = encodePacked(['address'], [this.signer.address]);
+          const executorInitData = encodeAbiParameters(
+            [{ type: 'address' }],
+            [this.signer.address],
+          );
           const moduleInitData = constructInitDataWithHook(executorInitData);
 
           // Install the module
@@ -634,6 +708,121 @@ export class KernelWallet extends BaseEvmWallet {
           span.setAttribute('kernel.module_installed', true);
 
           this.logger.log('ECDSA executor module installed successfully');
+          span.setStatus({ code: api.SpanStatusCode.OK });
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({
+            code: api.SpanStatusCode.ERROR,
+            message: getErrorMessage(error),
+          });
+          throw error;
+        }
+      },
+    );
+  }
+
+  private async installOwnableExecutorModule(): Promise<void> {
+    if (!this.ownableExecutorAddr) {
+      this.logger.debug(
+        'OwnableExecutor module installation skipped: no module address configured',
+        { chainId: this.chainId },
+      );
+      return;
+    }
+
+    const ownableConfig = this.kernelWalletConfig.ownableExecutor;
+    if (!ownableConfig) {
+      this.logger.debug('OwnableExecutor module installation skipped: no configuration provided');
+      return;
+    }
+
+    // Validate executor address format
+    if (!isAddress(this.ownableExecutorAddr)) {
+      throw new Error(`Invalid OwnableExecutor module address format: ${this.ownableExecutorAddr}`);
+    }
+
+    const tracer = this.otelService.tracer;
+    return tracer.startActiveSpan(
+      'kernel.wallet.installOwnableExecutorModule',
+      {
+        attributes: {
+          'kernel.ownable_executor_address': this.ownableExecutorAddr,
+          'kernel.ownable_executor_owner': ownableConfig.owner,
+          'kernel.chain_id': this.chainId,
+        },
+      },
+      async (span: api.Span) => {
+        try {
+          this.logger.log('Checking OwnableExecutor module deployment on chain', {
+            moduleAddress: this.ownableExecutorAddr,
+            chainId: this.chainId,
+          });
+
+          if (!this.ownableExecutorAddr) {
+            throw new Error('OwnableExecutor module address not configured');
+          }
+
+          // Check if the module is deployed on this chain
+          const isDeployed = await this.isModuleDeployedOnChain(this.ownableExecutorAddr);
+          span.setAttribute('kernel.module_deployed', isDeployed);
+
+          if (!isDeployed) {
+            this.logger.warn('OwnableExecutor module not deployed on this chain, skipping', {
+              chainId: this.chainId,
+              moduleAddress: this.ownableExecutorAddr,
+            });
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return;
+          }
+
+          this.logger.log('Checking OwnableExecutor module installation', {
+            chainId: this.chainId,
+            moduleAddress: this.ownableExecutorAddr,
+          });
+
+          // Module type 2 = executor in ERC-7579
+          const moduleType = 2;
+          span.setAttribute('kernel.module_type', moduleType);
+
+          // Check if the module is already installed
+          let isInstalled: boolean;
+          try {
+            isInstalled = await this.isModuleInstalled(moduleType, this.ownableExecutorAddr);
+          } catch (error) {
+            this.logger.warn('Failed to check module installation status, assuming not installed', {
+              chainId: this.chainId,
+              error: getErrorMessage(error),
+              moduleAddress: this.ownableExecutorAddr,
+            });
+            isInstalled = false;
+          }
+          span.setAttribute('kernel.module_already_installed', isInstalled);
+
+          if (isInstalled) {
+            this.logger.log('OwnableExecutor module already installed');
+            this.ownableExecutorEnabled = true;
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return;
+          }
+
+          this.logger.log('Installing OwnableExecutor module', {
+            chainId: this.chainId,
+            moduleType,
+            moduleAddress: this.ownableExecutorAddr,
+            owner: ownableConfig.owner,
+          });
+
+          // Encode the owner address as the init data for the OwnableExecutor module
+          const executorInitData = encodePacked(['address'], [ownableConfig.owner]);
+          const moduleInitData = constructInitDataWithHook(executorInitData);
+
+          // Install the module
+          await this.installModule(moduleType, this.ownableExecutorAddr, moduleInitData);
+
+          this.ownableExecutorEnabled = true;
+          span.setAttribute('kernel.module_installed', true);
+
+          this.logger.log('OwnableExecutor module installed successfully');
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
           span.recordException(toError(error));
@@ -669,6 +858,30 @@ export class KernelWallet extends BaseEvmWallet {
         error: getErrorMessage(error),
         moduleType,
         moduleAddress,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Checks if a module is deployed on the current chain by checking if it has bytecode.
+   * @param moduleAddress The address of the module to check
+   * @returns true if the module is deployed (has code), false otherwise
+   */
+  private async isModuleDeployedOnChain(moduleAddress: Address): Promise<boolean> {
+    if (!isAddress(moduleAddress)) {
+      throw new Error(`Invalid module address: ${moduleAddress}`);
+    }
+
+    try {
+      const code = await this.publicClient.getCode({ address: moduleAddress });
+      // If code is undefined, '0x', or '0x0', the contract is not deployed
+      return !!(code && code !== '0x' && code !== '0x0');
+    } catch (error) {
+      this.logger.debug('Failed to check module deployment', {
+        error: getErrorMessage(error),
+        moduleAddress,
+        chainId: this.chainId,
       });
       return false;
     }
@@ -747,50 +960,5 @@ export class KernelWallet extends BaseEvmWallet {
         }
       },
     );
-  }
-
-  /**
-   * Checks if the kernel account has sufficient ETH balance for the transaction.
-   * Only performs the check if totalValue is greater than zero.
-   */
-  private async checkKernelAccountBalance(totalValue: bigint, span: api.Span): Promise<void> {
-    if (totalValue <= 0n) {
-      span.setAttribute('kernel.balance_check_skipped', true);
-      span.setAttribute('kernel.balance_check_reason', 'zero_value');
-      return;
-    }
-
-    span.setAttribute('kernel.balance_check_performed', true);
-
-    const kernelBalance = await this.publicClient.getBalance({
-      address: this.kernelAccount.address,
-    });
-
-    const sufficient = kernelBalance >= totalValue;
-
-    span.setAttributes({
-      'kernel.account_balance': kernelBalance.toString(),
-      'kernel.required_balance': totalValue.toString(),
-      'kernel.balance_sufficient': sufficient,
-    });
-
-    this.logger.debug('Kernel account balance check', {
-      kernelAddress: this.kernelAccount.address,
-      balance: kernelBalance.toString(),
-      requiredValue: totalValue.toString(),
-      sufficient,
-    });
-
-    if (!sufficient) {
-      const shortfall = totalValue - kernelBalance;
-      span.setAttribute('kernel.balance_shortfall', shortfall.toString());
-
-      throw new Error(
-        `Kernel account has insufficient ETH balance. ` +
-          `Required: ${totalValue.toString()} wei, ` +
-          `Available: ${kernelBalance.toString()} wei. ` +
-          `Please fund the Kernel account at ${this.kernelAccount.address} with at least ${shortfall.toString()} wei additional ETH.`,
-      );
-    }
   }
 }

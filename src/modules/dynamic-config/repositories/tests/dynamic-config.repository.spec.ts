@@ -1,17 +1,19 @@
+import { getModelToken } from '@nestjs/mongoose';
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { Model } from 'mongoose';
+
 import {
   BulkConfigurationOperation,
   ConfigurationFilter,
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
 } from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
 import {
   Configuration,
   ConfigurationDocument,
 } from '@/modules/dynamic-config/schemas/configuration.schema';
-import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
-import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Test, TestingModule } from '@nestjs/testing';
 
 describe('DynamicConfigRepository', () => {
   let repository: DynamicConfigRepository;

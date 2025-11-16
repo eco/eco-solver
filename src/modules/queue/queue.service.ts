@@ -76,6 +76,7 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
         type: 'exponential',
         delay: backoffMs || 5000,
       },
+      delay: this.queueConfig.fulfillmentJobDelay,
     });
   }
 

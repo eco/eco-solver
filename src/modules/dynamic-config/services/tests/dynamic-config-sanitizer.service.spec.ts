@@ -1,5 +1,6 @@
-import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
 
 describe('DynamicConfigSanitizerService', () => {
   let service: DynamicConfigSanitizerService;

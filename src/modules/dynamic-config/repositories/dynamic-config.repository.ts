@@ -1,3 +1,10 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+
+import { FilterQuery, Model } from 'mongoose';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoError } from '@/errors/eco-error';
 import {
   BulkConfigurationOperation,
   BulkOperationResult,
@@ -12,11 +19,6 @@ import {
   Configuration,
   ConfigurationDocument,
 } from '@/modules/dynamic-config/schemas/configuration.schema';
-import { EcoError } from '@/errors/eco-error';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { FilterQuery, Model } from 'mongoose';
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 
 @Injectable()
 export class DynamicConfigRepository implements IConfigurationRepository {
