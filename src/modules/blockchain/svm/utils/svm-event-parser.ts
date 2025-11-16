@@ -3,6 +3,7 @@ import { Logs } from '@solana/web3.js';
 import {
   IntentFulfilledEvent,
   IntentFundedEvent,
+  IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -13,6 +14,7 @@ import { PortalEncoder } from '@/common/utils/portal-encoder';
 import {
   IntentFulfilledInstruction,
   IntentFundedInstruction,
+  IntentProvenInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
@@ -88,6 +90,21 @@ export class SvmEventParser {
       intentHash: bufferToBytes(evt.intent_hash[0]),
       claimant: AddressNormalizer.normalizeSvm(evt.claimant),
       transactionHash: logs.signature,
+      chainId: BigInt(chainId),
+      timestamp: new Date(),
+    };
+  }
+
+  static parseIntentProvenEvent(
+    evt: IntentProvenInstruction,
+    logs: Logs,
+    chainId: number,
+  ): IntentProvenEvent {
+    return {
+      intentHash: bufferToBytes(evt.intent_hash[0]),
+      claimant: bufferToBytes(evt.claimant[0]) as UniversalAddress,
+      transactionHash: logs.signature,
+      blockNumber: undefined,
       chainId: BigInt(chainId),
       timestamp: new Date(),
     };
