@@ -102,11 +102,14 @@ export class SvmEventParser {
   ): IntentProvenEvent {
     return {
       intentHash: bufferToBytes(evt.intent_hash[0]),
+      // Claimant is bytes32 in the IDL, so we use bufferToBytes to convert to hex string
+      // This matches the pattern used in parseIntentFulfilledEvent
       claimant: bufferToBytes(evt.claimant[0]) as UniversalAddress,
       transactionHash: logs.signature,
       blockNumber: undefined,
       chainId: BigInt(chainId),
       timestamp: new Date(),
+      // Note: evt.destination exists in the Rust event but is not needed in IntentProvenEvent interface
     };
   }
 }
