@@ -123,9 +123,7 @@ export class IntentRepository {
     status: IntentStatus,
     additionalData?: Partial<Intent>,
   ): Promise<Intent | null> {
-    return this.model
-      .findOneAndUpdate({ intentHash }, { status, ...additionalData }, { new: true })
-      .exec();
+    return this.update({ intentHash }, { status, ...(additionalData ?? {}) }, { new: true });
   }
 
   /**
@@ -159,63 +157,57 @@ export class IntentRepository {
    * Update intent with IntentFulfilled event data
    */
   async updateFulfilledEvent(eventData: IntentFulfilledEvent): Promise<Intent | null> {
-    return this.model
-      .findOneAndUpdate(
-        { intentHash: eventData.intentHash },
-        {
-          fulfilledEvent: {
-            claimant: eventData.claimant,
-            txHash: eventData.transactionHash,
-            blockNumber: eventData.blockNumber?.toString(),
-            timestamp: eventData.timestamp,
-            chainId: eventData.chainId.toString(),
-          },
+    return this.update(
+      { intentHash: eventData.intentHash },
+      {
+        fulfilledEvent: {
+          claimant: eventData.claimant,
+          txHash: eventData.transactionHash,
+          blockNumber: eventData.blockNumber?.toString(),
+          timestamp: eventData.timestamp,
+          chainId: eventData.chainId.toString(),
         },
-        { new: true },
-      )
-      .exec();
+      },
+      { new: true },
+    );
   }
 
   /**
    * Update intent with IntentProven event data
    */
   async updateProvenEvent(eventData: IntentProvenEvent): Promise<Intent | null> {
-    return this.model
-      .findOneAndUpdate(
-        { intentHash: eventData.intentHash },
-        {
-          provenEvent: {
-            claimant: eventData.claimant,
-            transactionHash: eventData.transactionHash,
-            blockNumber: eventData.blockNumber?.toString(),
-            timestamp: eventData.timestamp,
-            chainId: eventData.chainId.toString(),
-          },
+    return this.update(
+      { intentHash: eventData.intentHash },
+      {
+        provenEvent: {
+          claimant: eventData.claimant,
+          transactionHash: eventData.transactionHash,
+          blockNumber: eventData.blockNumber?.toString(),
+          timestamp: eventData.timestamp,
+          chainId: eventData.chainId.toString(),
         },
-        { new: true },
-      )
-      .exec();
+      },
+      { new: true },
+    );
   }
 
   /**
    * Update intent with IntentWithdrawn event data
    */
   async updateWithdrawnEvent(eventData: IntentWithdrawnEvent): Promise<Intent | null> {
-    return this.model
-      .findOneAndUpdate(
-        { intentHash: eventData.intentHash },
-        {
-          withdrawnEvent: {
-            claimant: eventData.claimant,
-            txHash: eventData.transactionHash,
-            blockNumber: eventData.blockNumber?.toString(),
-            timestamp: eventData.timestamp,
-            chainId: eventData.chainId.toString(),
-          },
+    return this.update(
+      { intentHash: eventData.intentHash },
+      {
+        withdrawnEvent: {
+          claimant: eventData.claimant,
+          txHash: eventData.transactionHash,
+          blockNumber: eventData.blockNumber?.toString(),
+          timestamp: eventData.timestamp,
+          chainId: eventData.chainId.toString(),
         },
-        { new: true },
-      )
-      .exec();
+      },
+      { new: true },
+    );
   }
 
   /**
@@ -262,17 +254,7 @@ export class IntentRepository {
     const updateOptions = options || { upsert: false, new: true };
     const updatesData = this.updatesHasOp(updates) ? updates : { $set: updates };
 
-    const updateResponse = await this.model
-      .findOneAndUpdate(query, updatesData, updateOptions)
-      .lean(); // ✅ Always return plain object
-
-    if (updateResponse) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { _id, ...rest } = updateResponse;
-      return rest as Intent;
-    }
-
-    return null;
+    return await this.model.findOneAndUpdate(query, updatesData, updateOptions).lean(); // Always return plain object
   }
 
   private updatesHasOp(updates: object): boolean {

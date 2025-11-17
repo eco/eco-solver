@@ -30,10 +30,6 @@ export class BasicWallet implements ISvmWallet {
     return this.keypair.publicKey;
   }
 
-  getKeypair(): Keypair {
-    return this.keypair;
-  }
-
   async signTransaction(
     transaction: Transaction | VersionedTransaction,
   ): Promise<Transaction | VersionedTransaction> {

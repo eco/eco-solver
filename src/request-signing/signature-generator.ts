@@ -1,17 +1,10 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const canonicalize = require('canonicalize');
-import { Injectable } from '@nestjs/common';
-
-import { LocalAccount } from 'viem';
-
-import {
-  SIGNATURE_ADDRESS_HEADER,
-  SIGNATURE_EXPIRE_HEADER,
-  SIGNATURE_HEADER,
-} from '@/request-signing/interfaces/signature-headers.interface';
-import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface';
-import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface';
 import { DOMAIN, TYPES } from '@/request-signing/typed-data';
+import { Injectable } from '@nestjs/common';
+import { LocalAccount } from 'viem';
+import { getSignatureHeaders, SignatureHeaders } from '@/request-signing/signature-headers';
+import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface';
 
 @Injectable()
 export class SignatureGenerator {
@@ -29,9 +22,8 @@ export class SignatureGenerator {
       domain: DOMAIN,
       types: TYPES,
       primaryType: 'Registration',
-      message: { payload: canonicalPayload, expiryTime: BigInt(expiryTime) },
+      message: { payload: canonicalPayload, expiryTime },
     });
-
     return { signature, expiryTime };
   }
 
@@ -42,10 +34,6 @@ export class SignatureGenerator {
   ): Promise<SignatureHeaders> {
     const { signature } = await this.signPayload(walletAccount, payload, expiryTime);
 
-    return {
-      [SIGNATURE_HEADER]: signature,
-      [SIGNATURE_ADDRESS_HEADER]: walletAccount.address,
-      [SIGNATURE_EXPIRE_HEADER]: expiryTime,
-    };
+    return getSignatureHeaders(signature, walletAccount.address, expiryTime);
   }
 }

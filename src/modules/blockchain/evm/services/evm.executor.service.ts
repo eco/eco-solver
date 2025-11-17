@@ -383,14 +383,14 @@ export class EvmExecutorService extends BaseChainExecutor {
       async (span) => {
         try {
           this.ecoLogger.log(
-            EcoLogMessage.fromDefault({
+            EcoLogMessage.withUser({
               message: `fundFor: entry`,
+              userID: params.funder,
               properties: {
                 chainId: params.chainId,
                 destination: params.destination,
                 routeHash: params.routeHash,
                 allowPartial: params.allowPartial,
-                funder: params.funder,
                 permitContract: params.permitContract,
                 walletType: walletId,
               },

@@ -1,13 +1,11 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const canonicalize = require('canonicalize');
-import { Injectable, Logger } from '@nestjs/common';
-
-import { Hex, recoverTypedDataAddress } from 'viem';
-
-import { EcoResponse } from '@/common/eco-response';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { EcoError } from '@/errors/eco-error';
 import { DOMAIN, TYPES } from '@/request-signing/typed-data';
+import { EcoError } from '@/errors/eco-error';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoResponse } from '@/common/eco-response';
+import { Hex, recoverTypedDataAddress } from 'viem';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class SignatureVerificationService {

@@ -127,17 +127,16 @@ export class RouteEnabledValidation implements Validation {
 
           span.setAttribute('route.enabled', isEnabled);
 
-          // NOTE: Currently not throwing error for disabled routes for testing gasless.
-          // if (!isEnabled) {
-          //   const reason = isWhitelistMode ? 'is not in whitelist' : 'is blacklisted';
-          //   const errorMessage = `Route ${intent.sourceChainId}:${intent.destination} ${reason}`;
+          if (!isEnabled) {
+            const reason = isWhitelistMode ? 'is not in whitelist' : 'is blacklisted';
+            const errorMessage = `Route ${intent.sourceChainId}:${intent.destination} ${reason}`;
 
-          //   throw new ValidationError(
-          //     errorMessage,
-          //     ValidationErrorType.PERMANENT,
-          //     'RouteEnabledValidation',
-          //   );
-          // }
+            throw new ValidationError(
+              errorMessage,
+              ValidationErrorType.PERMANENT,
+              'RouteEnabledValidation',
+            );
+          }
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return true;

@@ -27,8 +27,8 @@ export class SolanaConfigService implements IBlockchainConfigService {
     return this.configService.get<string>('svm.wsUrl');
   }
 
-  get secretKey(): SolanaConfig['secretKey'] {
-    return this.configService.get<string>('svm.secretKey')!;
+  get wallets(): SolanaConfig['wallets'] {
+    return this.configService.get<SolanaConfig['wallets']>('svm.wallets')!;
   }
 
   get fee(): SolanaConfig['fee'] {
@@ -54,7 +54,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
   isConfigured(): boolean {
     // Check if essential Solana configuration is present
     const config = this.configService.get('svm');
-    return !!(config && config.rpcUrl && config.secretKey && config.portalProgramId);
+    return !!(config && config.rpcUrl && config.wallets && config.portalProgramId);
   }
 
   getSupportedChainIds(): number[] {
@@ -88,6 +88,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
       symbol: token.symbol,
       limit: token.limit,
       fee: token.fee,
+      nonSwapGroups: token.nonSwapGroups,
     }));
   }
 
@@ -105,6 +106,7 @@ export class SolanaConfigService implements IBlockchainConfigService {
       symbol: tokenConfig.symbol,
       limit: tokenConfig.limit,
       fee: tokenConfig.fee,
+      nonSwapGroups: tokenConfig.nonSwapGroups,
     };
   }
 
