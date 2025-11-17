@@ -1,6 +1,11 @@
 import * as crypto from 'node:crypto';
 
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 
 import { Hex } from 'viem';
 
@@ -24,9 +29,12 @@ import { Quote } from '@/modules/intents/schemas/quote.schema';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
+import { EcoError } from '@/errors/eco-error';
 
 @Injectable()
 export class QuotesService {
+  private logger = new Logger(QuotesService.name);
+
   constructor(
     private readonly fulfillmentConfigService: FulfillmentConfigService,
     private readonly fulfillmentService: FulfillmentService,
@@ -209,9 +217,17 @@ export class QuotesService {
   private encodeRoute(route: Intent['route'], destinationChainType: ChainType): Hex {
     try {
       return PortalEncoder.encode(route, destinationChainType);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : `Unknown error`;
-      throw new BadRequestException(`Failed to encode route: ${errorMessage}`);
+    } catch (ex) {
+      const errorMessage = EcoError.logErrorWithStack(
+        ex,
+        `encodeRoute: Failed to encode route`,
+        this.logger,
+        {
+          destinationChainType,
+        },
+      );
+
+      throw new InternalServerErrorException(`Failed to encode route: ${errorMessage}`);
     }
   }
 
