@@ -267,16 +267,6 @@ export class ConfigFactory {
 
   private static validateConfig(config: Record<string, any>): Config {
     try {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `validateConfig`,
-          properties: {
-            configKeys: Object.keys(config),
-            config,
-          },
-        }),
-      );
-
       // Parse and validate the complete merged configuration
       const validatedConfig = ConfigSchema.parse(config);
       return validatedConfig;

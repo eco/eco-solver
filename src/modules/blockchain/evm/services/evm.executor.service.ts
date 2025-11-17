@@ -422,15 +422,6 @@ export class EvmExecutorService extends BaseChainExecutor {
           // Execute the transaction
           const txHash = await wallet.writeContract(call);
 
-          this.ecoLogger.log(
-            EcoLogMessage.fromDefault({
-              message: `fundFor: txHash`,
-              properties: {
-                txHash,
-              },
-            }),
-          );
-
           span.setAttributes({
             'evm.tx_hash': txHash,
             'evm.status': 'success',

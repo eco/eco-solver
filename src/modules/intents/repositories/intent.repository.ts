@@ -223,7 +223,7 @@ export class IntentRepository {
       query['route.source'] = sourceChainId.toString();
     }
 
-    return this.model.find(query).exec();
+    return this.model.find(query).lean().exec();
   }
 
   async getIntentsForGroupID(intentGroupID: string, projection: any = {}): Promise<Intent[]> {

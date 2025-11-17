@@ -108,7 +108,7 @@ export class GaslessInitiationIntentRepository {
   }
 
   private isDuplicateInsert(exception: any, indexForDupCheck?: string): boolean {
-    const { message } = exception;
+    const message = exception instanceof Error ? exception.message : String(exception);
     const duplicateErrorMessage =
       message && message.includes('duplicate key') ? message : undefined;
 

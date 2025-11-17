@@ -22,19 +22,6 @@ import { BlockchainConfigService, QuotesConfigService } from '@/modules/config/s
 import { SIGNATURE_EXPIRE_HEADER } from '@/request-signing/interfaces/signature-headers.interface';
 import { SignatureGenerator } from '@/request-signing/signature-generator';
 
-/*
-const quotesConfig = {
-  registration: {
-    apiUrl: 'http://localhost:9494/api/v1/solverRegistry/registerSolver',
-    baseUrl: 'https://ecosolver.ngrok.app',
-    enabled: true,
-    privateKey: '0x1c4b11f40020d89f2f24a6b3358707ce41f3fadd6c73af77598084ce0959c0c8',
-  },
-  service: 'blockchain-intent-solver',
-  timestamp: '2025-10-31T10:39:58.823Z',
-};
-*/
-
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
   private readonly logger = new EcoLogger(SolverRegistrationService.name);
@@ -52,7 +39,9 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       EcoLogMessage.fromDefault({
         message: `${SolverRegistrationService.name}.onModuleInit()`,
         properties: {
-          quotesConfig: this.quotesConfigService.config,
+          registrationEnabled: this.quotesConfigService.registrationEnabled,
+          baseUrl: this.quotesConfigService.registrationBaseUrl,
+          apiUrl: this.quotesConfigService.apiUrl,
         },
       }),
     );
@@ -91,12 +80,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       this.logger.log(
         EcoLogMessage.fromDefault({
           message: `registerSolver: about to register solver`,
-          properties: {
-            method: 'post',
-            endPoint: this.quotesConfigService.apiUrl,
-            // body: solverRegistrationDTO,
-            additionalHeaders: headers,
-          },
         }),
       );
 

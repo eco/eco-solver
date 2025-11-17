@@ -139,7 +139,7 @@ export class QuotesService {
       tokens: intent.route.tokens.map((token) => ({ ...token, amount: destinationAmount })),
     };
 
-    const encodedRoute = PortalEncoder.encode(intent.route, destinationChainType);
+    const encodedRoute = this.encodeRoute(intent.route, destinationChainType);
 
     // Generate unique quote ID
     const gaslessRequested = request.intentExecutionTypes.includes('GASLESS');
@@ -204,6 +204,15 @@ export class QuotesService {
         prover: AddressNormalizer.denormalize(intent.reward.prover, sourceChainType),
       },
     };
+  }
+
+  private encodeRoute(route: Intent['route'], destinationChainType: ChainType): Hex {
+    try {
+      return PortalEncoder.encode(route, destinationChainType);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : `Unknown error`;
+      throw new BadRequestException(`Failed to encode route: ${errorMessage}`);
+    }
   }
 
   private convertToIntent(quoteRequest: QuoteRequest['quoteRequest']): Intent {
