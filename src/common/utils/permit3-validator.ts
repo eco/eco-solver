@@ -1,6 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
-
 import { Address, Hex, verifyTypedData } from 'viem';
+
+import { EcoResponse } from '@/common/eco-response';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { EcoError } from '@/errors/eco-error';
 
 // Typed data for EIP-712 signature verification
 const types = {
@@ -24,11 +27,26 @@ export interface Permit3Params {
 }
 
 export class Permit3Validator {
-  static async validatePermit(permit: Permit3Params): Promise<void> {
+  private static logger = new EcoLogger(Permit3Validator.name);
+
+  static async validatePermit(permit: Permit3Params): Promise<EcoResponse<void>> {
     const { owner, salt, deadline, timestamp, merkleRoot, signature, permitContract } = permit;
 
     // Basic expiration check
-    this.expirationCheck(deadline, 'deadline');
+    const { error: expirationError } = this.expirationCheck(deadline, `deadline`);
+
+    if (expirationError) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Permit3 expirationError check failed`,
+          properties: {
+            deadline,
+          },
+        }),
+      );
+
+      return { error: expirationError };
+    }
 
     try {
       const validSig = await verifyTypedData({
@@ -52,21 +70,45 @@ export class Permit3Validator {
       });
 
       if (!validSig) {
-        throw new BadRequestException('Permit3 signature verification failed');
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Permit3 signature verification failed`,
+            properties: { permit },
+          }),
+        );
+        return { error: EcoError.InvalidPermitSignature };
       }
-    } catch (err) {
-      throw new BadRequestException(
-        `Permit3 signature validation error: ${err instanceof Error ? err.message : String(err)}`,
+
+      return {};
+    } catch (ex) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Permit3 signature validation threw`,
+          properties: {
+            error: ex instanceof Error ? ex.message : String(ex),
+            permit,
+          },
+        }),
       );
+
+      return { error: EcoError.InvalidPermitSignature };
     }
   }
 
-  static expirationCheck(expiration: number | bigint, fieldName: string): void {
+  static expirationCheck(expiration: number | bigint, logMessage: string): EcoResponse<void> {
     const now = Math.floor(Date.now() / 1000);
     const expiry = typeof expiration === 'bigint' ? Number(expiration) : expiration;
 
     if (expiry < now) {
-      throw new BadRequestException(`Permit expired ${now - expiry} seconds ago for ${fieldName}`);
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `Permit expired ${now - expiry} seconds ago for ${logMessage}`,
+        }),
+      );
+
+      return { error: EcoError.PermitExpired };
     }
+
+    return {};
   }
 }
