@@ -67,8 +67,8 @@ export class Intent {
     destination: string;
     salt: string;
     portal: UniversalAddress;
-    deadline: bigint;
-    nativeAmount: bigint;
+    deadline: string; // Stored as string in MongoDB
+    nativeAmount: string; // Stored as string in MongoDB
     calls: {
       data: string;
       target: UniversalAddress;
