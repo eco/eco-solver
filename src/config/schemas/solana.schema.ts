@@ -120,6 +120,13 @@ export const SolanaSchema = z.object({
   fee: AssetsFeeSchema.optional(),
   listenersEnabled: z.boolean().default(true),
   hyperlane: HyperlaneSchema.optional(),
+  proofPolling: z
+    .object({
+      enabled: z.coerce.boolean().default(true),
+      intervalSeconds: z.coerce.number().int().positive().default(30),
+      batchSize: z.coerce.number().int().positive().default(100),
+    })
+    .optional(),
 });
 
 export type SolanaConfig = z.infer<typeof SolanaSchema>;

@@ -142,4 +142,17 @@ export class SolanaConfigService implements IBlockchainConfigService {
   getDefaultProver(_chainId: ChainIdentifier): TProverType {
     return this.configService.get<TProverType>('svm.defaultProver')!;
   }
+
+  get proofPollingEnabled(): boolean {
+    return this.configService.get<boolean>('svm.proofPolling.enabled') ?? true;
+  }
+
+  get proofPollingIntervalMs(): number {
+    const seconds = this.configService.get<number>('svm.proofPolling.intervalSeconds') ?? 30;
+    return seconds * 1000;
+  }
+
+  get proofPollingBatchSize(): number {
+    return this.configService.get<number>('svm.proofPolling.batchSize') ?? 100;
+  }
 }

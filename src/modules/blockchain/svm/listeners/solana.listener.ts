@@ -5,13 +5,11 @@ import { Connection, Logs, PublicKey } from '@solana/web3.js';
 
 // Route type now comes from intent.interface.ts
 import { BaseChainListener } from '@/common/abstractions/base-chain-listener.abstract';
-import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { toError } from '@/common/utils/error-handler';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import {
   IntentFulfilledInstruction,
   IntentFundedInstruction,
-  IntentProvenInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
@@ -25,9 +23,7 @@ import { QueueService } from '@/modules/queue/queue.service';
 export class SolanaListener extends BaseChainListener {
   private connection: Connection;
   private programId: PublicKey;
-  private hyperProverProgramId: PublicKey | null = null;
   private portalSubscriptionId: number;
-  private proverSubscriptionId: number | null = null;
   private parser: EventParser;
 
   constructor(
@@ -69,43 +65,11 @@ export class SolanaListener extends BaseChainListener {
     this.logger.log(
       `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished, IntentFulfilled, and IntentWithdrawn events.`,
     );
-
-    // Subscribe to Hyper Prover program logs for IntentProven events
-    const hyperProverAddress = this.solanaConfigService.getProverAddress(
-      this.solanaConfigService.chainId,
-      'hyper',
-    );
-
-    if (hyperProverAddress) {
-      try {
-        const hyperProverSolanaAddress = AddressNormalizer.denormalizeToSvm(hyperProverAddress);
-        this.hyperProverProgramId = new PublicKey(hyperProverSolanaAddress);
-
-        this.proverSubscriptionId = this.connection.onLogs(
-          this.hyperProverProgramId,
-          this.handleProverProgramLogs.bind(this),
-          'confirmed',
-        );
-
-        this.logger.log(
-          `Solana listener started for Hyper Prover program ${this.hyperProverProgramId.toString()}. Listening for IntentProven events.`,
-        );
-      } catch (error) {
-        this.logger.error(`Failed to subscribe to Hyper Prover program logs:`, toError(error));
-      }
-    } else {
-      this.logger.warn(
-        'Hyper Prover address not configured, IntentProven events will not be captured',
-      );
-    }
   }
 
   async stop(): Promise<void> {
     if (this.portalSubscriptionId && this.connection) {
       await this.connection.removeOnLogsListener(this.portalSubscriptionId);
-    }
-    if (this.proverSubscriptionId && this.connection) {
-      await this.connection.removeOnLogsListener(this.proverSubscriptionId);
     }
     this.logger.log('Solana listener stopped');
   }
@@ -233,49 +197,6 @@ export class SolanaListener extends BaseChainListener {
       }
     } catch (error) {
       this.logger.error('Error handling Solana program logs:', toError(error));
-    }
-  }
-
-  /**
-   * Handle logs from the Hyper Prover program (IntentProven events)
-   */
-  private async handleProverProgramLogs(logs: Logs): Promise<void> {
-    try {
-      for (const ev of this.parser.parseLogs(logs.logs)) {
-        try {
-          if (ev.name === 'IntentProven') {
-            const provenEvent = SvmEventParser.parseIntentProvenEvent(
-              ev.data as IntentProvenInstruction,
-              logs,
-              this.solanaConfigService.chainId,
-            );
-
-            // Queue the event for processing
-            const provenJob: BlockchainEventJob = {
-              eventType: 'IntentProven',
-              chainId: this.solanaConfigService.chainId,
-              chainType: 'svm',
-              contractName: 'prover',
-              intentHash: provenEvent.intentHash,
-              eventData: provenEvent,
-              metadata: {
-                txHash: logs.signature || undefined,
-                contractAddress: this.hyperProverProgramId?.toString() || 'unknown',
-                proverType: 'hyper',
-              },
-            };
-
-            await this.queueService.addBlockchainEvent(provenJob);
-            this.logger.debug(
-              `Queued IntentProven event for intent ${provenEvent.intentHash} from Hyper Prover`,
-            );
-          }
-        } catch (eventError) {
-          this.logger.error(`Error processing ${ev.name} event from prover:`, toError(eventError));
-        }
-      }
-    } catch (error) {
-      this.logger.error('Error handling Solana Hyper Prover program logs:', toError(error));
     }
   }
 }

@@ -137,7 +137,7 @@ export class Intent {
     type: {
       claimant: { type: String, required: true },
       txHash: { type: String, required: true, index: true },
-      blockNumber: { type: String, required: true }, // Store bigint as string
+      blockNumber: { type: String, required: false }, // Store bigint as string, optional for SVM
       timestamp: { type: Date, required: true },
       chainId: { type: String, required: true }, // Store bigint as string
     },
@@ -145,7 +145,7 @@ export class Intent {
   provenEvent?: {
     claimant: string;
     txHash: string;
-    blockNumber: string;
+    blockNumber?: string;
     timestamp: Date;
     chainId: string;
   };
@@ -154,7 +154,7 @@ export class Intent {
     type: {
       claimant: { type: String, required: true },
       txHash: { type: String, required: true, index: true },
-      blockNumber: { type: String, required: true }, // Store bigint as string
+      blockNumber: { type: String, required: false }, // Store bigint as string, optional for SVM
       timestamp: { type: Date, required: true },
       chainId: { type: String, required: true }, // Store bigint as string
     },
@@ -162,7 +162,7 @@ export class Intent {
   withdrawnEvent?: {
     claimant: string;
     txHash: string;
-    blockNumber: string;
+    blockNumber?: string;
     timestamp: Date;
     chainId: string;
   };
@@ -176,3 +176,6 @@ IntentSchema.index({ 'reward.creator': 1, status: 1 });
 // Index for finding proven but not withdrawn intents by source chain
 IntentSchema.index({ 'route.source': 1, provenEvent: 1, withdrawnEvent: 1 });
 IntentSchema.index({ 'provenEvent.timestamp': 1 });
+// Index for finding fulfilled but not proven intents (for proof polling)
+IntentSchema.index({ status: 1, fulfilledEvent: 1, provenEvent: 1 });
+IntentSchema.index({ 'route.source': 1, status: 1, fulfilledEvent: 1, provenEvent: 1 });
