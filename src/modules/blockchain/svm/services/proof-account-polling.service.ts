@@ -108,13 +108,11 @@ export class ProofAccountPollingService implements OnModuleInit, OnModuleDestroy
           if (!this.leaderElectionService.isCurrentLeader()) {
             span.setAttribute('polling.skipped', true);
             span.setAttribute('polling.skip_reason', 'not_leader');
-            this.logger.debug('Skipping proof poll - not the leader');
             span.setStatus({ code: api.SpanStatusCode.OK });
             return;
           }
 
           const startTime = Date.now();
-          this.logger.debug('Starting proof account poll');
 
           // 1. Get fulfilled but not proven intents for Solana source chain
           const sourceChainId = BigInt(this.solanaConfigService.chainId);
@@ -124,12 +122,9 @@ export class ProofAccountPollingService implements OnModuleInit, OnModuleDestroy
 
           if (intents.length === 0) {
             span.setAttribute('polling.proofs_found', 0);
-            this.logger.debug('No fulfilled intents awaiting proofs');
             span.setStatus({ code: api.SpanStatusCode.OK });
             return;
           }
-
-          this.logger.debug(`Found ${intents.length} fulfilled intent(s) to check for proofs`);
 
           // 2. Check proof accounts in batches
           const provenIntents = await this.checkProofAccountsBatch(intents);
@@ -160,10 +155,6 @@ export class ProofAccountPollingService implements OnModuleInit, OnModuleDestroy
 
           const duration = Date.now() - startTime;
           span.setAttribute('polling.duration_ms', duration);
-
-          this.logger.debug(
-            `Proof poll complete: ${provenIntents.length}/${intents.length} new proofs found in ${duration}ms`,
-          );
 
           span.setStatus({ code: api.SpanStatusCode.OK });
         } catch (error) {
