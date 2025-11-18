@@ -56,11 +56,7 @@ export class ProofAccountMonitor {
       }
 
       // Parse destination (u64, little endian)
-      const destBytes = accountInfo.data.slice(8, 16);
-      let destination = 0n;
-      for (let i = 0; i < 8; i++) {
-        destination |= BigInt(destBytes[i]) << BigInt(i * 8);
-      }
+      const destination = accountInfo.data.readBigUInt64LE(8);
 
       // Parse claimant (Pubkey)
       const claimantBytes = accountInfo.data.slice(16, 48);
