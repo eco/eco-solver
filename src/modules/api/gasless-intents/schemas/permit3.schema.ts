@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
 
 import { AllowanceOrTransfer, AllowanceOrTransferSchema } from './allowance-or-transfer.schema';
 
@@ -10,10 +11,10 @@ export class Permit3 {
   chainId: number;
 
   @Prop({ required: true })
-  permitContract: string; // Hex string
+  permitContract: string;
 
   @Prop({ required: true })
-  owner: string; // Hex string
+  owner: string;
 
   @Prop({ required: true })
   salt: string; // Hex string
@@ -21,8 +22,8 @@ export class Permit3 {
   @Prop({ required: true })
   signature: string; // Hex string
 
-  @Prop({ required: true, type: String })
-  deadline: string; // Store bigint as string
+  @Prop({ required: true, type: BigInt })
+  deadline: bigint; // UNIX seconds since epoch integer
 
   @Prop({ required: true })
   timestamp: number;
@@ -34,6 +35,7 @@ export class Permit3 {
   leaves?: string[]; // Array of Hex strings
 
   @Prop({ type: [AllowanceOrTransferSchema], required: true })
+  @ValidateNested()
   @Type(() => AllowanceOrTransfer)
   allowanceOrTransfers: AllowanceOrTransfer[];
 }
