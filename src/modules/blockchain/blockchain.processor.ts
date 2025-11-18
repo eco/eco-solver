@@ -1,12 +1,14 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Job } from 'bullmq';
 
+import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -24,6 +26,7 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
     private readonly logger: SystemLoggerService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
     private readonly otelService: OpenTelemetryService,
+    private readonly intentsService: IntentsService,
   ) {
     super();
     this.logger.setContext(BlockchainProcessor.name);
@@ -49,6 +52,27 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
       this.logger.log('Closing BlockchainProcessor worker...');
       await this.worker.close();
       this.logger.log('BlockchainProcessor worker closed');
+    }
+  }
+
+  @OnWorkerEvent('failed')
+  async handleFailedJob(job: Job<string> | undefined, _error: Error) {
+    if (!job) {
+      return;
+    }
+
+    try {
+      const jobData = BigintSerializer.deserialize<ExecutionJobData>(job.data);
+      const { intent } = jobData;
+
+      this.logger.error(
+        `Job ${job.id} failed after ${job.attemptsMade} attempts for intent ${intent.intentHash}. Marking intent as FAILED.`,
+      );
+
+      // Update intent status to FAILED only after all retries exhausted
+      await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
+    } catch (err) {
+      this.logger.error('Error handling failed job:', toError(err));
     }
   }
 
