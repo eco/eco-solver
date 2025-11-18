@@ -7,6 +7,7 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -30,6 +31,7 @@ describe('BlockchainProcessor', () => {
   let logger: jest.Mocked<any>;
   let bullMQOtelFactory: jest.Mocked<any>;
   let otelService: jest.Mocked<any>;
+  let intentsService: jest.Mocked<IntentsService>;
 
   const mockIntent: Intent = {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
@@ -93,6 +95,10 @@ describe('BlockchainProcessor', () => {
       }),
     } as any;
 
+    intentsService = {
+      updateStatus: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainProcessor,
@@ -101,6 +107,7 @@ describe('BlockchainProcessor', () => {
         { provide: SystemLoggerService, useValue: logger },
         { provide: BullMQOtelFactory, useValue: bullMQOtelFactory },
         { provide: OpenTelemetryService, useValue: otelService },
+        { provide: IntentsService, useValue: intentsService },
       ],
     }).compile();
 
@@ -121,7 +128,7 @@ describe('BlockchainProcessor', () => {
   describe('onModuleInit', () => {
     it('should set worker concurrency from configuration', () => {
       // Mock the worker getter
-      const mockWorker = { concurrency: 0 };
+      const mockWorker = { concurrency: 0, opts: {} };
       Object.defineProperty(processor, 'worker', {
         get: jest.fn(() => mockWorker),
         configurable: true,
@@ -140,6 +147,64 @@ describe('BlockchainProcessor', () => {
       });
 
       expect(() => processor.onModuleInit()).not.toThrow();
+    });
+
+    it('should not set up event listeners manually (uses @OnWorkerEvent decorator)', () => {
+      const mockWorker = {
+        concurrency: 0,
+        opts: {},
+      };
+      Object.defineProperty(processor, 'worker', {
+        get: jest.fn(() => mockWorker),
+        configurable: true,
+      });
+
+      processor.onModuleInit();
+
+      // No manual event listener setup - handled by @OnWorkerEvent decorator
+      expect(logger.log).not.toHaveBeenCalledWith(
+        'Added failed job event listener to BlockchainProcessor worker',
+      );
+    });
+  });
+
+  describe('handleFailedJob', () => {
+    it('should update intent status to FAILED when job fails after all retries', async () => {
+      const mockFailedJob = {
+        id: 'job-123',
+        data: serializeWithBigInt(mockJobData),
+        attemptsMade: 3,
+      } as any;
+
+      await processor.handleFailedJob(mockFailedJob, new Error('Job failed'));
+
+      expect(intentsService.updateStatus).toHaveBeenCalledWith(
+        mockIntent.intentHash,
+        IntentStatus.FAILED,
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Job job-123 failed after 3 attempts'),
+      );
+    });
+
+    it('should handle undefined job gracefully', async () => {
+      await processor.handleFailedJob(undefined, new Error('Job failed'));
+
+      expect(intentsService.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors during status update', async () => {
+      const mockFailedJob = {
+        id: 'job-456',
+        data: serializeWithBigInt(mockJobData),
+        attemptsMade: 3,
+      } as any;
+
+      intentsService.updateStatus.mockRejectedValueOnce(new Error('Database error'));
+
+      await processor.handleFailedJob(mockFailedJob, new Error('Job failed'));
+
+      expect(logger.error).toHaveBeenCalledWith('Error handling failed job:', expect.any(Error));
     });
   });
 
