@@ -56,6 +56,8 @@ export class RhinestoneActionProcessor {
       },
       async (span) => {
         try {
+          console.dir(payload, { depth: null });
+
           // 1. Validate
           const claim = payload.action.claims.find((c) => c.beforeFill === true);
           const fill = payload.action.fill;
