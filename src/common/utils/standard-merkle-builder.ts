@@ -318,7 +318,7 @@ export class StandardMerkleBuilder {
 
       return computedHash.toLowerCase() === root.toLowerCase();
     } catch (ex: any) {
-      EcoError.logErrorWithStack(ex.message, `verifyProof: exception`, this.logger);
+      EcoError.logErrorWithStack(ex, `verifyProof: exception`, this.logger);
       return false;
     }
   }

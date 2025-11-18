@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { Model } from 'mongoose';
+import { DeleteResult, Model } from 'mongoose';
 
 import { EcoResponse } from '@/common/eco-response';
 import { EcoLogger } from '@/common/logging/eco-logger';
@@ -141,7 +141,7 @@ export class GaslessInitiationIntentRepository {
     return null;
   }
 
-  async deleteIntents(query: object): Promise<any> {
+  async deleteIntents(query: object): Promise<DeleteResult> {
     return this.model.deleteMany(query);
   }
 
