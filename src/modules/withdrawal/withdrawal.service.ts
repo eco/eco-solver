@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ChainTypeDetector, ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
+import { SvmProofCheckerService } from '@/modules/blockchain/svm/services/svm-proof-checker.service';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -20,12 +22,14 @@ export class WithdrawalService {
     private readonly blockchainExecutor: BlockchainExecutorService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @Optional() @Inject(SvmProofCheckerService) private readonly svmProofChecker?: SvmProofCheckerService,
   ) {
     this.logger.setContext(WithdrawalService.name);
   }
 
   /**
    * Find all proven intents that haven't been withdrawn yet
+   * For Solana chains, checks on-chain proof accounts instead of relying on events
    */
   async findIntentsForWithdrawal(sourceChainId?: bigint): Promise<Intent[]> {
     return this.otelService.tracer.startActiveSpan(
@@ -37,8 +41,24 @@ export class WithdrawalService {
       },
       async (span) => {
         try {
+          // First get intents from DB that have provenEvent
           const intentsFromDb = await this.intentsService.findProvenNotWithdrawn(sourceChainId);
-          const intents = intentsFromDb.map((intent) => IntentConverter.toInterface(intent));
+          let intents = intentsFromDb.map((intent) => IntentConverter.toInterface(intent));
+
+          // For Solana chains, also check on-chain for fulfilled intents without provenEvent
+          if (this.svmProofChecker) {
+            const solanaIntents = await this.findSolanaIntentsWithOnChainProofs(sourceChainId);
+            // Merge with existing intents (avoid duplicates)
+            const intentHashSet = new Set(intents.map((i) => i.intentHash));
+            for (const intent of solanaIntents) {
+              if (!intentHashSet.has(intent.intentHash)) {
+                intents.push(intent);
+                this.logger.log(
+                  `Found Solana intent ${intent.intentHash} with on-chain proof (not from event)`,
+                );
+              }
+            }
+          }
 
           span.setAttributes({
             'withdrawal.intent_count': intents.length,
@@ -61,6 +81,74 @@ export class WithdrawalService {
         }
       },
     );
+  }
+
+  /**
+   * Find Solana intents that have on-chain proofs but may not have provenEvent
+   */
+  private async findSolanaIntentsWithOnChainProofs(sourceChainId?: bigint): Promise<Intent[]> {
+    if (!this.svmProofChecker) {
+      return [];
+    }
+
+    try {
+      // Find fulfilled Solana intents that don't have provenEvent yet
+      const fulfilledIntents = await this.intentsService.findFulfilledNotProven(sourceChainId);
+      const intents = fulfilledIntents.map((intent) => IntentConverter.toInterface(intent));
+      // Filter to only Solana chains
+      const solanaIntents = intents.filter((intent) => {
+        const chainType = ChainTypeDetector.detect(intent.sourceChainId);
+        return chainType === ChainType.SVM;
+      });
+      if (solanaIntents.length === 0) {
+        return [];
+      }
+
+      this.logger.log(
+        `Checking ${solanaIntents.length} Solana fulfilled intents for on-chain proofs`,
+      );
+
+      // Check which ones have on-chain proofs
+      const provenIntents: Intent[] = [];
+      for (const intent of solanaIntents) {
+        const result = await this.svmProofChecker.checkIntentProven(
+          intent.intentHash,
+          intent.reward.prover,
+        );
+
+        if (result.proven) {
+          // Mark intent as proven in database with actual transaction signature
+          await this.markIntentAsProven(intent, result.transactionSignature);
+          provenIntents.push(intent);
+        }
+      }
+
+      this.logger.log(`Found ${provenIntents.length} Solana intents with on-chain proofs`);
+      return provenIntents;
+    } catch (error) {
+      this.logger.error('Error finding Solana intents with on-chain proofs:', toError(error));
+      return [];
+    }
+  }
+
+  /**
+   * Mark an intent as proven in the database
+   */
+  private async markIntentAsProven(intent: Intent, transactionSignature?: string): Promise<void> {
+    try {
+      await this.intentsService.updateProvenEvent({
+        intentHash: intent.intentHash,
+        claimant: intent.reward.creator,
+        transactionHash: transactionSignature || 'on-chain-proof-detected',
+        chainId: intent.sourceChainId,
+        timestamp: new Date(),
+      });
+      this.logger.log(
+        `Marked intent ${intent.intentHash} as proven via on-chain proof check (tx: ${transactionSignature || 'unknown'})`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to mark intent ${intent.intentHash} as proven:`, toError(error));
+    }
   }
 
   /**

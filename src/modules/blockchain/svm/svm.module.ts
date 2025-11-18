@@ -10,6 +10,7 @@ import { RedisModule } from '@/modules/redis/redis.module';
 import { SolanaListener } from './listeners/solana.listener';
 import { SvmListenersManagerService } from './listeners/svm-listeners-manager.service';
 import { SvmExecutorService } from './services/svm.executor.service';
+import { SvmProofCheckerService } from './services/svm-proof-checker.service';
 import { SvmReaderService } from './services/svm.reader.service';
 import { SvmHyperProver } from './services/svm-hyper.prover';
 import { SvmWalletManagerService } from './services/svm-wallet-manager.service';
@@ -30,6 +31,7 @@ import { VaultWalletModule } from './wallets/vault-wallet';
   providers: [
     SvmExecutorService,
     SvmReaderService,
+    SvmProofCheckerService,
     SvmWalletManagerService,
     SolanaListener,
     SvmListenersManagerService,
@@ -38,6 +40,7 @@ import { VaultWalletModule } from './wallets/vault-wallet';
   exports: [
     SvmExecutorService,
     SvmReaderService,
+    SvmProofCheckerService,
     SvmWalletManagerService,
     SolanaListener,
     SvmListenersManagerService,

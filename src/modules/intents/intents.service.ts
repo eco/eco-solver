@@ -143,4 +143,22 @@ export class IntentsService {
 
     return this.intentModel.find(query).exec();
   }
+
+  /**
+   * Find intents that have been fulfilled but not yet proven
+   * Used for on-chain proof checking (Solana)
+   */
+  async findFulfilledNotProven(sourceChainId?: bigint): Promise<Intent[]> {
+    const query: any = {
+      fulfilledEvent: { $exists: true },
+      provenEvent: { $exists: false },
+      withdrawnEvent: { $exists: false },
+    };
+
+    if (sourceChainId) {
+      query['route.source'] = sourceChainId.toString();
+    }
+
+    return this.intentModel.find(query).exec();
+  }
 }
