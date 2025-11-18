@@ -7,6 +7,7 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -14,7 +15,6 @@ import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.inter
 
 import { BlockchainProcessor } from '../blockchain.processor';
 import { BlockchainExecutorService } from '../blockchain-executor.service';
-import { IntentsService } from '@/modules/intents/intents.service';
 
 jest.mock('@/common/utils/bigint-serializer');
 
@@ -204,10 +204,7 @@ describe('BlockchainProcessor', () => {
 
       await processor.handleFailedJob(mockFailedJob, new Error('Job failed'));
 
-      expect(logger.error).toHaveBeenCalledWith(
-        'Error handling failed job:',
-        expect.any(Error),
-      );
+      expect(logger.error).toHaveBeenCalledWith('Error handling failed job:', expect.any(Error));
     });
   });
 

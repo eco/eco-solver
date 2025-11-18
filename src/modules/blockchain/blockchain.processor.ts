@@ -123,12 +123,14 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
         // Update the lock for this chain
         this.chainLocks.set(chainKey, newLock);
 
-        // Wait for execution to complete
-        await newLock;
-
-        // Clean up completed locks to prevent memory leaks
-        if (this.chainLocks.get(chainKey) === newLock) {
-          this.chainLocks.delete(chainKey);
+        // Wait for execution to complete and ensure cleanup happens even on error
+        try {
+          await newLock;
+        } finally {
+          // Clean up lock to prevent memory leaks and stale rejected promises
+          if (this.chainLocks.get(chainKey) === newLock) {
+            this.chainLocks.delete(chainKey);
+          }
         }
       },
       {
