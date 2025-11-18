@@ -2,6 +2,7 @@ import { extendApi } from '@anatine/zod-openapi';
 import { z } from 'zod';
 
 import { zodBlockchainAddress, zodHex } from '@/common/utils/zod-to-swagger.util';
+import { IntentExecutionTypeKeys } from '@/modules/api/quotes/enums/intent-execution-type.enum';
 
 // Token info schema
 const TokenInfoSchema = extendApi(
@@ -46,7 +47,7 @@ const FeeSchema = extendApi(
 // Quote data schema with OpenAPI metadata
 const QuoteDataSchema = extendApi(
   z.object({
-    intentExecutionType: extendApi(z.enum(['SELF_PUBLISH', 'GASLESS']).optional(), {
+    intentExecutionType: extendApi(z.enum(IntentExecutionTypeKeys), {
       description: 'Intent execution type - SELF_PUBLISH for onchain, GASLESS for gasless',
       example: 'SELF_PUBLISH',
     }),
