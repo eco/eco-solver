@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
+import { RouteAmountLimitSchema } from '@/config/schemas/route-limit.schema';
 
 export const EvmAddressSchema = z
   .string()
@@ -65,19 +66,7 @@ const EvmTokenSchema = z.object({
   address: EvmAddressSchema,
   decimals: z.coerce.number().int().min(0).max(18),
   symbol: z.string().min(1).max(20),
-  limit: z
-    .union([
-      z.coerce.number().int().positive(), // Backward compatible: acts as max
-      z
-        .object({
-          min: z.coerce.number().int().positive(),
-          max: z.coerce.number().int().positive(),
-        })
-        .refine((data) => data.min <= data.max, {
-          message: 'min must be less than or equal to max',
-        }),
-    ])
-    .optional(),
+  limit: RouteAmountLimitSchema.optional(),
   fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
   nonSwapGroups: z.array(z.string()).optional(),
 });
