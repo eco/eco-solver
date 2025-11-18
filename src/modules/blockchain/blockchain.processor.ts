@@ -14,6 +14,7 @@ import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
+import { createExponentialCappedStrategy } from '@/modules/queue/utils/backoff-strategies';
 
 @Processor(QueueNames.INTENT_EXECUTION, {
   prefix: `{${QueueNames.INTENT_EXECUTION}}`,
@@ -36,6 +37,25 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
     // Set concurrency from configuration after worker is initialized
     if (this.worker) {
       this.worker.concurrency = this.queueConfig.executionConcurrency;
+
+      // Configure exponentialCapped backoff strategy if enabled
+      const backoffConfig = this.queueConfig.executionBackoffConfig;
+      if (backoffConfig.useCustomBackoff && this.worker.opts) {
+        if (!this.worker.opts.settings) {
+          this.worker.opts.settings = {};
+        }
+
+        // Apply the exponentialCapped strategy
+        this.worker.opts.settings.backoffStrategy = createExponentialCappedStrategy(
+          this.queueConfig,
+          this.logger,
+        );
+
+        this.logger.log(
+          `Configured exponentialCapped backoff strategy: delay=${backoffConfig.backoffDelay}ms, ` +
+            `maxDelay=${backoffConfig.backoffMaxDelay}ms, jitter=${backoffConfig.backoffJitter}`,
+        );
+      }
 
       // Add telemetry if available
       const telemetry = this.bullMQOtelFactory.getInstance();

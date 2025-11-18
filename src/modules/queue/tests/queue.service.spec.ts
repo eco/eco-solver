@@ -1,4 +1,5 @@
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
+import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 
 import { QueueService } from '../queue.service';
@@ -140,5 +141,88 @@ describe('QueueService - Fulfillment Job Delay', () => {
         },
       }),
     );
+  });
+});
+
+describe('QueueService - Execution Queue Configuration', () => {
+  let service: QueueService;
+  let mockLogger: any;
+  let mockQueueConfig: Partial<QueueConfigService>;
+  let mockExecutionQueue: any;
+  let mockFulfillmentQueue: any;
+  let mockWithdrawalQueue: any;
+  let mockBlockchainEventsQueue: any;
+
+  beforeEach(() => {
+    mockLogger = {
+      setContext: jest.fn(),
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    mockExecutionQueue = {
+      add: jest.fn().mockResolvedValue({}),
+      isPaused: jest.fn().mockResolvedValue(false),
+    };
+
+    mockFulfillmentQueue = {
+      add: jest.fn().mockResolvedValue({}),
+      isPaused: jest.fn().mockResolvedValue(false),
+    };
+
+    mockWithdrawalQueue = {
+      add: jest.fn().mockResolvedValue({}),
+      isPaused: jest.fn().mockResolvedValue(false),
+    };
+
+    mockBlockchainEventsQueue = {
+      add: jest.fn().mockResolvedValue({}),
+      isPaused: jest.fn().mockResolvedValue(false),
+    };
+
+    mockQueueConfig = {
+      executionJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponentialCapped' },
+      },
+      fulfillmentJobDelay: 0,
+      temporaryRetryConfig: {
+        attempts: 3,
+        backoffMs: 2000,
+      },
+    } as any;
+
+    service = new QueueService(
+      mockLogger,
+      mockQueueConfig as QueueConfigService,
+      mockExecutionQueue,
+      mockFulfillmentQueue,
+      mockWithdrawalQueue,
+      mockBlockchainEventsQueue,
+    );
+  });
+
+  it('should use configured job options for execution queue', async () => {
+    const mockIntent = createMockIntent();
+    const jobData = {
+      strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
+      intent: mockIntent,
+      chainId: BigInt(1),
+    };
+
+    await service.addIntentToExecutionQueue(jobData);
+
+    expect(mockExecutionQueue.add).toHaveBeenCalledTimes(1);
+
+    const [jobName, serializedData, options] = mockExecutionQueue.add.mock.calls[0];
+
+    expect(jobName).toContain('blockchain-execution-chain-1');
+    expect(typeof serializedData).toBe('string');
+    expect(options).toEqual({
+      attempts: 3,
+      backoff: { type: 'exponentialCapped' },
+    });
   });
 });

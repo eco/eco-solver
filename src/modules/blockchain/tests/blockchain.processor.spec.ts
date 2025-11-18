@@ -69,6 +69,12 @@ describe('BlockchainProcessor', () => {
 
     queueConfig = {
       executionConcurrency: 5,
+      executionBackoffConfig: {
+        backoffDelay: 2000,
+        backoffMaxDelay: 300000,
+        backoffJitter: 0.5,
+        useCustomBackoff: true,
+      },
     } as any;
 
     logger = {
@@ -353,6 +359,74 @@ describe('BlockchainProcessor', () => {
       await processor.process(mockJob);
 
       expect(blockchainService.executeIntent).toHaveBeenCalledWith(mockIntent, 'basic');
+    });
+  });
+
+  describe('ExponentialCapped Backoff', () => {
+    it('should configure exponentialCapped backoff strategy when enabled', () => {
+      const mockWorker = {
+        concurrency: 0,
+        opts: { settings: {} as any },
+      };
+      Object.defineProperty(processor, 'worker', {
+        get: jest.fn(() => mockWorker),
+        configurable: true,
+      });
+
+      processor.onModuleInit();
+
+      expect((mockWorker.opts.settings as any).backoffStrategy).toBeDefined();
+      expect(typeof (mockWorker.opts.settings as any).backoffStrategy).toBe('function');
+    });
+
+    it('should calculate correct backoff delays with cap and jitter', () => {
+      const mockWorker = {
+        concurrency: 0,
+        opts: { settings: {} as any },
+      };
+      Object.defineProperty(processor, 'worker', {
+        get: jest.fn(() => mockWorker),
+        configurable: true,
+      });
+
+      // Create a new mock config for this test
+      const testQueueConfig = {
+        executionConcurrency: 5,
+        executionBackoffConfig: {
+          backoffDelay: 1000,
+          backoffMaxDelay: 10000,
+          backoffJitter: 0,
+          useCustomBackoff: true,
+        },
+      } as any;
+
+      // Create a new processor instance with the test config
+      const testProcessor = new BlockchainProcessor(
+        blockchainService,
+        testQueueConfig,
+        logger,
+        bullMQOtelFactory,
+        otelService,
+        intentsService,
+      );
+
+      Object.defineProperty(testProcessor, 'worker', {
+        get: jest.fn(() => mockWorker),
+        configurable: true,
+      });
+
+      testProcessor.onModuleInit();
+      const backoffStrategy = (mockWorker.opts.settings as any).backoffStrategy;
+
+      // Test exponential growth
+      expect(backoffStrategy(1)).toBe(1000); // 1000 * 2^0
+      expect(backoffStrategy(2)).toBe(2000); // 1000 * 2^1
+      expect(backoffStrategy(3)).toBe(4000); // 1000 * 2^2
+      expect(backoffStrategy(4)).toBe(8000); // 1000 * 2^3
+
+      // Test cap
+      expect(backoffStrategy(5)).toBe(10000); // Capped at maxDelay
+      expect(backoffStrategy(6)).toBe(10000); // Still capped
     });
   });
 });
