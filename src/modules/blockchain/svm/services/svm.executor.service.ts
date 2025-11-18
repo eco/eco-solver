@@ -349,7 +349,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           const wallet = this.walletManager.getWallet();
           const { blockhash, lastValidBlockHeight } =
-            await this.connection.getLatestBlockhash('processed');
+            await this.connection.getLatestBlockhash('confirmed');
 
           // Create and send transaction - compute budget instructions must be first, then ATA creations, then withdrawals
           const transaction = new Transaction({
@@ -526,7 +526,7 @@ export class SvmExecutorService extends BaseChainExecutor {
         this.logger.debug(
           `[${i + 1}/${destinations.length}] Processing withdrawal for destination: ${destination}, routeHash: ${routeHash}`,
         );
-        
+
         // Note: destination is where the user wanted funds delivered (e.g., Optimism)
         // sourceChainId is where the vault exists and funds are being withdrawn from (e.g., Solana)
         // The reward hash must use the source chain encoding for proper intent hash calculation
@@ -1087,7 +1087,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           const wallet = this.walletManager.getWallet();
           const { blockhash, lastValidBlockHeight } =
-            await this.connection.getLatestBlockhash('processed');
+            await this.connection.getLatestBlockhash('confirmed');
           const transaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
@@ -1210,7 +1210,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.prove.transaction_build.started');
 
-          const { blockhash } = await this.connection.getLatestBlockhash('processed');
+          const { blockhash } = await this.connection.getLatestBlockhash('confirmed');
           const wallet = this.walletManager.getWallet();
           const walletPublicKey = await wallet.getAddress();
 
@@ -1699,7 +1699,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           gasPaymentSpan.addEvent('svm.gas_payment.quoted');
 
           const { blockhash, lastValidBlockHeight } =
-            await this.connection.getLatestBlockhash('processed');
+            await this.connection.getLatestBlockhash('confirmed');
           let payForGasTransaction = new Transaction({
             blockhash,
             lastValidBlockHeight,
