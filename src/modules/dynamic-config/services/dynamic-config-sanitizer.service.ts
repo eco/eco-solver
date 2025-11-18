@@ -16,6 +16,14 @@ export class DynamicConfigSanitizerService {
       return this.sanitizeString(value);
     }
 
+    if (value instanceof Date) {
+      return new Date(value.getTime());
+    }
+
+    if (value instanceof Map || value instanceof Set) {
+      return value;
+    }
+
     if (Array.isArray(value)) {
       return value.map((item) => this.sanitizeValue(item));
     }
