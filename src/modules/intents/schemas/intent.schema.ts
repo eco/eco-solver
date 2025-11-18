@@ -176,3 +176,6 @@ IntentSchema.index({ 'reward.creator': 1, status: 1 });
 // Index for finding proven but not withdrawn intents by source chain
 IntentSchema.index({ 'route.source': 1, provenEvent: 1, withdrawnEvent: 1 });
 IntentSchema.index({ 'provenEvent.timestamp': 1 });
+// Index for finding fulfilled but not proven intents (for proof polling)
+IntentSchema.index({ status: 1, fulfilledEvent: 1, provenEvent: 1 });
+IntentSchema.index({ 'route.source': 1, status: 1, fulfilledEvent: 1, provenEvent: 1 });
