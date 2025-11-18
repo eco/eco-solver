@@ -4,7 +4,7 @@ import * as url from 'url';
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 
-import { AxiosRequestConfig } from 'axios';
+import { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 import { EcoLogMessage } from '../logging/eco-log-message';
 
@@ -14,6 +14,7 @@ import { RequestOptions } from './interfaces/request-options.interface';
 import { RequestUrlParams } from './interfaces/request-url-params.interface';
 import { RESTAPIResponse } from './interfaces/rest-api-response.interface';
 import { APIRequestUtils } from './api-request-utils';
+import { lastValueFrom, Observable } from 'rxjs';
 
 export class APIRequestExecutor {
   private apiRequestUtils: APIRequestUtils;
@@ -36,7 +37,7 @@ export class APIRequestExecutor {
 
     const { method, url: requestURL, data, config } = requestOptions;
 
-    let req: any;
+    let req: Observable<AxiosResponse<any, any>>;
 
     switch (method) {
       case 'get':
@@ -58,6 +59,9 @@ export class APIRequestExecutor {
       case 'delete':
         req = this.httpService.delete(requestURL, config);
         break;
+
+      default:
+        throw new Error(`Unsupported HTTP method: ${method}`);
     }
 
     return this._executeRequest<T>(req, requestOptions);
@@ -170,8 +174,7 @@ export class APIRequestExecutor {
     const authorization = this.getAuthorization(requestParams);
 
     const headers: any = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+      ...this.getDefaultRequestHeaders(),
     };
 
     if (authorization) {
@@ -218,11 +221,11 @@ export class APIRequestExecutor {
   }
 
   private async _executeRequest<T>(
-    req: any,
+    req: Observable<AxiosResponse<any, any>>,
     requestOptions: RequestOptions,
   ): Promise<RESTAPIResponse<T>> {
     try {
-      const response = await req.toPromise();
+      const response = await lastValueFrom(req);
       return this.handleResponse<T>(response);
     } catch (ex) {
       const errorResponse = this.handleError<T>(ex);
