@@ -3,26 +3,37 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  HttpStatus,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 
-// Define a type for constructors of classes that extend HttpException
-type HttpExceptionConstructor = new (...args: any[]) => HttpException;
+// Define a type for constructors of HttpException subclasses that accept a response body
+type HttpExceptionConstructor = new (response: string | Record<string, unknown>) => HttpException;
 
 const exceptionMap = new Map<number, HttpExceptionConstructor>([
-  [400, BadRequestException],
-  [401, UnauthorizedException],
-  [403, ForbiddenException],
-  [404, NotFoundException],
-  [409, ConflictException],
-  [500, InternalServerErrorException],
+  [HttpStatus.BAD_REQUEST, BadRequestException],
+  [HttpStatus.UNAUTHORIZED, UnauthorizedException],
+  [HttpStatus.FORBIDDEN, ForbiddenException],
+  [HttpStatus.NOT_FOUND, NotFoundException],
+  [HttpStatus.CONFLICT, ConflictException],
+  [HttpStatus.INTERNAL_SERVER_ERROR, InternalServerErrorException],
 ]);
 
 export class HttpExceptionGenerator {
-  createHttpExceptionFromStatus(status: number, ...args: any[]): HttpException {
-    const ExceptionClass = exceptionMap.get(status) || HttpException;
-    return new (ExceptionClass as any)(...args, status);
+  createHttpExceptionFromStatus(
+    status: number,
+    response: string | Record<string, unknown>,
+  ): HttpException {
+    const ExceptionClass = exceptionMap.get(status);
+
+    if (ExceptionClass) {
+      // Known status: use the specific subclass and let it control the HTTP status code
+      return new ExceptionClass(response);
+    }
+
+    // Fallback: use the base HttpException with the explicit status
+    return new HttpException(response, status);
   }
 }
