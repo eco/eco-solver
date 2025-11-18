@@ -305,10 +305,16 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           // Create withdrawal instructions for each intent
           const { withdrawalInstructions, ataCreationInstructions } =
-            await this.createWithdrawalInstructions(withdrawalData);
+            await this.createWithdrawalInstructions(withdrawalData, chainId);
+
+          this.logger.log(
+            `Generated ${withdrawalInstructions.length} withdrawal instructions and ${ataCreationInstructions.length} ATA creation instructions`,
+          );
 
           if (withdrawalInstructions.length === 0) {
-            const error = new Error('No valid withdrawal instructions generated');
+            const error = new Error(
+              `No valid withdrawal instructions generated. Total intents: ${withdrawalData.destinations?.length || 0}. Check logs for individual instruction creation errors.`,
+            );
             span.recordException(error);
             span.setStatus({ code: api.SpanStatusCode.ERROR });
             throw error;
@@ -350,10 +356,15 @@ export class SvmExecutorService extends BaseChainExecutor {
             blockhash,
             lastValidBlockHeight,
             feePayer: await wallet.getAddress(),
-          })
-            .add(computeBudgetIx)
-            .add(...ataCreationInstructions)
-            .add(...withdrawalInstructions);
+          }).add(computeBudgetIx);
+
+          // Add ATA creation instructions if any exist
+          if (ataCreationInstructions.length > 0) {
+            transaction.add(...ataCreationInstructions);
+          }
+
+          // Add withdrawal instructions
+          transaction.add(...withdrawalInstructions);
 
           // Track transaction submission
           span.addEvent('svm.batch_withdraw.transaction.submission.started');
@@ -416,14 +427,17 @@ export class SvmExecutorService extends BaseChainExecutor {
     );
   }
 
-  private async createWithdrawalInstructions(withdrawalData: any): Promise<{
+  private async createWithdrawalInstructions(
+    withdrawalData: any,
+    sourceChainId: bigint,
+  ): Promise<{
     withdrawalInstructions: TransactionInstruction[];
     ataCreationInstructions: TransactionInstruction[];
   }> {
     // Check for active span from parent, use it if available
     const activeSpan = api.trace.getActiveSpan();
     if (activeSpan) {
-      return this.createWithdrawalInstructionsWithSpan(withdrawalData, activeSpan);
+      return this.createWithdrawalInstructionsWithSpan(withdrawalData, sourceChainId, activeSpan);
     }
 
     return this.otelService.tracer.startActiveSpan(
@@ -436,7 +450,11 @@ export class SvmExecutorService extends BaseChainExecutor {
       },
       async (span) => {
         try {
-          const result = await this.createWithdrawalInstructionsWithSpan(withdrawalData, span);
+          const result = await this.createWithdrawalInstructionsWithSpan(
+            withdrawalData,
+            sourceChainId,
+            span,
+          );
           span.setStatus({ code: api.SpanStatusCode.OK });
           return result;
         } catch (error) {
@@ -455,6 +473,7 @@ export class SvmExecutorService extends BaseChainExecutor {
 
   private async createWithdrawalInstructionsWithSpan(
     withdrawalData: any,
+    sourceChainId: bigint,
     span: api.Span,
   ): Promise<{
     withdrawalInstructions: TransactionInstruction[];
@@ -490,6 +509,7 @@ export class SvmExecutorService extends BaseChainExecutor {
     let successCount = 0;
     let failureCount = 0;
 
+    this.logger.log(`Processing ${destinations.length} withdrawal intents...`);
     span.addEvent('svm.withdrawal_instructions.loop.started');
 
     for (let i = 0; i < destinations.length; i++) {
@@ -504,19 +524,27 @@ export class SvmExecutorService extends BaseChainExecutor {
         const reward = rewards[i];
 
         this.logger.debug(
-          `Processing withdrawal for destination: ${destination}, routeHash: ${routeHash}`,
+          `[${i + 1}/${destinations.length}] Processing withdrawal for destination: ${destination}, routeHash: ${routeHash}`,
         );
+        
+        // Note: destination is where the user wanted funds delivered (e.g., Optimism)
+        // sourceChainId is where the vault exists and funds are being withdrawn from (e.g., Solana)
+        // The reward hash must use the source chain encoding for proper intent hash calculation
         const intentHashHex = PortalHashUtils.getIntentHash(
           destination,
           routeHash as `0x${string}`,
-          PortalHashUtils.computeRewardHash(reward, destination),
+          PortalHashUtils.computeRewardHash(reward, sourceChainId),
         ).intentHash;
 
         const intentHashBuffer = toBuffer(intentHashHex);
 
-        const configuredClaimant = this.blockchainConfigService.getClaimant(destination);
+        const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
         const claimantPublicKey = new PublicKey(
           AddressNormalizer.denormalizeToSvm(configuredClaimant),
+        );
+
+        this.logger.debug(
+          `Withdrawal ${i}: intentHash=${intentHashHex}, destination=${destination}, sourceChain=${sourceChainId}, claimant=${claimantPublicKey.toString()}`,
         );
 
         // Derive required PDAs matching the Rust implementation
@@ -607,13 +635,16 @@ export class SvmExecutorService extends BaseChainExecutor {
         );
       } catch (error) {
         failureCount++;
+        const typedError = toError(error);
         this.logger.error(
           `Failed to create withdrawal instruction for intent ${i}: ${getErrorMessage(error)}`,
+          typedError,
         );
 
         span.addEvent('svm.withdrawal_instructions.item.failure', {
           index: i,
           error: getErrorMessage(error),
+          error_stack: typedError.stack,
         });
 
         // Continue with other intents rather than failing the entire batch
@@ -634,6 +665,10 @@ export class SvmExecutorService extends BaseChainExecutor {
       withdrawal_instructions: withdrawalInstructions.length,
       ata_instructions: ataCreationInstructions.length,
     });
+
+    this.logger.log(
+      `Withdrawal instruction generation completed: ${successCount} succeeded, ${failureCount} failed`,
+    );
 
     return { withdrawalInstructions, ataCreationInstructions };
   }
