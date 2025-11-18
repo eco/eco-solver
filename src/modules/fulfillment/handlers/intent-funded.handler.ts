@@ -64,6 +64,12 @@ export class IntentFundedHandler {
             }),
           );
 
+          // Only process if the funding is marked complete. This should never happen in our setup,
+          // since we always have allowPartial set to false, but good practice to check anyway.
+          if (!event.complete) {
+            return;
+          }
+
           // Update intent with funded event data and set status to FUNDED
           const updatedIntent = await this.updateIntent(event, span);
 

@@ -130,27 +130,25 @@ export class IntentRepository {
    * Update intent with IntentFunded event data
    */
   async updateFundedEvent(eventData: IntentFundedEvent): Promise<Intent | null> {
-    return this.model
-      .findOneAndUpdate(
-        {
-          intentHash: eventData.intentHash,
-          $or: [{ status: IntentStatus.PENDING }, { status: { $exists: false } }],
+    return this.update(
+      {
+        intentHash: eventData.intentHash,
+        $or: [{ status: IntentStatus.PENDING }, { status: { $exists: false } }],
+      },
+      {
+        status: IntentStatus.FUNDED,
+        fundedEvent: {
+          funder: eventData.funder,
+          complete: eventData.complete,
+          txHash: eventData.transactionHash,
+          blockNumber: eventData.blockNumber?.toString(),
+          timestamp: eventData.timestamp,
+          chainId: eventData.chainId.toString(),
         },
-        {
-          status: IntentStatus.FUNDED,
-          fundedEvent: {
-            funder: eventData.funder,
-            complete: eventData.complete,
-            txHash: eventData.transactionHash,
-            blockNumber: eventData.blockNumber?.toString(),
-            timestamp: eventData.timestamp,
-            chainId: eventData.chainId.toString(),
-          },
-          lastProcessedAt: new Date(),
-        },
-        { new: true },
-      )
-      .exec();
+        lastProcessedAt: new Date(),
+      },
+      { new: true },
+    );
   }
 
   /**
@@ -181,7 +179,7 @@ export class IntentRepository {
       {
         provenEvent: {
           claimant: eventData.claimant,
-          transactionHash: eventData.transactionHash,
+          txHash: eventData.transactionHash,
           blockNumber: eventData.blockNumber?.toString(),
           timestamp: eventData.timestamp,
           chainId: eventData.chainId.toString(),
