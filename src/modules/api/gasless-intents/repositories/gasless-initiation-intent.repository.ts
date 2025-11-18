@@ -4,7 +4,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { EcoResponse } from '@/common/eco-response';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { EcoLogger } from '@/common/logging/eco-logger';
 import { EcoError } from '@/errors/eco-error';
 import {
@@ -91,15 +90,6 @@ export class GaslessInitiationIntentRepository {
   }
 
   private async create(data: GaslessInitiationIntent): Promise<GaslessInitiationIntent> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `create: GaslessInitiationIntent`,
-        properties: {
-          data,
-        },
-      }),
-    );
-
     const newInstance = new this.model(data);
     await newInstance.save();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

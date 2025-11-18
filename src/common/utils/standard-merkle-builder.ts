@@ -162,7 +162,6 @@ export class StandardMerkleBuilder {
 
   /**
    * Get merkle proof for a specific chain
-   * Returns null if the chain is not in the tree
    */
   getProofForChain(
     chainId: bigint,
@@ -176,6 +175,10 @@ export class StandardMerkleBuilder {
 
     const { proofs } = treeResult!;
     const proofData = proofs.get(chainId);
+
+    if (!proofData) {
+      return { error: new Error(`No proof found for chainId ${chainId}`) };
+    }
 
     return { response: proofData };
   }
