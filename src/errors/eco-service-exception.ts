@@ -1,19 +1,18 @@
-/* eslint-disable prettier/prettier */
-import { BadRequestException, HttpException, Logger } from '@nestjs/common'
+import { BadRequestException, HttpException, Logger } from '@nestjs/common';
 
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { EcoError } from '@/errors/eco-error'
-import { HttpExceptionGenerator } from '@/errors/http-exception-generator'
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoError } from '@/errors/eco-error';
+import { HttpExceptionGenerator } from '@/errors/http-exception-generator';
 
 export interface EcoServiceExceptionParams {
-  httpExceptionClass?: new (o: object) => HttpException
-  error: any
-  cause?: string
-  additionalData?: Record<string, unknown>
+  httpExceptionClass?: new (o: object) => HttpException;
+  error: unknown;
+  cause?: string;
+  additionalData?: Record<string, unknown>;
 }
 
 export class EcoServiceException {
-  private static httpExceptionGenerator: HttpExceptionGenerator = new HttpExceptionGenerator()
+  private static httpExceptionGenerator: HttpExceptionGenerator = new HttpExceptionGenerator();
 
   static getException(
     httpExceptionClass: new (o: object) => HttpException,
@@ -21,7 +20,7 @@ export class EcoServiceException {
     cause: string,
     additionalData?: Record<string, unknown>,
   ): HttpException {
-    return this.new(httpExceptionClass, ecoError, cause, additionalData)
+    return this.new(httpExceptionClass, ecoError, cause, additionalData);
   }
 
   static getExceptionForStatus(
@@ -30,7 +29,10 @@ export class EcoServiceException {
     cause: string,
     additionalData?: Record<string, unknown>,
   ): HttpException {
-    return this.httpExceptionGenerator.createHttpExceptionFromStatus(status, this.buildPayload(ecoError, cause, additionalData))
+    return this.httpExceptionGenerator.createHttpExceptionFromStatus(
+      status,
+      this.buildPayload(ecoError, cause, additionalData),
+    );
   }
 
   private static new(
@@ -39,7 +41,7 @@ export class EcoServiceException {
     cause: string,
     additionalData?: Record<string, unknown>,
   ): HttpException {
-    return new httpExceptionClass(this.buildPayload(ecoError, cause, additionalData))
+    return new httpExceptionClass(this.buildPayload(ecoError, cause, additionalData));
   }
 
   private static buildPayload(
@@ -47,30 +49,30 @@ export class EcoServiceException {
     cause: string,
     additionalData?: Record<string, unknown>,
   ) {
-    const errorDesc = EcoError.getErrorMessage(ecoError)
+    const errorDesc = EcoError.getErrorMessage(ecoError);
     const errorCode =
       typeof ecoError === 'object' && ecoError !== null && 'code' in ecoError
         ? (ecoError as any).code
-        : undefined
+        : undefined;
 
-    return { errorCode, errorDesc, cause, additionalData }
+    return { errorCode, errorDesc, cause, additionalData };
   }
 
   static isEcoServiceException(error: any): boolean {
     if (!(error instanceof HttpException)) {
-      return false
+      return false;
     }
 
-    const response = error.getResponse() as any
+    const response = error.getResponse() as any;
 
-    const { errorCode, errorDesc, cause } = response
+    const { errorCode, errorDesc, cause } = response;
 
-    return Boolean(errorCode && errorDesc && cause)
+    return Boolean(errorCode && errorDesc && cause);
   }
 }
 
 function getErrorCause(error: any): string {
-  return EcoError.getErrorMessage(error)
+  return EcoError.getErrorMessage(error);
 }
 
 export function logEcoServiceException(logger: Logger, message: string, error: any) {
@@ -81,36 +83,42 @@ export function logEcoServiceException(logger: Logger, message: string, error: a
         errorMessage: EcoError.getErrorMessage(error),
       },
     }),
-  )
+  );
 }
 
 export function getEcoServiceErrorReturn(params: EcoServiceExceptionParams): HttpException {
-  const { error, cause, additionalData } = params
+  const { error, cause, additionalData } = params;
 
-  return EcoServiceException.getException(BadRequestException, error, cause || 'unknown', additionalData)
+  return EcoServiceException.getException(
+    BadRequestException,
+    error,
+    cause || 'unknown',
+    additionalData,
+  );
 }
 
 export function getEcoServiceException(params: EcoServiceExceptionParams): HttpException {
-  const { error, additionalData } = params
+  const { error, additionalData } = params;
 
   // If it's already an EcoServiceException, don't mess wth it.
   if (EcoServiceException.isEcoServiceException(error)) {
-    return error
+    return error as HttpException;
   }
 
-  const cause = params.cause || getErrorCause(error)
+  const cause = params.cause || getErrorCause(error);
 
-  const rawStatus = (error as any)?.status ?? (error as any)?.statusCode
-  const status = typeof rawStatus === 'number' ? rawStatus : -1
-  let httpExceptionClass = params.httpExceptionClass
+  const rawStatus = (error as any)?.status ?? (error as any)?.statusCode;
+  const status = typeof rawStatus === 'number' ? rawStatus : undefined;
 
-  if (!httpExceptionClass && !status) {
-    httpExceptionClass = BadRequestException
+  let httpExceptionClass = params.httpExceptionClass;
+
+  if (!httpExceptionClass && status === undefined) {
+    httpExceptionClass = BadRequestException;
   }
 
   if (httpExceptionClass) {
-    return EcoServiceException.getException(httpExceptionClass, error, cause, additionalData)
+    return EcoServiceException.getException(httpExceptionClass, error, cause, additionalData);
   }
 
-  return EcoServiceException.getExceptionForStatus(status, error, cause, additionalData)
+  return EcoServiceException.getExceptionForStatus(status!, error, cause, additionalData);
 }
