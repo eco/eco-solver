@@ -142,6 +142,8 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   private async getRequestHeaders(payload: SolverRegistrationDTO): Promise<Record<string, string>> {
     const privateKey = this.quotesConfigService.registrationPrivateKey;
     const walletAccount = privateKeyToAccount(privateKey as Hex);
+
+    // Convert to milliseconds: now() and minutes() return seconds
     const expiryTime = (now() + minutes(2)) * 1_000; // 2 minutes
 
     const signatureHeaders = await this.signatureGenerator.getHeadersWithWalletClient(
@@ -239,10 +241,21 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
   }
 
   private getChainTokens(chainID: number): BlockchainAddress[] {
-    const chainType = ChainTypeDetector.detect(chainID);
-    return this.blockchainConfigService
-      .getSupportedTokens(chainID)
-      .map((token) => AddressNormalizer.denormalize(token.address, chainType));
+    try {
+      const chainType = ChainTypeDetector.detect(chainID);
+
+      return this.blockchainConfigService
+        .getSupportedTokens(chainID)
+        .map((token) => AddressNormalizer.denormalize(token.address, chainType));
+    } catch (ex) {
+      EcoError.logError(
+        ex,
+        `getChainTokens: Failed to get tokens for chain ${chainID}`,
+        this.logger,
+      );
+
+      throw new Error(`Unsupported chain or invalid token address for chain ${chainID}`);
+    }
   }
 
   private async tryRegisterWithBackoff(max = 5) {
