@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { IsNotEmpty } from 'class-validator';
+import { ArrayMinSize, IsNotEmpty } from 'class-validator';
 
 export class RouteTokensDTO {
   @ApiProperty()
@@ -9,5 +9,6 @@ export class RouteTokensDTO {
 
   @ApiProperty({ type: [String] })
   @IsNotEmpty()
+  @ArrayMinSize(1)
   receive: string[];
 }

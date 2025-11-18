@@ -39,7 +39,7 @@ export class SolverRegistrationDTO {
 
   @IsOptional()
   @IsString()
-  @ApiProperty()
+  @ApiPropertyOptional()
   reverseQuotesV2Url?: string;
 
   @IsNotEmpty()

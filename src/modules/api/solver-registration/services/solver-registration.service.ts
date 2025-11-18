@@ -156,17 +156,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
     };
   }
 
-  // export const QUOTES_ENDPOINT = '/api/v1/quotes' as const;
-
-  // private getLocalQuoteEndpoint() {
-  //   const baseUrl = this.quotesConfigService.registrationBaseUrl;
-  //   if (!baseUrl) {
-  //     this.logger.error('Registration base URL is not configured');
-  //     throw new Error('Registration base URL is not configured');
-  //   }
-  //   return `${baseUrl}${QUOTES_ENDPOINT}`;
-  // }
-
   private getSolverRegistrationDTO(): SolverRegistrationDTO {
     return {
       intentExecutionTypes: [
@@ -175,13 +164,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
       ],
 
       ...this.getAPIEndpoints(),
-
-      // quotesUrl: this.getLocalQuoteEndpoint(),
-      // quotesV2Url: this.getLocalQuoteEndpoint(),
-      // reverseQuotesV2Url: this.getLocalQuoteEndpoint(),
-
-      // // Use placeholder value since endpoint is required
-      // receiveSignedIntentUrl: this.getLocalQuoteEndpoint(),
 
       supportsNativeTransfers: false,
 

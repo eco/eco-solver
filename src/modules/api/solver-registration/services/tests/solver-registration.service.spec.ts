@@ -164,10 +164,6 @@ describe('RegistrationService', () => {
 
       const result = await service.registerSolver();
 
-      // Debug: log the result to see what happened
-      console.log('Test result:', result);
-      console.log('Mock calls:', mockApiRequestExecutor.executeRequest.mock.calls.length);
-
       // Verify no error occurred
       expect(result.error).toBeUndefined();
 
