@@ -1210,7 +1210,8 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.prove.transaction_build.started');
 
-          const { blockhash } = await this.connection.getLatestBlockhash('confirmed');
+          const { blockhash, lastValidBlockHeight } =
+            await this.connection.getLatestBlockhash('confirmed');
           const wallet = this.walletManager.getWallet();
           const walletPublicKey = await wallet.getAddress();
 
@@ -1230,6 +1231,7 @@ export class SvmExecutorService extends BaseChainExecutor {
           txSpan.setAttributes({
             'svm.transaction.instruction_count': 2,
             'svm.transaction.total_signers': 1 + proveResult.signers.length,
+            'svm.last_valid_block_height': lastValidBlockHeight,
           });
 
           txSpan.addEvent('svm.prove.transaction_build.completed', {
@@ -1255,7 +1257,14 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           txSpan.addEvent('svm.prove.transaction_confirmation.started');
 
-          await this.connection.confirmTransaction(signature, 'confirmed');
+          await this.connection.confirmTransaction(
+            {
+              signature: signature,
+              blockhash: blockhash,
+              lastValidBlockHeight: lastValidBlockHeight,
+            },
+            'confirmed',
+          );
 
           txSpan.setAttributes({
             'svm.transaction_success': true,
@@ -1738,7 +1747,14 @@ export class SvmExecutorService extends BaseChainExecutor {
 
           // Wait for confirmation
           try {
-            await this.connection.confirmTransaction(signature, 'confirmed');
+            await this.connection.confirmTransaction(
+              {
+                signature: signature,
+                blockhash: blockhash,
+                lastValidBlockHeight: lastValidBlockHeight,
+              },
+              'confirmed',
+            );
           } catch (confirmError) {
             this.logger.warn(`Gas payment transaction sent but confirmation failed: ${signature}`);
           }
