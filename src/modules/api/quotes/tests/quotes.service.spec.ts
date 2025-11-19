@@ -58,9 +58,11 @@ describe('QuotesService', () => {
   };
 
   const mockQuoteRepository = {
+    getByQuoteId: jest.fn(),
     create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
+    findById: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -109,6 +111,8 @@ describe('QuotesService', () => {
   describe('getQuote', () => {
     const mockQuoteRequest: QuoteRequest = {
       dAppID: 'test-dapp',
+      quoteID: 'quote-123',
+      intentExecutionTypes: ['SELF_PUBLISH'],
       quoteRequest: {
         sourceChainID: BigInt(1),
         destinationChainID: BigInt(10),
@@ -156,7 +160,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockQuoteRequest);
+      const result = await service.getReverseQuote(mockQuoteRequest);
 
       expect(result).toEqual({
         quoteResponses: [
@@ -217,7 +221,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Quote validation failed: fees not available'),
       );
 
@@ -227,7 +231,7 @@ describe('QuotesService', () => {
     it('should throw BadRequestException when default strategy not found', async () => {
       mockFulfillmentService.getStrategy.mockReturnValue(undefined);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Unknown strategy: standard'),
       );
     });
@@ -238,7 +242,7 @@ describe('QuotesService', () => {
       );
       mockStrategy.canHandle.mockReturnValue(false);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Strategy standard cannot handle this intent'),
       );
     });
@@ -246,7 +250,7 @@ describe('QuotesService', () => {
     it('should throw BadRequestException when no portal address configured', async () => {
       mockBlockchainConfigService.getPortalAddress.mockReturnValue(undefined);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Portal address not configured for chain 10'),
       );
     });
@@ -254,7 +258,7 @@ describe('QuotesService', () => {
     it('should throw BadRequestException when no prover address configured', async () => {
       mockBlockchainConfigService.getProverAddress.mockReturnValue(undefined);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Default prover hyper not configured for chain 1'),
       );
     });
@@ -299,7 +303,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException({
           validations: {
             passed: ['IntentFundedValidation'],
@@ -328,7 +332,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Quote validation failed: fees not available'),
       );
     });
@@ -375,7 +379,7 @@ describe('QuotesService', () => {
         .spyOn(service as any, 'convertToIntent')
         .mockReturnValue(intentWithoutSourceChainId as Intent);
 
-      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequest)).rejects.toThrow(
         new BadRequestException('Intent sourceChainId is required'),
       );
     });
@@ -422,7 +426,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockQuoteRequestWithContracts);
+      const result = await service.getReverseQuote(mockQuoteRequestWithContracts);
 
       expect(result).toBeDefined();
       expect('contracts' in result && result.contracts).toBeDefined();
@@ -468,7 +472,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await expect(service.getQuote(mockQuoteRequestWithWrongPortal)).rejects.toThrow(
+      await expect(service.getReverseQuote(mockQuoteRequestWithWrongPortal)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -506,7 +510,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      const result = await service.getQuote(mockQuoteRequest);
+      const result = await service.getReverseQuote(mockQuoteRequest);
 
       expect(result).toBeDefined();
       expect('contracts' in result && result.contracts).toBeDefined();
@@ -545,7 +549,7 @@ describe('QuotesService', () => {
       mockStrategy.canHandle.mockReturnValue(true);
       mockStrategy.getQuote.mockResolvedValue(mockQuoteResult);
 
-      await service.getQuote(mockQuoteRequest);
+      await service.getReverseQuote(mockQuoteRequest);
 
       expect(mockStrategy.canHandle).toHaveBeenCalledWith(
         expect.objectContaining({

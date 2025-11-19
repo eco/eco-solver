@@ -850,6 +850,13 @@ export class SvmExecutorService extends BaseChainExecutor {
     throw new Error('fundFor is not yet implemented for Solana (SVM)');
   }
 
+  /**
+   * fundForWithPermit3 is not supported on Solana (SVM)
+   */
+  async fundForWithPermit3(): Promise<any> {
+    throw new Error('fundForWithPermit3 is not supported on Solana (SVM)');
+  }
+
   private async generateFulfillIx(intent: Intent) {
     // Check for active span, use it if available, otherwise create a new one
     const activeSpan = api.trace.getActiveSpan();
