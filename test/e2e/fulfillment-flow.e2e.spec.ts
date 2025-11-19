@@ -41,14 +41,21 @@ describe('Intent Fulfillment', () => {
     await fundTestAccountsWithUSDC();
     console.log('✓ Test account funded\n');
 
-    // Fund Kernel wallet (used by executor)
-    await fundKernelWallet();
-
-    // Setup test context (app, services, etc.)
+    // Setup test context (app, services, etc.) - this initializes wallets
     const result = await setupTestContext();
     ctx = result.context;
     cleanup = result.cleanup;
     console.log(`Application ready at ${ctx.baseUrl}\n`);
+
+    // Get the actual Kernel wallet address after initialization
+    const kernelWalletAddress = await ctx.evmWalletManager.getWalletAddress(
+      'kernel',
+      OPTIMISM_MAINNET_CHAIN_ID,
+    );
+    console.log(`Kernel wallet address: ${kernelWalletAddress}\n`);
+
+    // Fund Kernel wallet (used by executor) with the actual address
+    await fundKernelWallet(kernelWalletAddress);
   }, E2E_TIMEOUTS.BEFORE_ALL);
 
   // Cleanup: Close the app after all tests finish
