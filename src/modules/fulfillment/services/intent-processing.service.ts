@@ -7,6 +7,7 @@ import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { MetricsRegistryService } from '@/modules/opentelemetry/metrics-registry.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { StrategyManagementService } from './strategy-management.service';
@@ -22,6 +23,7 @@ export class IntentProcessingService {
     private readonly strategyManagement: StrategyManagementService,
     private readonly intentsService: IntentsService,
     private readonly otelService: OpenTelemetryService,
+    private readonly metricsRegistry: MetricsRegistryService,
   ) {
     this.logger.setContext(IntentProcessingService.name);
   }
@@ -77,6 +79,13 @@ export class IntentProcessingService {
           span.addEvent('intent.status.updated', {
             status: IntentStatus.VALIDATING,
           });
+
+          // Record attempt metric
+          this.metricsRegistry.recordIntentAttempted(
+            intent.sourceChainId?.toString() || 'unknown',
+            intent.destination.toString(),
+            strategyName,
+          );
 
           // Run strategy validation
           try {
