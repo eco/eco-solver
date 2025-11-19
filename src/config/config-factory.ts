@@ -168,10 +168,6 @@ export class ConfigFactory {
     return this.get<boolean>('requestSignatureValidationEnabled');
   }
 
-  static getDynamicConfigAllowedAddresses(): string[] {
-    return this.get<string[]>('dynamicConfigAllowedAddresses') || [];
-  }
-
   static getAWSConfigValues(): Record<string, any> {
     return this.awsConfigValues;
   }

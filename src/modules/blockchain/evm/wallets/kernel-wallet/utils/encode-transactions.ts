@@ -35,7 +35,7 @@ function parseCallType(callType: CallType) {
   }
 }
 
-export function encodeExecutionMode<callType extends CallType>({
+function encodeExecutionMode<callType extends CallType>({
   type,
   revertOnError,
   selector,

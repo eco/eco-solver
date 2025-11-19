@@ -3,7 +3,6 @@ import { Logs } from '@solana/web3.js';
 import {
   IntentFulfilledEvent,
   IntentFundedEvent,
-  IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
@@ -14,7 +13,6 @@ import { PortalEncoder } from '@/common/utils/portal-encoder';
 import {
   IntentFulfilledInstruction,
   IntentFundedInstruction,
-  IntentProvenInstruction,
   IntentPublishedInstruction,
   IntentWithdrawnInstruction,
 } from '@/modules/blockchain/svm/targets/types/portal-idl-coder.type';
@@ -92,24 +90,6 @@ export class SvmEventParser {
       transactionHash: logs.signature,
       chainId: BigInt(chainId),
       timestamp: new Date(),
-    };
-  }
-
-  static parseIntentProvenEvent(
-    evt: IntentProvenInstruction,
-    logs: Logs,
-    chainId: number,
-  ): IntentProvenEvent {
-    return {
-      intentHash: bufferToBytes(evt.intent_hash[0]),
-      // Claimant is bytes32 in the IDL, so we use bufferToBytes to convert to hex string
-      // This matches the pattern used in parseIntentFulfilledEvent
-      claimant: bufferToBytes(evt.claimant[0]) as UniversalAddress,
-      transactionHash: logs.signature,
-      blockNumber: undefined,
-      chainId: BigInt(chainId),
-      timestamp: new Date(),
-      // Note: evt.destination exists in the Rust event but is not needed in IntentProvenEvent interface
     };
   }
 }

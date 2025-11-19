@@ -7,7 +7,6 @@ import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
-import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -31,7 +30,6 @@ describe('BlockchainProcessor', () => {
   let logger: jest.Mocked<any>;
   let bullMQOtelFactory: jest.Mocked<any>;
   let otelService: jest.Mocked<any>;
-  let intentsService: jest.Mocked<IntentsService>;
 
   const mockIntent: Intent = {
     intentHash: '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
@@ -69,12 +67,6 @@ describe('BlockchainProcessor', () => {
 
     queueConfig = {
       executionConcurrency: 5,
-      executionBackoffConfig: {
-        backoffDelay: 2000,
-        backoffMaxDelay: 300000,
-        backoffJitter: 0.5,
-        useCustomBackoff: true,
-      },
     } as any;
 
     logger = {
@@ -103,10 +95,6 @@ describe('BlockchainProcessor', () => {
       }),
     } as any;
 
-    intentsService = {
-      updateStatus: jest.fn().mockResolvedValue(undefined),
-    } as any;
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainProcessor,
@@ -115,7 +103,6 @@ describe('BlockchainProcessor', () => {
         { provide: SystemLoggerService, useValue: logger },
         { provide: BullMQOtelFactory, useValue: bullMQOtelFactory },
         { provide: OpenTelemetryService, useValue: otelService },
-        { provide: IntentsService, useValue: intentsService },
       ],
     }).compile();
 
@@ -136,7 +123,7 @@ describe('BlockchainProcessor', () => {
   describe('onModuleInit', () => {
     it('should set worker concurrency from configuration', () => {
       // Mock the worker getter
-      const mockWorker = { concurrency: 0, opts: {} };
+      const mockWorker = { concurrency: 0 };
       Object.defineProperty(processor, 'worker', {
         get: jest.fn(() => mockWorker),
         configurable: true,
@@ -155,64 +142,6 @@ describe('BlockchainProcessor', () => {
       });
 
       expect(() => processor.onModuleInit()).not.toThrow();
-    });
-
-    it('should not set up event listeners manually (uses @OnWorkerEvent decorator)', () => {
-      const mockWorker = {
-        concurrency: 0,
-        opts: {},
-      };
-      Object.defineProperty(processor, 'worker', {
-        get: jest.fn(() => mockWorker),
-        configurable: true,
-      });
-
-      processor.onModuleInit();
-
-      // No manual event listener setup - handled by @OnWorkerEvent decorator
-      expect(logger.log).not.toHaveBeenCalledWith(
-        'Added failed job event listener to BlockchainProcessor worker',
-      );
-    });
-  });
-
-  describe('handleFailedJob', () => {
-    it('should update intent status to FAILED when job fails after all retries', async () => {
-      const mockFailedJob = {
-        id: 'job-123',
-        data: serializeWithBigInt(mockJobData),
-        attemptsMade: 3,
-      } as any;
-
-      await processor.handleFailedJob(mockFailedJob, new Error('Job failed'));
-
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(
-        mockIntent.intentHash,
-        IntentStatus.FAILED,
-      );
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Job job-123 failed after 3 attempts'),
-      );
-    });
-
-    it('should handle undefined job gracefully', async () => {
-      await processor.handleFailedJob(undefined, new Error('Job failed'));
-
-      expect(intentsService.updateStatus).not.toHaveBeenCalled();
-    });
-
-    it('should handle errors during status update', async () => {
-      const mockFailedJob = {
-        id: 'job-456',
-        data: serializeWithBigInt(mockJobData),
-        attemptsMade: 3,
-      } as any;
-
-      intentsService.updateStatus.mockRejectedValueOnce(new Error('Database error'));
-
-      await processor.handleFailedJob(mockFailedJob, new Error('Job failed'));
-
-      expect(logger.error).toHaveBeenCalledWith('Error handling failed job:', expect.any(Error));
     });
   });
 
@@ -361,74 +290,6 @@ describe('BlockchainProcessor', () => {
       await processor.process(mockJob);
 
       expect(blockchainService.executeIntent).toHaveBeenCalledWith(mockIntent, 'basic');
-    });
-  });
-
-  describe('ExponentialCapped Backoff', () => {
-    it('should configure exponentialCapped backoff strategy when enabled', () => {
-      const mockWorker = {
-        concurrency: 0,
-        opts: { settings: {} as any },
-      };
-      Object.defineProperty(processor, 'worker', {
-        get: jest.fn(() => mockWorker),
-        configurable: true,
-      });
-
-      processor.onModuleInit();
-
-      expect((mockWorker.opts.settings as any).backoffStrategy).toBeDefined();
-      expect(typeof (mockWorker.opts.settings as any).backoffStrategy).toBe('function');
-    });
-
-    it('should calculate correct backoff delays with cap and jitter', () => {
-      const mockWorker = {
-        concurrency: 0,
-        opts: { settings: {} as any },
-      };
-      Object.defineProperty(processor, 'worker', {
-        get: jest.fn(() => mockWorker),
-        configurable: true,
-      });
-
-      // Create a new mock config for this test
-      const testQueueConfig = {
-        executionConcurrency: 5,
-        executionBackoffConfig: {
-          backoffDelay: 1000,
-          backoffMaxDelay: 10000,
-          backoffJitter: 0,
-          useCustomBackoff: true,
-        },
-      } as any;
-
-      // Create a new processor instance with the test config
-      const testProcessor = new BlockchainProcessor(
-        blockchainService,
-        testQueueConfig,
-        logger,
-        bullMQOtelFactory,
-        otelService,
-        intentsService,
-      );
-
-      Object.defineProperty(testProcessor, 'worker', {
-        get: jest.fn(() => mockWorker),
-        configurable: true,
-      });
-
-      testProcessor.onModuleInit();
-      const backoffStrategy = (mockWorker.opts.settings as any).backoffStrategy;
-
-      // Test exponential growth
-      expect(backoffStrategy(1)).toBe(1000); // 1000 * 2^0
-      expect(backoffStrategy(2)).toBe(2000); // 1000 * 2^1
-      expect(backoffStrategy(3)).toBe(4000); // 1000 * 2^2
-      expect(backoffStrategy(4)).toBe(8000); // 1000 * 2^3
-
-      // Test cap
-      expect(backoffStrategy(5)).toBe(10000); // Capped at maxDelay
-      expect(backoffStrategy(6)).toBe(10000); // Still capped
     });
   });
 });

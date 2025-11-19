@@ -551,10 +551,6 @@ export const portalIdl = {
               },
             },
           },
-          {
-            name: 'destination',
-            type: 'u64',
-          },
         ],
       },
     },

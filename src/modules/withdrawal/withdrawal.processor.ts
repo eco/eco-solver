@@ -1,5 +1,5 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, OnModuleInit } from '@nestjs/common';
 
 import { Job, Queue } from 'bullmq';
 
@@ -17,7 +17,7 @@ import { WithdrawalService } from './withdrawal.service';
 @Processor(QueueNames.INTENT_WITHDRAWAL, {
   prefix: `{${QueueNames.INTENT_WITHDRAWAL}}`,
 })
-export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
+export class WithdrawalProcessor extends WorkerHost implements OnModuleInit {
   constructor(
     @InjectQueue(QueueNames.INTENT_WITHDRAWAL) private withdrawalQueue: Queue,
     private withdrawalService: WithdrawalService,
@@ -45,16 +45,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
     }
   }
 
-  async onModuleDestroy() {
-    // Close the worker to ensure clean shutdown
-    if (this.worker) {
-      this.logger.log('Closing WithdrawalProcessor worker...');
-      await this.worker.close();
-      this.logger.log('WithdrawalProcessor worker closed');
-    }
-  }
-
-  async process(job: Job<string>) {
+  async process(job: Job) {
     const jobData =
       typeof job.data === 'string'
         ? BigintSerializer.deserialize<WithdrawalJobData>(job.data)

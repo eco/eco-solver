@@ -37,12 +37,6 @@ export class FulfillmentConfigService {
     return this.configService.get<RouteFeeOverride[]>('fulfillment.routeFeeOverrides');
   }
 
-  get defaultRouteLimit(): number | { min?: number; max?: number } | undefined {
-    return this.configService.get<number | { min?: number; max?: number }>(
-      'fulfillment.defaultRouteLimit',
-    );
-  }
-
   getStrategyRouteEnablementConfig(
     strategyName: string,
   ): FulfillmentConfig['validations']['routeEnablement'] | undefined {

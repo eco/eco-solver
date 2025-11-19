@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { AssetsFeeSchema, RouteFeeOverrideSchema } from '@/config/schemas/fee.schema';
-import { RouteAmountLimitSchema } from '@/config/schemas/route-limit.schema';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 
 /**
@@ -64,8 +63,6 @@ export const FulfillmentSchema = z.object({
   validations: ValidationsSchema.default({}),
   defaultFee: AssetsFeeSchema, // Global default fee configuration (lowest priority)
   routeFeeOverrides: z.array(RouteFeeOverrideSchema).optional(),
-  // Global default route amount limit (fallback when token has no specific limit)
-  defaultRouteLimit: RouteAmountLimitSchema.optional(),
 });
 
 export type FulfillmentConfig = z.infer<typeof FulfillmentSchema>;

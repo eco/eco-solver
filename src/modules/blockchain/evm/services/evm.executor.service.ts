@@ -1,7 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, encodeFunctionData, erc20Abi, Hex, TransactionReceipt } from 'viem';
+import { Address, encodeFunctionData, erc20Abi, Hex, pad, TransactionReceipt } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 import {
@@ -64,7 +64,9 @@ export class EvmExecutorService extends BaseChainExecutor {
 
           // Get claimant from source chain configuration
           const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
-          span.setAttribute('evm.claimant_address', configuredClaimant);
+          const claimant = AddressNormalizer.denormalizeToEvm(configuredClaimant);
+          const normalizedClaimant = configuredClaimant;
+          span.setAttribute('evm.claimant_address', claimant);
 
           // Get Portal address for a destination chain from config
           const portalAddressUA = this.evmConfigService.getPortalAddress(destinationChainId);
@@ -90,7 +92,7 @@ export class EvmExecutorService extends BaseChainExecutor {
             throw new Error(`No prover contract address found for chain ${destinationChainId}`);
           }
           const proverAddr = AddressNormalizer.denormalizeToEvm(proverContract);
-          const proverFee = await prover.getFee(intent, configuredClaimant);
+          const proverFee = await prover.getFee(intent, normalizedClaimant);
           const proofData = await prover.generateProof(intent);
 
           span.setAttributes({
@@ -123,7 +125,7 @@ export class EvmExecutorService extends BaseChainExecutor {
                 intent.intentHash,
                 evmRoute,
                 rewardHash,
-                configuredClaimant as Hex,
+                pad(claimant),
                 proverAddr,
                 sourceDomainId,
                 proofData,

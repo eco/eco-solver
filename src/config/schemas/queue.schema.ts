@@ -23,16 +23,6 @@ export const QueueSchema = z
       })
       .default({}),
     fulfillmentJobDelay: z.coerce.number().int().min(0).default(0),
-    // Add execution-specific configuration
-    execution: z
-      .object({
-        attempts: z.coerce.number().int().min(1).default(20),
-        backoffDelay: z.coerce.number().int().min(100).default(5_000),
-        backoffMaxDelay: z.coerce.number().int().min(1000).default(300_000), // 5 minutes
-        backoffJitter: z.coerce.number().min(0).max(1).default(0.5), // 0-1 range for jitter factor
-        useCustomBackoff: z.boolean().default(true), // Enable custom backoff strategy
-      })
-      .default({}),
   })
   .default({});
 

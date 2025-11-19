@@ -43,7 +43,6 @@ describe('KernelWalletFactory', () => {
           type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
-        executorSignatureExpiration: 1800,
       }),
       getChain: jest.fn(),
     } as any;
@@ -135,7 +134,6 @@ describe('KernelWalletFactory', () => {
           type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
-        executorSignatureExpiration: 1800,
       };
       evmConfigService.getKernelWalletConfig.mockReturnValue(kernelConfig);
     });
@@ -542,7 +540,6 @@ describe('KernelWalletFactory', () => {
           type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
-        executorSignatureExpiration: 1800,
       });
 
       const error = new Error('Transport not found');
@@ -561,7 +558,6 @@ describe('KernelWalletFactory', () => {
           type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
-        executorSignatureExpiration: 1800,
       });
 
       const error = new Error('Failed to initialize wallet');
@@ -578,7 +574,6 @@ describe('KernelWalletFactory', () => {
           type: 'eoa' as const,
           privateKey: mockEoaPrivateKey,
         },
-        executorSignatureExpiration: 1800,
       });
 
       const error = new Error('Invalid private key');

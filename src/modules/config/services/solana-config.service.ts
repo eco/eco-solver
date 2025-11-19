@@ -11,14 +11,9 @@ import { ChainIdentifier } from '@/modules/token/types/token.types';
 
 import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
-import { FulfillmentConfigService } from './fulfillment-config.service';
-
 @Injectable()
 export class SolanaConfigService implements IBlockchainConfigService {
-  constructor(
-    private configService: ConfigService,
-    private fulfillmentConfigService: FulfillmentConfigService,
-  ) {}
+  constructor(private configService: ConfigService) {}
 
   get chainId(): SolanaConfig['chainId'] {
     return this.configService.get<number>('svm.chainId')!;
@@ -87,18 +82,14 @@ export class SolanaConfigService implements IBlockchainConfigService {
   }
 
   getSupportedTokens(): TokenConfig[] {
-    return this.tokens.map((token) => {
-      // Apply global default limit if token doesn't have a specific limit
-      const limit = token.limit ?? this.fulfillmentConfigService.defaultRouteLimit;
-      return {
-        address: AddressNormalizer.normalizeSvm(token.address),
-        decimals: token.decimals,
-        symbol: token.symbol,
-        limit: limit,
-        fee: token.fee,
-        nonSwapGroups: token.nonSwapGroups,
-      };
-    });
+    return this.tokens.map((token) => ({
+      address: AddressNormalizer.normalizeSvm(token.address),
+      decimals: token.decimals,
+      symbol: token.symbol,
+      limit: token.limit,
+      fee: token.fee,
+      nonSwapGroups: token.nonSwapGroups,
+    }));
   }
 
   getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
@@ -109,14 +100,11 @@ export class SolanaConfigService implements IBlockchainConfigService {
       throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
     }
 
-    // Apply global default limit if token doesn't have a specific limit
-    const limit = tokenConfig.limit ?? this.fulfillmentConfigService.defaultRouteLimit;
-
     return {
       address: AddressNormalizer.normalizeSvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
-      limit: limit,
+      limit: tokenConfig.limit,
       fee: tokenConfig.fee,
       nonSwapGroups: tokenConfig.nonSwapGroups,
     };
@@ -153,18 +141,5 @@ export class SolanaConfigService implements IBlockchainConfigService {
    */
   getDefaultProver(_chainId: ChainIdentifier): TProverType {
     return this.configService.get<TProverType>('svm.defaultProver')!;
-  }
-
-  get proofPollingEnabled(): boolean {
-    return this.configService.get<boolean>('svm.proofPolling.enabled') ?? true;
-  }
-
-  get proofPollingIntervalMs(): number {
-    const seconds = this.configService.get<number>('svm.proofPolling.intervalSeconds') ?? 30;
-    return seconds * 1000;
-  }
-
-  get proofPollingBatchSize(): number {
-    return this.configService.get<number>('svm.proofPolling.batchSize') ?? 100;
   }
 }

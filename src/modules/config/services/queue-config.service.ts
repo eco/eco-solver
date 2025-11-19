@@ -39,40 +39,6 @@ export class QueueConfigService {
   }
 
   /**
-   * Get execution queue job configuration
-   */
-  get executionJobOptions() {
-    const attempts = this.configService.get<number>('queue.execution.attempts', 3);
-    const backoffDelay = this.configService.get<number>('queue.execution.backoffDelay', 2000);
-    const useCustomBackoff = this.configService.get<boolean>(
-      'queue.execution.useCustomBackoff',
-      true,
-    );
-
-    return {
-      attempts,
-      backoff: useCustomBackoff
-        ? { type: 'exponentialCapped' as const }
-        : {
-            type: 'exponential' as const,
-            delay: backoffDelay,
-          },
-    };
-  }
-
-  /**
-   * Get execution queue backoff configuration for custom strategy
-   */
-  get executionBackoffConfig() {
-    return {
-      backoffDelay: this.configService.get<number>('queue.execution.backoffDelay', 2000),
-      backoffMaxDelay: this.configService.get<number>('queue.execution.backoffMaxDelay', 300000), // 5 minutes
-      backoffJitter: this.configService.get<number>('queue.execution.backoffJitter', 0.5),
-      useCustomBackoff: this.configService.get<boolean>('queue.execution.useCustomBackoff', true),
-    };
-  }
-
-  /**
    * Get retry configuration for temporary errors specifically
    */
   get temporaryRetryConfig() {

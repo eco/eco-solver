@@ -3,7 +3,6 @@ import { Test } from '@nestjs/testing';
 
 import { EvmNetworkConfig } from '@/config/schemas';
 import { EvmConfigService } from '@/modules/config/services/evm-config.service';
-import { FulfillmentConfigService } from '@/modules/config/services/fulfillment-config.service';
 
 describe('EvmConfigService', () => {
   let service: EvmConfigService;
@@ -83,12 +82,6 @@ describe('EvmConfigService', () => {
               }
               return undefined;
             }),
-          },
-        },
-        {
-          provide: FulfillmentConfigService,
-          useValue: {
-            defaultRouteLimit: undefined, // No global default in tests
           },
         },
       ],

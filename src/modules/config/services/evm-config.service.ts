@@ -20,14 +20,9 @@ import { ChainIdentifier } from '@/modules/token/types/token.types';
 
 import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
-import { FulfillmentConfigService } from './fulfillment-config.service';
-
 @Injectable()
 export class EvmConfigService implements IBlockchainConfigService {
-  constructor(
-    private configService: ConfigService,
-    private fulfillmentConfigService: FulfillmentConfigService,
-  ) {
+  constructor(private configService: ConfigService) {
     this._networks = new Map();
     this.initializeNetworks();
   }
@@ -80,18 +75,14 @@ export class EvmConfigService implements IBlockchainConfigService {
   }
 
   getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
-    return this.getEvmSupportedTokens(chainId).map((token) => {
-      // Apply global default limit if token doesn't have a specific limit
-      const limit = token.limit ?? this.fulfillmentConfigService.defaultRouteLimit;
-      return {
-        address: AddressNormalizer.normalizeEvm(token.address),
-        decimals: token.decimals,
-        symbol: token.symbol,
-        limit: limit,
-        fee: token.fee,
-        nonSwapGroups: token.nonSwapGroups,
-      };
-    });
+    return this.getEvmSupportedTokens(chainId).map((token) => ({
+      address: AddressNormalizer.normalizeEvm(token.address),
+      decimals: token.decimals,
+      symbol: token.symbol,
+      limit: token.limit,
+      fee: token.fee,
+      nonSwapGroups: token.nonSwapGroups,
+    }));
   }
 
   // Legacy method for backward compatibility
@@ -108,13 +99,11 @@ export class EvmConfigService implements IBlockchainConfigService {
 
   getTokenConfig(chainId: ChainIdentifier, tokenAddress: UniversalAddress): TokenConfig {
     const tokenConfig = this.getEvmTokenConfig(chainId, tokenAddress);
-    // Apply global default limit if token doesn't have a specific limit
-    const limit = tokenConfig.limit ?? this.fulfillmentConfigService.defaultRouteLimit;
     return {
       address: AddressNormalizer.normalizeEvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
-      limit: limit,
+      limit: tokenConfig.limit,
       fee: tokenConfig.fee,
       nonSwapGroups: tokenConfig.nonSwapGroups,
     };

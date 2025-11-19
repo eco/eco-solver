@@ -107,9 +107,6 @@ export class BasicWallet implements ISvmWallet {
           } else {
             span.addEvent('svm.transaction.submitting_versioned');
 
-            const blockheightInfo = await this.connection.getLatestBlockhash('confirmed');
-            const lastValidBlockHeight = blockheightInfo.lastValidBlockHeight;
-
             // For versioned transactions
             transaction.sign([this.keypair]);
             const signature = await this.connection.sendTransaction(transaction, {
@@ -119,21 +116,16 @@ export class BasicWallet implements ISvmWallet {
             });
 
             span.setAttribute('svm.transaction_signature', signature);
-            span.setAttribute('svm.last_valid_block_height', lastValidBlockHeight);
             span.addEvent('svm.transaction.submitted');
 
-            // Always wait for confirmation using blockhash-based strategy for better reliability
-            const messageBlockhash = transaction.message.recentBlockhash;
-            span.addEvent('svm.transaction.confirmation_started');
-            await this.connection.confirmTransaction(
-              {
-                signature: signature,
-                blockhash: messageBlockhash,
-                lastValidBlockHeight: lastValidBlockHeight,
-              },
-              options?.commitment || 'confirmed',
-            );
-            span.addEvent('svm.transaction.confirmed');
+            // Wait for confirmation if not skipping
+            if (!options?.skipPreflight) {
+              await this.connection.confirmTransaction(
+                signature,
+                options?.commitment || 'confirmed',
+              );
+              span.addEvent('svm.transaction.confirmed');
+            }
 
             span.setStatus({ code: api.SpanStatusCode.OK });
             return signature;

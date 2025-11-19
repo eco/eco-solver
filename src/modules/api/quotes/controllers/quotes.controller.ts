@@ -14,7 +14,6 @@ import { ApiZodBody, ApiZodResponse } from '@/common/decorators/zod-schema.decor
 import { QUOTES_ENDPOINT } from '@/modules/api/quotes/constants/endpoint';
 import { ValidateRequest } from '@/modules/api/quotes/decorators';
 
-import { QuotesEnabledGuard } from '../guards/quotes-enabled.guard';
 import { BigIntSerializerInterceptor } from '../interceptors/bigint-serializer.interceptor';
 import { BadRequestResponseSchema } from '../schemas/error-response.schema';
 import { QuoteRequest, QuoteRequestSchema } from '../schemas/quote-request.schema';
@@ -27,7 +26,7 @@ import { QuotesService } from '../services/quotes.service';
 
 @ApiTags('quotes')
 @Controller(QUOTES_ENDPOINT)
-@UseGuards(QuotesEnabledGuard, ThrottlerGuard)
+@UseGuards(ThrottlerGuard)
 @UseInterceptors(BigIntSerializerInterceptor)
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}

@@ -1,13 +1,9 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
-import { Logger } from '@nestjs/common';
-
 import * as yaml from 'js-yaml';
 
 import { mergeWithArrayReplacement } from '@/config/utils/merge.util';
-
-const logger = new Logger('YamlConfigLoader');
 
 /**
  * Loads configuration from YAML files
@@ -24,7 +20,7 @@ export function loadYamlConfig(configPaths?: string | string[]): Record<string, 
     const absolutePath = resolveConfigPath(configPath);
 
     if (!existsSync(absolutePath)) {
-      logger.debug(`Configuration file not found: ${absolutePath}`);
+      console.debug(`[YamlConfigLoader] Configuration file not found: ${absolutePath}`);
       continue;
     }
 
@@ -33,11 +29,11 @@ export function loadYamlConfig(configPaths?: string | string[]): Record<string, 
       const parsedConfig = yaml.load(fileContent) as Record<string, any>;
 
       if (parsedConfig && typeof parsedConfig === 'object') {
-        logger.log(`Loaded configuration from: ${absolutePath}`);
+        console.log(`[YamlConfigLoader] Loaded configuration from: ${absolutePath}`);
         mergedConfig = mergeWithArrayReplacement(mergedConfig, parsedConfig);
       }
     } catch (error) {
-      logger.error(`Failed to load configuration from ${absolutePath}:`, error);
+      console.error(`[YamlConfigLoader] Failed to load configuration from ${absolutePath}:`, error);
     }
   }
 

@@ -4,7 +4,6 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { AppConfigService } from '@/modules/config/services/app-config.service';
 
 import { QuotesController } from '../controllers/quotes.controller';
-import { QuotesEnabledGuard } from '../guards/quotes-enabled.guard';
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { SuccessfulQuoteResponse } from '../schemas/quote-response.schema';
 import { QuotesService } from '../services/quotes.service';
@@ -38,8 +37,6 @@ describe('QuotesController', () => {
       ],
     })
       .overrideGuard(ThrottlerGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(QuotesEnabledGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

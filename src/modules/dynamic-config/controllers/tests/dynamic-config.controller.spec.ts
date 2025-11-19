@@ -8,8 +8,12 @@ import { CreateConfigurationDTO } from '@/modules/dynamic-config/dtos/create-con
 import { UpdateConfigurationDTO } from '@/modules/dynamic-config/dtos/update-configuration.dto';
 import { ConfigurationType } from '@/modules/dynamic-config/enums/configuration-type.enum';
 import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
+import {
+  SIGNATURE_ADDRESS_HEADER,
+  SIGNATURE_EXPIRE_HEADER,
+  SIGNATURE_HEADER,
+} from '@/request-signing/interfaces/signature-headers.interface';
 import { RequestSignatureGuard } from '@/request-signing/request-signature.guard';
-import { getSignatureHeaders } from '@/request-signing/signature-headers';
 
 describe('ConfigurationController', () => {
   let controller: DynamicConfigController;
@@ -18,11 +22,9 @@ describe('ConfigurationController', () => {
   const mockRequest = {
     headers: {
       'user-agent': 'Mozilla/5.0',
-      ...getSignatureHeaders(
-        '0xdeadbeef',
-        '0x1234567890123456789012345678901234567890',
-        1234567890,
-      ),
+      [SIGNATURE_HEADER]: 'mock-signature',
+      [SIGNATURE_ADDRESS_HEADER]: '0x1234567890123456789012345678901234567890',
+      [SIGNATURE_EXPIRE_HEADER]: '1234567890',
     },
     get: jest.fn(),
   } as any;

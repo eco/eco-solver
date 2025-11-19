@@ -155,39 +155,6 @@ worker:
   lockDuration: 30000
 ```
 
-### Execution Queue Configuration
-
-The execution queue now supports configurable retry and backoff settings:
-
-| Environment Variable | Description | Default | Range |
-|---------------------|-------------|---------|-------|
-| `QUEUE_EXECUTION_ATTEMPTS` | Number of retry attempts | 3 | 1+ |
-| `QUEUE_EXECUTION_BACKOFF_DELAY` | Base delay for exponential backoff (ms) | 2000 | 100+ |
-| `QUEUE_EXECUTION_BACKOFF_MAX_DELAY` | Maximum backoff delay cap (ms) | 300000 (5 min) | 1000+ |
-| `QUEUE_EXECUTION_BACKOFF_JITTER` | Jitter factor to prevent thundering herd | 0.5 | 0-1 |
-| `QUEUE_EXECUTION_USE_CUSTOM_BACKOFF` | Enable exponentialCapped backoff strategy | true | true/false |
-
-#### ExponentialCapped Backoff Strategy
-
-The execution queue uses a custom backoff strategy that implements exponential backoff with a configurable cap and jitter:
-
-**Delay Calculation:**
-```
-delay = min(baseDelay * 2^(attempt-1), maxDelay) * (1 - random() * jitter)
-```
-
-**Features:**
-- **Exponential Growth**: Each retry doubles the delay (2000ms → 4000ms → 8000ms...)
-- **Maximum Cap**: Delays never exceed 5 minutes (300000ms) to prevent excessive waits
-- **Jitter**: Adds randomness (0-50% reduction by default) to prevent thundering herd issues when multiple jobs fail simultaneously
-
-**Example Delays** (with default configuration):
-- Attempt 1: 1000-2000ms (2000ms * 2^0 with 0.5 jitter)
-- Attempt 2: 2000-4000ms (2000ms * 2^1 with 0.5 jitter)
-- Attempt 3: 4000-8000ms (2000ms * 2^2 with 0.5 jitter)
-
-If delays reach the cap (5 minutes), subsequent retries will use delays between 2.5-5 minutes due to jitter.
-
 ## Queue Processors
 
 ### FulfillmentProcessor

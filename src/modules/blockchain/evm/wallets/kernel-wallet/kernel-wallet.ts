@@ -22,7 +22,7 @@ import { BaseEvmWallet } from '@/common/abstractions/base-evm-wallet.abstract';
 import { EvmCall, WriteContractsOptions } from '@/common/interfaces/evm-wallet.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { sum } from '@/common/utils/math';
-import { now } from '@/common/utils/time';
+import { minutes, now } from '@/common/utils/time';
 import { EvmNetworkConfig, KernelWalletConfig } from '@/config/schemas';
 import { EvmTransportService } from '@/modules/blockchain/evm/services/evm-transport.service';
 import { EvmWalletManager } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
@@ -474,9 +474,8 @@ export class KernelWallet extends BaseEvmWallet {
             throw new Error(`${msg}: ${getErrorMessage(error)}`);
           }
 
-          // Use configured expiration time (default: 30 minutes)
-          const expirationSeconds = this.kernelWalletConfig.executorSignatureExpiration ?? 1800;
-          const expiration = BigInt(now() + expirationSeconds);
+          // TODO: Make expiration time configurable
+          const expiration = BigInt(now() + minutes(30));
 
           // EIP-712 domain and types
           const domain = {

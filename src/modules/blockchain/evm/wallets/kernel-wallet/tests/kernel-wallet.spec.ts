@@ -145,7 +145,6 @@ describe('KernelWallet', () => {
           type: 'eoa',
           privateKey: '0xPrivateKey',
         },
-        executorSignatureExpiration: 1800,
       } as any;
 
       // Mock EVM wallet manager
@@ -237,7 +236,6 @@ describe('KernelWallet', () => {
         type: 'eoa',
         privateKey: '0xPrivateKey',
       },
-      executorSignatureExpiration: 1800,
     } as any;
 
     // Mock network config

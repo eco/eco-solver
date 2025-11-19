@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
-import { RouteAmountLimitSchema } from '@/config/schemas/route-limit.schema';
 import { TronAddress } from '@/modules/blockchain/tvm/types';
 
 export const TronAddressSchema = z
@@ -34,7 +33,19 @@ const TvmTokenSchema = z.object({
   address: TronAddressSchema, // Tron address format
   decimals: z.coerce.number().int().min(0).max(18),
   symbol: z.string().min(1).max(20),
-  limit: RouteAmountLimitSchema.optional(),
+  limit: z
+    .union([
+      z.coerce.number().int().positive(), // Backward compatible: acts as max
+      z
+        .object({
+          min: z.coerce.number().int().positive(),
+          max: z.coerce.number().int().positive(),
+        })
+        .refine((data) => data.min <= data.max, {
+          message: 'min must be less than or equal to max',
+        }),
+    ])
+    .optional(),
   fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
   // Token-specific swap groups configuration (highest priority)
   nonSwapGroups: z.array(z.string()).optional(),

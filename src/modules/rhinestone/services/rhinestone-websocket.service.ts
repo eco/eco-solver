@@ -359,15 +359,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         error,
       });
     });
-
-    this.ws.on('ping', (_data: Buffer) => {
-      this.logger.debug('Received ping from server');
-      // ws library automatically sends pong - no action needed
-    });
-
-    this.ws.on('pong', (_data: Buffer) => {
-      this.logger.debug('Received pong from server');
-    });
   }
 
   /**
@@ -559,9 +550,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
 
           // If we reach here, the message structure is invalid
           this.logger.warn('Received Ok message with invalid structure', message);
-          this.logger.warn(
-            `Received Ok message with invalid structure: ${JSON.stringify(message)}`,
-          );
           span.setAttribute('rhinestone.ws.invalid_structure', true);
           span.setStatus({
             code: api.SpanStatusCode.ERROR,
@@ -570,7 +558,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         } catch (error) {
           this.logger.error(`Error handling Ok message: ${error}`);
           span.recordException(normalizeError(error));
-          span.recordException(error as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {

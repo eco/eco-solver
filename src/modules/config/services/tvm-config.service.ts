@@ -17,14 +17,9 @@ import { ChainIdentifier } from '@/modules/token/types/token.types';
 
 import { IBlockchainConfigService, TokenConfig } from '../interfaces/blockchain-config.interface';
 
-import { FulfillmentConfigService } from './fulfillment-config.service';
-
 @Injectable()
 export class TvmConfigService implements IBlockchainConfigService {
-  constructor(
-    private configService: ConfigService,
-    private fulfillmentConfigService: FulfillmentConfigService,
-  ) {
+  constructor(private configService: ConfigService) {
     this._networks = new Map();
     this.initializeNetworks();
   }
@@ -77,18 +72,14 @@ export class TvmConfigService implements IBlockchainConfigService {
   getSupportedTokens(chainId: ChainIdentifier): TokenConfig[] {
     const numChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : Number(chainId);
     const network = this.getChain(numChainId);
-    return network.tokens.map((token) => {
-      // Apply global default limit if token doesn't have a specific limit
-      const limit = token.limit ?? this.fulfillmentConfigService.defaultRouteLimit;
-      return {
-        address: AddressNormalizer.normalizeTvm(token.address),
-        decimals: token.decimals,
-        symbol: token.symbol,
-        limit: limit,
-        fee: token.fee,
-        nonSwapGroups: token.nonSwapGroups,
-      };
-    });
+    return network.tokens.map((token) => ({
+      address: AddressNormalizer.normalizeTvm(token.address),
+      decimals: token.decimals,
+      symbol: token.symbol,
+      limit: token.limit,
+      fee: token.fee,
+      nonSwapGroups: token.nonSwapGroups,
+    }));
   }
 
   // Legacy method for backward compatibility
@@ -112,13 +103,11 @@ export class TvmConfigService implements IBlockchainConfigService {
     if (!tokenConfig) {
       throw new Error(`Unable to get token ${tokenAddress} config for chainId: ${chainId}`);
     }
-    // Apply global default limit if token doesn't have a specific limit
-    const limit = tokenConfig.limit ?? this.fulfillmentConfigService.defaultRouteLimit;
     return {
       address: AddressNormalizer.normalizeTvm(tokenConfig.address),
       decimals: tokenConfig.decimals,
       symbol: tokenConfig.symbol,
-      limit: limit,
+      limit: tokenConfig.limit,
       fee: tokenConfig.fee,
       nonSwapGroups: tokenConfig.nonSwapGroups,
     };

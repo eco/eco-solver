@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
-import { RouteAmountLimitSchema } from '@/config/schemas/route-limit.schema';
 
 export const EvmAddressSchema = z
   .string()
@@ -66,7 +65,19 @@ const EvmTokenSchema = z.object({
   address: EvmAddressSchema,
   decimals: z.coerce.number().int().min(0).max(18),
   symbol: z.string().min(1).max(20),
-  limit: RouteAmountLimitSchema.optional(),
+  limit: z
+    .union([
+      z.coerce.number().int().positive(), // Backward compatible: acts as max
+      z
+        .object({
+          min: z.coerce.number().int().positive(),
+          max: z.coerce.number().int().positive(),
+        })
+        .refine((data) => data.min <= data.max, {
+          message: 'min must be less than or equal to max',
+        }),
+    ])
+    .optional(),
   fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
   nonSwapGroups: z.array(z.string()).optional(),
 });
@@ -112,11 +123,7 @@ const OwnableExecutorConfigSchema = z.object({
       // Convert string keys to numbers for chainId mapping
       const result: Record<number, Address> = {};
       for (const [key, address] of Object.entries(value)) {
-        const chainId = parseInt(key, 10);
-        if (isNaN(chainId)) {
-          throw new Error(`Invalid chainId key in overrideModuleAddress: ${key}`);
-        }
-        result[chainId] = address;
+        result[parseInt(key, 10)] = address;
       }
       return result;
     }),
@@ -128,13 +135,6 @@ const OwnableExecutorConfigSchema = z.object({
 const KernelWalletConfigSchema = z.object({
   signer: z.union([KmsSignerConfigSchema, EOASignerConfigSchema]),
   ownableExecutor: OwnableExecutorConfigSchema.optional(),
-  executorSignatureExpiration: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .default(1800)
-    .describe('Signature expiration time in seconds (default: 1800 = 30 minutes)'),
 });
 
 /**

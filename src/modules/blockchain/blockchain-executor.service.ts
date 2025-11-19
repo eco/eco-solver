@@ -103,7 +103,7 @@ export class BlockchainExecutorService {
             });
             span.setStatus({ code: 0 }); // OK
           } else {
-            // Don't update status to FAILED yet - let BullMQ retry
+            await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
             this.logger.error(`Intent ${intent.intentHash} failed: ${result.error}`);
 
             span.setAttributes({
@@ -115,11 +115,11 @@ export class BlockchainExecutorService {
             });
             span.setStatus({ code: SpanStatusCode.ERROR, message: result.error });
             span.end();
-            throw new Error(result.error); // Trigger BullMQ retry
+            throw new Error(result.error);
           }
         } catch (error) {
           this.logger.error(`Error executing intent ${intent.intentHash}:`, getErrorMessage(error));
-          // Don't update status to FAILED yet - let BullMQ retry
+          await this.intentsService.updateStatus(intent.intentHash, IntentStatus.FAILED);
 
           span.recordException(error as Error);
           span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });

@@ -4,8 +4,6 @@ import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
-import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
-import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -48,28 +46,19 @@ export class RouteCallsValidation implements Validation {
           [`route.call.${i}.value`]: call.value?.toString() || '0',
         });
 
-        let isValidTokenTransferCall: boolean;
         try {
-          isValidTokenTransferCall = await this.blockchainReaderService.validateTokenTransferCall(
-            intent.destination,
-            call,
-          );
+          const isValidTokenTransferCall =
+            await this.blockchainReaderService.validateTokenTransferCall(intent.destination, call);
+
+          span?.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
+
+          if (!isValidTokenTransferCall) {
+            throw new Error(`Invalid token transfer call for target ${call.target}`);
+          }
         } catch (error) {
           span?.setAttribute(`route.call.${i}.validationError`, (error as Error).message);
-          throw new ValidationError(
+          throw new Error(
             `Invalid route call for target ${call.target} on chain ${intent.destination}: ${(error as Error).message}`,
-            ValidationErrorType.PERMANENT,
-            'RouteCallsValidation',
-          );
-        }
-
-        span?.setAttribute(`route.call.${i}.validTokenTransferCall`, isValidTokenTransferCall);
-
-        if (!isValidTokenTransferCall) {
-          throw new ValidationError(
-            `Invalid token transfer call for target ${call.target}`,
-            ValidationErrorType.PERMANENT,
-            'RouteCallsValidation',
           );
         }
       }

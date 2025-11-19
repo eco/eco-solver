@@ -559,10 +559,6 @@ export type PortalIdl = {
               };
             };
           },
-          {
-            name: 'destination';
-            type: 'u64';
-          },
         ];
       };
     },

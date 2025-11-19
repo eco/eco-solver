@@ -118,8 +118,6 @@ export class VaultWallet implements ISvmWallet {
       },
       async (span) => {
         try {
-          let lastValidBlockHeight: number | undefined;
-
           if (transaction instanceof Transaction) {
             span.addEvent('svm.vault.submitting_legacy');
 
@@ -128,13 +126,8 @@ export class VaultWallet implements ISvmWallet {
             transaction.feePayer = this.publicKey;
 
             if (!transaction.recentBlockhash) {
-              const blockheightInfo = await this.connection.getLatestBlockhash('confirmed');
-              transaction.recentBlockhash = blockheightInfo.blockhash;
-              lastValidBlockHeight = blockheightInfo.lastValidBlockHeight;
-            } else {
-              // If blockhash is already set, try to get the lastValidBlockHeight
-              const blockheightInfo = await this.connection.getLatestBlockhash('confirmed');
-              lastValidBlockHeight = blockheightInfo.lastValidBlockHeight;
+              const { blockhash } = await this.connection.getLatestBlockhash();
+              transaction.recentBlockhash = blockhash;
             }
 
             // Serialize and sign with Vault
@@ -153,17 +146,11 @@ export class VaultWallet implements ISvmWallet {
             });
 
             span.setAttribute('svm.transaction_signature', txSignature);
-            span.setAttribute('svm.last_valid_block_height', lastValidBlockHeight);
             span.addEvent('svm.transaction.submitted');
 
             // Wait for confirmation
-            span.addEvent('svm.transaction.confirmation_started');
             await this.connection.confirmTransaction(
-              {
-                signature: txSignature,
-                blockhash: transaction.recentBlockhash,
-                lastValidBlockHeight: lastValidBlockHeight!,
-              },
+              txSignature,
               options?.commitment || 'confirmed',
             );
 
@@ -173,9 +160,6 @@ export class VaultWallet implements ISvmWallet {
             return txSignature;
           } else {
             span.addEvent('svm.vault.submitting_versioned');
-
-            const blockheightInfo = await this.connection.getLatestBlockhash('confirmed');
-            lastValidBlockHeight = blockheightInfo.lastValidBlockHeight;
 
             // For versioned transactions
             const message = transaction.message.serialize();
@@ -192,22 +176,16 @@ export class VaultWallet implements ISvmWallet {
             });
 
             span.setAttribute('svm.transaction_signature', txSignature);
-            span.setAttribute('svm.last_valid_block_height', lastValidBlockHeight);
             span.addEvent('svm.transaction.submitted');
 
-            // Always wait for confirmation
-            // Extract blockhash from versioned transaction
-            const messageBlockhash = transaction.message.recentBlockhash;
-            span.addEvent('svm.transaction.confirmation_started');
-            await this.connection.confirmTransaction(
-              {
-                signature: txSignature,
-                blockhash: messageBlockhash,
-                lastValidBlockHeight: lastValidBlockHeight,
-              },
-              options?.commitment || 'confirmed',
-            );
-            span.addEvent('svm.transaction.confirmed');
+            // Wait for confirmation if not skipping
+            if (!options?.skipPreflight) {
+              await this.connection.confirmTransaction(
+                txSignature,
+                options?.commitment || 'confirmed',
+              );
+              span.addEvent('svm.transaction.confirmed');
+            }
 
             span.setStatus({ code: api.SpanStatusCode.OK });
             return txSignature;
