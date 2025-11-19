@@ -2,7 +2,6 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AppModule } from '@/app.module';
-import { EvmWalletManager } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { IntentsService } from '@/modules/intents/intents.service';
 
 import { waitForApp } from '../helpers/test-app.helper';
@@ -46,11 +45,6 @@ export interface E2ETestContext {
    * IntentsService for database operations
    */
   intentsService: IntentsService;
-
-  /**
-   * EvmWalletManager for accessing wallet addresses
-   */
-  evmWalletManager: EvmWalletManager;
 }
 
 /**
@@ -119,7 +113,6 @@ export async function setupTestContext(): Promise<{
 
   // Get services from the app
   const intentsService = app.get(IntentsService);
-  const evmWalletManager = app.get(EvmWalletManager);
 
   // Create cleanup function
   const cleanup = async () => {
@@ -139,7 +132,6 @@ export async function setupTestContext(): Promise<{
       app,
       baseUrl,
       intentsService,
-      evmWalletManager,
     },
     cleanup,
   };
