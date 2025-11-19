@@ -4,12 +4,13 @@ import {
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
+import type { RhinestoneEvents } from '@/modules/rhinestone/events';
 
 /**
  * Central event map defining all events and their payload types
  * This is the single source of truth for all events in the system
  */
-export interface EventMap {
+export interface EventMap extends RhinestoneEvents {
   /**
    * Emitted when an intent is successfully fulfilled on the destination chain
    */
