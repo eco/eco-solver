@@ -11,6 +11,7 @@ export * from './opentelemetry.schema';
 export * from './queue.schema';
 export * from './quotes.schema';
 export * from './redis.schema';
+export * from './rhinestone.schema';
 export * from './solana.schema';
 export * from './tvm.schema';
 export * from './withdrawal.schema';
