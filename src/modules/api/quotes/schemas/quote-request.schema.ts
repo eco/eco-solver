@@ -2,6 +2,8 @@ import { extendApi } from '@anatine/zod-openapi';
 import { z } from 'zod';
 
 import { zodBigIntString, zodBlockchainAddress } from '@/common/utils/zod-to-swagger.util';
+import { GaslessIntentDataDTOSchema } from '@/modules/api/gasless-intents/dtos/gasless-intent-request-dto.schema';
+import { IntentExecutionTypeKeys } from '@/modules/api/quotes/enums/intent-execution-type.enum';
 
 // Contracts schema for optional validation
 const ContractsSchema = extendApi(
@@ -40,8 +42,20 @@ export const QuoteRequestSchema = extendApi(
       description: 'Identifier of the requesting dApp',
       example: 'my-dapp-v1',
     }),
+
+    quoteID: extendApi(z.string(), {
+      description: 'Unique identifier for the quote request',
+      example: 'quote:d849d36a-6305-41ec-a3a2-531387d00f19',
+    }),
+
+    intentExecutionTypes: extendApi(z.array(z.enum(IntentExecutionTypeKeys)), {
+      description: 'Array of allowed execution types for this intent',
+      example: ['SELF_PUBLISH', 'GASLESS'],
+    }),
+
     quoteRequest: QuoteRequestInnerSchema,
     contracts: ContractsSchema.optional(),
+    gaslessIntentData: GaslessIntentDataDTOSchema.optional(),
   }),
   {
     description: 'Request body for getting a quote for a cross-chain token swap',

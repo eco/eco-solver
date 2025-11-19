@@ -3,7 +3,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
-import { UniversalAddress } from '@/common/types/universal-address.type';
+import { IntentReward, IntentRewardSchema } from '@/modules/intents/schemas/intent-reward.schema';
+import { IntentRoute, IntentRouteSchema } from '@/modules/intents/schemas/intent-route.schema';
 
 export type IntentDocument = Intent & Document;
 
@@ -12,73 +13,14 @@ export class Intent {
   @Prop({ required: true, unique: true, index: true })
   intentHash: string;
 
-  @Prop({
-    type: {
-      prover: { type: String, required: true },
-      creator: { type: String, required: true },
-      deadline: { type: String, required: true }, // Store bigint as string
-      nativeAmount: { type: String, required: true }, // Store bigint as string
-      tokens: [
-        {
-          amount: { type: String, required: true }, // Store bigint as string
-          token: { type: String, required: true },
-        },
-      ],
-    },
-    required: true,
-  })
-  reward: {
-    prover: UniversalAddress;
-    creator: UniversalAddress;
-    deadline: string;
-    nativeAmount: string;
-    tokens: {
-      amount: string;
-      token: UniversalAddress;
-    }[];
-  };
+  @Prop({ required: false })
+  intentGroupID?: string;
 
-  @Prop({
-    type: {
-      source: { type: String, required: true }, // Store bigint as string
-      destination: { type: String, required: true }, // Store bigint as string
-      salt: { type: String, required: true },
-      portal: { type: String, required: true },
-      deadline: { type: String, required: true }, // Store bigint as string
-      nativeAmount: { type: String, required: true }, // Store bigint as string
-      calls: [
-        {
-          data: { type: String, required: true },
-          target: { type: String, required: true },
-          value: { type: String, required: true }, // Store bigint as string
-        },
-      ],
-      tokens: [
-        {
-          amount: { type: String, required: true }, // Store bigint as string
-          token: { type: String, required: true },
-        },
-      ],
-    },
-    required: true,
-  })
-  route: {
-    source: string;
-    destination: string;
-    salt: string;
-    portal: UniversalAddress;
-    deadline: bigint;
-    nativeAmount: bigint;
-    calls: {
-      data: string;
-      target: UniversalAddress;
-      value: string;
-    }[];
-    tokens: {
-      amount: string;
-      token: UniversalAddress;
-    }[];
-  };
+  @Prop({ type: IntentRewardSchema, required: true })
+  reward: IntentReward;
+
+  @Prop({ type: IntentRouteSchema, required: true })
+  route: IntentRoute;
 
   @Prop({
     required: true,
@@ -115,6 +57,25 @@ export class Intent {
 
   @Prop({ type: String, index: true })
   publishTxHash?: string;
+
+  @Prop({
+    type: {
+      funder: { type: String, required: true },
+      complete: { type: Boolean, required: true },
+      txHash: { type: String, required: true, index: true },
+      blockNumber: { type: String, required: false }, // Store bigint as string
+      timestamp: { type: Date, required: true },
+      chainId: { type: String, required: true }, // Store bigint as string
+    },
+  })
+  fundedEvent?: {
+    funder: string;
+    complete: boolean;
+    txHash: string;
+    blockNumber?: string;
+    timestamp: Date;
+    chainId: string;
+  };
 
   @Prop({
     type: {
@@ -170,6 +131,8 @@ export class Intent {
 
 export const IntentSchema = SchemaFactory.createForClass(Intent);
 
+IntentSchema.index({ intentHash: 1 }, { unique: true });
+IntentSchema.index({ intentGroupID: 1 }, { unique: false });
 IntentSchema.index({ 'route.source': 1, status: 1 });
 IntentSchema.index({ 'route.destination': 1, status: 1 });
 IntentSchema.index({ 'reward.creator': 1, status: 1 });

@@ -14,8 +14,8 @@ export class AllowanceOrTransfer {
   @Prop({ required: true })
   account: string; // Hex string
 
-  @Prop({ required: true, type: String })
-  amountDelta: string; // Store bigint as string
+  @Prop({ required: true, type: BigInt })
+  amountDelta: bigint;
 }
 
 export const AllowanceOrTransferSchema = SchemaFactory.createForClass(AllowanceOrTransfer);

@@ -5,6 +5,7 @@ import { DataDogModule } from '@/modules/datadog/datadog.module';
 import { FulfillmentProcessor } from '@/modules/fulfillment/fulfillment.processor';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { IntentFulfilledHandler } from '@/modules/fulfillment/handlers/intent-fulfilled.handler';
+import { IntentFundedHandler } from '@/modules/fulfillment/handlers/intent-funded.handler';
 // Strategies
 import {
   CrowdLiquidityFulfillmentStrategy,
@@ -62,6 +63,7 @@ import { StrategyManagementService } from './services/strategy-management.servic
     FulfillmentService,
     FulfillmentProcessor,
     // Event handlers
+    IntentFundedHandler,
     IntentFulfilledHandler,
     // Strategies
     StandardFulfillmentStrategy,

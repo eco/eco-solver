@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { EventsModule } from '@/modules/events/events.module';
+import { IntentRepository } from '@/modules/intents/repositories/intent.repository';
 import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { QuoteRepository } from './repositories/quote.repository';
@@ -19,7 +20,7 @@ import { IntentsEventsHandler } from './intents-events.handler';
     EventsModule,
     LoggingModule,
   ],
-  providers: [IntentsService, IntentsEventsHandler, QuoteRepository],
-  exports: [IntentsService, QuoteRepository],
+  providers: [IntentsService, IntentRepository, IntentsEventsHandler, QuoteRepository],
+  exports: [IntentsService, IntentRepository, QuoteRepository],
 })
 export class IntentsModule {}

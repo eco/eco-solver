@@ -159,15 +159,17 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
 
     // Parse event based on chain type
     switch (jobData.chainType) {
+      case 'evm':
+        event = EvmEventParser.parseIntentFunded(BigInt(jobData.chainId), jobData.eventData);
+        break;
+
       case 'svm':
         // For Solana, eventData is already parsed
         event = jobData.eventData;
         break;
 
-      case 'evm':
       case 'tvm':
-        // IntentFunded events are currently only supported on SVM (Solana)
-        // EVM and TVM chains may not emit this event type
+        // IntentFunded events are not yet supported on TVM (Tron)
         this.logger.warn(
           `IntentFunded events are not yet supported on ${jobData.chainType} chains. Skipping event for intent ${jobData.intentHash}`,
         );

@@ -117,16 +117,19 @@ export class RouteEnabledValidation implements Validation {
 
           span.setAttribute('route.matches', routeMatches);
 
+          // Determine if route is enabled based on policy mode
+          const isWhitelistMode = config.mode === 'whitelist';
+
           // Apply whitelist/blacklist logic
-          const isEnabled = config.mode === 'whitelist' ? routeMatches : !routeMatches;
+          const isEnabled = isWhitelistMode
+            ? routeMatches // only allow if explicitly listed
+            : !routeMatches; // only allow if not explicitly blocked
 
           span.setAttribute('route.enabled', isEnabled);
 
           if (!isEnabled) {
-            const errorMessage =
-              config.mode === 'whitelist'
-                ? `Route ${intent.sourceChainId}:${intent.destination} is not in whitelist`
-                : `Route ${intent.sourceChainId}:${intent.destination} is blacklisted`;
+            const reason = isWhitelistMode ? 'is not in whitelist' : 'is blacklisted';
+            const errorMessage = `Route ${intent.sourceChainId}:${intent.destination} ${reason}`;
 
             throw new ValidationError(
               errorMessage,

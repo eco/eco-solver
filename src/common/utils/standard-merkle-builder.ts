@@ -1,6 +1,8 @@
-import { BadRequestException } from '@nestjs/common';
-
 import { concat, encodeAbiParameters, encodePacked, Hex, keccak256, pad, toBytes } from 'viem';
+
+import { EcoResponse } from '@/common/eco-response';
+import { EcoLogger } from '@/common/logging/eco-logger';
+import { EcoError } from '@/errors/eco-error';
 
 // Types matching latest Permit3 specification
 export interface AllowanceOrTransfer {
@@ -48,6 +50,8 @@ export interface CrossChainProofs {
 // Standard Merkle Builder for latest Permit3 specification
 // Compatible with OpenZeppelin's MerkleProof.processProof()
 export class StandardMerkleBuilder {
+  private logger = new EcoLogger(StandardMerkleBuilder.name);
+
   // EIP-712 typehash matching latest Permit3 contract
   private readonly CHAIN_PERMITS_TYPEHASH = keccak256(
     toBytes(
@@ -56,7 +60,9 @@ export class StandardMerkleBuilder {
     ),
   );
 
-  createMerkleTree(permitsByChain: Record<number, AllowanceOrTransfer[]>): MerkleTreeResult {
+  createMerkleTree(
+    permitsByChain: Record<number, AllowanceOrTransfer[]>,
+  ): EcoResponse<MerkleTreeResult> {
     try {
       // 1. Deterministic ordering by chainId
       const sortedEntries = Object.entries(permitsByChain)
@@ -64,7 +70,7 @@ export class StandardMerkleBuilder {
         .sort((a, b) => Number(a[0]) - Number(b[0]));
 
       if (sortedEntries.length === 0) {
-        throw new BadRequestException('No permits provided');
+        return { error: new Error('No permits provided') };
       }
 
       // 2. Compute leaves
@@ -82,8 +88,13 @@ export class StandardMerkleBuilder {
       }
 
       // 3. Build Merkle tree with proofs
-      const tree = this.buildMerkleTree(leaves);
-      const { root, proofs } = tree;
+      const { response: tree, error } = this.buildMerkleTree(leaves);
+
+      if (error) {
+        return { error };
+      }
+
+      const { root, proofs } = tree!;
 
       const proofsMap = new Map<bigint, MerkleProofData>();
       chainIds.forEach((chainId, idx) => {
@@ -95,17 +106,16 @@ export class StandardMerkleBuilder {
       });
 
       const result: MerkleTreeResult = {
-        tree,
+        tree: tree!,
         root,
         proofs: proofsMap,
         leafByChainId,
       };
 
-      return result;
-    } catch (ex) {
-      throw new BadRequestException(
-        `Failed to create Merkle tree: ${ex instanceof Error ? ex.message : String(ex)}`,
-      );
+      return { response: result };
+    } catch (ex: any) {
+      EcoError.logErrorWithStack(ex.message, `createMerkleTree: exception`, this.logger);
+      return { error: EcoError.MerkleTreeCreateError };
     }
   }
 
@@ -115,8 +125,18 @@ export class StandardMerkleBuilder {
   private hashAllowanceOrTransfer(permit: AllowanceOrTransfer): Hex {
     return keccak256(
       encodeAbiParameters(
-        [{ type: 'uint48' }, { type: 'bytes32' }, { type: 'address' }, { type: 'uint160' }],
-        [permit.modeOrExpiration, permit.tokenKey, permit.account, permit.amountDelta],
+        [
+          { type: 'uint48' },
+          { type: 'bytes32' }, // Changed from address to bytes32
+          { type: 'address' },
+          { type: 'uint160' },
+        ],
+        [
+          permit.modeOrExpiration,
+          permit.tokenKey, // Changed from token to tokenKey
+          permit.account,
+          permit.amountDelta,
+        ],
       ),
     );
   }
@@ -147,19 +167,33 @@ export class StandardMerkleBuilder {
   getProofForChain(
     chainId: bigint,
     permitsByChain: Record<number, AllowanceOrTransfer[]>,
-  ): MerkleProofData | undefined {
-    const treeResult = this.createMerkleTree(permitsByChain);
-    const { proofs } = treeResult;
-    return proofs.get(chainId);
+  ): EcoResponse<MerkleProofData> {
+    const { response: treeResult, error } = this.createMerkleTree(permitsByChain);
+
+    if (error) {
+      return { error };
+    }
+
+    const { proofs } = treeResult!;
+    const proofData = proofs.get(chainId);
+
+    return { response: proofData };
   }
 
   /**
    * Create merkle tree and proofs for cross-chain permits
    * This is the main method for cross-chain permit operations
    */
-  createCrossChainProofs(permitsByChain: Record<number, AllowanceOrTransfer[]>): CrossChainProofs {
-    const treeResult = this.createMerkleTree(permitsByChain);
-    const { root, proofs } = treeResult;
+  createCrossChainProofs(
+    permitsByChain: Record<number, AllowanceOrTransfer[]>,
+  ): EcoResponse<CrossChainProofs> {
+    const { response: treeResult, error } = this.createMerkleTree(permitsByChain);
+
+    if (error) {
+      return { error };
+    }
+
+    const { root, proofs } = treeResult!;
     const proofsByChainId = new Map<bigint, CrossChainProofData>();
 
     for (const [chainIdStr, permits] of Object.entries(permitsByChain)) {
@@ -167,9 +201,7 @@ export class StandardMerkleBuilder {
       const proofData = proofs.get(chainId);
 
       if (!proofData) {
-        throw new BadRequestException(
-          `Failed to create cross-chain proofs: missing proof for chain ${chainId}`,
-        );
+        return { error: EcoError.CrossChainProofsError };
       }
 
       proofsByChainId.set(chainId, {
@@ -180,8 +212,10 @@ export class StandardMerkleBuilder {
     }
 
     return {
-      merkleRoot: root,
-      proofsByChainId,
+      response: {
+        merkleRoot: root,
+        proofsByChainId,
+      },
     };
   }
 
@@ -197,9 +231,9 @@ export class StandardMerkleBuilder {
    * Build a Merkle tree with proofs for each leaf.
    * @param leaves array of leaf hashes
    */
-  private buildMerkleTree(leaves: Hex[]): MerkleTree {
+  private buildMerkleTree(leaves: Hex[]): EcoResponse<MerkleTree> {
     if (leaves.length === 0) {
-      throw new BadRequestException('Cannot build Merkle tree with empty leaves array');
+      return { error: EcoError.MerkleTreeCreateError };
     }
 
     // Start with leaf layer
@@ -245,9 +279,11 @@ export class StandardMerkleBuilder {
     });
 
     return {
-      root,
-      proofs,
-      leaves,
+      response: {
+        root,
+        proofs,
+        leaves,
+      },
     };
   }
 
@@ -278,7 +314,8 @@ export class StandardMerkleBuilder {
       }
 
       return computedHash.toLowerCase() === root.toLowerCase();
-    } catch (ex) {
+    } catch (ex: any) {
+      EcoError.logErrorWithStack(ex.message, `verifyProof: exception`, this.logger);
       return false;
     }
   }
@@ -292,7 +329,7 @@ export class StandardMerkleBuilder {
       chainId: BigInt(chainId),
       permits: permits.map((p) => ({
         modeOrExpiration: p.modeOrExpiration,
-        tokenKey: p.tokenKey,
+        tokenKey: p.tokenKey, // Changed from token to tokenKey
         account: p.account,
         amountDelta: p.amountDelta,
       })),
@@ -307,7 +344,7 @@ export class StandardMerkleBuilder {
     tokenAddress: Hex,
     account: Hex,
     amountDelta: bigint,
-    modeOrExpiration = 0,
+    modeOrExpiration: number = 0,
   ): AllowanceOrTransfer {
     return {
       modeOrExpiration,
@@ -326,7 +363,7 @@ export class StandardMerkleBuilder {
     tokenId: bigint,
     account: Hex,
     amountDelta = 1n, // Usually 1 for NFTs
-    modeOrExpiration = 0,
+    modeOrExpiration: number = 0,
   ): AllowanceOrTransfer {
     return {
       modeOrExpiration,

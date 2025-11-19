@@ -4,12 +4,16 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as api from '@opentelemetry/api';
 import { Model } from 'mongoose';
 
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoLogger } from '@/common/logging/eco-logger';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { Quote, QuoteDocument } from '../schemas/quote.schema';
 
 @Injectable()
 export class QuoteRepository {
+  private logger = new EcoLogger(QuoteRepository.name);
+
   constructor(
     @InjectModel(Quote.name)
     private readonly model: Model<QuoteDocument>,
@@ -21,7 +25,7 @@ export class QuoteRepository {
    * @param quoteID Quote identifier
    * @returns Quote or null
    */
-  async findByQuoteId(quoteID: string): Promise<Quote | null> {
+  async findByQuoteID(quoteID: string): Promise<Quote | null> {
     const span = this.otelService.startSpan('quote.repository.findByQuoteId', {
       attributes: {
         'quote.id': quoteID,
@@ -50,7 +54,7 @@ export class QuoteRepository {
    * @returns Quote
    * @throws NotFoundException if quote not found
    */
-  async getByQuoteId(quoteID: string): Promise<Quote> {
+  async getByQuoteID(quoteID: string): Promise<Quote> {
     const span = this.otelService.startSpan('quote.repository.getByQuoteId', {
       attributes: {
         'quote.id': quoteID,
@@ -58,7 +62,7 @@ export class QuoteRepository {
     });
 
     try {
-      const quote = await this.findByQuoteId(quoteID);
+      const quote = await this.findByQuoteID(quoteID);
 
       if (!quote) {
         const error = new NotFoundException(`Quote not found: quoteID=${quoteID}`);
@@ -87,6 +91,15 @@ export class QuoteRepository {
    * @returns Saved quote
    */
   async create(quote: Quote): Promise<Quote> {
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `create quote`,
+        properties: {
+          quote,
+        },
+      }),
+    );
+
     const span = this.otelService.startSpan('quote.repository.create', {
       attributes: {
         'quote.id': quote.quoteID,

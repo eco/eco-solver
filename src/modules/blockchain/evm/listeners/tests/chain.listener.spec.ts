@@ -252,7 +252,7 @@ describe('ChainListener', () => {
       await listener.start();
       await listener.stop();
 
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(3); // Called for IntentPublished, IntentFulfilled, and IntentWithdrawn (0 provers configured)
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(4); // Called for IntentPublished, IntentFunded, IntentFulfilled, and IntentWithdrawn (0 provers configured)
     });
 
     it('should handle stop without start', async () => {
@@ -266,8 +266,8 @@ describe('ChainListener', () => {
       await listener.stop();
       await listener.stop();
 
-      // Called twice for each subscription (3 subscriptions x 2 stop calls = 6)
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(6);
+      // Called twice for each subscription (4 subscriptions x 2 stop calls = 8)
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(8);
     });
   });
 

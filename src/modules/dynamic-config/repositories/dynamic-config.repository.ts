@@ -91,34 +91,10 @@ export class DynamicConfigRepository implements IConfigurationRepository {
       const skip = (page - 1) * limit;
       const sortObj: Record<string, 1 | -1> = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `findAllWithFilteringAndPagination`,
-          properties: {
-            filter,
-            pagination,
-            query,
-            sortObj,
-            skip,
-            limit,
-          },
-        }),
-      );
-
       const [data, total] = await Promise.all([
         this.configurationModel.find(query).sort(sortObj).skip(skip).limit(limit).exec(),
         this.configurationModel.countDocuments(query).exec(),
       ]);
-
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `findAllWithFilteringAndPagination: result`,
-          properties: {
-            data,
-            total,
-          },
-        }),
-      );
 
       const totalPages = Math.ceil(total / limit);
 
