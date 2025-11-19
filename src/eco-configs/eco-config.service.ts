@@ -1,8 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
-import * as _ from 'lodash'
-import * as config from 'config'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
-import { ConfigSource } from './interfaces/config-source.interface'
+import { addressKeys } from '@/common/viem/utils'
 import {
   AwsCredential,
   EcoConfigType,
@@ -13,12 +9,23 @@ import {
   Solver,
 } from './eco-config.types'
 import { Chain, getAddress, Hex, zeroAddress } from 'viem'
-import { addressKeys } from '@/common/viem/utils'
 import { ChainsSupported } from '@/common/chains/supported'
-import { getChainConfig } from './utils'
+import { ConfigSource } from './interfaces/config-source.interface'
+import {
+  DynamicConfigService,
+  ConfigurationChangeEvent,
+} from '@/dynamic-config/services/dynamic-config.service'
 import { EcoChain, EcoChains } from '@eco-foundation/chains'
 import { EcoError } from '@/common/errors/eco-error'
+import { EcoLogMessage } from '@/common/logging/eco-log-message'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { getChainConfig } from './utils'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import { TransportConfig } from '@/common/chains/transport'
+import * as _ from 'lodash'
+import * as config from 'config'
+import { EcoLogger } from '@/common/logging/eco-logger'
 
 /**
  * Service class for managing application configuration from multiple sources.
@@ -43,11 +50,14 @@ import { TransportConfig } from '@/common/chains/transport'
  * earlier ones when conflicts exist, while preserving non-conflicting values.
  */
 @Injectable()
-export class EcoConfigService {
-  private logger = new Logger(EcoConfigService.name)
+export class EcoConfigService implements OnModuleInit {
+  private logger = new EcoLogger(EcoConfigService.name)
   private externalConfigs: any = {}
   private ecoConfig: config.IConfig
   private ecoChains: EcoChains
+  private mongoConfig: Record<string, any> = {}
+  private configurationService: DynamicConfigService
+  private eventEmitter: EventEmitter2
 
   constructor(private readonly sources: ConfigSource[]) {
     this.sources.reduce((prev, curr) => {
@@ -66,7 +76,53 @@ export class EcoConfigService {
     return config as unknown as EcoConfigType
   }
 
-  async onModuleInit() {}
+  async onModuleInit() {
+    const moduleRef = ModuleRefProvider.getModuleRef()
+    this.configurationService = moduleRef?.get(DynamicConfigService, { strict: false })
+    this.eventEmitter = moduleRef?.get(EventEmitter2, { strict: false })
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `${EcoConfigService.name}.onModuleInit`,
+        properties: {
+          isMongoConfigurationEnabled: this.isMongoConfigurationEnabled(),
+          haveEventEmitter: Boolean(this.eventEmitter),
+        },
+      }),
+    )
+
+    // Load MongoDB configurations if ConfigurationService is available
+    if (!this.isMongoConfigurationEnabled()) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `MongoDB configuration integration not available, using static configurations only`,
+        }),
+      )
+
+      return
+    }
+
+    const result = await this.configurationService.getAll()
+    this.mongoConfig = result.data.reduce(
+      (acc, config) => {
+        acc[config.key] = config.value
+        return acc
+      },
+      {} as Record<string, any>,
+    )
+
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: `MongoDB configuration integration enabled. Loaded ${Object.keys(this.mongoConfig).length} configurations`,
+      }),
+    )
+
+    // Re-merge configurations with MongoDB values
+    this.mergeConfigurations()
+
+    // Subscribe to configuration changes for reactive updates via EventEmitter
+    this.subscribeToConfigChanges()
+  }
 
   // Initialize the configs
   initConfigs() {
@@ -83,9 +139,132 @@ export class EcoConfigService {
     this.ecoChains = new EcoChains(this.getRpcConfig().keys)
   }
 
+  /**
+   * Merge configurations from all sources with proper priority:
+   * 1. External configs (lowest priority)
+   * 2. Static configs from config package (medium priority)
+   * 3. MongoDB configs (highest priority)
+   */
+  private mergeConfigurations() {
+    // Start with external configs, then static configs, then MongoDB configs
+    this.ecoConfig = config.util.extendDeep({}, this.ecoConfig, this.mongoConfig || {})
+  }
+
+  private subscribeToConfigChanges() {
+    if (!this.eventEmitter) {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `eventEmitter not available, cannot subscribe to config changes`,
+        }),
+      )
+
+      return
+    }
+
+    this.eventEmitter.on('configuration.changed', (event: ConfigurationChangeEvent) => {
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Configuration updated from MongoDB: ${event.key}`,
+        }),
+      )
+
+      if (event.operation === 'DELETE') {
+        delete this.mongoConfig[event.key]
+      } else {
+        this.mongoConfig[event.key] = event.newValue
+      }
+
+      this.mergeConfigurations()
+    })
+  }
+
   // Generic getter for key/val of config object
   get<T>(key: string): T {
     return this.ecoConfig.get<T>(key)
+  }
+
+  isRequestSignatureValidationEnabled(): boolean {
+    return this.get<boolean>('requestSignatureValidationEnabled')
+  }
+
+  getDynamicConfigAllowedAddresses(): string[] {
+    return this.get<string[]>('dynamicConfigAllowedAddresses') || []
+  }
+
+  /**
+   * Get configuration value with MongoDB override support
+   * This method first checks MongoDB configurations, then falls back to static configs
+   */
+  getWithMongoOverride<T>(key: string): T {
+    // Check if MongoDB has this configuration
+    if (this.mongoConfig && key in this.mongoConfig) {
+      return this.mongoConfig[key] as T
+    }
+    // Fall back to regular config
+    return this.get<T>(key)
+  }
+
+  /**
+   * Get all MongoDB configurations
+   */
+  getMongoConfigurations(): Record<string, any> {
+    return { ...this.mongoConfig }
+  }
+
+  /**
+   * Check if MongoDB configuration integration is active
+   */
+  isMongoConfigurationEnabled(): boolean {
+    return Boolean(this.configurationService)
+  }
+
+  /**
+   * Get configuration source information for debugging
+   */
+  getConfigurationSources(): {
+    external: boolean
+    static: boolean
+    mongodb: boolean
+    mongoConfigCount: number
+  } {
+    return {
+      external: this.sources.length > 0,
+      static: true, // Always available
+      mongodb: this.isMongoConfigurationEnabled(),
+      mongoConfigCount: Object.keys(this.mongoConfig).length,
+    }
+  }
+
+  /**
+   * Update a configuration value in MongoDB (if available)
+   * This maintains backward compatibility by gracefully handling when MongoDB is not available
+   */
+  async updateMongoConfiguration(key: string, value: any, userId?: string): Promise<boolean> {
+    if (!this.isMongoConfigurationEnabled()) {
+      this.logger.warn(
+        EcoLogMessage.fromDefault({
+          message: `Cannot update configuration '${key}': MongoDB integration not available`,
+        }),
+      )
+      return false
+    }
+
+    try {
+      await this.configurationService.update(key, { value }, userId || 'system')
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Successfully updated MongoDB configuration: ${key}`,
+        }),
+      )
+      return true
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `Failed to update MongoDB configuration '${key}': ${error.message}`,
+        }),
+      )
+      return false
+    }
   }
 
   // Returns the alchemy configs
@@ -351,33 +530,35 @@ export class EcoConfigService {
    * @returns The RPC URL string for the specified chain
    */
   getRpcUrls(chain: Chain): { rpcUrls: string[]; config: TransportConfig } {
-    let { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
+    const { webSockets: isWebSocketEnabled = true } = this.getRpcConfig().config
 
-    const rpcChain = this.ecoChains.getChain(chain.id)
-    const custom = rpcChain.rpcUrls.custom
-    const def = rpcChain.rpcUrls.default
-
+    const rpcUrls = this.ecoChains.getRpcUrlsForChain(chain.id, {
+      isWebSocketEnabled,
+      preferredProviders: ['alchemy', 'infura'],
+    })
     const customRpcUrls = this.getCustomRPCUrl(chain.id.toString())
 
-    let rpcs: string[] = []
-    if (isWebSocketEnabled) {
-      rpcs = [...(custom?.webSocket || def?.webSocket || [])]
-    } else {
-      rpcs = [...(custom?.http || def?.http || [])]
+    const rpcs: string[] = []
+    if (customRpcUrls) {
+      // Prioritize custom RPC URLs if they exist
+      if (isWebSocketEnabled && customRpcUrls.webSocket?.length) {
+        rpcs.push(...customRpcUrls.webSocket)
+      }
+      if (customRpcUrls.http?.length) {
+        rpcs.push(...customRpcUrls.http)
+      }
     }
-
-    const config: TransportConfig['config'] = customRpcUrls?.config
-
-    if (customRpcUrls?.http) {
-      isWebSocketEnabled = Boolean(customRpcUrls.webSocket?.length)
-      rpcs = isWebSocketEnabled ? customRpcUrls.webSocket || [] : customRpcUrls.http || []
-    }
+    // Fallback to default RPC URLs
+    rpcs.push(...rpcUrls)
 
     if (!rpcs.length) {
       throw EcoError.ChainRPCNotFound(chain.id)
     }
 
-    return { rpcUrls: rpcs, config: { isWebsocket: isWebSocketEnabled, config } }
+    return {
+      rpcUrls: [...new Set(rpcs)], // Ensure unique URLs
+      config: customRpcUrls?.config,
+    }
   }
 
   /**

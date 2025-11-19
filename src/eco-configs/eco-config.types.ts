@@ -26,6 +26,7 @@ export type EcoConfigType = {
   quotesConfig: QuotesConfig
   solverRegistrationConfig: SolverRegistrationConfig
   intentConfigs: IntentConfig
+  dynamicConfigAllowedAddresses: string[]
   // Global per-route fee overrides
   routeFeeOverrides?: RouteFeeOverride[]
   fulfillmentEstimate: FulfillmentEstimateConfig

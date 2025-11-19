@@ -292,12 +292,22 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
               error: err as any,
             }),
           )
-          // do not mark as completed here; leave as is for operator to retry
+          // Mark rebalance as FAILED since we cannot continue the flow
+          try {
+            await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.FAILED)
+          } catch {}
           return
         }
       }
 
       // No destination swap required → mark rebalance as completed
+      processor.logger.debug(
+        EcoLogMessage.withId({
+          message: 'USDT0: CheckOFTDeliveryJob: No destination swap required, marking COMPLETED',
+          id: job.data.id,
+          properties: { rebalanceJobID, groupID },
+        }),
+      )
       await this.rebalanceRepository.updateStatus(rebalanceJobID, RebalanceStatus.COMPLETED)
     }
   }
