@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
 import { Address, encodeFunctionData, erc20Abi, Hex } from 'viem';
@@ -10,6 +10,7 @@ import {
   ExecutionResult,
 } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -21,11 +22,15 @@ import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.serv
 import { ProverService } from '@/modules/prover/prover.service';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
+import { FundForParams, Permit3Params } from '../../interfaces/executor-params.interface';
+
 import { EvmTransportService } from './evm-transport.service';
 import { EvmWalletManager, WalletType } from './evm-wallet-manager.service';
 
 @Injectable()
 export class EvmExecutorService extends BaseChainExecutor {
+  private ecoLogger = new Logger(EvmExecutorService.name);
+
   constructor(
     private evmConfigService: EvmConfigService,
     private blockchainConfigService: BlockchainConfigService,
@@ -299,97 +304,45 @@ export class EvmExecutorService extends BaseChainExecutor {
 
   /**
    * Execute permit3 transaction for cross-chain token approvals
-   * @param chainId Chain ID where permit will be executed
-   * @param permitContract Address of the Permit3 contract
-   * @param owner Owner address of the tokens
-   * @param salt Unique salt value
-   * @param deadline Expiration timestamp (uint48)
-   * @param timestamp Unix timestamp when permit was created
-   * @param permits Array of permit entries for this chain
-   * @param merkleProof Merkle proof for cross-chain validation
-   * @param signature EIP-712 signature
-   * @param walletType Wallet type to use for execution
+   * @param params Permit3 parameters
    * @returns Transaction hash
    */
-  async permit3(
-    chainId: number,
-    permitContract: UniversalAddress,
-    owner: UniversalAddress,
-    salt: Hex,
-    deadline: number,
-    timestamp: number,
-    permits: Array<{
-      modeOrExpiration: number;
-      tokenKey: Hex;
-      account: UniversalAddress;
-      amountDelta: bigint;
-    }>,
-    merkleProof: Hex[],
-    signature: Hex,
-    walletType: WalletType = 'kernel',
-  ): Promise<Hex> {
+  async permit3(params: Permit3Params, walletId: WalletType): Promise<Hex> {
     return this.otelService.tracer.startActiveSpan(
       'evm.executor.permit3',
       {
         attributes: {
-          'evm.chain_id': chainId.toString(),
-          'evm.wallet_type': walletType,
-          'evm.permit_count': permits.length,
+          'evm.chain_id': params.chainId.toString(),
+          'evm.wallet_type': walletId,
+          'evm.permit_count': params.permits.length,
           'evm.operation': 'permit3',
         },
       },
       async (span) => {
         try {
-          // Convert UniversalAddress to Hex
-          const permitContractHex = AddressNormalizer.denormalizeToEvm(permitContract);
-          const ownerHex = AddressNormalizer.denormalizeToEvm(owner);
+          // Build the permit3 call using the helper
+          const call = this.buildPermit3Call(params);
 
           // Get wallet for this chain
-          const wallet = this.walletManager.getWallet(walletType, chainId);
+          const wallet = this.walletManager.getWallet(walletId, params.chainId);
 
-          // Convert permits accounts to Hex
-          const permitsHex = permits.map((p) => ({
-            modeOrExpiration: p.modeOrExpiration,
-            tokenKey: p.tokenKey,
-            account: AddressNormalizer.denormalizeToEvm(p.account),
-            amountDelta: p.amountDelta,
-          }));
+          this.logger.log(
+            `Executing permit3 on chain ${params.chainId} with ${params.permits.length} permits`,
+          );
 
-          // Encode the permit function call
-          const data = encodeFunctionData({
-            abi: permit3Abi,
-            functionName: 'permit',
-            args: [
-              ownerHex,
-              salt,
-              deadline,
-              timestamp,
-              {
-                chainId: BigInt(chainId),
-                permits: permitsHex,
-              },
-              merkleProof,
-              signature,
-            ],
-          });
-
-          this.logger.log(`Executing permit3 on chain ${chainId} with ${permits.length} permits`);
-
-          span.setAttribute('evm.permit_contract', permitContractHex);
+          span.setAttribute('evm.permit_contract', call.to);
 
           // Execute the transaction
-          const txHash = await wallet.writeContract({
-            to: permitContractHex,
-            data,
-            value: 0n,
-          });
+          const txHash = await wallet.writeContract(call);
 
           span.setAttributes({
             'evm.tx_hash': txHash,
             'evm.status': 'success',
           });
 
-          this.logger.log(`Successfully executed permit3 on chain ${chainId}. TxHash: ${txHash}`);
+          this.logger.log(
+            `Successfully executed permit3 on chain ${params.chainId}. TxHash: ${txHash}`,
+          );
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return txHash;
@@ -397,7 +350,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           this.logger.error(
-            `Failed to execute permit3 on chain ${chainId}: ${getErrorMessage(error)}`,
+            `Failed to execute permit3 on chain ${params.chainId}: ${getErrorMessage(error)}`,
             toError(error),
           );
           throw error;
@@ -410,89 +363,80 @@ export class EvmExecutorService extends BaseChainExecutor {
 
   /**
    * Execute fundFor transaction to fund an intent on behalf of a user
-   * @param chainId Source chain ID
-   * @param destination Destination chain ID
-   * @param routeHash Hash of the route
-   * @param reward Reward structure
-   * @param allowPartial Whether to allow partial funding
-   * @param funder Address funding the intent
-   * @param permitContract Address of the Permit3 contract
-   * @param walletType Wallet type to use for execution
+   * @param params FundFor parameters
    * @returns Transaction hash
    */
-  async fundFor(
-    chainId: number,
-    destination: bigint,
-    routeHash: Hex,
-    reward: Intent['reward'],
-    allowPartial: boolean,
-    funder: UniversalAddress,
-    permitContract: UniversalAddress,
-    walletType: WalletType = 'kernel',
-  ): Promise<Hex> {
+  async fundFor(params: FundForParams, walletId: WalletType): Promise<Hex> {
     return this.otelService.tracer.startActiveSpan(
       'evm.executor.fundFor',
       {
         attributes: {
-          'evm.chain_id': chainId.toString(),
-          'evm.destination_chain': destination.toString(),
-          'evm.wallet_type': walletType,
-          'evm.allow_partial': allowPartial,
+          'evm.chain_id': params.chainId.toString(),
+          'evm.destination_chain': params.destination.toString(),
+          'evm.wallet_type': walletId,
+          'evm.allow_partial': params.allowPartial,
           'evm.operation': 'fundFor',
         },
       },
       async (span) => {
         try {
-          // Convert UniversalAddress to Hex
-          const funderHex = AddressNormalizer.denormalizeToEvm(funder);
-          const permitContractHex = AddressNormalizer.denormalizeToEvm(permitContract);
+          this.ecoLogger.log(
+            EcoLogMessage.withUser({
+              message: `fundFor: entry`,
+              userID: params.funder,
+              properties: {
+                chainId: params.chainId,
+                destination: params.destination,
+                routeHash: params.routeHash,
+                allowPartial: params.allowPartial,
+                permitContract: params.permitContract,
+                walletType: walletId,
+              },
+            }),
+          );
 
-          // Convert reward addresses to Hex
-          const rewardHex = {
-            deadline: reward.deadline,
-            creator: AddressNormalizer.denormalizeToEvm(reward.creator),
-            prover: AddressNormalizer.denormalizeToEvm(reward.prover),
-            nativeAmount: reward.nativeAmount,
-            tokens: reward.tokens.map((t) => ({
-              token: AddressNormalizer.denormalizeToEvm(t.token),
-              amount: t.amount,
-            })),
-          };
+          // Build the fundFor call using the helper
+          const call = this.buildFundForCall(params);
 
           // Get wallet for this chain
-          const wallet = this.walletManager.getWallet(walletType, chainId);
+          const wallet = this.walletManager.getWallet(walletId, params.chainId);
 
-          // Get Portal address from config
-          const portalAddressUA = this.evmConfigService.getPortalAddress(chainId);
-          if (!portalAddressUA) {
-            throw new Error(`No Portal address configured for chain ${chainId}`);
-          }
-          const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
+          span.setAttribute('portal.address', call.to);
 
-          span.setAttribute('portal.address', portalAddress);
+          this.ecoLogger.log(
+            EcoLogMessage.fromDefault({
+              message: `fundFor: wallet.writeContract`,
+              properties: {
+                to: call.to,
+                data: call.data,
+              },
+            }),
+          );
 
-          // Encode the fundFor function call
-          const data = encodeFunctionData({
-            abi: portalAbi,
-            functionName: 'fundFor',
-            args: [destination, routeHash, rewardHex, allowPartial, funderHex, permitContractHex],
-          });
-
-          this.logger.log(`Executing fundFor on chain ${chainId} for destination ${destination}`);
+          this.logger.log(
+            `Executing fundFor on chain ${params.chainId} for destination ${params.destination}`,
+          );
 
           // Execute the transaction
-          const txHash = await wallet.writeContract({
-            to: portalAddress,
-            data,
-            value: 0n,
-          });
+          const txHash = await wallet.writeContract(call);
+
+          this.ecoLogger.log(
+            EcoLogMessage.fromDefault({
+              message: `fundFor: txHash`,
+              properties: {
+                txHash,
+              },
+            }),
+          );
 
           span.setAttributes({
             'evm.tx_hash': txHash,
             'evm.status': 'success',
           });
 
-          this.logger.log(`Successfully executed fundFor on chain ${chainId}. TxHash: ${txHash}`);
+          this.logger.log(
+            `Successfully executed fundFor on chain ${params.chainId}. TxHash: ${txHash}`,
+          );
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return txHash;
@@ -500,7 +444,7 @@ export class EvmExecutorService extends BaseChainExecutor {
           span.recordException(toError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           this.logger.error(
-            `Failed to execute fundFor on chain ${chainId}: ${getErrorMessage(error)}`,
+            `Failed to execute fundFor on chain ${params.chainId}: ${getErrorMessage(error)}`,
             toError(error),
           );
           throw error;
@@ -509,5 +453,174 @@ export class EvmExecutorService extends BaseChainExecutor {
         }
       },
     );
+  }
+
+  /**
+   * Execute a permit3 transaction followed by multiple fundFor transactions in a single atomic batch
+   * Uses multicall3 for atomic execution - all calls succeed or all fail
+   * @param permit3Params Permit3 parameters
+   * @param fundForCalls Array of fundFor parameters for multiple intents
+   * @returns Transaction hash of the batched transaction
+   */
+  async fundForWithPermit3(
+    permit3Params: Permit3Params,
+    fundForCalls: FundForParams[],
+    walletId: WalletType,
+  ): Promise<Hex> {
+    const chainId = permit3Params.chainId;
+
+    return this.otelService.tracer.startActiveSpan(
+      'evm.executor.fundForWithPermit3',
+      {
+        attributes: {
+          'evm.chain_id': chainId.toString(),
+          'evm.wallet_type': walletId,
+          'evm.fundFor_count': fundForCalls.length,
+          'evm.operation': 'fundForWithPermit3',
+        },
+      },
+      async (span) => {
+        try {
+          this.logger.log(
+            `Executing fundForWithPermit3 on chain ${chainId} with ${fundForCalls.length} fundFor calls`,
+          );
+
+          // Build single permit3 call
+          const permit3EvmCall = this.buildPermit3Call(permit3Params);
+
+          // Build all fundFor calls
+          const fundForEvmCalls = fundForCalls.map((params) => this.buildFundForCall(params));
+
+          // Combine all calls into a single array
+          const allCalls = [permit3EvmCall, ...fundForEvmCalls];
+
+          span.setAttributes({
+            'evm.total_calls': allCalls.length,
+            'portal.address': fundForEvmCalls[0]?.to,
+          });
+
+          // Get wallet for this chain
+          const wallet = this.walletManager.getWallet(walletId, chainId);
+
+          // Execute all calls atomically using multicall3 (writeContracts uses multicall3 by default)
+          const [txHash] = await wallet.writeContracts(allCalls);
+
+          span.setAttributes({
+            'evm.tx_hash': txHash,
+            'evm.status': 'success',
+          });
+
+          this.logger.log(
+            `Successfully executed fundForWithPermit3 on chain ${chainId}. TxHash: ${txHash}`,
+          );
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return txHash;
+        } catch (error) {
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          this.logger.error(
+            `Failed to execute fundForWithPermit3 on chain ${chainId}: ${getErrorMessage(error)}`,
+            toError(error),
+          );
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Builds a permit3 transaction call
+   * @param params Permit3 parameters
+   * @returns EvmCall object with encoded transaction data
+   */
+  private buildPermit3Call(params: Permit3Params): { to: Address; data: Hex; value: bigint } {
+    // Convert UniversalAddress to Hex
+    const permitContractHex = AddressNormalizer.denormalizeToEvm(params.permitContract);
+    const ownerHex = AddressNormalizer.denormalizeToEvm(params.owner);
+
+    // Convert permits accounts to Hex
+    const permitsHex = params.permits.map((p) => ({
+      modeOrExpiration: p.modeOrExpiration,
+      tokenKey: p.tokenKey,
+      account: AddressNormalizer.denormalizeToEvm(p.account),
+      amountDelta: p.amountDelta,
+    }));
+
+    // Encode the permit function call
+    const data = encodeFunctionData({
+      abi: permit3Abi,
+      functionName: 'permit',
+      args: [
+        ownerHex,
+        params.salt,
+        params.deadline,
+        params.timestamp,
+        {
+          chainId: BigInt(params.chainId),
+          permits: permitsHex,
+        },
+        params.merkleProof,
+        params.signature,
+      ],
+    });
+
+    return {
+      to: permitContractHex,
+      data,
+      value: 0n,
+    };
+  }
+
+  /**
+   * Builds a fundFor transaction call
+   * @param params FundFor parameters
+   * @returns EvmCall object with encoded transaction data
+   */
+  private buildFundForCall(params: FundForParams): { to: Address; data: Hex; value: bigint } {
+    // Convert UniversalAddress to Hex
+    const funderHex = AddressNormalizer.denormalizeToEvm(params.funder);
+    const permitContractHex = AddressNormalizer.denormalizeToEvm(params.permitContract);
+
+    // Convert reward addresses to Hex
+    const rewardHex = {
+      deadline: params.reward.deadline,
+      creator: AddressNormalizer.denormalizeToEvm(params.reward.creator),
+      prover: AddressNormalizer.denormalizeToEvm(params.reward.prover),
+      nativeAmount: params.reward.nativeAmount,
+      tokens: params.reward.tokens.map((t) => ({
+        token: AddressNormalizer.denormalizeToEvm(t.token),
+        amount: t.amount,
+      })),
+    };
+
+    // Get Portal address from config
+    const portalAddressUA = this.evmConfigService.getPortalAddress(params.chainId);
+    if (!portalAddressUA) {
+      throw new Error(`No Portal address configured for chain ${params.chainId}`);
+    }
+    const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
+
+    // Encode the fundFor function call
+    const data = encodeFunctionData({
+      abi: portalAbi,
+      functionName: 'fundFor',
+      args: [
+        params.destination,
+        params.routeHash,
+        rewardHex,
+        params.allowPartial,
+        funderHex,
+        permitContractHex,
+      ],
+    });
+
+    return {
+      to: portalAddress,
+      data,
+      value: params.reward.nativeAmount,
+    };
   }
 }

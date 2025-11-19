@@ -8,7 +8,6 @@ import { IntentsModule } from '@/modules/intents/intents.module';
 import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { QuotesController } from './controllers/quotes.controller';
-import { QuoteRegistrationService } from './services/quote-registration.service';
 import { QuotesService } from './services/quotes.service';
 
 @Module({
@@ -21,7 +20,7 @@ import { QuotesService } from './services/quotes.service';
     LoggingModule,
   ],
   controllers: [QuotesController],
-  providers: [QuotesService, QuoteRegistrationService],
-  exports: [QuotesService, QuoteRegistrationService],
+  providers: [QuotesService],
+  exports: [QuotesService],
 })
 export class QuotesModule {}

@@ -1,5 +1,6 @@
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { Logger } from '@nestjs/common';
+
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
 
 export class EcoError extends Error {
   // Signature Validations
@@ -7,8 +8,26 @@ export class EcoError extends Error {
     return new EcoError(`TypedData Verification Failed: ${errorMessage}`);
   }
 
+  static InvalidURL = new EcoError('Invalid URL');
+  static SolverRegistrationError = new EcoError('Solver Registration Error');
+  static SolverRegistrationDisabled = new EcoError('Solver Registration is Disabled');
+
   static SignatureExpired = new EcoError('SignatureExpired');
   static InvalidSignature = new EcoError('InvalidSignature');
+
+  static GaslessIntentsNotSupported = new Error('Gasless intents are not supported');
+  static GaslessIntentInitiationError = new Error('Gasless intent initiation failed');
+
+  static PermitProofConstructionFailed = new EcoError('Permit Proof Construction Failed');
+  static MerkleTreeCreateError = new EcoError('Could not create Merkle tree');
+  static CrossChainProofsError = new EcoError('Missing proof for chainID');
+  static MerkleRootMismatch = new EcoError('Merkle root does not match expected value');
+
+  // Permit Validations
+  static InvalidPermitSignature = new EcoError('Invalid permit signature for owner');
+  static PermitExpired = new EcoError('Permit expired for token');
+
+  static IntentNotFound = new EcoError('Intent not found');
 
   static isEcoError(error: any): boolean {
     return error instanceof EcoError;

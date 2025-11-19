@@ -10,13 +10,13 @@ export type QuoteDocument = Quote & Document;
  */
 @Schema({ timestamps: true })
 export class Quote {
-  @Prop({ required: true, unique: true, index: true })
+  @Prop({ required: true })
   quoteID: string;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   sourceChainID: number;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true })
   destinationChainID: number;
 
   @Prop({ required: true })

@@ -1,37 +1,29 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { Injectable } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Model } from 'mongoose';
 import { Hex } from 'viem';
 
+import { EcoResponse } from '@/common/eco-response';
+import { EcoLogMessage } from '@/common/logging/eco-log-message';
+import { EcoLogger } from '@/common/logging/eco-logger';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
 import { Permit3Validator } from '@/common/utils/permit3-validator';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
-import {
-  AllowanceOrTransfer as MerkleAllowanceOrTransfer,
-  StandardMerkleBuilder,
-} from '@/common/utils/standard-merkle-builder';
-import { QuotesService } from '@/modules/api/quotes/services/quotes.service';
+import { AllowanceOrTransfer, StandardMerkleBuilder } from '@/common/utils/standard-merkle-builder';
+import { EcoError } from '@/errors/eco-error';
+import { GaslessIntentExecutionResponseDTO } from '@/modules/api/gasless-intents/dtos/gasless-intent-execution-response-dto.schema';
+import { GaslessIntentExecutionResponseEntryDTO } from '@/modules/api/gasless-intents/dtos/gasless-intent-execution-response-entry-dto.schema';
+import { GaslessIntentRequestDTO } from '@/modules/api/gasless-intents/dtos/gasless-intent-request-dto.schema';
+import { AllowanceOrTransferDTO } from '@/modules/api/gasless-intents/dtos/permit3/allowance-or-transfer-dto.schema';
+import { Permit3DTO } from '@/modules/api/gasless-intents/dtos/permit3/permit3-dto.schema';
+import { GaslessInitiationIntentRepository } from '@/modules/api/gasless-intents/repositories/gasless-initiation-intent.repository';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { QuoteRepository } from '@/modules/intents/repositories/quote.repository';
 import { IntentDataSchema } from '@/modules/intents/schemas/intent-data.schema';
 import { Quote } from '@/modules/intents/schemas/quote.schema';
-import { LoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-
-import { GaslessInitiation, GaslessInitiationDocument } from '../schemas/gasless-initiation.schema';
-import {
-  AllowanceOrTransfer,
-  GaslessIntentRequest,
-  Permit3,
-} from '../schemas/gasless-intent-request.schema';
-import {
-  GaslessIntentExecutionResponseEntry,
-  GaslessIntentResponse,
-} from '../schemas/gasless-intent-response.schema';
 
 /**
  * Service for handling gasless intent initiation
@@ -39,29 +31,78 @@ import {
  */
 @Injectable()
 export class GaslessIntentsService {
+  private logger = new EcoLogger(GaslessIntentsService.name);
+  private gaslessIntentdAppIDs: string[] = [];
   private readonly merkleBuilder = new StandardMerkleBuilder();
 
   constructor(
-    @InjectModel(GaslessInitiation.name)
-    private readonly gaslessInitiationModel: Model<GaslessInitiationDocument>,
+    private readonly gaslessInitiationIntentRepository: GaslessInitiationIntentRepository,
     private readonly quoteRepository: QuoteRepository,
-    private readonly quotesService: QuotesService,
     private readonly blockchainExecutor: BlockchainExecutorService,
-    private readonly logger: LoggerService,
     private readonly otelService: OpenTelemetryService,
-  ) {
-    this.logger.setContext(GaslessIntentsService.name);
+  ) {}
+
+  /**
+   * This function is used to initiate a gasless intent. It generates the permit transactions and fund transaction.
+   * @param gaslessIntentRequestDTO
+   * @returns
+   */
+  async initiateGaslessIntent(
+    gaslessIntentRequestDTO: GaslessIntentRequestDTO,
+  ): Promise<EcoResponse<GaslessIntentExecutionResponseDTO>> {
+    try {
+      const { error } = this.checkGaslessIntentSupported(gaslessIntentRequestDTO.dAppID);
+
+      if (error) {
+        return { error };
+      }
+
+      return await this._initiateGaslessIntent(gaslessIntentRequestDTO);
+    } catch (ex: any) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `initiateGaslessIntent: error`,
+          properties: {
+            error: ex.message,
+          },
+        }),
+        ex.stack,
+      );
+
+      return { error: EcoError.GaslessIntentInitiationError };
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private checkGaslessIntentSupported(dAppID: string): EcoResponse<void> {
+    // if (!this.gaslessIntentdAppIDs.includes(dAppID)) {
+    //   this.gaslessIntentdAppIDs.push(dAppID);
+
+    //   this.logger.error(
+    //     EcoLogMessage.fromDefault({
+    //       message: `checkGaslessIntentSupported: dAppID: ${dAppID} not supported for gasless intents`,
+    //     }),
+    //   );
+
+    //   return { error: EcoError.GaslessIntentsNotSupported };
+    // }
+
+    return {};
   }
 
   /**
-   * Main entry point for initiating gasless intents
+   * This function is used to initiate a gasless intent. It generates the permit transactions and fund transaction.
+   * @param gaslessIntentRequestDTO
+   * @returns
    */
-  async initiateGaslessIntent(request: GaslessIntentRequest): Promise<GaslessIntentResponse> {
+  async _initiateGaslessIntent(
+    request: GaslessIntentRequestDTO,
+  ): Promise<EcoResponse<GaslessIntentExecutionResponseDTO>> {
     return this.otelService.tracer.startActiveSpan(
       'gasless-intents.initiateGaslessIntent',
       {
         attributes: {
-          'gasless.initiation_id': request.gaslessInitiationId,
+          'gasless.initiation_id': request.intentGroupID,
           'gasless.dapp_id': request.dAppID,
           'gasless.intent_count': request.intents.length,
           'gasless.permit_count': request.gaslessIntentData.permit3.allowanceOrTransfers.length,
@@ -69,10 +110,10 @@ export class GaslessIntentsService {
       },
       async (span) => {
         try {
-          const { gaslessInitiationId, dAppID, intents, gaslessIntentData } = request;
+          const { intentGroupID, dAppID, intents, gaslessIntentData } = request;
 
           this.logger.log(`Initiating gasless intent`, {
-            gaslessInitiationId,
+            intentGroupID,
             dAppID,
             intentCount: intents.length,
           });
@@ -86,16 +127,41 @@ export class GaslessIntentsService {
           );
 
           // Build a Merkle tree and get proofs
-          const { merkleRoot, proofsByChainId } =
+          const { response: crossChainProofs, error } =
             this.merkleBuilder.createCrossChainProofs(permitsByChain);
+
+          if (error) {
+            this.logger.error(
+              EcoLogMessage.fromDefault({
+                message: `generateTxs: failed to create Merkle tree`,
+                properties: {
+                  error: error?.message,
+                },
+              }),
+            );
+
+            return { error: EcoError.PermitProofConstructionFailed };
+          }
+
+          const { merkleRoot, proofsByChainId } = crossChainProofs!;
 
           // Verify merkleRoot matches the one in the permit
           if (merkleRoot !== gaslessIntentData.permit3.merkleRoot) {
-            throw new BadRequestException('Merkle root mismatch');
+            return { error: EcoError.MerkleRootMismatch };
           }
 
           // Group intents by source chain
           const intentsByChain = await this.groupIntentsByChain(intents);
+
+          // Save the permit data to the database
+          const { error: addIntentError } = await this.gaslessInitiationIntentRepository.addIntent({
+            intentGroupID,
+            permit3: gaslessIntentData.permit3,
+          });
+
+          if (addIntentError) {
+            return { error: addIntentError };
+          }
 
           // Execute transactions for each chain in parallel
           const executionPromises = Array.from(intentsByChain.entries()).map(
@@ -112,8 +178,8 @@ export class GaslessIntentsService {
           const settledResults = await Promise.allSettled(executionPromises);
 
           // Separate successes and failures
-          const successes: GaslessIntentExecutionResponseEntry[] = [];
-          const failures: GaslessIntentExecutionResponseEntry[] = [];
+          const successes: GaslessIntentExecutionResponseEntryDTO[] = [];
+          const failures: GaslessIntentExecutionResponseEntryDTO[] = [];
 
           for (const result of settledResults) {
             if (result.status === 'fulfilled') {
@@ -124,16 +190,17 @@ export class GaslessIntentsService {
                 successes.push(response);
               }
             } else {
-              // Promise rejection (unexpected)
-              this.logger.error(`Unexpected transaction execution rejection: ${result.reason}`);
+              // Very rare edge case: the entire promise throws
+              this.logger.error(
+                EcoLogMessage.fromDefault({
+                  message: `_initiateGaslessIntent: unexpected unhandled rejection: ${result.reason}`,
+                }),
+              );
             }
           }
 
-          // Store initiation metadata
-          await this.storeInitiation(gaslessInitiationId, gaslessIntentData.permit3);
-
           this.logger.log(`Gasless intent initiation completed`, {
-            gaslessInitiationId,
+            intentGroupID,
             successes: successes.length,
             failures: failures.length,
           });
@@ -145,7 +212,12 @@ export class GaslessIntentsService {
 
           span.setStatus({ code: api.SpanStatusCode.OK });
 
-          return { successes, failures };
+          return {
+            response: {
+              successes,
+              failures,
+            },
+          };
         } catch (error) {
           span.recordException(error as Error);
           span.setStatus({ code: api.SpanStatusCode.ERROR });
@@ -160,7 +232,7 @@ export class GaslessIntentsService {
   /**
    * Validate Permit3 signature
    */
-  private async validatePermit3(permit3: Permit3): Promise<void> {
+  private async validatePermit3(permit3: Permit3DTO): Promise<EcoResponse<void>> {
     return this.otelService.tracer.startActiveSpan(
       'gasless-intents.validatePermit3',
       {
@@ -172,7 +244,7 @@ export class GaslessIntentsService {
       },
       async (span) => {
         try {
-          await Permit3Validator.validatePermit({
+          const { error: permitValidationError } = await Permit3Validator.validatePermit({
             owner: permit3.owner as Hex,
             salt: permit3.salt as Hex,
             deadline: permit3.deadline,
@@ -182,16 +254,26 @@ export class GaslessIntentsService {
             permitContract: permit3.permitContract as Hex,
           });
 
-          this.logger.debug('Permit3 validation passed');
+          if (permitValidationError) {
+            this.logger.error(
+              EcoLogMessage.fromDefault({
+                message: `validatePermit3: permit validation failed`,
+                properties: {
+                  owner: permit3.owner,
+                  deadline: permit3.deadline.toString(),
+                  permitContract: permit3.permitContract,
+                  error: permitValidationError,
+                },
+              }),
+            );
+          }
 
           span.setStatus({ code: api.SpanStatusCode.OK });
-        } catch (error) {
-          span.recordException(error as Error);
-          span.setStatus({ code: api.SpanStatusCode.ERROR });
-          throw error;
         } finally {
           span.end();
         }
+
+        return {};
       },
     );
   }
@@ -206,7 +288,7 @@ export class GaslessIntentsService {
       const { quoteID, salt } = intent;
 
       // Fetch quote from database
-      const quote = await this.quoteRepository.getByQuoteId(quoteID);
+      const quote = await this.quoteRepository.getByQuoteID(quoteID);
       const chainId = quote.sourceChainID;
 
       // Initialize chain group if needed
@@ -230,10 +312,10 @@ export class GaslessIntentsService {
   private async executeChainTransactions(
     chainId: number,
     chainIntents: Array<{ quoteID: string; salt: Hex; quote: Quote }>,
-    permit3: Permit3,
+    permit3: Permit3DTO,
     merkleProof: Hex[],
     allowPartial: boolean,
-  ): Promise<GaslessIntentExecutionResponseEntry> {
+  ): Promise<GaslessIntentExecutionResponseEntryDTO> {
     return this.otelService.tracer.startActiveSpan(
       'gasless-intents.executeChainTransactions',
       {
@@ -264,25 +346,22 @@ export class GaslessIntentsService {
               amountDelta: p.amountDelta,
             }));
 
-          // Execute permit3 transaction (once per chain)
-          const permit3TxHash = await executor.permit3(
+          // Build permit3 params
+          const permit3Params = {
             chainId,
-            permit3.permitContract as UniversalAddress,
-            permit3.owner as UniversalAddress,
-            permit3.salt as Hex,
-            Number(permit3.deadline),
-            permit3.timestamp,
-            chainPermits,
+            permitContract: permit3.permitContract as UniversalAddress,
+            owner: permit3.owner as UniversalAddress,
+            salt: permit3.salt as Hex,
+            deadline: Number(permit3.deadline),
+            timestamp: permit3.timestamp,
+            permits: chainPermits,
             merkleProof,
-            permit3.signature as Hex,
-          );
+            signature: permit3.signature as Hex,
+          };
 
-          span.setAttribute('permit3.tx_hash', permit3TxHash);
-          this.logger.debug(`Permit3 executed on chain ${chainId}. TxHash: ${permit3TxHash}`);
-
-          // Execute fundFor transactions (sequentially for each intent)
-          const fundForTxHashes: Hex[] = [];
-          for (const { quote, salt } of chainIntents) {
+          // Build fundFor params for all intents on this chain
+          const chainType = ChainTypeDetector.detect(chainId);
+          const fundForCalls = chainIntents.map(({ quote, salt }) => {
             // Convert quote to intent using QuotesService
             const intent = IntentDataSchema.parse(quote.intent);
 
@@ -291,27 +370,42 @@ export class GaslessIntentsService {
 
             const { routeHash } = PortalHashUtils.getIntentHash(intent);
 
-            const chainType = ChainTypeDetector.detect(chainId);
-
-            const fundForTxHash = await executor.fundFor(
-              chainId,
-              intent.destination,
-              routeHash,
-              intent.reward,
-              allowPartial,
-              AddressNormalizer.normalize(permit3.owner, chainType),
-              AddressNormalizer.normalize(permit3.permitContract, chainType),
+            this.logger.debug(
+              EcoLogMessage.fromDefault({
+                message: `executeChainTransactions`,
+                properties: {
+                  chainId,
+                  destination: intent.destination,
+                  routeHash,
+                  reward: intent.reward,
+                  allowPartial,
+                  owner: permit3.owner,
+                  permitContract: permit3.permitContract,
+                },
+              }),
             );
 
-            fundForTxHashes.push(fundForTxHash);
-          }
+            return {
+              chainId,
+              destination: intent.destination,
+              routeHash,
+              reward: intent.reward,
+              allowPartial,
+              funder: AddressNormalizer.normalize(permit3.owner, chainType),
+              permitContract: AddressNormalizer.normalize(permit3.permitContract, chainType),
+            };
+          });
 
-          // For simplicity, return the last fundFor tx hash as the main transaction hash
-          const transactionHash = fundForTxHashes[fundForTxHashes.length - 1];
+          // Execute permit3 + multiple fundFor atomically in a single transaction
+          const transactionHash = await executor.fundForWithPermit3(
+            permit3Params,
+            fundForCalls,
+            'basic',
+          );
 
           span.setAttributes({
-            'fundFor.tx_count': fundForTxHashes.length,
-            'fundFor.final_tx_hash': transactionHash,
+            'batch.tx_hash': transactionHash,
+            'batch.fundFor_count': fundForCalls.length,
           });
 
           this.logger.log(`Successfully executed transactions on chain ${chainId}`, {
@@ -350,9 +444,9 @@ export class GaslessIntentsService {
    * Group permits by chain ID for Merkle tree construction
    */
   private groupPermitsByChain(
-    permits: AllowanceOrTransfer[],
-  ): Record<number, MerkleAllowanceOrTransfer[]> {
-    const grouped: Record<number, MerkleAllowanceOrTransfer[]> = {};
+    permits: AllowanceOrTransferDTO[],
+  ): Record<number, AllowanceOrTransfer[]> {
+    const grouped: Record<number, AllowanceOrTransfer[]> = {};
 
     for (const permit of permits) {
       if (!grouped[permit.chainID]) {
@@ -368,36 +462,5 @@ export class GaslessIntentsService {
     }
 
     return grouped;
-  }
-
-  /**
-   * Store gasless initiation metadata
-   */
-  private async storeInitiation(gaslessInitiationId: string, permit3: Permit3): Promise<void> {
-    const initiation = new this.gaslessInitiationModel({
-      gaslessInitiationId,
-      permit3: {
-        chainId: permit3.chainId,
-        permitContract: permit3.permitContract,
-        owner: permit3.owner,
-        salt: permit3.salt,
-        signature: permit3.signature,
-        deadline: permit3.deadline.toString(),
-        timestamp: permit3.timestamp,
-        merkleRoot: permit3.merkleRoot,
-        leaves: permit3.leaves,
-        allowanceOrTransfers: permit3.allowanceOrTransfers.map((a) => ({
-          chainID: a.chainID,
-          modeOrExpiration: a.modeOrExpiration,
-          tokenKey: a.tokenKey,
-          account: a.account,
-          amountDelta: a.amountDelta.toString(),
-        })),
-      },
-    });
-
-    await initiation.save();
-
-    this.logger.debug('Stored gasless initiation metadata', { gaslessInitiationId });
   }
 }

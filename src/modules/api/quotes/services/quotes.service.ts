@@ -13,6 +13,8 @@ import { ChainType, ChainTypeDetector } from '@/common/utils/chain-type-detector
 import { PortalEncoder } from '@/common/utils/portal-encoder';
 import { PortalHashUtils } from '@/common/utils/portal-hash.utils';
 import { hours, now } from '@/common/utils/time';
+import { IntentExecutionType } from '@/modules/api/quotes/enums/intent-execution-type.enum';
+import { IntentExecutionTypeKeys } from '@/modules/api/quotes/enums/intent-execution-type.enum';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
@@ -33,7 +35,12 @@ export class QuotesService {
     private readonly quoteRepository: QuoteRepository,
   ) {}
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getQuote(request: QuoteRequest): Promise<QuoteResponse> {
+    throw new BadRequestException('Not Implemented');
+  }
+
+  async getReverseQuote(request: QuoteRequest): Promise<QuoteResponse> {
     // Convert the simplified request to a proper Intent interface with correct types
     const intent = this.convertToIntent(request.quoteRequest);
 
@@ -126,19 +133,26 @@ export class QuotesService {
       destinationAmount,
     );
 
-    const route = {
+    intent.route = {
       ...intent.route,
       calls: [tokenTransferCall],
       tokens: intent.route.tokens.map((token) => ({ ...token, amount: destinationAmount })),
-    } satisfies Intent['route'];
+    };
 
-    const encodedRoute = PortalEncoder.encode(route, destinationChainType);
+    const encodedRoute = PortalEncoder.encode(intent.route, destinationChainType);
 
     // Generate unique quote ID
-    const quoteID = crypto.randomUUID();
+    const gaslessRequested = request.intentExecutionTypes.includes('GASLESS');
+
+    // This is a hack to set intent execution type based on the request. Once we fix quotes generation so it behaves like
+    // it did in Solver v1, we can remove this.
+    const intentExecutionType = gaslessRequested
+      ? IntentExecutionType.GASLESS
+      : IntentExecutionType.SELF_PUBLISH;
 
     const quoteData = {
-      intentExecutionType: 'SELF_PUBLISH' as const,
+      intentExecutionType:
+        intentExecutionType.toString() as (typeof IntentExecutionTypeKeys)[number],
       sourceChainID: sourceChainId,
       destinationChainID: destinationChainId,
       sourceToken: AddressNormalizer.denormalize(sourceToken, sourceChainType),
@@ -174,7 +188,7 @@ export class QuotesService {
 
     // Save quote to database
     const quote: Quote = {
-      quoteID,
+      quoteID: request.quoteID,
       ...quoteData,
       intent: serializedIntentData,
     };
