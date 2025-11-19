@@ -23,7 +23,7 @@ import { QueueService } from '@/modules/queue/queue.service';
 export class SolanaListener extends BaseChainListener {
   private connection: Connection;
   private programId: PublicKey;
-  private subscriptionId: number;
+  private portalSubscriptionId: number;
   private parser: EventParser;
 
   constructor(
@@ -55,22 +55,21 @@ export class SolanaListener extends BaseChainListener {
 
     this.programId = new PublicKey(portalProgramId);
 
-    this.subscriptionId = this.connection.onLogs(
+    // Subscribe to Portal program logs
+    this.portalSubscriptionId = this.connection.onLogs(
       this.programId,
       this.handleProgramLogs.bind(this),
       'confirmed',
     );
 
-    // TODO: Listen to IntentProven events on the prover programs
-
     this.logger.log(
-      `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished, IntentFulfilled, IntentProven, and IntentWithdrawn events.`,
+      `Solana listener started for Portal program ${this.programId.toString()}. Listening for IntentPublished, IntentFulfilled, and IntentWithdrawn events.`,
     );
   }
 
   async stop(): Promise<void> {
-    if (this.subscriptionId && this.connection) {
-      await this.connection.removeOnLogsListener(this.subscriptionId);
+    if (this.portalSubscriptionId && this.connection) {
+      await this.connection.removeOnLogsListener(this.portalSubscriptionId);
     }
     this.logger.log('Solana listener stopped');
   }

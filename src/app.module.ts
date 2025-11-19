@@ -49,7 +49,7 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     WithdrawalModule,
     RhinestoneModule.forRootAsync(),
     BullBoardDashboardModule.forRootAsync(),
-    ApiModule.forRootAsync(),
+    ApiModule,
     HealthModule,
     DynamicConfigModule,
   ],

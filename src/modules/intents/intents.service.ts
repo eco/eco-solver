@@ -143,4 +143,22 @@ export class IntentsService {
 
     return this.intentModel.find(query).exec();
   }
+
+  /**
+   * Find intents that have been fulfilled but not yet proven
+   * Used by proof polling to determine which intents need proof account checks
+   */
+  async findFulfilledNotProven(sourceChainId?: bigint): Promise<Intent[]> {
+    const query: any = {
+      status: IntentStatus.FULFILLED,
+      fulfilledEvent: { $exists: true },
+      provenEvent: { $exists: false },
+    };
+
+    if (sourceChainId) {
+      query['route.source'] = sourceChainId.toString();
+    }
+
+    return this.intentModel.find(query).exec();
+  }
 }
