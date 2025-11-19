@@ -1,11 +1,11 @@
 import { Address, Hex } from 'viem';
 
+import { SignatureValidationData } from '@/request-signing/interfaces/signature-validation-data.interface';
 import {
   SIGNATURE_ADDRESS_HEADER,
   SIGNATURE_EXPIRE_HEADER,
   SIGNATURE_HEADER,
-} from '@/request-signing/interfaces/signature-headers.interface';
-import { SignatureValidationData } from '@/request-signing/signature-validation-data.interface';
+} from '@/request-signing/signature-headers';
 
 export class RequestHeaders {
   private headers: Record<string, any>;
@@ -51,25 +51,22 @@ export class RequestHeaders {
   }
 
   getSignature(): Hex | undefined {
-    return this.getHeader(SIGNATURE_HEADER);
+    return this.getHexHeader(SIGNATURE_HEADER);
   }
 
   getAddress(): Address | undefined {
-    return this.getHeader(SIGNATURE_ADDRESS_HEADER);
+    return this.getHexHeader(SIGNATURE_ADDRESS_HEADER);
   }
 
-  getExpire(): number {
-    const raw = this.getHeader(SIGNATURE_EXPIRE_HEADER);
-
-    if (!raw) {
-      return raw;
-    }
-
-    const n = typeof raw === 'string' ? Number(raw) : raw;
-    return Number.isFinite(n) ? (n as number) : NaN;
+  getExpire(): string {
+    return this.getHeader(SIGNATURE_EXPIRE_HEADER);
   }
 
-  private getHeader(name: string): any {
+  getHeader(name: string): string {
     return this.headers[name.toLowerCase()];
+  }
+
+  getHexHeader(name: string): Hex {
+    return this.getHeader(name) as Hex;
   }
 }

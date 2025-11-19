@@ -208,6 +208,15 @@ export class DynamicConfigAuditRepository {
   }
 
   /**
+   * Get all configurations with filtering and pagination
+   */
+  async getAll(
+    filter: AuditFilter,
+  ): Promise<{ logs: ConfigurationAuditDocument[]; total: number }> {
+    return this.findWithFilterPaginated(filter, Number.MAX_SAFE_INTEGER, 0);
+  }
+
+  /**
    * Find audit logs with filtering and pagination
    */
   async findWithFilterPaginated(

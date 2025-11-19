@@ -22,8 +22,8 @@ export class IntentConverter {
         destination: intent.destination.toString(),
         salt: intent.route.salt,
         portal: intent.route.portal,
-        deadline: intent.route.deadline,
-        nativeAmount: intent.route.nativeAmount,
+        deadline: intent.route.deadline.toString(),
+        nativeAmount: intent.route.nativeAmount.toString(),
         calls: intent.route.calls.map((call) => ({
           data: call.data,
           target: call.target,
@@ -54,9 +54,9 @@ export class IntentConverter {
       },
       route: {
         salt: schema.route.salt as `0x${string}`,
-        deadline: schema.route.deadline,
+        deadline: BigInt(schema.route.deadline),
         portal: schema.route.portal,
-        nativeAmount: schema.route.nativeAmount,
+        nativeAmount: BigInt(schema.route.nativeAmount),
         calls: schema.route.calls.map((call) => ({
           data: call.data as `0x${string}`,
           target: call.target,
