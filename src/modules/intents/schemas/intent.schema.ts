@@ -39,13 +39,13 @@ export class Intent {
   @Prop({
     type: {
       message: { type: String },
-      type: { type: String },
+      errorType: { type: String },
       timestamp: { type: Date },
     },
   })
   lastError?: {
     message: string;
-    type: string;
+    errorType: string;
     timestamp: Date;
   };
 

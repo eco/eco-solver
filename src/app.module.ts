@@ -18,6 +18,7 @@ import { LoggingModule } from '@/modules/logging/logging.module';
 import { OpenTelemetryModule } from '@/modules/opentelemetry';
 import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
+import { RhinestoneModule } from '@/modules/rhinestone/rhinestone.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
 import { RequestSigningModule } from '@/request-signing/request-signing.module';
 import { SolverRegistrationModule } from '@/modules/api/solver-registration/solver-registration.module';
@@ -48,6 +49,7 @@ import { SolverRegistrationModule } from '@/modules/api/solver-registration/solv
     BlockchainModule.forRootAsync(),
     FulfillmentModule,
     WithdrawalModule,
+    RhinestoneModule.forRootAsync(),
     BullBoardDashboardModule.forRootAsync(),
     ApiModule,
     HealthModule,
