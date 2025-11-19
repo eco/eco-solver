@@ -16,8 +16,7 @@ type MockEcoConfigService = Pick<
   'isRequestSignatureValidationEnabled' | 'getDynamicConfigAllowedAddresses'
 >
 
-const TestPrivateKey =
-  '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9' as Hex
+const TestPrivateKey = '0xae647e8ce1871eb6555401960e710b5957c3462c354f80c2d840845a40a17ac9' as Hex
 const TestAccount: LocalAccount = privateKeyToAccount(TestPrivateKey)
 
 describe('RequestSignatureGuard', () => {
@@ -172,9 +171,7 @@ describe('RequestSignatureGuard', () => {
   })
 
   it('throws UnauthorizedException when verification service rejects', async () => {
-    jest
-      .spyOn(signatureVerificationService, 'verifySignature')
-      .mockRejectedValue(new Error('boom'))
+    jest.spyOn(signatureVerificationService, 'verifySignature').mockRejectedValue(new Error('boom'))
 
     await expect(guard.canActivate(await buildExecutionContext())).rejects.toThrow(
       UnauthorizedException,
