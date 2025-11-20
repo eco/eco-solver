@@ -25,7 +25,7 @@ export class ProversConfigService {
    */
   getCcipChainSelector(chainId: number): string | undefined {
     const ccipConfig = this.ccip;
-    return ccipConfig.chainSelectors[chainId];
+    return ccipConfig?.chainSelectors?.[chainId];
   }
 
   /**
@@ -33,7 +33,7 @@ export class ProversConfigService {
    * @returns The configured gas limit, or default 300000
    */
   getCcipGasLimit(): number {
-    return this.ccip.gasLimit;
+    return this.ccip?.gasLimit ?? 300000;
   }
 
   /**
@@ -41,7 +41,7 @@ export class ProversConfigService {
    * @returns The configured flag, or default true
    */
   getCcipAllowOutOfOrderExecution(): boolean {
-    return this.ccip.allowOutOfOrderExecution;
+    return this.ccip?.allowOutOfOrderExecution ?? true;
   }
 
   /**
@@ -49,6 +49,6 @@ export class ProversConfigService {
    * @returns The configured deadline buffer, or default 7200 (2 hours)
    */
   getCcipDeadlineBuffer(): number {
-    return this.ccip.deadlineBuffer;
+    return this.ccip?.deadlineBuffer ?? 7200;
   }
 }

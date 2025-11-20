@@ -30,6 +30,10 @@ class TestProver extends BaseProver {
   getDeadlineBuffer(_chainId: number): bigint {
     return 3600n; // 1 hour buffer like HyperProver
   }
+
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
+  }
 }
 
 describe('BaseProver', () => {

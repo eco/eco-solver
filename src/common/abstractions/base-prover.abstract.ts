@@ -30,6 +30,13 @@ export abstract class BaseProver implements OnModuleInit {
 
   abstract getDeadlineBuffer(chainId: number): bigint;
 
+  /**
+   * Transform a chain ID to a protocol-specific domain ID
+   * @param chainId - Standard blockchain chain ID
+   * @returns Domain ID used by this prover's messaging protocol
+   */
+  abstract getDomainId(chainId: number): bigint;
+
   getContractAddress(chainId: number): UniversalAddress | undefined {
     return this.blockchainConfigService.getProverAddress(chainId, this.type as TProverType);
   }
@@ -44,12 +51,17 @@ export abstract class BaseProver implements OnModuleInit {
       throw new Error(`No prover contract address found for chain ${intent.destination}`);
     }
 
-    // Fetch fee from the source chain where the intent originates
+    // Calculate source domain ID using prover-specific transformation
+    const sourceChainId = Number(intent.sourceChainId);
+    const sourceDomainId = this.getDomainId(sourceChainId);
+
+    // Fetch fee from the destination chain using domain ID
     return this.blockchainReaderService.fetchProverFee(
       intent.destination,
       intent,
       localProver,
       await this.generateProof(intent),
+      sourceDomainId,
       claimant,
     );
   }

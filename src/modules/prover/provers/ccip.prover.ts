@@ -23,11 +23,14 @@ export class CcipProver extends BaseProver {
   async generateProof(intent: Intent): Promise<Hex> {
     const sourceChainId = Number(intent.sourceChainId);
 
+    // Get CCIP chain selector (domain ID) for the source chain
+    const sourceDomainId = this.getDomainId(sourceChainId);
+
     // Use centralized prover config instead of per-network config
     const gasLimit = this.proversConfigService.getCcipGasLimit();
     const allowOutOfOrderExecution = this.proversConfigService.getCcipAllowOutOfOrderExecution();
 
-    // Encode proof data: (uint64 sourceChainId, uint256 gasLimit, bool allowOutOfOrderExecution)
+    // Encode proof data: (uint64 sourceDomainId, uint256 gasLimit, bool allowOutOfOrderExecution)
     return encodeAbiParameters(
       [
         {
@@ -35,12 +38,28 @@ export class CcipProver extends BaseProver {
           components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
         },
       ],
-      [[BigInt(sourceChainId), BigInt(gasLimit), allowOutOfOrderExecution]],
+      [[sourceDomainId, BigInt(gasLimit), allowOutOfOrderExecution]],
     );
   }
 
   getDeadlineBuffer(_chainId: number): bigint {
     // Use global CCIP deadline buffer from ProversConfigService
     return BigInt(this.proversConfigService.getCcipDeadlineBuffer());
+  }
+
+  /**
+   * CCIP uses chain selectors as domain IDs
+   * Returns the configured CCIP chain selector for the given chain ID
+   * @throws Error if no chain selector is configured for the chain
+   */
+  getDomainId(chainId: number): bigint {
+    const selector = this.proversConfigService.getCcipChainSelector(chainId);
+    if (!selector) {
+      throw new Error(
+        `No CCIP chain selector configured for chain ${chainId}. ` +
+          `Add PROVERS_CCIP_CHAIN_SELECTORS_${chainId} to environment configuration.`,
+      );
+    }
+    return BigInt(selector);
   }
 }

@@ -232,6 +232,7 @@ export class EvmReaderService extends BaseChainReader {
     prover: UniversalAddress,
     messageData: Hex,
     chainId: number,
+    sourceDomainId: bigint,
     claimant: UniversalAddress,
   ): Promise<bigint> {
     const evmProver = AddressNormalizer.denormalizeToEvm(prover);
@@ -248,16 +249,12 @@ export class EvmReaderService extends BaseChainReader {
       },
       async (span) => {
         try {
-          // Validate that sourceChainId is provided
-          if (!intent.sourceChainId) {
-            throw new Error(`Intent ${intent.intentHash} is missing required sourceChainId`);
-          }
-
           const client = this.transportService.getPublicClient(chainId);
 
+          // Encode proof with domain ID instead of chain ID
           const encodeProof = encodePacked(
             ['uint64', 'bytes32', 'bytes32'],
-            [intent.sourceChainId, intent.intentHash, claimant as Hex],
+            [sourceDomainId, intent.intentHash, claimant as Hex],
           );
 
           // Call fetchFee on the prover contract
@@ -266,7 +263,7 @@ export class EvmReaderService extends BaseChainReader {
             abi: messageBridgeProverAbi,
             functionName: 'fetchFee',
             args: [
-              intent.sourceChainId, // Source chain ID where the intent originates - no fallback
+              sourceDomainId, // Source domain ID (prover-specific)
               encodeProof,
               messageData, // Message data parameter
             ],

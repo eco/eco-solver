@@ -77,8 +77,8 @@ export class EvmExecutorService extends BaseChainExecutor {
             throw new Error('Prover not found.');
           }
 
-          // TODO: Domain ID must be provided by the prover service
-          const sourceDomainId = BigInt(sourceChainId);
+          // Get the domain ID from the prover (CCIP uses chain selectors, others use standard chain IDs)
+          const sourceDomainId = prover.getDomainId(sourceChainId);
 
           const rewardHash = PortalHashUtils.computeRewardHash(intent.reward, intent.sourceChainId);
 

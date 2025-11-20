@@ -36,4 +36,11 @@ export class HyperProver extends BaseProver {
     // HyperProver requires 1 hour (3600 seconds) for processing
     return 3600n;
   }
+
+  /**
+   * Hyperlane uses standard chain IDs as domain IDs (1:1 mapping)
+   */
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
+  }
 }

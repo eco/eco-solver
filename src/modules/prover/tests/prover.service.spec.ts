@@ -52,6 +52,7 @@ describe('ProverService', () => {
         return hyperAddressMap.has(chainId);
       }),
       getDeadlineBuffer: jest.fn().mockReturnValue(300n), // 5 minutes
+      getDomainId: jest.fn().mockImplementation((chainId: number) => BigInt(chainId)),
     } as unknown as jest.Mocked<HyperProver>;
 
     const metalayerAddressMap = new Map([
@@ -69,6 +70,7 @@ describe('ProverService', () => {
         return metalayerAddressMap.has(chainId);
       }),
       getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
+      getDomainId: jest.fn().mockImplementation((chainId: number) => BigInt(chainId)),
     } as unknown as jest.Mocked<MetalayerProver>;
 
     mockPolymerProver = {
@@ -77,6 +79,7 @@ describe('ProverService', () => {
       getContractAddress: jest.fn().mockReturnValue(undefined),
       isSupported: jest.fn().mockReturnValue(false),
       getDeadlineBuffer: jest.fn().mockReturnValue(3600n), // 1 hour
+      getDomainId: jest.fn().mockImplementation((chainId: number) => BigInt(chainId)),
     } as unknown as jest.Mocked<PolymerProver>;
 
     mockDummyProver = {
@@ -85,6 +88,7 @@ describe('ProverService', () => {
       getContractAddress: jest.fn().mockReturnValue(undefined),
       isSupported: jest.fn().mockReturnValue(false),
       getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
+      getDomainId: jest.fn().mockImplementation((chainId: number) => BigInt(chainId)),
     } as unknown as jest.Mocked<DummyProver>;
 
     const ccipAddressMap = new Map([
@@ -102,6 +106,7 @@ describe('ProverService', () => {
         return ccipAddressMap.has(chainId);
       }),
       getDeadlineBuffer: jest.fn().mockReturnValue(7200n), // 2 hours default
+      getDomainId: jest.fn().mockImplementation((chainId: number) => BigInt(chainId)),
     } as unknown as jest.Mocked<CcipProver>;
 
     mockLogger = {
