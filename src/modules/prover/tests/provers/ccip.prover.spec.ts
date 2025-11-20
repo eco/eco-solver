@@ -5,10 +5,9 @@ import { encodeAbiParameters } from 'viem';
 
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
-import { CcipConfig } from '@/config/schemas/evm.schema';
+import { CcipProverConfig } from '@/config/schemas/provers.schema';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
-import { BlockchainConfigService } from '@/modules/config/services';
-import { EvmConfigService } from '@/modules/config/services/evm-config.service';
+import { BlockchainConfigService, ProversConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { CcipProver } from '@/modules/prover/provers/ccip.prover';
 
@@ -17,7 +16,7 @@ const toUniversalAddress = (address: string): UniversalAddress => address as Uni
 describe('CcipProver', () => {
   let prover: CcipProver;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
-  let mockEvmConfigService: jest.Mocked<EvmConfigService>;
+  let mockProversConfigService: jest.Mocked<ProversConfigService>;
   let mockModuleRef: jest.Mocked<ModuleRef>;
   let mockBlockchainReaderService: jest.Mocked<BlockchainReaderService>;
 
@@ -32,13 +31,18 @@ describe('CcipProver', () => {
     padTo32Bytes('0x9999999999999999999999999999999999999999'),
   );
 
-  const defaultCcipConfig: CcipConfig = {
+  const defaultCcipConfig: CcipProverConfig = {
     gasLimit: 300000,
     allowOutOfOrderExecution: true,
     deadlineBuffer: 7200, // 2 hours
+    chainSelectors: {
+      8453: '15971525489660198786',
+      1: '5009297550715157269',
+      2020: '6916147374840168594',
+    },
   };
 
-  const customCcipConfig: CcipConfig = {
+  const customCcipConfig: Partial<CcipProverConfig> = {
     gasLimit: 500000,
     allowOutOfOrderExecution: false,
     deadlineBuffer: 3600, // 1 hour
@@ -68,9 +72,15 @@ describe('CcipProver', () => {
         }),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
-    mockEvmConfigService = {
-      getCcipConfig: jest.fn().mockReturnValue(defaultCcipConfig),
-    } as unknown as jest.Mocked<EvmConfigService>;
+    mockProversConfigService = {
+      getCcipGasLimit: jest.fn().mockReturnValue(defaultCcipConfig.gasLimit),
+      getCcipAllowOutOfOrderExecution: jest
+        .fn()
+        .mockReturnValue(defaultCcipConfig.allowOutOfOrderExecution),
+      getCcipDeadlineBuffer: jest.fn().mockReturnValue(defaultCcipConfig.deadlineBuffer),
+      getCcipChainSelector: jest.fn().mockReturnValue(undefined),
+      ccip: defaultCcipConfig,
+    } as unknown as jest.Mocked<ProversConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -84,8 +94,8 @@ describe('CcipProver', () => {
           useValue: mockModuleRef,
         },
         {
-          provide: EvmConfigService,
-          useValue: mockEvmConfigService,
+          provide: ProversConfigService,
+          useValue: mockProversConfigService,
         },
       ],
     }).compile();
@@ -125,11 +135,15 @@ describe('CcipProver', () => {
       );
 
       expect(proofData).toBe(expectedData);
-      expect(mockEvmConfigService.getCcipConfig).toHaveBeenCalledWith(1);
+      expect(mockProversConfigService.getCcipGasLimit).toHaveBeenCalled();
+      expect(mockProversConfigService.getCcipAllowOutOfOrderExecution).toHaveBeenCalled();
     });
 
     it('should encode proof data with custom configuration', async () => {
-      mockEvmConfigService.getCcipConfig.mockReturnValue(customCcipConfig);
+      mockProversConfigService.getCcipGasLimit.mockReturnValue(customCcipConfig.gasLimit!);
+      mockProversConfigService.getCcipAllowOutOfOrderExecution.mockReturnValue(
+        customCcipConfig.allowOutOfOrderExecution!,
+      );
 
       const intent = createMockIntent({
         sourceChainId: 10n,
@@ -148,7 +162,8 @@ describe('CcipProver', () => {
       );
 
       expect(proofData).toBe(expectedData);
-      expect(mockEvmConfigService.getCcipConfig).toHaveBeenCalledWith(10);
+      expect(mockProversConfigService.getCcipGasLimit).toHaveBeenCalled();
+      expect(mockProversConfigService.getCcipAllowOutOfOrderExecution).toHaveBeenCalled();
     });
 
     it('should handle different source chain IDs correctly', async () => {
@@ -184,25 +199,23 @@ describe('CcipProver', () => {
   describe('getDeadlineBuffer', () => {
     it('should return default deadline buffer (7200 seconds / 2 hours)', () => {
       expect(prover.getDeadlineBuffer(1)).toBe(7200n);
-      expect(mockEvmConfigService.getCcipConfig).toHaveBeenCalledWith(1);
+      expect(mockProversConfigService.getCcipDeadlineBuffer).toHaveBeenCalled();
     });
 
     it('should return custom deadline buffer when configured', () => {
-      mockEvmConfigService.getCcipConfig.mockReturnValue(customCcipConfig);
+      mockProversConfigService.getCcipDeadlineBuffer.mockReturnValue(
+        customCcipConfig.deadlineBuffer!,
+      );
       expect(prover.getDeadlineBuffer(10)).toBe(3600n); // Custom config has 1 hour
-      expect(mockEvmConfigService.getCcipConfig).toHaveBeenCalledWith(10);
+      expect(mockProversConfigService.getCcipDeadlineBuffer).toHaveBeenCalled();
     });
 
-    it('should use chain-specific configuration', () => {
-      const chainSpecificConfig: CcipConfig = {
-        gasLimit: 400000,
-        allowOutOfOrderExecution: true,
-        deadlineBuffer: 10800, // 3 hours
-      };
-      mockEvmConfigService.getCcipConfig.mockReturnValue(chainSpecificConfig);
+    it('should use global configuration for all chains', () => {
+      const globalDeadlineBuffer = 10800; // 3 hours
+      mockProversConfigService.getCcipDeadlineBuffer.mockReturnValue(globalDeadlineBuffer);
 
       expect(prover.getDeadlineBuffer(8453)).toBe(10800n);
-      expect(mockEvmConfigService.getCcipConfig).toHaveBeenCalledWith(8453);
+      expect(mockProversConfigService.getCcipDeadlineBuffer).toHaveBeenCalled();
     });
   });
 
@@ -233,7 +246,7 @@ describe('CcipProver', () => {
       const uninitializedProver = new CcipProver(
         mockBlockchainConfigService,
         mockModuleRef,
-        mockEvmConfigService,
+        mockProversConfigService,
       );
 
       const intent = createMockIntent({

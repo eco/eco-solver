@@ -8,7 +8,6 @@ import { TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import {
-  CcipConfig,
   EvmNetworkConfig,
   EvmRpcSchema,
   EvmTokenConfig,
@@ -182,22 +181,6 @@ export class EvmConfigService implements IBlockchainConfigService {
   getDefaultProver(chainId: ChainIdentifier): TProverType {
     const network = this.getChain(Number(chainId));
     return network.defaultProver;
-  }
-
-  /**
-   * Get CCIP configuration for a specific chain
-   * @param chainId Chain identifier
-   * @returns CCIP configuration with defaults if not specified
-   */
-  getCcipConfig(chainId: ChainIdentifier): CcipConfig {
-    const network = this.getChain(Number(chainId));
-    return (
-      network.ccipConfig ?? {
-        gasLimit: 300000,
-        allowOutOfOrderExecution: true,
-        deadlineBuffer: 7200, // 2 hours in seconds
-      }
-    );
   }
 
   /**

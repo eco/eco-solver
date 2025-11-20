@@ -182,7 +182,7 @@ export class QuotesService {
     const salt = this.generateSalt();
 
     // Set the deadline to 2 hours from now
-    const deadline = now() + hours(2);
+    const deadline = now() + hours(2.5);
 
     // Get portal address for a destination chain
     const portalAddressUA = this.blockchainConfigService.getPortalAddress(
