@@ -92,8 +92,8 @@ export class TvmExecutorService extends BaseChainExecutor {
             throw new Error('Prover not found.');
           }
 
-          // TODO: Domain ID must be provided by the prover service
-          const sourceDomainId = Number(sourceChainId);
+          // Get the domain ID from the prover (CCIP uses chain selectors, others use standard chain IDs)
+          const sourceDomainId = Number(prover.getDomainId(sourceChainId));
 
           // Ensure the prover address has 0x prefix for consistency
           const proverFee = await prover.getFee(intent, claimantUA);

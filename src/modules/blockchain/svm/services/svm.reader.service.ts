@@ -369,8 +369,9 @@ export class SvmReaderService extends BaseChainReader {
     intent: Intent,
     prover: UniversalAddress,
     messageData: Hex,
-    chainId?: number,
-    claimant?: UniversalAddress,
+    chainId: number,
+    sourceDomainId: bigint,
+    claimant: UniversalAddress,
   ): Promise<bigint> {
     return this.otelService.tracer.startActiveSpan(
       'svm.reader.fetchProverFee',

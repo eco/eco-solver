@@ -39,6 +39,8 @@ describe('CcipProver', () => {
       8453: '15971525489660198786',
       1: '5009297550715157269',
       2020: '6916147374840168594',
+      10: '3734403246176062136',
+      137: '4051577828743386545',
     },
   };
 
@@ -78,7 +80,9 @@ describe('CcipProver', () => {
         .fn()
         .mockReturnValue(defaultCcipConfig.allowOutOfOrderExecution),
       getCcipDeadlineBuffer: jest.fn().mockReturnValue(defaultCcipConfig.deadlineBuffer),
-      getCcipChainSelector: jest.fn().mockReturnValue(undefined),
+      getCcipChainSelector: jest.fn().mockImplementation((chainId: number) => {
+        return defaultCcipConfig.chainSelectors[chainId];
+      }),
       ccip: defaultCcipConfig,
     } as unknown as jest.Mocked<ProversConfigService>;
 
@@ -117,13 +121,14 @@ describe('CcipProver', () => {
   });
 
   describe('generateProof', () => {
-    it('should encode proof data with source chain ID and default config', async () => {
+    it('should encode proof data with source chain selector and default config', async () => {
       const intent = createMockIntent({
         sourceChainId: 1n,
       });
 
       const proofData = await prover.generateProof(intent);
 
+      // Chain ID 1 (Ethereum) -> Chain Selector 5009297550715157269
       const expectedData = encodeAbiParameters(
         [
           {
@@ -131,12 +136,13 @@ describe('CcipProver', () => {
             components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
           },
         ],
-        [[1n, 300000n, true]],
+        [[5009297550715157269n, 300000n, true]],
       );
 
       expect(proofData).toBe(expectedData);
       expect(mockProversConfigService.getCcipGasLimit).toHaveBeenCalled();
       expect(mockProversConfigService.getCcipAllowOutOfOrderExecution).toHaveBeenCalled();
+      expect(mockProversConfigService.getCcipChainSelector).toHaveBeenCalledWith(1);
     });
 
     it('should encode proof data with custom configuration', async () => {
@@ -151,6 +157,7 @@ describe('CcipProver', () => {
 
       const proofData = await prover.generateProof(intent);
 
+      // Chain ID 10 (Optimism) -> Chain Selector 3734403246176062136
       const expectedData = encodeAbiParameters(
         [
           {
@@ -158,20 +165,21 @@ describe('CcipProver', () => {
             components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
           },
         ],
-        [[10n, 500000n, false]],
+        [[3734403246176062136n, 500000n, false]],
       );
 
       expect(proofData).toBe(expectedData);
       expect(mockProversConfigService.getCcipGasLimit).toHaveBeenCalled();
       expect(mockProversConfigService.getCcipAllowOutOfOrderExecution).toHaveBeenCalled();
+      expect(mockProversConfigService.getCcipChainSelector).toHaveBeenCalledWith(10);
     });
 
     it('should handle different source chain IDs correctly', async () => {
       const testCases = [
-        { chainId: 1n, expected: 1n },
-        { chainId: 10n, expected: 10n },
-        { chainId: 137n, expected: 137n },
-        { chainId: 8453n, expected: 8453n },
+        { chainId: 1n, expected: 5009297550715157269n }, // Ethereum
+        { chainId: 10n, expected: 3734403246176062136n }, // Optimism
+        { chainId: 137n, expected: 4051577828743386545n }, // Polygon
+        { chainId: 8453n, expected: 15971525489660198786n }, // Base
       ];
 
       for (const { chainId, expected } of testCases) {
@@ -237,6 +245,7 @@ describe('CcipProver', () => {
         intent,
         testAddress2, // contract address for chain 10
         expect.any(String), // proof data
+        5009297550715157269n, // source domain ID (CCIP chain selector for Ethereum)
         mockClaimant,
       );
       expect(fee).toBe(mockFee);

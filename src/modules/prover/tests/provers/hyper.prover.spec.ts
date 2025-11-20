@@ -176,6 +176,7 @@ describe('HyperProver', () => {
         intent,
         testAddress2, // contract address for chain 10
         expect.any(String), // proof data
+        8453n, // source domain ID (same as chain ID for Hyper)
         mockClaimant,
       );
       expect(fee).toBe(mockFee);
@@ -189,6 +190,14 @@ describe('HyperProver', () => {
       await expect(prover.getFee(intent, mockClaimant)).rejects.toThrow(
         "Cannot read properties of undefined (reading 'fetchProverFee')",
       );
+    });
+  });
+
+  describe('getDomainId', () => {
+    it('should return chain ID as bigint for Hyperlane provers', () => {
+      expect(prover.getDomainId(1)).toBe(1n);
+      expect(prover.getDomainId(10)).toBe(10n);
+      expect(prover.getDomainId(137)).toBe(137n);
     });
   });
 

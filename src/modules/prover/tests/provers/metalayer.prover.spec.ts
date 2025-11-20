@@ -210,6 +210,7 @@ describe('MetalayerProver', () => {
         intent,
         testAddress2, // contract address for metalayer on chain 8453
         expect.any(String), // message data
+        137n, // source domain ID (same as chain ID for Metalayer)
         mockClaimant,
       );
       expect(fee).toBe(mockFee);
@@ -226,6 +227,14 @@ describe('MetalayerProver', () => {
       await expect(prover.getFee(intent, mockClaimant)).rejects.toThrow(
         "Cannot read properties of undefined (reading 'fetchProverFee')",
       );
+    });
+  });
+
+  describe('getDomainId', () => {
+    it('should return chain ID as bigint for Metalayer provers', () => {
+      expect(prover.getDomainId(137)).toBe(137n);
+      expect(prover.getDomainId(8453)).toBe(8453n);
+      expect(prover.getDomainId(1)).toBe(1n);
     });
   });
 
@@ -312,6 +321,7 @@ describe('MetalayerProver', () => {
         intent,
         testAddress2, // contract address for metalayer on chain 8453
         expect.any(String),
+        137n, // source domain ID
         mockClaimant,
       );
     });
