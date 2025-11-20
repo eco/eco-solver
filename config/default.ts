@@ -293,6 +293,62 @@ export default {
     ],
   },
 
+  ccip: {
+    chains: [
+      {
+        chainId: 1,
+        chainSelector: '5009297550715157269',
+        router: '0x80226fc0Ee2b096224EeAc085Bb9a8cba1146f7D',
+        tokens: {
+          USDC: {
+            symbol: 'USDC',
+            address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            decimals: 6,
+            tokenPool: '0x03D19033AdA17750D5BC2d8E325337D0748F9FEF',
+          },
+        },
+        supportsNativeFee: true,
+      },
+      {
+        chainId: 8453,
+        chainSelector: '15971525489660198786',
+        router: '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD',
+        tokens: {
+          USDC: {
+            symbol: 'USDC',
+            address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            decimals: 6,
+            tokenPool: '0x6378c36C44B28f4d1513e7a5510A8481a23eecda',
+          },
+        },
+        supportsNativeFee: true,
+      },
+      {
+        chainId: 2020,
+        chainSelector: '6916147374840168594',
+        router: '0x46527571D5D1B68eE7Eb60B18A32e6C60DcEAf99',
+        tokens: {
+          USDC: {
+            symbol: 'USDC',
+            address: '0x0B7007c13325C48911F73A2daD5FA5dCBf808aDc',
+            decimals: 6,
+            tokenPool: '0xe26D9c68cF6d284367C5e90EC834C6Ec0051f73C',
+          },
+        },
+        supportsNativeFee: false,
+        feeToken: {
+          symbol: 'LINK',
+          address: '0x3902228D6A3d2Dc44731fD9d45FeE6a61c722D0b',
+          decimals: 18,
+        },
+      },
+    ],
+    delivery: {
+      maxAttempts: 120,
+      backoffMs: 30_000,
+    },
+  },
+
   hyperlane: {
     useHyperlaneDefaultHook: false,
   },
