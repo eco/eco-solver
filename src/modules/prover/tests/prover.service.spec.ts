@@ -7,6 +7,7 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 import { ProverService } from '../prover.service';
+import { CcipProver } from '../provers/ccip.prover';
 import { DummyProver } from '../provers/dummy.prover';
 import { HyperProver } from '../provers/hyper.prover';
 import { MetalayerProver } from '../provers/metalayer.prover';
@@ -21,6 +22,7 @@ describe('ProverService', () => {
   let mockPolymerProver: jest.Mocked<PolymerProver>;
   let mockMetalayerProver: jest.Mocked<MetalayerProver>;
   let mockDummyProver: jest.Mocked<DummyProver>;
+  let mockCcipProver: jest.Mocked<CcipProver>;
   let mockLogger: jest.Mocked<SystemLoggerService>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
 
@@ -29,6 +31,9 @@ describe('ProverService', () => {
   );
   const mockMetalayerAddress = toUniversalAddress(
     padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+  );
+  const mockCcipAddress = toUniversalAddress(
+    padTo32Bytes('0x7777777777777777777777777777777777777777'),
   );
 
   beforeEach(async () => {
@@ -82,6 +87,23 @@ describe('ProverService', () => {
       getDeadlineBuffer: jest.fn().mockReturnValue(600n), // 10 minutes
     } as unknown as jest.Mocked<DummyProver>;
 
+    const ccipAddressMap = new Map([
+      [1, mockCcipAddress],
+      [42161, mockCcipAddress], // Arbitrum
+    ]);
+
+    mockCcipProver = {
+      type: ProverType.CCIP,
+      onModuleInit: jest.fn(),
+      getContractAddress: jest.fn().mockImplementation((chainId: number) => {
+        return ccipAddressMap.get(chainId);
+      }),
+      isSupported: jest.fn().mockImplementation((chainId: number) => {
+        return ccipAddressMap.has(chainId);
+      }),
+      getDeadlineBuffer: jest.fn().mockReturnValue(7200n), // 2 hours default
+    } as unknown as jest.Mocked<CcipProver>;
+
     mockLogger = {
       setContext: jest.fn(),
       log: jest.fn(),
@@ -98,6 +120,7 @@ describe('ProverService', () => {
           10: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
           137: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
           8453: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
+          42161: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
         };
         return portalAddresses[chainId];
       }),
@@ -121,6 +144,10 @@ describe('ProverService', () => {
         {
           provide: DummyProver,
           useValue: mockDummyProver,
+        },
+        {
+          provide: CcipProver,
+          useValue: mockCcipProver,
         },
         {
           provide: SystemLoggerService,
@@ -212,6 +239,34 @@ describe('ProverService', () => {
         },
         reward: {
           prover: mockMetalayerAddress, // Must match the prover address for chain 137
+          creator: toUniversalAddress(padTo32Bytes('0x4444444444444444444444444444444444444444')),
+          deadline: BigInt(Date.now() + 86400000),
+          nativeAmount: 0n,
+          tokens: [],
+        },
+      });
+
+      const result = await service.validateIntentRoute(intent);
+
+      expect(result).toEqual({
+        isValid: true,
+      });
+    });
+
+    it('should validate intent route with CcipProver', async () => {
+      const intent = createMockIntent({
+        sourceChainId: 1n,
+        destination: 42161n, // Arbitrum
+        route: {
+          salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+          deadline: BigInt(Date.now() + 86400000),
+          portal: toUniversalAddress(padTo32Bytes('0x9876543210987654321098765432109876543210')),
+          nativeAmount: 0n,
+          calls: [],
+          tokens: [],
+        },
+        reward: {
+          prover: mockCcipAddress,
           creator: toUniversalAddress(padTo32Bytes('0x4444444444444444444444444444444444444444')),
           deadline: BigInt(Date.now() + 86400000),
           nativeAmount: 0n,

@@ -146,6 +146,15 @@ const WalletsSchema = z.object({
 });
 
 /**
+ * CCIP-specific configuration schema
+ */
+const CcipConfigSchema = z.object({
+  gasLimit: z.number().int().positive().default(300000),
+  allowOutOfOrderExecution: z.boolean().default(true),
+  deadlineBuffer: z.number().int().positive().default(7200), // 2 hours in seconds
+});
+
+/**
  * EVM network configuration schema
  */
 const EvmNetworkSchema = z.object({
@@ -155,6 +164,7 @@ const EvmNetworkSchema = z.object({
   fee: AssetsFeeSchema.optional(),
   provers: z.record(z.enum(ProverTypeValues), EvmAddressSchema),
   defaultProver: z.enum(ProverTypeValues),
+  ccipConfig: CcipConfigSchema.optional(),
   contracts: z.object({
     portal: EvmAddressSchema,
     ecdsaExecutor: z
@@ -181,3 +191,4 @@ export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;
 export type OwnableExecutorConfig = z.infer<typeof OwnableExecutorConfigSchema>;
+export type CcipConfig = z.infer<typeof CcipConfigSchema>;

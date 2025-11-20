@@ -6,6 +6,7 @@ import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { CcipProver } from '@/modules/prover/provers/ccip.prover';
 import { DummyProver } from '@/modules/prover/provers/dummy.prover';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
 import { MetalayerProver } from '@/modules/prover/provers/metalayer.prover';
@@ -20,6 +21,7 @@ export class ProverService implements OnModuleInit {
     private polymerProver: PolymerProver,
     private metalayerProver: MetalayerProver,
     private dummyProver: DummyProver,
+    private ccipProver: CcipProver,
     private readonly logger: SystemLoggerService,
     private readonly blockchainConfigService: BlockchainConfigService,
   ) {
@@ -100,6 +102,7 @@ export class ProverService implements OnModuleInit {
     this.provers.set(ProverType.POLYMER, this.polymerProver);
     this.provers.set(ProverType.METALAYER, this.metalayerProver);
     this.provers.set(ProverType.DUMMY, this.dummyProver);
+    this.provers.set(ProverType.CCIP, this.ccipProver);
 
     this.logger.log(`Initialized ${this.provers.size} provers`);
   }

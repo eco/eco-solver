@@ -69,6 +69,11 @@ evm:
       provers:
         hyper: '0x101c1d5521dc32115089d02774F5298Df13dC71f'
         polymer: '0xc84beEFFc7A2d9A4a14e257c47a774728c6eDACa'
+        ccip: '0x1234567890123456789012345678901234567890'
+      ccipConfig:
+        gasLimit: 300000
+        allowOutOfOrderExecution: true
+        deadlineBuffer: 7200
       tokens:
         - address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
           decimals: 6
@@ -105,6 +110,11 @@ evm:
       provers:
         hyper: '0x101c1d5521dc32115089d02774F5298Df13dC71f'
         polymer: '0xc84beEFFc7A2d9A4a14e257c47a774728c6eDACa'
+        ccip: '0x1234567890123456789012345678901234567890'
+      ccipConfig:
+        gasLimit: 300000
+        allowOutOfOrderExecution: true
+        deadlineBuffer: 7200
       tokens:
         - address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'
           decimals: 6
