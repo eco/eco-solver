@@ -142,9 +142,6 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@eco-foundation/chains"
-    ],
-    "patchedDependencies": {
-      "@eco-foundation/routes-ts@3.2.9": "patches/@eco-foundation__routes-ts@3.2.9.patch"
-    }
+    ]
   }
 }

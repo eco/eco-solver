@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@eco-foundation/routes-ts@3.2.9':
-    hash: b0f5fbbffa3f383590f44a1aafa436b68b7c0802b5d83bbd3f288286e6fa8eb1
-    path: patches/@eco-foundation__routes-ts@3.2.9.patch
-
 importers:
 
   .:
@@ -54,7 +49,7 @@ importers:
         version: 2.8.20(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
       '@eco-foundation/routes-ts-v2':
         specifier: npm:@eco-foundation/routes-ts@3.2.9
-        version: '@eco-foundation/routes-ts@3.2.9(patch_hash=b0f5fbbffa3f383590f44a1aafa436b68b7c0802b5d83bbd3f288286e6fa8eb1)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)'
+        version: '@eco-foundation/routes-ts@3.2.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)'
       '@launchdarkly/node-server-sdk':
         specifier: ^9.7.1
         version: 9.10.1
@@ -7002,7 +6997,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@eco-foundation/routes-ts@3.2.9(patch_hash=b0f5fbbffa3f383590f44a1aafa436b68b7c0802b5d83bbd3f288286e6fa8eb1)(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
+  '@eco-foundation/routes-ts@3.2.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
     dependencies:
       tronweb: 6.0.4(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       viem: 2.37.8(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
