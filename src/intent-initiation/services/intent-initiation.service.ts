@@ -693,7 +693,7 @@ export class IntentInitiationService implements OnModuleInit {
     const { quoteID } = quote
     const realRouteHash = hashRoute(routeWithSalt)
     const chainConfig = getChainConfig(Number(quoteRoute.source))
-    const intentSourceContract = chainConfig.IntentSource
+    const intentSourceContract = chainConfig.Portal
 
     // Update intent db
     await this.intentSourceRepository.createIntentFromIntentInitiation(

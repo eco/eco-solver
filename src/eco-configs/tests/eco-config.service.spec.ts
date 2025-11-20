@@ -55,10 +55,9 @@ describe('Eco Config Helper Tests', () => {
       provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4'],
     }
     const mockChainConfig = {
-      IntentSource: 'source',
+      Portal: 'portal',
       HyperProver: '0x0000000000000000000000000000000000000000',
       MetaProver: '0x1111111111111111111111111111111111111111',
-      Inbox: 'inbox',
     }
 
     beforeEach(() => {
@@ -88,8 +87,8 @@ describe('Eco Config Helper Tests', () => {
       expect(result).toEqual([
         {
           ...mockIS,
-          sourceAddress: mockChainConfig.IntentSource,
-          inbox: mockChainConfig.Inbox,
+          sourceAddress: mockChainConfig.Portal,
+          inbox: mockChainConfig.Portal,
           provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4', mockChainConfig.MetaProver],
         },
       ])
@@ -109,8 +108,8 @@ describe('Eco Config Helper Tests', () => {
       expect(result).toEqual([
         {
           ...mockIS,
-          sourceAddress: mockChainConfig.IntentSource,
-          inbox: mockChainConfig.Inbox,
+          sourceAddress: mockChainConfig.Portal,
+          inbox: mockChainConfig.Portal,
           provers: ['0xa03F9C231072E46Ba079C20CF987F7AFbe6CAcF4', mockChainConfig.MetaProver],
           config: { ecoRoutes: 'append' },
         },
@@ -130,8 +129,8 @@ describe('Eco Config Helper Tests', () => {
       expect(result).toEqual([
         {
           ...mockIS,
-          sourceAddress: mockChainConfig.IntentSource,
-          inbox: mockChainConfig.Inbox,
+          sourceAddress: mockChainConfig.Portal,
+          inbox: mockChainConfig.Portal,
           provers: [mockChainConfig.MetaProver],
           config: { ecoRoutes: 'replace' },
         },
@@ -167,7 +166,7 @@ describe('Eco Config Helper Tests', () => {
       },
     }
     const mockChainConfig = {
-      Inbox: 'inbox',
+      Portal: 'portal',
     }
 
     beforeEach(() => {
@@ -195,7 +194,7 @@ describe('Eco Config Helper Tests', () => {
       mockgetChainConfig.mockReturnValue(mockChainConfig)
       ecoConfigService.get = jest.fn().mockReturnValue([mockSolver])
       const result = ecoConfigService.getSolvers()
-      expect(result).toEqual([{ ...mockSolver, inboxAddress: mockChainConfig.Inbox }])
+      expect(result).toEqual([{ ...mockSolver, inboxAddress: mockChainConfig.Portal }])
       expect(mockgetChainConfig).toHaveBeenCalled()
       expect(mockgetChainConfig).toHaveBeenCalledWith(mockSolver.chainID)
     })

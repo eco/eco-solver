@@ -1,11 +1,11 @@
-import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts'
+import { EcoChainConfig, EcoProtocolAddresses } from '@eco-foundation/routes-ts-v2'
 import * as config from 'config'
 import { EcoError } from '@/common/errors/eco-error'
 
 /**
  * The prefix for non-production deploys on a chain
  */
-export const ChainPrefix = 'pre'
+export const ChainPrefix = 'staging'
 
 export enum NodeEnv {
   production = 'production',

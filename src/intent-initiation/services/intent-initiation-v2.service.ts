@@ -688,7 +688,7 @@ export class IntentInitiationV2Service implements OnModuleInit {
 
     const { quoteID } = quote
     const chainConfig = getChainConfig(Number(quoteRoute.source))
-    const intentSourceContract = chainConfig.IntentSource
+    const intentSourceContract = chainConfig.Portal
 
     const quoteRouteV2: V2RouteType = {
       salt: routeWithSalt.salt,
