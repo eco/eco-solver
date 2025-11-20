@@ -26,7 +26,7 @@ export class MetalayerProver extends BaseProver {
     ] as const);
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // MetalayerProver requires 100 minutes (6000 seconds) for processing
     return 6000n;

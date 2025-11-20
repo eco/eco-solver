@@ -29,7 +29,7 @@ export class DummyProver extends BaseProver {
     return 0n;
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // MetalayerProver requires 100 minutes (6000 seconds) for processing
     return 600n;

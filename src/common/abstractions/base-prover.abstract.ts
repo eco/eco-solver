@@ -28,7 +28,7 @@ export abstract class BaseProver implements OnModuleInit {
 
   abstract generateProof(intent: Intent): Promise<Hex>;
 
-  abstract getDeadlineBuffer(): bigint;
+  abstract getDeadlineBuffer(chainId: number): bigint;
 
   getContractAddress(chainId: number): UniversalAddress | undefined {
     return this.blockchainConfigService.getProverAddress(chainId, this.type as TProverType);
