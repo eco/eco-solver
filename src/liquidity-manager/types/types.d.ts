@@ -61,6 +61,19 @@ type USDT0StrategyContext = {
   minAmountLD?: bigint
 }
 
+type CCIPStrategyContext = {
+  router: Hex
+  sourceChainSelector: string
+  destinationChainSelector: string
+  destinationAccount: Hex
+  tokenSymbol: string
+  tokenAddress: Hex
+  amount: bigint
+  feeTokenAddress?: Hex
+  feeTokenSymbol?: string
+  estimatedFee: bigint
+}
+
 interface CCTPV2StrategyContext {
   transferType: 'standard' | 'fast'
   fee: bigint
@@ -123,6 +136,7 @@ type Strategy =
   | 'Gateway'
   | 'USDT0'
   | 'USDT0LiFi'
+  | 'CCIP'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -147,7 +161,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
                       ? USDT0StrategyContext
                       : S extends 'USDT0LiFi'
                         ? USDT0LiFiStrategyContext
-                        : never
+                        : S extends 'CCIP'
+                          ? CCIPStrategyContext
+                          : never
 
 // Quote
 

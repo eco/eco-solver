@@ -35,6 +35,7 @@ import { LmTxGatedKernelAccountClientV2Service } from './wallet-wrappers/kernel-
 import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
+import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity
     RebalanceRepository,
     RebalanceQuoteRejectionRepository,
     RebalancingHealthRepository,
+    CCIPProviderService,
   ],
   exports: [
     LiquidityManagerService,
