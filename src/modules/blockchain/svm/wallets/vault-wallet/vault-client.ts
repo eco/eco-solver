@@ -127,7 +127,7 @@ export class VaultClient {
         }
 
         this.client.token = response.auth.client_token;
-        
+
         const leaseDuration = response.auth.lease_duration || response.lease_duration;
         this.logger.log(
           `Kubernetes authentication successful${leaseDuration ? ` (TTL: ${leaseDuration}s)` : ''}`,
@@ -241,12 +241,12 @@ export class VaultClient {
       // Check if this is a permission denied error
       if (this.isPermissionDeniedError(error)) {
         this.logger.warn('Vault operation failed with permission denied. Re-authenticating...');
-        
+
         try {
           // Re-authenticate
           await this.authenticate();
           this.logger.log('Re-authentication successful. Retrying operation...');
-          
+
           // Retry the operation once
           return await operation();
         } catch (retryError) {
@@ -254,7 +254,7 @@ export class VaultClient {
           throw retryError;
         }
       }
-      
+
       // If not a permission error, throw the original error
       throw error;
     }
@@ -267,9 +267,9 @@ export class VaultClient {
    */
   private isPermissionDeniedError(error: unknown): boolean {
     if (!error) return false;
-    
+
     const errorMessage = getErrorMessage(error).toLowerCase();
-    
+
     // Check for common Vault permission error messages
     return (
       errorMessage.includes('permission denied') ||
