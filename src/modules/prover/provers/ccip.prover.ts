@@ -5,7 +5,8 @@ import { encodeAbiParameters, Hex } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ProverType } from '@/common/interfaces/prover.interface';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainConfigService, ProversConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -23,22 +24,32 @@ export class CcipProver extends BaseProver {
   async generateProof(intent: Intent): Promise<Hex> {
     const sourceChainId = Number(intent.sourceChainId);
 
-    // Get CCIP chain selector (domain ID) for the source chain
-    const sourceDomainId = this.getDomainId(sourceChainId);
+    // Get the CCIP prover contract address on the source chain
+    const sourceChainProver = this.blockchainConfigService.getProverAddress(
+      sourceChainId,
+      this.type as TProverType,
+    );
+
+    if (!sourceChainProver) {
+      throw new Error(`No CCIP prover address found for source chain ${sourceChainId}`);
+    }
+
+    // Convert UniversalAddress to EVM address format
+    const proverAddress = AddressNormalizer.denormalizeToEvm(sourceChainProver);
 
     // Use centralized prover config instead of per-network config
     const gasLimit = this.proversConfigService.getCcipGasLimit();
     const allowOutOfOrderExecution = this.proversConfigService.getCcipAllowOutOfOrderExecution();
 
-    // Encode proof data: (uint64 sourceDomainId, uint256 gasLimit, bool allowOutOfOrderExecution)
+    // Encode proof data: (address sourceChainProver, uint256 gasLimit, bool allowOutOfOrderExecution)
     return encodeAbiParameters(
       [
         {
           type: 'tuple',
-          components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
+          components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
         },
       ],
-      [[sourceDomainId, BigInt(gasLimit), allowOutOfOrderExecution]],
+      [[proverAddress, BigInt(gasLimit), allowOutOfOrderExecution]],
     );
   }
 

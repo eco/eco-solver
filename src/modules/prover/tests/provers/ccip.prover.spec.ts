@@ -1,7 +1,7 @@
 import { ModuleRef } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { encodeAbiParameters } from 'viem';
+import { encodeAbiParameters, Hex } from 'viem';
 
 import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
@@ -59,18 +59,29 @@ describe('CcipProver', () => {
       get: jest.fn().mockReturnValue(mockBlockchainReaderService),
     } as unknown as jest.Mocked<ModuleRef>;
 
+    // Create additional test addresses for different chains
+    const testAddress8453 = toUniversalAddress(
+      padTo32Bytes('0x8888888888888888888888888888888888888888'),
+    );
+    const testAddress137 = toUniversalAddress(
+      padTo32Bytes('0x9999999999999999999999999999999999999999'),
+    );
+
     mockBlockchainConfigService = {
       getProverAddress: jest
         .fn()
         .mockImplementation((chainId: number | string | bigint, proverType: TProverType) => {
           const numericChainId = Number(chainId);
-          if (numericChainId === 1 && proverType === 'ccip') {
-            return testAddress1;
-          }
-          if (numericChainId === 10 && proverType === 'ccip') {
-            return testAddress2;
-          }
-          return undefined;
+          if (proverType !== 'ccip') return undefined;
+
+          const addressMap: Record<number, UniversalAddress> = {
+            1: testAddress1,
+            10: testAddress2,
+            8453: testAddress8453,
+            137: testAddress137,
+          };
+
+          return addressMap[numericChainId];
         }),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
@@ -121,28 +132,28 @@ describe('CcipProver', () => {
   });
 
   describe('generateProof', () => {
-    it('should encode proof data with source chain selector and default config', async () => {
+    it('should encode proof data with source prover address and default config', async () => {
       const intent = createMockIntent({
         sourceChainId: 1n,
       });
 
       const proofData = await prover.generateProof(intent);
 
-      // Chain ID 1 (Ethereum) -> Chain Selector 5009297550715157269
+      // Proof contains source chain prover address, not chain selector
       const expectedData = encodeAbiParameters(
         [
           {
             type: 'tuple',
-            components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
+            components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
           },
         ],
-        [[5009297550715157269n, 300000n, true]],
+        [['0x1234567890123456789012345678901234567890', 300000n, true]],
       );
 
       expect(proofData).toBe(expectedData);
       expect(mockProversConfigService.getCcipGasLimit).toHaveBeenCalled();
       expect(mockProversConfigService.getCcipAllowOutOfOrderExecution).toHaveBeenCalled();
-      expect(mockProversConfigService.getCcipChainSelector).toHaveBeenCalledWith(1);
+      expect(mockBlockchainConfigService.getProverAddress).toHaveBeenCalledWith(1, 'ccip');
     });
 
     it('should encode proof data with custom configuration', async () => {
@@ -157,32 +168,32 @@ describe('CcipProver', () => {
 
       const proofData = await prover.generateProof(intent);
 
-      // Chain ID 10 (Optimism) -> Chain Selector 3734403246176062136
+      // Proof contains source chain prover address for chain 10
       const expectedData = encodeAbiParameters(
         [
           {
             type: 'tuple',
-            components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
+            components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
           },
         ],
-        [[3734403246176062136n, 500000n, false]],
+        [['0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', 500000n, false]],
       );
 
       expect(proofData).toBe(expectedData);
       expect(mockProversConfigService.getCcipGasLimit).toHaveBeenCalled();
       expect(mockProversConfigService.getCcipAllowOutOfOrderExecution).toHaveBeenCalled();
-      expect(mockProversConfigService.getCcipChainSelector).toHaveBeenCalledWith(10);
+      expect(mockBlockchainConfigService.getProverAddress).toHaveBeenCalledWith(10, 'ccip');
     });
 
     it('should handle different source chain IDs correctly', async () => {
       const testCases = [
-        { chainId: 1n, expected: 5009297550715157269n }, // Ethereum
-        { chainId: 10n, expected: 3734403246176062136n }, // Optimism
-        { chainId: 137n, expected: 4051577828743386545n }, // Polygon
-        { chainId: 8453n, expected: 15971525489660198786n }, // Base
+        { chainId: 1n, expectedAddress: '0x1234567890123456789012345678901234567890' }, // Ethereum
+        { chainId: 10n, expectedAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' }, // Optimism
+        { chainId: 137n, expectedAddress: '0x9999999999999999999999999999999999999999' }, // Polygon
+        { chainId: 8453n, expectedAddress: '0x8888888888888888888888888888888888888888' }, // Base
       ];
 
-      for (const { chainId, expected } of testCases) {
+      for (const { chainId, expectedAddress } of testCases) {
         const intent = createMockIntent({
           sourceChainId: chainId,
         });
@@ -193,10 +204,10 @@ describe('CcipProver', () => {
           [
             {
               type: 'tuple',
-              components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
+              components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
             },
           ],
-          [[expected, 300000n, true]],
+          [[expectedAddress as Hex, 300000n, true]],
         );
 
         expect(proofData).toBe(expectedData);
