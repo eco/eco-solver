@@ -68,7 +68,7 @@ export class ExpirationValidation implements Validation {
         throw new ValidationError('Prover not found.');
       }
 
-      const bufferSeconds = prover.getDeadlineBuffer();
+      const bufferSeconds = prover.getDeadlineBuffer(Number(intent.sourceChainId));
 
       span?.setAttributes({
         'expiration.required_buffer': bufferSeconds.toString(),

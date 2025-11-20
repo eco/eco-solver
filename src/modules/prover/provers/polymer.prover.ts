@@ -208,7 +208,7 @@ export class PolymerProver extends BaseProver {
     return true;
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // PolymerProver requires 1 hour (3600 seconds) for processing
     return 3600n;
