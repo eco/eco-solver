@@ -158,9 +158,12 @@ export class EcoError extends Error {
   static SolverRegistrationError = new EcoError()
 
   // Signature Validations
-  static TypedDataVerificationFailed = new EcoError()
-  static SignatureExpired = new EcoError()
-  static InvalidSignature = new EcoError()
+  static TypedDataVerificationFailed(errorMessage: string) {
+    return new EcoError(`TypedData Verification Failed: ${errorMessage}`)
+  }
+
+  static SignatureExpired = new EcoError('SignatureExpired')
+  static InvalidSignature = new EcoError('InvalidSignature')
 
   // Quote Service
   static NegativeGasOverhead(gasOverhead: number) {
@@ -196,24 +199,32 @@ export class EcoError extends Error {
     return this._logError(this.getErrorObject(error), caller, srcLogger, properties, true)
   }
 
+  static logError(error: any, caller: string, srcLogger: Logger, properties: object = {}): string {
+    return this._logError(this.getErrorObject(error), caller, srcLogger, properties, false)
+  }
+
   static _logError(
     error: Error,
     caller: string,
     srcLogger: Logger,
     properties: object,
     logStack?: boolean,
-  ) {
+  ): string {
+    const errorMessage = this.getErrorMessage(error)
+
     srcLogger.error(
       EcoLogMessage.fromDefault({
         message: `${caller}: error`,
         properties: {
-          error: error.message,
+          error: errorMessage,
           ...properties,
         },
       }),
 
       logStack && error.stack,
     )
+
+    return errorMessage
   }
 
   static getErrorMessage(error: any): string {

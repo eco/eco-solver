@@ -22,6 +22,8 @@ import * as SlippageCalculator from './utils/slippage-calculator'
 import { USDT0LiFiValidator } from './utils/validation'
 import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
+import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 
 @Injectable()
 export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'> {
@@ -33,6 +35,7 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
     private readonly usdt0Service: USDT0ProviderService,
     private readonly ecoConfigService: EcoConfigService,
     private readonly balanceService: BalanceService,
+    private readonly rebalanceRepository: RebalanceRepository,
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
     private readonly ecoAnalytics: EcoAnalyticsService,
@@ -222,6 +225,14 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
           properties: { id: quote.id, quote, walletAddress },
         }),
       )
+
+      // Update the rebalance job status to failed
+      try {
+        if (quote.rebalanceJobID) {
+          await this.rebalanceRepository.updateStatus(quote.rebalanceJobID, RebalanceStatus.FAILED)
+        }
+      } catch {}
+
       throw error
     }
   }
