@@ -2,6 +2,7 @@ import { ModuleRef } from '@nestjs/core';
 
 import { decodeAbiParameters } from 'viem';
 
+import { UniversalAddress } from '@/common/types/universal-address.type';
 import { CcipProverConfig } from '@/config/schemas/provers.schema';
 import { BlockchainConfigService, ProversConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
@@ -23,6 +24,12 @@ describe('CCIP Domain Transformation Integration', () => {
     },
   };
 
+  const mockProverAddresses: Record<number, string> = {
+    1: '0x1111111111111111111111111111111111111111',
+    8453: '0x8888888888888888888888888888888888888888',
+    10: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  };
+
   beforeAll(async () => {
     mockProversConfigService = {
       getCcipChainSelector: jest.fn().mockImplementation((chainId: number) => {
@@ -36,7 +43,18 @@ describe('CCIP Domain Transformation Integration', () => {
       ccip: ccipConfig,
     } as unknown as jest.Mocked<ProversConfigService>;
 
-    const mockBlockchainConfigService = {} as jest.Mocked<BlockchainConfigService>;
+    const mockBlockchainConfigService = {
+      getProverAddress: jest.fn().mockImplementation((chainId: number, proverType: string) => {
+        if (proverType === 'ccip') {
+          const address = mockProverAddresses[chainId];
+          if (address) {
+            return ('0x' + '00'.repeat(12) + address.slice(2)) as UniversalAddress;
+          }
+        }
+        return undefined;
+      }),
+    } as unknown as jest.Mocked<BlockchainConfigService>;
+
     const mockModuleRef = {} as jest.Mocked<ModuleRef>;
 
     ccipProver = new CcipProver(
@@ -61,7 +79,7 @@ describe('CCIP Domain Transformation Integration', () => {
     expect(domainId).toBe(3734403246176062136n);
   });
 
-  it('should include chain selector in generated proof', async () => {
+  it('should include source prover address in generated proof', async () => {
     const mockIntent = createMockIntent({
       sourceChainId: 8453n, // Base
       destination: 1n, // Ethereum
@@ -69,14 +87,15 @@ describe('CCIP Domain Transformation Integration', () => {
 
     const proof = await ccipProver.generateProof(mockIntent);
 
-    // Decode and verify first parameter is chain selector, not chain ID
+    // Decode and verify first parameter is source prover address
     const decoded = decodeAbiParameters(
-      [{ type: 'tuple', components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }] }],
+      [{ type: 'tuple', components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }] }],
       proof,
     );
 
-    expect(decoded[0][0]).toBe(15971525489660198786n); // Chain selector for Base
-    expect(decoded[0][0]).not.toBe(8453n); // NOT the chain ID
+    expect(decoded[0][0]).toBe('0x8888888888888888888888888888888888888888'); // Source prover address for Base
+    expect(decoded[0][1]).toBe(300000n); // Gas limit
+    expect(decoded[0][2]).toBe(true); // allowOutOfOrderExecution
   });
 
   it('should throw error for unconfigured chain', () => {
@@ -85,14 +104,14 @@ describe('CCIP Domain Transformation Integration', () => {
     );
   });
 
-  it('should use chain selector from different source chains', async () => {
+  it('should use source prover address from different source chains', async () => {
     const testCases = [
-      { sourceChainId: 8453n, expectedSelector: 15971525489660198786n }, // Base
-      { sourceChainId: 1n, expectedSelector: 5009297550715157269n }, // Ethereum
-      { sourceChainId: 10n, expectedSelector: 3734403246176062136n }, // Optimism
+      { sourceChainId: 8453n, expectedAddress: '0x8888888888888888888888888888888888888888' }, // Base
+      { sourceChainId: 1n, expectedAddress: '0x1111111111111111111111111111111111111111' }, // Ethereum
+      { sourceChainId: 10n, expectedAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, // Optimism
     ];
 
-    for (const { sourceChainId, expectedSelector } of testCases) {
+    for (const { sourceChainId, expectedAddress } of testCases) {
       const intent = createMockIntent({
         sourceChainId,
         destination: 1n,
@@ -103,13 +122,13 @@ describe('CCIP Domain Transformation Integration', () => {
         [
           {
             type: 'tuple',
-            components: [{ type: 'uint64' }, { type: 'uint256' }, { type: 'bool' }],
+            components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
           },
         ],
         proof,
       );
 
-      expect(decoded[0][0]).toBe(expectedSelector);
+      expect((decoded[0][0] as string).toLowerCase()).toBe(expectedAddress.toLowerCase()); // Source prover address
     }
   });
 });
