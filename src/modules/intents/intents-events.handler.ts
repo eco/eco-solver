@@ -10,8 +10,10 @@ import {
 import { toError } from '@/common/utils/error-handler';
 import { EventsService } from '@/modules/events/events.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { MetricsRegistryService } from '@/modules/opentelemetry/metrics-registry.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
+import { IntentConverter } from './utils/intent-converter';
 import { IntentsService } from './intents.service';
 
 @Injectable()
@@ -21,6 +23,7 @@ export class IntentsEventsHandler implements OnModuleInit {
     private readonly intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly metricsRegistry: MetricsRegistryService,
   ) {
     this.logger.setContext(IntentsEventsHandler.name);
   }
@@ -116,6 +119,13 @@ export class IntentsEventsHandler implements OnModuleInit {
               `Successfully updated intent ${event.intentHash} with proven event data`,
             );
             span.setAttribute('update.success', true);
+
+            // Record proven metric
+            const intentInterface = IntentConverter.toInterface(updatedIntent);
+            this.metricsRegistry.recordIntentProven(
+              intentInterface.sourceChainId?.toString() || 'unknown',
+              intentInterface.destination.toString(),
+            );
           } else {
             this.logger.warn(`Intent ${event.intentHash} not found for proven event update`);
             span.setAttribute('update.success', false);
@@ -162,6 +172,9 @@ export class IntentsEventsHandler implements OnModuleInit {
               `Successfully updated intent ${event.intentHash} with withdrawn event data`,
             );
             span.setAttribute('update.success', true);
+
+            // Record withdrawn metric
+            this.metricsRegistry.recordIntentWithdrawn(event.chainId.toString());
           } else {
             this.logger.warn(`Intent ${event.intentHash} not found for withdrawn event update`);
             span.setAttribute('update.success', false);

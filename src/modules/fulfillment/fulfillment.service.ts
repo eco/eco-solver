@@ -3,12 +3,12 @@ import { Injectable } from '@nestjs/common';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { FulfillmentConfigService } from '@/modules/config/services';
-import { DataDogService } from '@/modules/datadog';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { MetricsRegistryService } from '@/modules/opentelemetry/metrics-registry.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { IntentProcessingService } from './services/intent-processing.service';
@@ -24,9 +24,9 @@ import { StrategyManagementService } from './services/strategy-management.servic
 export class FulfillmentService {
   constructor(
     private readonly intentsService: IntentsService,
-    private readonly dataDogService: DataDogService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    private readonly metricsRegistry: MetricsRegistryService,
     private readonly fulfillmentConfigService: FulfillmentConfigService,
     // New specialized services
     private readonly submissionService: IntentSubmissionService,
@@ -81,8 +81,7 @@ export class FulfillmentService {
           await this.submissionService.submitIntent(interfaceIntent, strategy);
 
           // Record metrics
-          this.dataDogService.recordIntent(
-            'submitted',
+          this.metricsRegistry.recordIntentProcessed(
             intent.sourceChainId?.toString() || 'unknown',
             intent.destination.toString(),
             strategy,
@@ -109,28 +108,22 @@ export class FulfillmentService {
    * Delegates to IntentProcessingService
    */
   async processIntent(intent: Intent, strategyName: FulfillmentStrategyName): Promise<void> {
-    const startTime = Date.now();
-
     try {
       // Delegate to the specialized processing service
       await this.processingService.processIntent(intent, strategyName);
 
       // Record successful processing metric
-      this.dataDogService.recordIntent(
-        'fulfilled',
+      this.metricsRegistry.recordIntentFulfilled(
         intent.sourceChainId?.toString() || 'unknown',
         intent.destination.toString(),
         strategyName,
-        Date.now() - startTime,
       );
     } catch (error) {
       // Record failure metric
-      this.dataDogService.recordIntent(
-        'failed',
+      this.metricsRegistry.recordIntentFailed(
         intent.sourceChainId?.toString() || 'unknown',
         intent.destination.toString(),
         strategyName,
-        Date.now() - startTime,
       );
 
       // Re-throw to maintain existing error handling behavior
