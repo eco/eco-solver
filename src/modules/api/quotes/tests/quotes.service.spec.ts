@@ -7,6 +7,7 @@ import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/con
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { QuoteResult } from '@/modules/fulfillment/interfaces/quote-result.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { ProverService } from '@/modules/prover/prover.service';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { QuotesService } from '../services/quotes.service';
@@ -36,6 +37,7 @@ describe('QuotesService', () => {
       .fn()
       .mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890'),
     getDefaultProver: jest.fn().mockReturnValue('hyper'),
+    getAvailableProvers: jest.fn().mockReturnValue(['hyper', 'polymer', 'metalayer']),
     getTokenConfig: jest.fn().mockReturnValue({
       symbol: 'TEST',
       decimals: 18,
@@ -54,6 +56,10 @@ describe('QuotesService', () => {
       data: '0x',
       value: 0n,
     }),
+  };
+
+  const mockProverService = {
+    selectProverForRoute: jest.fn().mockReturnValue('hyper'),
   };
 
   beforeEach(async () => {
@@ -75,6 +81,10 @@ describe('QuotesService', () => {
         {
           provide: BlockchainReaderService,
           useValue: mockBlockchainReaderService,
+        },
+        {
+          provide: ProverService,
+          useValue: mockProverService,
         },
       ],
     }).compile();
@@ -244,7 +254,7 @@ describe('QuotesService', () => {
       mockBlockchainConfigService.getProverAddress.mockReturnValue(undefined);
 
       await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
-        new BadRequestException('Default prover hyper not configured for chain 1'),
+        new BadRequestException('Prover hyper not configured for chain 1'),
       );
     });
 
@@ -553,6 +563,125 @@ describe('QuotesService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('selectProverForRoute - Intelligent Prover Selection', () => {
+    const mockQuoteRequest: QuoteRequest = {
+      dAppID: 'test-dapp',
+      quoteRequest: {
+        sourceChainID: BigInt(1),
+        destinationChainID: BigInt(10),
+        sourceToken: '0x1234567890123456789012345678901234567890',
+        destinationToken: '0x1234567890123456789012345678901234567890',
+        sourceAmount: BigInt('5000000000000000000'),
+        funder: '0x1234567890123456789012345678901234567890',
+        recipient: '0x1234567890123456789012345678901234567890',
+      },
+    };
+
+    beforeEach(() => {
+      // Reset ProverService mock
+      mockProverService.selectProverForRoute.mockClear();
+      // Reset BlockchainConfigService mocks
+      mockBlockchainConfigService.getAvailableProvers.mockClear();
+      mockBlockchainConfigService.getDefaultProver.mockClear();
+      mockBlockchainConfigService.getProverAddress
+        .mockClear()
+        .mockReturnValue('0x0000000000000000000000001234567890123456789012345678901234567890');
+    });
+
+    it('should use the prover returned by selectProverForRoute', async () => {
+      // Setup mocks
+      mockProverService.selectProverForRoute.mockReturnValue('polymer');
+      // Mock getProverAddress to return different values for different provers
+      mockBlockchainConfigService.getProverAddress.mockImplementation((_chainId, proverType) => {
+        if (proverType === 'polymer') {
+          return '0x0000000000000000000000002222222222222222222222222222222222222222';
+        }
+        return '0x0000000000000000000000001234567890123456789012345678901234567890';
+      });
+
+      mockFulfillmentService.getStrategy.mockReturnValue(
+        mockStrategy as unknown as FulfillmentStrategy,
+      );
+      mockStrategy.canHandle.mockReturnValue(true);
+      mockStrategy.getQuote.mockResolvedValue({
+        valid: true,
+        strategy: 'standard',
+        fees: {
+          reward: {
+            native: 0n,
+            tokens: BigInt('5000000000000000000'),
+          },
+          route: {
+            native: 0n,
+            tokens: BigInt('1000000000000000'),
+            maximum: {
+              native: 0n,
+              tokens: BigInt('4998995000000000000'),
+            },
+          },
+          fee: {
+            base: BigInt('1000000000000000'),
+            percentage: BigInt('5000000000000000'),
+            total: BigInt('1005000000000000'),
+            bps: 0.1,
+          },
+        },
+        validationResults: [],
+      });
+
+      const result = await service.getQuote(mockQuoteRequest);
+
+      // Verify selectProverForRoute was called with correct parameters
+      expect(mockProverService.selectProverForRoute).toHaveBeenCalledWith(1n, 10n);
+
+      // Verify the selected prover was used to get the address
+      expect(mockBlockchainConfigService.getProverAddress).toHaveBeenCalledWith(1n, 'polymer');
+
+      // Verify quote contains the correct prover address
+      expect('contracts' in result && result.contracts.prover).toBe(
+        '0x2222222222222222222222222222222222222222',
+      );
+    });
+
+    it('should throw error from selectProverForRoute when no compatible prover found', async () => {
+      // Setup mock to throw error
+      mockProverService.selectProverForRoute.mockImplementation(() => {
+        throw new Error(
+          'No compatible prover found for route 1 -> 10. Source chain provers: [hyper], Destination chain provers: [polymer]',
+        );
+      });
+
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        'No compatible prover found for route 1 -> 10',
+      );
+
+      // Verify selectProverForRoute was called
+      expect(mockProverService.selectProverForRoute).toHaveBeenCalledWith(1n, 10n);
+    });
+
+    it('should throw BadRequestException when selected prover has no address configured', async () => {
+      // Setup mocks
+      mockProverService.selectProverForRoute.mockReturnValue('polymer');
+      // Mock getProverAddress to return undefined for polymer
+      mockBlockchainConfigService.getProverAddress.mockImplementation(
+        (chainId: number, proverType: string): string | undefined => {
+          if (proverType === 'polymer') {
+            return undefined;
+          }
+          return '0x0000000000000000000000001234567890123456789012345678901234567890';
+        },
+      );
+
+      await expect(service.getQuote(mockQuoteRequest)).rejects.toThrow(
+        new BadRequestException('Prover polymer not configured for chain 1'),
+      );
+
+      // Verify selectProverForRoute was called
+      expect(mockProverService.selectProverForRoute).toHaveBeenCalledWith(1n, 10n);
+      expect(mockBlockchainConfigService.getProverAddress).toHaveBeenCalledWith(1n, 'polymer');
     });
   });
 });

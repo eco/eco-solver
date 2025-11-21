@@ -15,6 +15,7 @@ import { hours, now } from '@/common/utils/time';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { ProverService } from '@/modules/prover/prover.service';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
@@ -26,6 +27,7 @@ export class QuotesService {
     private readonly fulfillmentService: FulfillmentService,
     private readonly blockchainConfigService: BlockchainConfigService,
     private readonly blockchainReaderService: BlockchainReaderService,
+    private readonly proverService: ProverService,
   ) {}
 
   async getQuote(request: QuoteRequest): Promise<QuoteResponse> {
@@ -194,15 +196,18 @@ export class QuotesService {
       );
     }
 
-    // Get default prover for the source chain
-    const defaultProver = this.blockchainConfigService.getDefaultProver(Number(sourceChainId));
+    // Select prover based on route compatibility
+    const selectedProver = this.proverService.selectProverForRoute(
+      sourceChainId,
+      destinationChainId,
+    );
     const proverAddressUA = this.blockchainConfigService.getProverAddress(
-      Number(sourceChainId),
-      defaultProver,
+      sourceChainId,
+      selectedProver,
     );
     if (!proverAddressUA) {
       throw new BadRequestException(
-        `Default prover ${defaultProver} not configured for chain ${sourceChainId}`,
+        `Prover ${selectedProver} not configured for chain ${sourceChainId}`,
       );
     }
 

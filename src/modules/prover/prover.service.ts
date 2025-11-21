@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
-import { ProverResult, ProverType } from '@/common/interfaces/prover.interface';
+import { ProverResult, ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -95,6 +95,50 @@ export class ProverService implements OnModuleInit {
     }
 
     return null;
+  }
+
+  /**
+   * Selects the appropriate prover for a route based on chain compatibility
+   * Prefers the default prover if it supports both chains, otherwise uses first available
+   * @param sourceChainId Source chain ID
+   * @param destinationChainId Destination chain ID
+   * @returns The selected prover type
+   * @throws Error if no compatible prover found
+   */
+  selectProverForRoute(sourceChainId: bigint, destinationChainId: bigint): TProverType {
+    // Get available provers on source chain
+    const sourceProvers = this.blockchainConfigService.getAvailableProvers(sourceChainId);
+
+    // Get available provers on destination chain
+    const destProvers = this.blockchainConfigService.getAvailableProvers(destinationChainId);
+
+    // Find intersection of provers
+    const availableProvers = sourceProvers.filter((p) => destProvers.includes(p));
+
+    if (availableProvers.length === 0) {
+      const message =
+        `No compatible prover found for route ${sourceChainId} -> ${destinationChainId}. ` +
+        `Source chain provers: [${sourceProvers.join(', ')}], ` +
+        `Destination chain provers: [${destProvers.join(', ')}]`;
+      this.logger.error(message);
+      throw new Error(message);
+    }
+
+    // Check if default prover is available
+    const defaultProver = this.blockchainConfigService.getDefaultProver(sourceChainId);
+    if (availableProvers.includes(defaultProver)) {
+      this.logger.debug(
+        `Using default prover ${defaultProver} for route ${sourceChainId} -> ${destinationChainId}`,
+      );
+      return defaultProver;
+    }
+
+    // Fallback to first available prover
+    const selectedProver = availableProvers[0];
+    this.logger.debug(
+      `Default prover ${defaultProver} not available, using ${selectedProver} for route ${sourceChainId} -> ${destinationChainId}`,
+    );
+    return selectedProver;
   }
 
   private initializeProvers(): void {

@@ -183,6 +183,16 @@ export class EvmConfigService implements IBlockchainConfigService {
     return network.defaultProver;
   }
 
+  getAvailableProvers(chainId: ChainIdentifier): TProverType[] {
+    const network = this.getChain(Number(chainId));
+    if (!network.provers) {
+      return [];
+    }
+    return Object.entries(network.provers)
+      .filter(([_, addr]) => addr !== undefined)
+      .map(([key]) => key as TProverType);
+  }
+
   /**
    * Gets the HTTP configuration for a network with WebSocket transport.
    * If the http field is not defined in the WebSocket config, creates a default
