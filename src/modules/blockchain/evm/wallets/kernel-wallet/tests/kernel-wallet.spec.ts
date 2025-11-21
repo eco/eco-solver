@@ -145,6 +145,7 @@ describe('KernelWallet', () => {
           type: 'eoa',
           privateKey: '0xPrivateKey',
         },
+        executorSignatureExpiration: 1800,
       } as any;
 
       // Mock EVM wallet manager
@@ -236,6 +237,7 @@ describe('KernelWallet', () => {
         type: 'eoa',
         privateKey: '0xPrivateKey',
       },
+      executorSignatureExpiration: 1800,
     } as any;
 
     // Mock network config
@@ -458,9 +460,7 @@ describe('KernelWallet', () => {
         mockEncodeAbiParameters.mockReturnValueOnce('0xEncodedAbiParameters');
 
         // Mock encodePacked - first call for signer address, second call for constructInitDataWithHook
-        mockEncodePacked
-          .mockReturnValueOnce('0xSignerData') // First call for signer address
-          .mockReturnValueOnce('0xInitData'); // Second call for constructInitDataWithHook
+        mockEncodePacked.mockReturnValueOnce('0xInitData'); // Second call for constructInitDataWithHook
 
         // Mock encodeFunctionData for installModule
         mockEncodeFunctionData.mockReturnValueOnce('0xInstallModuleData');

@@ -1,5 +1,5 @@
-import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
 import { SortOrder } from '@/modules/dynamic-config/enums/sort-order.enum';
+import { ConfigurationDocument } from '@/modules/dynamic-config/schemas/configuration.schema';
 
 export interface CreateConfigurationDTO {
   key: string;

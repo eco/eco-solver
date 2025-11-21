@@ -1,11 +1,11 @@
 import { Address, Hex } from 'viem';
 
+import { SignatureValidationData } from '@/request-signing/interfaces/signature-validation-data.interface';
 import {
   SIGNATURE_ADDRESS_HEADER,
   SIGNATURE_EXPIRE_HEADER,
   SIGNATURE_HEADER,
 } from '@/request-signing/signature-headers';
-import { SignatureValidationData } from '@/request-signing/interfaces/signature-validation-data.interface';
 
 export class RequestHeaders {
   private headers: Record<string, any>;

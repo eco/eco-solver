@@ -15,6 +15,13 @@ export class QuotesConfigService {
   }
 
   /**
+   * Check if quotes API is enabled
+   */
+  get isEnabled(): boolean {
+    return this.configService.get<boolean>('quotes.enabled', true);
+  }
+
+  /**
    * Registration-specific getters for convenience
    */
   get registrationEnabled(): boolean {

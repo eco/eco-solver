@@ -55,7 +55,10 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
   }
 
   async process(job: Job<string>) {
-    const jobData = BigintSerializer.deserialize<WithdrawalJobData>(job.data);
+    const jobData =
+      typeof job.data === 'string'
+        ? BigintSerializer.deserialize<WithdrawalJobData>(job.data)
+        : job.data;
 
     // Check if this is a scheduled check job
     if (job.name === 'check-proven-intents') {
@@ -91,7 +94,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
       }
     };
 
-    return processFn(jobData, job);
+    return processFn(jobData!, job);
   }
 
   /**

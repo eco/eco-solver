@@ -6,10 +6,7 @@ module.exports = {
     sourceType: 'module',
   },
   plugins: ['@typescript-eslint/eslint-plugin', 'simple-import-sort'],
-  extends: [
-    'plugin:@typescript-eslint/recommended',
-    'plugin:prettier/recommended',
-  ],
+  extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
   root: true,
   env: {
     node: true,
@@ -17,6 +14,7 @@ module.exports = {
   },
   ignorePatterns: ['.eslintrc.js'],
   rules: {
+    '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
@@ -47,11 +45,14 @@ module.exports = {
       rules: {
         // Use simple-import-sort plugin for better import sorting
         'simple-import-sort/imports': [
-          'off',
+          'error',
           {
             groups: [
               // Node.js builtins
-              ['^node:', '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib)(/.*)?$'],
+              [
+                '^node:',
+                '^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|module|net|os|path|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|vm|zlib)(/.*)?$',
+              ],
               // Packages starting with @nestjs
               ['^@nestjs'],
               // Other packages
@@ -67,8 +68,9 @@ module.exports = {
             ],
           },
         ],
-        'simple-import-sort/exports': 'off',
+        'simple-import-sort/exports': 'error',
         'sort-imports': 'off',
+        'import/order': 'off',
       },
     },
   ],

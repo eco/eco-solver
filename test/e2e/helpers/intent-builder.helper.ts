@@ -67,8 +67,10 @@ export class IntentBuilder {
     nativeAmount: 0n,
     rewardTokenAmount: parseUnits('12', 6), // 12 USDC reward (covers route + fees)
     rewardNativeAmount: 0n,
-    routeDeadline: BigInt(Date.now() + 3600000), // 1 hour from now
-    rewardDeadline: BigInt(Date.now() + 3600000), // 1 hour from now
+    // NOTE: Blockchain timestamps are in SECONDS, not milliseconds
+    // In forked environments, use blockchain timestamp instead of Date.now()
+    routeDeadline: BigInt(Math.floor(Date.now() / 1000)) + 5400n, // 1.5 hours from now (in seconds)
+    rewardDeadline: BigInt(Math.floor(Date.now() / 1000)) + 5400n, // 1.5 hours from now (in seconds)
     creatorAddress: TEST_ACCOUNTS.ACCOUNT_0.address as Address,
     recipient: TEST_ACCOUNTS.ACCOUNT_1.address as Address,
   };

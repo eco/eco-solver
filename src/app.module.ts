@@ -9,6 +9,7 @@ import { BullBoardDashboardModule } from '@/modules/bull-board/bull-board.module
 import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService } from '@/modules/config/services';
 import { DataDogModule } from '@/modules/datadog/datadog.module';
+import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
 import { HealthModule } from '@/modules/health/health.module';
@@ -19,7 +20,6 @@ import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 import { RhinestoneModule } from '@/modules/rhinestone/rhinestone.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
-import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 
 @Module({
   imports: [

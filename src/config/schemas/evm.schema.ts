@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { ProverTypeValues } from '@/common/interfaces/prover.interface';
 import { AssetsFeeSchema } from '@/config/schemas/fee.schema';
+import { RouteAmountLimitSchema } from '@/config/schemas/route-limit.schema';
 
 export const EvmAddressSchema = z
   .string()
@@ -65,19 +66,7 @@ const EvmTokenSchema = z.object({
   address: EvmAddressSchema,
   decimals: z.coerce.number().int().min(0).max(18),
   symbol: z.string().min(1).max(20),
-  limit: z
-    .union([
-      z.coerce.number().int().positive(), // Backward compatible: acts as max
-      z
-        .object({
-          min: z.coerce.number().int().positive(),
-          max: z.coerce.number().int().positive(),
-        })
-        .refine((data) => data.min <= data.max, {
-          message: 'min must be less than or equal to max',
-        }),
-    ])
-    .optional(),
+  limit: RouteAmountLimitSchema.optional(),
   fee: AssetsFeeSchema.optional(), // Token-specific fee configuration (highest priority)
   nonSwapGroups: z.array(z.string()).optional(),
 });
@@ -110,10 +99,42 @@ const EOASignerConfigSchema = z.object({
 });
 
 /**
+ * OwnableExecutor module configuration schema
+ */
+const OwnableExecutorConfigSchema = z.object({
+  owner: EvmAddressSchema,
+  excludeChains: z.array(z.coerce.number().int().positive()).optional(),
+  overrideModuleAddress: z
+    .record(z.coerce.string(), EvmAddressSchema)
+    .optional()
+    .transform((value) => {
+      if (!value) return undefined;
+      // Convert string keys to numbers for chainId mapping
+      const result: Record<number, Address> = {};
+      for (const [key, address] of Object.entries(value)) {
+        const chainId = parseInt(key, 10);
+        if (isNaN(chainId)) {
+          throw new Error(`Invalid chainId key in overrideModuleAddress: ${key}`);
+        }
+        result[chainId] = address;
+      }
+      return result;
+    }),
+});
+
+/**
  * Kernel wallet configuration schema
  */
 const KernelWalletConfigSchema = z.object({
   signer: z.union([KmsSignerConfigSchema, EOASignerConfigSchema]),
+  ownableExecutor: OwnableExecutorConfigSchema.optional(),
+  executorSignatureExpiration: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(1800)
+    .describe('Signature expiration time in seconds (default: 1800 = 30 minutes)'),
 });
 
 /**
@@ -159,3 +180,4 @@ export type EvmTokenConfig = z.infer<typeof EvmTokenSchema>;
 export type EvmWalletsConfig = z.infer<typeof WalletsSchema>;
 export type KernelWalletConfig = z.infer<typeof KernelWalletConfigSchema>;
 export type KmsSignerConfig = z.infer<typeof KmsSignerConfigSchema>;
+export type OwnableExecutorConfig = z.infer<typeof OwnableExecutorConfigSchema>;

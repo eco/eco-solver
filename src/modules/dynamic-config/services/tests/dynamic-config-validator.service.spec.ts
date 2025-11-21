@@ -1,6 +1,8 @@
-import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
 import { Test, TestingModule } from '@nestjs/testing';
+
 import { z } from 'zod';
+
+import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
 
 describe('DynamicConfigValidatorService', () => {
   let service: DynamicConfigValidatorService;

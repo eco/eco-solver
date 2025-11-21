@@ -132,9 +132,7 @@ export class EvmExecutorService extends BaseChainExecutor {
             transaction_count: approvalTxs.length + 1,
           });
 
-          const [hash] = await wallet.writeContracts([...approvalTxs, fulfillTx], {
-            value: 0n, // EOA doesn't send ETH, prover fee is paid by the Kernel wallet
-          });
+          const [hash] = await wallet.writeContracts([...approvalTxs, fulfillTx]);
 
           span.setAttribute('evm.transaction_hash', hash);
           span.addEvent('evm.transaction.submitted');

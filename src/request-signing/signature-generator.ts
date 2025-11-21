@@ -1,10 +1,12 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const canonicalize = require('canonicalize');
-import { DOMAIN, TYPES } from '@/request-signing/typed-data';
 import { Injectable } from '@nestjs/common';
+
 import { LocalAccount } from 'viem';
-import { getSignatureHeaders, SignatureHeaders } from '@/request-signing/signature-headers';
+
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface';
+import { getSignatureHeaders, SignatureHeaders } from '@/request-signing/signature-headers';
+import { DOMAIN, TYPES } from '@/request-signing/typed-data';
 
 @Injectable()
 export class SignatureGenerator {
