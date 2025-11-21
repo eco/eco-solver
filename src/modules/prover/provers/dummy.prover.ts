@@ -29,9 +29,16 @@ export class DummyProver extends BaseProver {
     return 0n;
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // MetalayerProver requires 100 minutes (6000 seconds) for processing
     return 600n;
+  }
+
+  /**
+   * Dummy prover uses standard chain IDs as domain IDs (1:1 mapping)
+   */
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
   }
 }

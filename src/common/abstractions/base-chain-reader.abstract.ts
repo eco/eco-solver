@@ -25,6 +25,7 @@ export abstract class BaseChainReader {
     prover: UniversalAddress,
     messageData: Hex,
     chainId: number,
+    sourceDomainId: bigint,
     claimant: UniversalAddress,
   ): Promise<bigint>;
 

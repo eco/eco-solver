@@ -27,8 +27,12 @@ class TestProver extends BaseProver {
     return 1000n;
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     return 3600n; // 1 hour buffer like HyperProver
+  }
+
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
   }
 }
 
@@ -131,7 +135,7 @@ describe('BaseProver', () => {
     });
 
     it('should implement getDeadlineBuffer', () => {
-      const result = prover.getDeadlineBuffer();
+      const result = prover.getDeadlineBuffer(1);
       expect(result).toBe(3600n);
     });
   });

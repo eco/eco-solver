@@ -328,23 +328,34 @@ describe('BlockchainReaderService', () => {
     const claimant = toUniversalAddress(padTo32Bytes('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 
     it('should fetch prover fee for EVM chain', async () => {
-      const fee = await service.fetchProverFee(1, mockIntent, prover, messageData, claimant);
+      const sourceDomainId = BigInt(1);
+      const fee = await service.fetchProverFee(
+        1,
+        mockIntent,
+        prover,
+        messageData,
+        sourceDomainId,
+        claimant,
+      );
       expect(fee).toBe(100000000000000000n);
       expect(evmReader.fetchProverFee).toHaveBeenCalledWith(
         mockIntent,
         prover,
         messageData,
         1,
+        sourceDomainId,
         claimant,
       );
     });
 
     it('should fetch prover fee for Solana chain', async () => {
+      const sourceDomainId = BigInt(1399811149);
       const fee = await service.fetchProverFee(
         1399811149,
         mockIntent,
         prover,
         messageData,
+        sourceDomainId,
         claimant,
       );
       expect(fee).toBe(50000000n);
@@ -353,25 +364,28 @@ describe('BlockchainReaderService', () => {
         prover,
         messageData,
         1399811149,
+        sourceDomainId,
         claimant,
       );
     });
 
     it('should fetch prover fee without claimant', async () => {
-      const fee = await service.fetchProverFee(1, mockIntent, prover, messageData);
+      const sourceDomainId = BigInt(1);
+      const fee = await service.fetchProverFee(1, mockIntent, prover, messageData, sourceDomainId);
       expect(fee).toBe(100000000000000000n);
       expect(evmReader.fetchProverFee).toHaveBeenCalledWith(
         mockIntent,
         prover,
         messageData,
         1,
+        sourceDomainId,
         undefined,
       );
     });
 
     it('should throw error for unsupported chain', async () => {
       await expect(
-        service.fetchProverFee(999, mockIntent, prover, messageData, claimant),
+        service.fetchProverFee(999, mockIntent, prover, messageData, BigInt(999), claimant),
       ).rejects.toThrow('No reader available for chain 999');
     });
   });

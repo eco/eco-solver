@@ -275,12 +275,9 @@ export class TvmReaderService extends BaseChainReader {
     prover: UniversalAddress,
     messageData: Hex,
     chainId: number,
+    sourceDomainId: bigint,
     claimant: UniversalAddress,
   ): Promise<bigint> {
-    if (!intent.sourceChainId) {
-      throw new Error('intent sourceChainId is missing');
-    }
-
     // Denormalize addresses to TVM format
     const tvmProver = AddressNormalizer.denormalize(prover, ChainType.TVM);
 
@@ -300,14 +297,15 @@ export class TvmReaderService extends BaseChainReader {
         try {
           const client = this.createTronWebClient(chainId);
 
+          // Encode proof with domain ID instead of chain ID
           const encodeProof = encodePacked(
             ['uint64', 'bytes32', 'bytes32'],
-            [intent.sourceChainId, intent.intentHash, claimant as Hex],
+            [sourceDomainId, intent.intentHash, claimant as Hex],
           );
 
           const contract = client.contract(messageBridgeProverAbi, tvmProver);
           const feeRaw = await contract
-            .fetchFee(intent.sourceChainId, encodeProof, messageData)
+            .fetchFee(sourceDomainId, encodeProof, messageData)
             .call({ from: tvmProver });
 
           // Extract fee from the result
