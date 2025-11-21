@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { ProverType } from '@/common/interfaces/prover.interface';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
@@ -129,6 +129,8 @@ describe('ProverService', () => {
         };
         return portalAddresses[chainId];
       }),
+      getAvailableProvers: jest.fn(),
+      getDefaultProver: jest.fn(),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -416,6 +418,145 @@ describe('ProverService', () => {
       // Note: For UniversalAddress, we test with the same address (case sensitive for branded types)
       const prover = service.getProver(1, mockHyperAddress);
       expect(prover).toBe(mockHyperProver);
+    });
+  });
+
+  describe('selectProverForRoute', () => {
+    beforeEach(() => {
+      // Reset mocks for clean test state
+      mockBlockchainConfigService.getAvailableProvers.mockClear();
+      mockBlockchainConfigService.getDefaultProver.mockClear();
+      mockLogger.debug.mockClear();
+      mockLogger.error.mockClear();
+    });
+
+    it('should select default prover when available in intersection', () => {
+      // Setup: Both chains have hyper and polymer, default is hyper
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['hyper', 'polymer', 'metalayer'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('hyper');
+      expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledWith(1n);
+      expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledWith(10n);
+      expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledWith(1n);
+    });
+
+    it('should fallback to first available prover when default not in intersection', () => {
+      // Setup: Intersection has polymer and metalayer, but default is hyper (not available)
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['polymer', 'metalayer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['polymer', 'metalayer', 'ccip'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('polymer'); // First in intersection
+      expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledWith(1n);
+    });
+
+    it('should throw error when no compatible prover found', () => {
+      // Setup: No intersection between source and destination provers
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['metalayer', 'ccip'] as TProverType[]); // dest chain
+
+      expect(() => service.selectProverForRoute(1n, 10n)).toThrow(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [hyper, polymer], ' +
+          'Destination chain provers: [metalayer, ccip]',
+      );
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [hyper, polymer], ' +
+          'Destination chain provers: [metalayer, ccip]',
+      );
+    });
+
+    it('should handle single prover in intersection', () => {
+      // Setup: Only ccip is available on both chains
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['ccip'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['ccip', 'hyper'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('ccip');
+    });
+
+    it('should handle empty prover list on source chain', () => {
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce([] as TProverType[]) // source chain
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]); // dest chain
+
+      expect(() => service.selectProverForRoute(1n, 10n)).toThrow(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [], ' +
+          'Destination chain provers: [hyper, polymer]',
+      );
+    });
+
+    it('should handle empty prover list on destination chain', () => {
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce([] as TProverType[]); // dest chain
+
+      expect(() => service.selectProverForRoute(1n, 10n)).toThrow(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [hyper, polymer], ' +
+          'Destination chain provers: []',
+      );
+    });
+
+    it('should handle all provers being compatible', () => {
+      // Setup: All provers available on both chains
+      const allProvers: TProverType[] = [
+        'hyper',
+        'polymer',
+        'metalayer',
+        'dummy',
+        'ccip',
+      ] as TProverType[];
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(allProvers) // source chain
+        .mockReturnValueOnce(allProvers); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('metalayer' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('metalayer'); // Default prover selected
+    });
+
+    it('should maintain order preference when default not available', () => {
+      // Setup: Test that it returns first in intersection, maintaining source order
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['ccip', 'metalayer', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['polymer', 'ccip', 'metalayer'] as TProverType[]); // dest chain (different order)
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('ccip'); // First in source chain order that's also in destination
+    });
+
+    it('should handle duplicate provers in lists correctly', () => {
+      // Even if there are duplicates (shouldn't happen but testing edge case)
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'hyper', 'polymer'] as TProverType[]) // source with duplicate
+        .mockReturnValueOnce(['polymer', 'hyper'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('polymer' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('polymer'); // Default is available
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Using default prover polymer for route 1 -> 10',
+      );
     });
   });
 });
