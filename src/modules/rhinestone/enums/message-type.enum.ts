@@ -24,7 +24,13 @@ export enum RhinestoneMessageType {
    */
   Error = 'Error',
 
-  // Future message types for intent processing:
-  // RelayerAction = 'RelayerAction',
-  // ActionStatus = 'ActionStatus',
+  /**
+   * Sent by server with intent fulfillment request
+   */
+  RelayerAction = 'RelayerAction',
+
+  /**
+   * Sent by client to respond to RelayerAction
+   */
+  ActionStatus = 'ActionStatus',
 }
