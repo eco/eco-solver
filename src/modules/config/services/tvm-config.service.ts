@@ -201,6 +201,16 @@ export class TvmConfigService implements IBlockchainConfigService {
     return network.defaultProver;
   }
 
+  getAvailableProvers(chainId: ChainIdentifier): TProverType[] {
+    const network = this.getChain(chainId);
+    if (!network.provers) {
+      return [];
+    }
+    return Object.entries(network.provers)
+      .filter(([_, addr]) => addr !== undefined)
+      .map(([key]) => key as TProverType);
+  }
+
   private initializeNetworks(): void {
     const networks = this.configService.get<TvmNetworkConfig[]>('tvm.networks', []);
     for (const network of networks) {

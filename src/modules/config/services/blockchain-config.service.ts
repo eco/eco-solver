@@ -170,4 +170,15 @@ export class BlockchainConfigService {
     const configService = this.getConfigService(chainType);
     return configService.getDefaultProver(chainId);
   }
+
+  /**
+   * Gets all available prover types configured for a chain
+   * @param chainId The chain ID to get available provers for
+   * @returns Array of prover types that are configured for the chain
+   */
+  getAvailableProvers(chainId: ChainIdentifier): TProverType[] {
+    const chainType = ChainTypeDetector.detect(chainId);
+    const configService = this.getConfigService(chainType);
+    return configService.getAvailableProvers(chainId);
+  }
 }
