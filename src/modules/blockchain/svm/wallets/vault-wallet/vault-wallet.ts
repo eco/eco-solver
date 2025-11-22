@@ -195,7 +195,7 @@ export class VaultWallet implements ISvmWallet {
             span.setAttribute('svm.last_valid_block_height', lastValidBlockHeight);
             span.addEvent('svm.transaction.submitted');
 
-            // Always wait for confirmation 
+            // Always wait for confirmation
             // Extract blockhash from versioned transaction
             const messageBlockhash = transaction.message.recentBlockhash;
             span.addEvent('svm.transaction.confirmation_started');
