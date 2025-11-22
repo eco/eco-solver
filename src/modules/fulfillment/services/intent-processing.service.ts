@@ -43,6 +43,28 @@ export class IntentProcessingService {
       },
       async (span) => {
         try {
+          // Check if intent has already been fulfilled
+          if (intent.fulfilledEvent) {
+            this.logger.log(
+              `Intent ${intent.intentHash} has already been fulfilled on chain ${intent.fulfilledEvent.chainId} at tx ${intent.fulfilledEvent.txHash}. Skipping processing.`,
+            );
+
+            span.setAttributes({
+              'intent.already_fulfilled': true,
+              'intent.fulfilled.chain': intent.fulfilledEvent.chainId,
+              'intent.fulfilled.tx_hash': intent.fulfilledEvent.txHash,
+              'intent.fulfilled.claimant': intent.fulfilledEvent.claimant,
+              'intent.fulfilled.timestamp': intent.fulfilledEvent.timestamp.toISOString(),
+            });
+
+            span.addEvent('intent.processing.skipped', {
+              reason: 'already_fulfilled',
+            });
+
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            return;
+          }
+
           // Get the strategy
           const strategy = this.strategyManagement.getStrategy(strategyName);
           if (!strategy) {

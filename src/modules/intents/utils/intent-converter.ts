@@ -70,6 +70,7 @@ export class IntentConverter {
       destination: BigInt(schema.route.destination),
       sourceChainId: BigInt(schema.route.source),
       status: schema.status,
+      fulfilledEvent: schema.fulfilledEvent,
     };
   }
 }
