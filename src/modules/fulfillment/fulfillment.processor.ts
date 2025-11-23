@@ -61,6 +61,7 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, On
       );
 
       // Check database for fulfilledEvent to catch race conditions
+      // Also ensures we have the freshest intent data
       const dbIntent = await this.intentsService.findById(jobData.intent.intentHash);
       if (dbIntent?.fulfilledEvent) {
         this.logger.log(
@@ -69,22 +70,25 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, On
         return;
       }
 
+      // Use fresh DB intent instead of potentially stale job data
+      const intentToProcess = dbIntent || jobData.intent;
+
       // Break context and start a new trace for fulfillment stage
       return this.otelService.startNewTraceWithCorrelation(
         'fulfillment.process',
-        jobData.intent.intentHash,
+        intentToProcess.intentHash,
         'fulfillment',
         async (span) => {
           span.setAttributes({
             'fulfillment.strategy': jobData.strategy,
             'fulfillment.attempt': job.attemptsMade + 1,
             'fulfillment.max_attempts': job.opts.attempts,
-            'intent.source_chain': jobData.intent.sourceChainId?.toString() || 'unknown',
-            'intent.destination_chain': jobData.intent.destination.toString(),
+            'intent.source_chain': intentToProcess.sourceChainId?.toString() || 'unknown',
+            'intent.destination_chain': intentToProcess.destination.toString(),
           });
 
           try {
-            await this.fulfillmentService.processIntent(jobData.intent, jobData.strategy);
+            await this.fulfillmentService.processIntent(intentToProcess, jobData.strategy);
           } catch (error) {
             // Handle ValidationError and AggregatedValidationError
             if (error instanceof ValidationError) {

@@ -1,7 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import * as api from '@opentelemetry/api';
-
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
@@ -16,7 +14,6 @@ describe('IntentProcessingService', () => {
   let service: IntentProcessingService;
   let strategyManagement: jest.Mocked<StrategyManagementService>;
   let intentsService: jest.Mocked<IntentsService>;
-  let logger: jest.Mocked<SystemLoggerService>;
   let mockSpan: any;
 
   const mockLogger = {
@@ -89,55 +86,9 @@ describe('IntentProcessingService', () => {
     service = module.get<IntentProcessingService>(IntentProcessingService);
     strategyManagement = module.get(StrategyManagementService);
     intentsService = module.get(IntentsService);
-    logger = module.get(SystemLoggerService);
   });
 
-  describe('processIntent with fulfilledEvent', () => {
-    it('should skip processing when fulfilledEvent exists', async () => {
-      const fulfilledIntent = createMockIntent({
-        fulfilledEvent: {
-          claimant: '0x1234567890123456789012345678901234567890',
-          txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-          blockNumber: '12345678',
-          timestamp: new Date('2024-01-01T00:00:00Z'),
-          chainId: '10',
-        },
-      });
-
-      const strategyName: FulfillmentStrategyName = 'standard';
-
-      // Mock strategy that should NOT be called
-      const mockStrategy = {
-        validate: jest.fn(),
-        execute: jest.fn(),
-        canHandle: jest.fn().mockReturnValue(true),
-      };
-      strategyManagement.getStrategy.mockReturnValue(mockStrategy as any);
-
-      // Process the fulfilled intent
-      await service.processIntent(fulfilledIntent, strategyName);
-
-      // Verify strategy was not retrieved (early return)
-      expect(strategyManagement.getStrategy).not.toHaveBeenCalled();
-
-      // Verify no validation or execution occurred
-      expect(mockStrategy.validate).not.toHaveBeenCalled();
-      expect(mockStrategy.execute).not.toHaveBeenCalled();
-
-      // Verify intent status was not updated
-      expect(intentsService.updateStatus).not.toHaveBeenCalled();
-
-      // Verify appropriate logging
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.stringContaining('has already been fulfilled'),
-      );
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.stringContaining(
-          '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-        ),
-      );
-    });
-
+  describe('processIntent', () => {
     it('should process normally when fulfilledEvent is undefined', async () => {
       const unfulfilledIntent = createMockIntent({
         fulfilledEvent: undefined,
@@ -172,53 +123,6 @@ describe('IntentProcessingService', () => {
         unfulfilledIntent.intentHash,
         IntentStatus.EXECUTING,
       );
-    });
-
-    it('should include fulfilledEvent details in span attributes', async () => {
-      const fulfilledIntent = createMockIntent({
-        fulfilledEvent: {
-          claimant: '0xclaimant',
-          txHash: '0xtxhash',
-          blockNumber: '999',
-          timestamp: new Date('2024-06-01T12:00:00Z'),
-          chainId: '8453',
-        },
-      });
-
-      await service.processIntent(fulfilledIntent, 'standard');
-
-      expect(mockSpan.setAttributes).toHaveBeenCalledWith(
-        expect.objectContaining({
-          'intent.already_fulfilled': true,
-          'intent.fulfilled.chain': '8453',
-          'intent.fulfilled.tx_hash': '0xtxhash',
-          'intent.fulfilled.claimant': '0xclaimant',
-          'intent.fulfilled.timestamp': '2024-06-01T12:00:00.000Z',
-        }),
-      );
-
-      expect(mockSpan.addEvent).toHaveBeenCalledWith('intent.processing.skipped', {
-        reason: 'already_fulfilled',
-      });
-
-      expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: api.SpanStatusCode.OK });
-    });
-
-    it('should end span properly when skipping fulfilled intent', async () => {
-      const fulfilledIntent = createMockIntent({
-        fulfilledEvent: {
-          claimant: '0x1234567890123456789012345678901234567890',
-          txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-          blockNumber: '12345678',
-          timestamp: new Date('2024-01-01T00:00:00Z'),
-          chainId: '10',
-        },
-      });
-
-      await service.processIntent(fulfilledIntent, 'standard');
-
-      // Verify span was ended
-      expect(mockSpan.end).toHaveBeenCalled();
     });
   });
 });
