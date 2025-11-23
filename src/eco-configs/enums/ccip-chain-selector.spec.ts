@@ -8,7 +8,6 @@ let ecoConfigService: EcoConfigService
 
 describe('CCIPChainSelector', () => {
   beforeAll(async () => {
-
     const mockSource = {
       getConfig: () => ({
         rpcs: {
@@ -16,7 +15,7 @@ describe('CCIPChainSelector', () => {
             '0x1234': '0x1234',
           },
         },
-        CCIP :{
+        CCIP: {
           routerAddress: '0xda1513e4BD479AF7Ac192FAc101dD94A7F6F9c0b',
           defaultGasLimit: 300000n,
           allowOutOfOrderExecution: true,
@@ -33,8 +32,7 @@ describe('CCIPChainSelector', () => {
     ecoConfigService = mod.get(EcoConfigService)
   })
 
-  beforeEach(() => {
-  })
+  beforeEach(() => {})
 
   afterEach(() => {
     jest.clearAllMocks()
@@ -99,7 +97,9 @@ describe('CCIPChainSelector', () => {
 
   describe('Integration with config', () => {
     it('should fetch EcoConfigService values', () => {
-      expect(ecoConfigService.getCCIPConfig().routerAddress).toBe('0xda1513e4BD479AF7Ac192FAc101dD94A7F6F9c0b')
+      expect(ecoConfigService.getCCIPConfig().routerAddress).toBe(
+        '0xda1513e4BD479AF7Ac192FAc101dD94A7F6F9c0b',
+      )
       expect(ecoConfigService.getCCIPConfig().defaultGasLimit).toBe(300000n)
       expect(ecoConfigService.getCCIPConfig().allowOutOfOrderExecution).toBe(true)
     })

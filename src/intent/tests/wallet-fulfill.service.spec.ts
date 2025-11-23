@@ -639,7 +639,10 @@ describe('WalletFulfillService', () => {
         const ccipTx = { to: address1, data: '0x', value: 1n }
         fulfillIntentService['getFulfillTxForCCIP'] = jest.fn().mockReturnValue(ccipTx)
 
-        const tx = await fulfillIntentService['getFulfillIntentTx'](solver.inboxAddress, model as any)
+        const tx = await fulfillIntentService['getFulfillIntentTx'](
+          solver.inboxAddress,
+          model as any,
+        )
 
         expect(tx).toEqual(ccipTx)
         expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
@@ -839,16 +842,14 @@ describe('WalletFulfillService', () => {
 
       expect(mockGetChainConfig).toHaveBeenCalledWith(Number(model.intent.route.source))
       expect(ecoConfigService.getCCIPConfig).toHaveBeenCalledTimes(1)
-      expect(CCIPChainSelector.getCCIPSelector).toHaveBeenCalledWith(Number(model.intent.route.source))
+      expect(CCIPChainSelector.getCCIPSelector).toHaveBeenCalledWith(
+        Number(model.intent.route.source),
+      )
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
         [
           {
             type: 'tuple',
-            components: [
-              { type: 'address' },
-              { type: 'uint256' },
-              { type: 'bool' },
-            ],
+            components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
           },
         ],
         [[address1, 300000n, true]],
