@@ -294,7 +294,7 @@ export class WalletFulfillService implements IFulfillService {
       return result
     }
 
-    // Metalayer Prover
+    // CCIP Prover
     const isCCIP = this.proofService.isCCIPProver(
       Number(model.intent.route.source),
       model.intent.reward.prover,
