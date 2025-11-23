@@ -1,13 +1,9 @@
-import { EcoLogger } from '@/common/logging/eco-logger'
-import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Enumify } from 'enumify'
 
 class CCIPChainSelectorParams {
   chainID: number
   selectorID: bigint
 }
-
-const logger = new EcoLogger(`CCIPChainSelector`)
 
 export class CCIPChainSelector extends Enumify {
   static ETHEREUM = new CCIPChainSelector({
@@ -59,12 +55,6 @@ export class CCIPChainSelector extends Enumify {
   }
 
   static initialize() {
-    logger.error(
-      EcoLogMessage.fromDefault({
-        message: `initialize CCIPChainSelector enum`,
-      }),
-    )
-
     this.initializeSelectorIDToSelectorMap()
     this.initializeChainIDToSelectorMap()
   }
