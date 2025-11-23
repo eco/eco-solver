@@ -34,6 +34,7 @@ import { EcoAnalyticsService } from '@/analytics'
 import { IMessageBridgeProverAbi } from '@/contracts/v2-abi/IMessageBridgeProver'
 import { IntentV2Pure, portalAbi } from '@/contracts/v2-abi/Portal'
 import { PortalHashUtils } from '@/common/utils/portal'
+import { CCIPChainSelector } from '@/eco-configs/enums/ccip-chain-selector.enum'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -293,6 +294,27 @@ export class WalletFulfillService implements IFulfillService {
       return result
     }
 
+    // Metalayer Prover
+    const isCCIP = this.proofService.isCCIPProver(
+      Number(model.intent.route.source),
+      model.intent.reward.prover,
+    )
+
+    if (isCCIP) {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Fulfilling via CCIP prover',
+          properties: {
+            prover: model.intent.reward.prover,
+          },
+        }),
+      )
+
+      const result = await this.getFulfillTxForCCIP(inboxAddress, claimant, model)
+      this.ecoAnalytics.trackFulfillIntentTxCreationSuccess(model, inboxAddress, 'CCIP', result)
+      return result
+    }
+
     const error = new Error('Unsupported fulfillment method')
     this.ecoAnalytics.trackFulfillIntentTxCreationFailed(model, inboxAddress, error)
     throw error
@@ -438,6 +460,72 @@ export class WalletFulfillService implements IFulfillService {
         pad(claimant),
         metalayerProverAddr,
         model.intent.route.source,
+        messageData,
+      ],
+    })
+
+    return {
+      to: inboxAddress,
+      data: fulfillIntentData,
+      value: fee,
+    }
+  }
+
+  /**
+   * Generates a transaction to fulfill an intent for a CCIP prover.
+   *
+   * @param {Hex} inboxAddress - The address of the inbox associated with the transaction.
+   * @param {Hex} claimant - The address of the claimant requesting fulfillment.
+   * @param {IntentSourceModel} model - The model containing the intent details to fulfill.
+   * @return {Promise<ExecuteSmartWalletArg>} A promise resolving to the transaction arguments needed to fulfill the intent.
+   */
+  private async getFulfillTxForCCIP(
+    inboxAddress: Hex,
+    claimant: Hex,
+    model: IntentSourceModel,
+  ): Promise<ExecuteSmartWalletArg> {
+    const chainConfig = getChainConfig(Number(model.intent.route.source)) as any
+    const ccipProverAddr: Hex | undefined = chainConfig.CCIPProver
+
+    if (!ccipProverAddr) {
+      throw new Error('CCIP prover address not found in chain config')
+    }
+
+    const { defaultGasLimit, allowOutOfOrderExecution } = this.ecoConfigService.getCCIPConfig()
+
+    // CCIP message must originate from the source chain's CCIPProver contract
+    // This address is *not* necessarily the same as the reward's intent.prover field
+    const messageData = encodeAbiParameters(
+      [
+        {
+          type: 'tuple',
+          components: [
+            { type: 'address' }, // sourceChainProver
+            { type: 'uint256' }, // gasLimit
+            { type: 'bool' }, // allowOutOfOrderExecution
+          ],
+        },
+      ],
+      [[ccipProverAddr, defaultGasLimit, allowOutOfOrderExecution]],
+    )
+
+    const fee = await this.getProverFee(model, claimant, ccipProverAddr, messageData)
+
+    const intentV2 = IntentDataModel.toIntentV2(model.intent)
+    const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
+
+    const sourceChainSelector = CCIPChainSelector.getCCIPSelector(Number(model.intent.route.source))
+
+    const fulfillIntentData = encodeFunctionData({
+      abi: portalAbi,
+      functionName: 'fulfillAndProve',
+      args: [
+        intentHash,
+        intentV2.route,
+        rewardHash,
+        pad(claimant),
+        ccipProverAddr,
+        sourceChainSelector,
         messageData,
       ],
     })
