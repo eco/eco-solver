@@ -1,7 +1,7 @@
 import { LocalAccount } from 'viem'
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { SignatureGenerator } from '@/request-signing/signature-generator'
-import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
+import { SignatureHeaders } from '@/request-signing/signature-headers'
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface'
 import { WalletClientDefaultSignerService } from '@/transaction/smart-wallets/wallet-client.service'
 import { ModuleRef } from '@nestjs/core'

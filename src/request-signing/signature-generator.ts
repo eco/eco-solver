@@ -1,9 +1,9 @@
-// eslint-disable-next-line
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@/request-signing/typed-data'
+import { getSignatureHeaders, SignatureHeaders } from '@/request-signing/signature-headers'
 import { Injectable } from '@nestjs/common'
 import { LocalAccount } from 'viem'
-import { SignatureHeaders } from '@/request-signing/interfaces/signature-headers.interface'
 import { SignedMessage } from '@/request-signing/interfaces/signed-message.interface'
 
 @Injectable()
@@ -30,10 +30,6 @@ export class SignatureGenerator {
   ): Promise<SignatureHeaders> {
     const { signature } = await this.signPayload(walletAccount, payload, expiryTime)
 
-    return {
-      'x-beam-sig': signature,
-      'x-beam-sig-expire': expiryTime,
-      'x-beam-sig-address': walletAccount.address,
-    }
+    return getSignatureHeaders(signature, walletAccount.address, expiryTime)
   }
 }

@@ -1,6 +1,8 @@
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import { BalanceController } from '@/api/balance.controller'
 import { BalanceModule } from '@/balance/balance.module'
+import { BlockchainController } from './blockchain.controller'
+import { BlockchainModule } from '@/blockchain/blockchain.module'
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { IntentInitiationController } from '@/api/intent-initiation.controller'
@@ -20,6 +22,7 @@ import { QuoteV2Controller } from '@/api/quote-v2.controller'
     }),
     QuoteModule,
     IntentInitiationModule,
+    BlockchainModule,
   ],
 
   controllers: [
@@ -28,6 +31,7 @@ import { QuoteV2Controller } from '@/api/quote-v2.controller'
     QuoteV2Controller,
     IntentInitiationController,
     IntentInitiationV2Controller,
+    BlockchainController,
   ],
 
   providers: [

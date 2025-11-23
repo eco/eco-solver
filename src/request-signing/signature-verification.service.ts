@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const canonicalize = require('canonicalize')
 import { DOMAIN, TYPES } from '@/request-signing/typed-data'
 import { EcoError } from '@/common/errors/eco-error'
@@ -62,16 +62,18 @@ export class SignatureVerificationService {
 
       return { response: recoveredAddress }
     } catch (ex) {
+      const errorMessage = EcoError.getErrorMessage(ex)
+
       this.logger.error(
         EcoLogMessage.fromDefault({
           message: `verifyTypedData: error`,
           properties: {
-            error: EcoError.getErrorMessage(ex),
+            error: errorMessage,
           },
         }),
       )
 
-      return { error: EcoError.TypedDataVerificationFailed }
+      return { error: EcoError.TypedDataVerificationFailed(errorMessage) }
     }
   }
 }
