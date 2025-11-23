@@ -60,6 +60,15 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, On
         `Processing intent ${jobData.intent.intentHash} with strategy ${jobData.strategy} (attempt ${job.attemptsMade + 1}/${job.opts.attempts})`,
       );
 
+      // Check database for fulfilledEvent to catch race conditions
+      const dbIntent = await this.intentsService.findById(jobData.intent.intentHash);
+      if (dbIntent?.fulfilledEvent) {
+        this.logger.log(
+          `Intent ${jobData.intent.intentHash} has already been fulfilled on chain ${dbIntent.fulfilledEvent.chainId} at tx ${dbIntent.fulfilledEvent.txHash}. Skipping processing.`,
+        );
+        return;
+      }
+
       // Break context and start a new trace for fulfillment stage
       return this.otelService.startNewTraceWithCorrelation(
         'fulfillment.process',

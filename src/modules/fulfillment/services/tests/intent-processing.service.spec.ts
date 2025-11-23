@@ -5,7 +5,6 @@ import * as api from '@opentelemetry/api';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
-import { MetricsRegistryService } from '@/modules/opentelemetry/metrics-registry.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { FulfillmentStrategyName } from '../../types/strategy-name.type';
@@ -41,10 +40,6 @@ describe('IntentProcessingService', () => {
 
   const mockIntentsService = {
     updateStatus: jest.fn(),
-  };
-
-  const mockMetricsRegistry = {
-    recordIntentAttempted: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -87,10 +82,6 @@ describe('IntentProcessingService', () => {
         {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
-        },
-        {
-          provide: MetricsRegistryService,
-          useValue: mockMetricsRegistry,
         },
       ],
     }).compile();
@@ -211,23 +202,6 @@ describe('IntentProcessingService', () => {
       });
 
       expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: api.SpanStatusCode.OK });
-    });
-
-    it('should not call metrics registry when intent is already fulfilled', async () => {
-      const fulfilledIntent = createMockIntent({
-        fulfilledEvent: {
-          claimant: '0x1234567890123456789012345678901234567890',
-          txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-          blockNumber: '12345678',
-          timestamp: new Date('2024-01-01T00:00:00Z'),
-          chainId: '10',
-        },
-      });
-
-      await service.processIntent(fulfilledIntent, 'standard');
-
-      // Verify metrics were not recorded
-      expect(mockMetricsRegistry.recordIntentAttempted).not.toHaveBeenCalled();
     });
 
     it('should end span properly when skipping fulfilled intent', async () => {
