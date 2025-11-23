@@ -90,6 +90,7 @@ export type EcoConfigType = {
   gateway: GatewayConfig
   watch: WatchConfig
   usdt0: USDT0Config
+  CCIP: CCIPConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -593,6 +594,13 @@ export interface GatewayConfig {
     fallbackBase6?: number | string
   }
 }
+
+export interface CCIPConfig {
+  routerAddress: string
+  defaultGasLimit: bigint
+  allowOutOfOrderExecution: boolean
+}
+
 export interface WatchConfig {
   recoveryBackoffBaseMs: number
   recoveryBackoffMaxMs: number
