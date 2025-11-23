@@ -10,6 +10,7 @@ import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregat
 import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentConverter } from '@/modules/intents/utils/intent-converter';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -71,7 +72,10 @@ export class FulfillmentProcessor extends WorkerHost implements OnModuleInit, On
       }
 
       // Use fresh DB intent instead of potentially stale job data
-      const intentToProcess = dbIntent || jobData.intent;
+      // Convert from MongoDB schema to Intent interface if DB intent exists
+      const intentToProcess = dbIntent
+        ? IntentConverter.toInterface(dbIntent)
+        : jobData.intent;
 
       // Break context and start a new trace for fulfillment stage
       return this.otelService.startNewTraceWithCorrelation(
