@@ -509,7 +509,14 @@ export class WalletFulfillService implements IFulfillService {
       [[ccipProverAddr, defaultGasLimit, allowOutOfOrderExecution]],
     )
 
-    const fee = await this.getProverFee(model, claimant, ccipProverAddr, messageData)
+    // CCIP prover exists on the source chain, so fetch fees from the source network
+    const fee = await this.getProverFee(
+      model,
+      claimant,
+      ccipProverAddr,
+      messageData,
+      Number(model.intent.route.source),
+    )
 
     const intentV2 = IntentDataModel.toIntentV2(model.intent)
     const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
@@ -551,10 +558,9 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     proverAddr: Hex,
     messageData: Hex,
+    chainID: number = Number(model.intent.route.destination),
   ): Promise<bigint> {
-    const client = await this.kernelAccountClientService.getClient(
-      Number(model.intent.route.destination),
-    )
+    const client = await this.kernelAccountClientService.getClient(chainID)
 
     const encodedProofs = encodePacked(
       ['uint64', 'bytes32', 'bytes32'],

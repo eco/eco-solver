@@ -859,6 +859,7 @@ describe('WalletFulfillService', () => {
         address3,
         address1,
         messageData,
+        Number(model.intent.route.source),
       )
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),
