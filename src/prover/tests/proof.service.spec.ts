@@ -119,6 +119,17 @@ describe('ProofService', () => {
     beforeEach(async () => {
       ecoConfigService.getIntentConfigs = jest.fn().mockReturnValue(intentConfigs)
     })
+
+    it('should correctly check if its a CCIP prover', () => {
+      jest.spyOn(proofService, 'getProverType').mockReturnValue(ProofType.CCIP)
+      expect(proofService.isCCIPProver(1, '0x123')).toBe(true)
+    })
+
+    it('should return false for CCIP prover check when type is different', () => {
+      jest.spyOn(proofService, 'getProverType').mockReturnValue(ProofType.HYPERLANE)
+      expect(proofService.isCCIPProver(1, '0x123')).toBe(false)
+    })
+
     it('should correctly check if its a hyperlane prover', async () => {
       jest.spyOn(proofService, 'getProverType').mockReturnValue(ProofType.HYPERLANE)
       expect(proofService.isHyperlaneProver(1, '0x123')).toBe(true)

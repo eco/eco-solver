@@ -58,6 +58,16 @@ export class ProofService implements OnModuleInit {
   }
 
   /**
+   * Checks if the prover is a metalayer prover
+   * @param chainID
+   * @param proverAddress the prover address
+   * @returns
+   */
+  isCCIPProver(chainID: number, proverAddress: Hex): boolean {
+    return Boolean(this.getProverType(chainID, proverAddress)?.isCCIP())
+  }
+
+  /**
    * Returns all the prover addresses for a given proof type
    * @param proofType the proof type
    * @returns
