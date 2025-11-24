@@ -186,7 +186,9 @@ export class ProverService implements OnModuleInit {
           // Cache the result
           this.routeProverCache.set(cacheKey, selectedProver);
 
-          this.logger.debug(`Selected prover ${selectedProver} for route ${cacheKey} (${selectionType})`);
+          this.logger.debug(
+            `Selected prover ${selectedProver} for route ${cacheKey} (${selectionType})`,
+          );
 
           span.setStatus({ code: api.SpanStatusCode.OK });
           return selectedProver;
