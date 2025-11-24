@@ -310,7 +310,12 @@ export class QuotesService {
     );
 
     // Validate prover
-    this.validateProver(request.contracts.prover, sourceChainId, sourceChainType);
+    this.validateProver(
+      request.contracts.prover,
+      BigInt(sourceChainId),
+      BigInt(destinationChainId),
+      sourceChainType,
+    );
   }
 
   private validatePortal(
@@ -342,16 +347,29 @@ export class QuotesService {
 
   private validateProver(
     providedProver: string | undefined,
-    chainId: number,
+    sourceChainId: bigint,
+    destinationChainId: bigint,
     chainType: ChainType,
   ): void {
     if (!providedProver) return;
 
-    const defaultProver = this.blockchainConfigService.getDefaultProver(chainId);
-    const expectedProverUA = this.blockchainConfigService.getProverAddress(chainId, defaultProver);
+    // Use route-aware prover selection
+    let selectedProver: TProverType;
+    try {
+      selectedProver = this.proverService.selectProverForRoute(sourceChainId, destinationChainId);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
+
+    const expectedProverUA = this.blockchainConfigService.getProverAddress(
+      sourceChainId,
+      selectedProver,
+    );
 
     if (!expectedProverUA) {
-      throw new BadRequestException(`Prover ${defaultProver} not configured for chain ${chainId}`);
+      throw new BadRequestException(
+        `Prover ${selectedProver} not configured for chain ${sourceChainId}`,
+      );
     }
 
     const normalizedProvidedProver = AddressNormalizer.normalize(
