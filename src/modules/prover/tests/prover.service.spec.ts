@@ -5,6 +5,7 @@ import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { ProverService } from '../prover.service';
 import { CcipProver } from '../provers/ccip.prover';
@@ -25,6 +26,7 @@ describe('ProverService', () => {
   let mockCcipProver: jest.Mocked<CcipProver>;
   let mockLogger: jest.Mocked<SystemLoggerService>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
+  let mockOtelService: jest.Mocked<OpenTelemetryService>;
 
   const mockHyperAddress = toUniversalAddress(
     padTo32Bytes('0x1234567890123456789012345678901234567890'),
@@ -117,6 +119,22 @@ describe('ProverService', () => {
       warn: jest.fn(),
     } as unknown as jest.Mocked<SystemLoggerService>;
 
+    mockOtelService = {
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            addEvent: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
+    } as unknown as jest.Mocked<OpenTelemetryService>;
+
     mockBlockchainConfigService = {
       getPortalAddress: jest.fn().mockImplementation((chainId: number) => {
         // Return mock portal addresses for supported chains
@@ -163,6 +181,10 @@ describe('ProverService', () => {
         {
           provide: BlockchainConfigService,
           useValue: mockBlockchainConfigService,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
         },
       ],
     }).compile();

@@ -1,11 +1,14 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
+import * as api from '@opentelemetry/api';
+
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverResult, ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { CcipProver } from '@/modules/prover/provers/ccip.prover';
 import { DummyProver } from '@/modules/prover/provers/dummy.prover';
 import { HyperProver } from '@/modules/prover/provers/hyper.prover';
@@ -25,6 +28,7 @@ export class ProverService implements OnModuleInit {
     private ccipProver: CcipProver,
     private readonly logger: SystemLoggerService,
     private readonly blockchainConfigService: BlockchainConfigService,
+    private readonly otelService: OpenTelemetryService,
   ) {
     this.logger.setContext(ProverService.name);
   }
@@ -108,48 +112,93 @@ export class ProverService implements OnModuleInit {
    * @throws Error if no compatible prover found
    */
   selectProverForRoute(sourceChainId: bigint, destinationChainId: bigint): TProverType {
-    // Generate cache key
-    const cacheKey = `${sourceChainId}:${destinationChainId}`;
+    return this.otelService.tracer.startActiveSpan(
+      'prover.selectProverForRoute',
+      {
+        attributes: {
+          'prover.source_chain_id': sourceChainId.toString(),
+          'prover.destination_chain_id': destinationChainId.toString(),
+        },
+      },
+      (span) => {
+        try {
+          // Generate cache key
+          const cacheKey = `${sourceChainId}:${destinationChainId}`;
 
-    // Check cache
-    const cached = this.routeProverCache.get(cacheKey);
-    if (cached) {
-      this.logger.debug(`Cache hit for route ${cacheKey} -> ${cached}`);
-      return cached;
-    }
+          // Check cache
+          const cached = this.routeProverCache.get(cacheKey);
+          if (cached) {
+            span.setAttributes({
+              'prover.cache_hit': true,
+              'prover.selected_prover': cached,
+            });
+            span.setStatus({ code: api.SpanStatusCode.OK });
+            this.logger.debug(`Cache hit for route ${cacheKey} -> ${cached}`);
+            return cached;
+          }
 
-    // Get available provers on source chain
-    const sourceProvers = this.blockchainConfigService.getAvailableProvers(sourceChainId);
+          span.setAttribute('prover.cache_hit', false);
 
-    // Get available provers on destination chain
-    const destProvers = this.blockchainConfigService.getAvailableProvers(destinationChainId);
+          // Get available provers on source chain
+          const sourceProvers = this.blockchainConfigService.getAvailableProvers(sourceChainId);
 
-    // Find intersection of provers
-    const availableProvers = sourceProvers.filter((p) => destProvers.includes(p));
+          // Get available provers on destination chain
+          const destProvers = this.blockchainConfigService.getAvailableProvers(destinationChainId);
 
-    if (availableProvers.length === 0) {
-      const message =
-        `No compatible prover found for route ${sourceChainId} -> ${destinationChainId}. ` +
-        `Source chain provers: [${sourceProvers.join(', ')}], ` +
-        `Destination chain provers: [${destProvers.join(', ')}]`;
-      this.logger.error(message);
-      throw new Error(message);
-    }
+          span.setAttributes({
+            'prover.source_provers': sourceProvers.join(', '),
+            'prover.destination_provers': destProvers.join(', '),
+          });
 
-    // Check if default prover is available
-    const defaultProver = this.blockchainConfigService.getDefaultProver(sourceChainId);
-    const selectedProver = availableProvers.includes(defaultProver)
-      ? defaultProver
-      : availableProvers[0];
+          // Find intersection of provers
+          const availableProvers = sourceProvers.filter((p) => destProvers.includes(p));
 
-    // Cache the result
-    this.routeProverCache.set(cacheKey, selectedProver);
+          span.setAttribute('prover.available_provers', availableProvers.join(', '));
 
-    this.logger.debug(
-      `Selected prover ${selectedProver} for route ${cacheKey} (${availableProvers.includes(defaultProver) ? 'default' : 'fallback'})`,
+          if (availableProvers.length === 0) {
+            const message =
+              `No compatible prover found for route ${sourceChainId} -> ${destinationChainId}. ` +
+              `Source chain provers: [${sourceProvers.join(', ')}], ` +
+              `Destination chain provers: [${destProvers.join(', ')}]`;
+            this.logger.error(message);
+            span.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: 'No compatible prover found',
+            });
+            // Don't cache errors
+            throw new Error(message);
+          }
+
+          // Check if default prover is available
+          const defaultProver = this.blockchainConfigService.getDefaultProver(sourceChainId);
+          const selectedProver = availableProvers.includes(defaultProver)
+            ? defaultProver
+            : availableProvers[0];
+
+          const selectionType = availableProvers.includes(defaultProver) ? 'default' : 'fallback';
+
+          span.setAttributes({
+            'prover.default_prover': defaultProver,
+            'prover.selected_prover': selectedProver,
+            'prover.selection_type': selectionType,
+          });
+
+          // Cache the result
+          this.routeProverCache.set(cacheKey, selectedProver);
+
+          this.logger.debug(`Selected prover ${selectedProver} for route ${cacheKey} (${selectionType})`);
+
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return selectedProver;
+        } catch (error) {
+          span.recordException(error as Error);
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
     );
-
-    return selectedProver;
   }
 
   /**
