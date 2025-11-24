@@ -19,6 +19,7 @@ import { ProverService } from '@/modules/prover/prover.service';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
+import { TProverType } from '@/common/interfaces/prover.interface';
 
 @Injectable()
 export class QuotesService {
@@ -197,10 +198,16 @@ export class QuotesService {
     }
 
     // Select prover based on route compatibility
-    const selectedProver = this.proverService.selectProverForRoute(
-      sourceChainId,
-      destinationChainId,
-    );
+    let selectedProver: TProverType;
+    try {
+      selectedProver = this.proverService.selectProverForRoute(
+        sourceChainId,
+        destinationChainId,
+      );
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
+
     const proverAddressUA = this.blockchainConfigService.getProverAddress(
       sourceChainId,
       selectedProver,
