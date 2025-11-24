@@ -5,6 +5,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { denormalize } from '@/common/tokens/normalize';
 import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
@@ -19,7 +20,6 @@ import { ProverService } from '@/modules/prover/prover.service';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
-import { TProverType } from '@/common/interfaces/prover.interface';
 
 @Injectable()
 export class QuotesService {
@@ -200,10 +200,7 @@ export class QuotesService {
     // Select prover based on route compatibility
     let selectedProver: TProverType;
     try {
-      selectedProver = this.proverService.selectProverForRoute(
-        sourceChainId,
-        destinationChainId,
-      );
+      selectedProver = this.proverService.selectProverForRoute(sourceChainId, destinationChainId);
     } catch (error) {
       throw new BadRequestException((error as Error).message);
     }
