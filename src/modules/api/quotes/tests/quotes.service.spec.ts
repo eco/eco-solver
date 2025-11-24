@@ -14,6 +14,7 @@ import { QuotesService } from '../services/quotes.service';
 
 describe('QuotesService', () => {
   let service: QuotesService;
+  let mockProverService: jest.Mocked<ProverService>;
 
   const mockStrategy = {
     name: 'standard',
@@ -58,11 +59,12 @@ describe('QuotesService', () => {
     }),
   };
 
-  const mockProverService = {
-    selectProverForRoute: jest.fn().mockReturnValue('hyper'),
-  };
-
   beforeEach(async () => {
+    // Initialize typed mock for ProverService
+    mockProverService = {
+      selectProverForRoute: jest.fn().mockReturnValue('hyper'),
+    } as unknown as jest.Mocked<ProverService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuotesService,
