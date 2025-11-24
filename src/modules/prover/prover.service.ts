@@ -15,6 +15,7 @@ import { PolymerProver } from '@/modules/prover/provers/polymer.prover';
 @Injectable()
 export class ProverService implements OnModuleInit {
   private readonly provers: Map<string, BaseProver> = new Map();
+  private readonly routeProverCache = new Map<string, TProverType>();
 
   constructor(
     private hyperProver: HyperProver,
@@ -100,12 +101,23 @@ export class ProverService implements OnModuleInit {
   /**
    * Selects the appropriate prover for a route based on chain compatibility
    * Prefers the default prover if it supports both chains, otherwise uses first available
+   * Results are cached in-memory since configuration is static
    * @param sourceChainId Source chain ID
    * @param destinationChainId Destination chain ID
    * @returns The selected prover type
    * @throws Error if no compatible prover found
    */
   selectProverForRoute(sourceChainId: bigint, destinationChainId: bigint): TProverType {
+    // Generate cache key
+    const cacheKey = `${sourceChainId}:${destinationChainId}`;
+
+    // Check cache
+    const cached = this.routeProverCache.get(cacheKey);
+    if (cached) {
+      this.logger.debug(`Cache hit for route ${cacheKey} -> ${cached}`);
+      return cached;
+    }
+
     // Get available provers on source chain
     const sourceProvers = this.blockchainConfigService.getAvailableProvers(sourceChainId);
 
@@ -126,19 +138,27 @@ export class ProverService implements OnModuleInit {
 
     // Check if default prover is available
     const defaultProver = this.blockchainConfigService.getDefaultProver(sourceChainId);
-    if (availableProvers.includes(defaultProver)) {
-      this.logger.debug(
-        `Using default prover ${defaultProver} for route ${sourceChainId} -> ${destinationChainId}`,
-      );
-      return defaultProver;
-    }
+    const selectedProver = availableProvers.includes(defaultProver)
+      ? defaultProver
+      : availableProvers[0];
 
-    // Fallback to first available prover
-    const selectedProver = availableProvers[0];
+    // Cache the result
+    this.routeProverCache.set(cacheKey, selectedProver);
+
     this.logger.debug(
-      `Default prover ${defaultProver} not available, using ${selectedProver} for route ${sourceChainId} -> ${destinationChainId}`,
+      `Selected prover ${selectedProver} for route ${cacheKey} (${availableProvers.includes(defaultProver) ? 'default' : 'fallback'})`,
     );
+
     return selectedProver;
+  }
+
+  /**
+   * Clears the route prover cache
+   * Useful for testing or if dynamic prover configuration is added in the future
+   */
+  clearRouteProverCache(): void {
+    this.routeProverCache.clear();
+    this.logger.debug('Route prover cache cleared');
   }
 
   private initializeProvers(): void {

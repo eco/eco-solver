@@ -554,9 +554,80 @@ describe('ProverService', () => {
       const result = service.selectProverForRoute(1n, 10n);
 
       expect(result).toBe('polymer'); // Default is available
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        'Using default prover polymer for route 1 -> 10',
-      );
+    });
+
+    describe('caching', () => {
+      beforeEach(() => {
+        // Clear cache before each test
+        service.clearRouteProverCache();
+      });
+
+      it('should cache prover selection results', () => {
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[])
+          .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]);
+        mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+        // First call - cache miss
+        const result1 = service.selectProverForRoute(1n, 42161n);
+
+        // Second call - cache hit
+        const result2 = service.selectProverForRoute(1n, 42161n);
+
+        expect(result1).toBe('hyper');
+        expect(result2).toBe('hyper');
+        // Config services should only be called once (on cache miss)
+        expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledTimes(2);
+        expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledTimes(1);
+      });
+
+      it('should cache different provers for different routes', () => {
+        // Route 1: 1 -> 10
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['hyper'] as TProverType[])
+          .mockReturnValueOnce(['hyper'] as TProverType[]);
+        mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+        const result1 = service.selectProverForRoute(1n, 10n);
+        expect(result1).toBe('hyper');
+
+        // Route 2: 8453 -> 2020
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['ccip'] as TProverType[])
+          .mockReturnValueOnce(['ccip'] as TProverType[]);
+        mockBlockchainConfigService.getDefaultProver.mockReturnValue('ccip' as TProverType);
+
+        const result2 = service.selectProverForRoute(8453n, 2020n);
+        expect(result2).toBe('ccip');
+
+        // Call both again - should hit cache
+        const result3 = service.selectProverForRoute(1n, 10n);
+        const result4 = service.selectProverForRoute(8453n, 2020n);
+
+        expect(result3).toBe('hyper');
+        expect(result4).toBe('ccip');
+
+        // Verify config services not called again (both routes cached)
+        expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledTimes(4); // 2 per route
+        expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledTimes(2); // 1 per route
+      });
+
+      it('should not cache errors when no compatible prover found', () => {
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['hyper'] as TProverType[])
+          .mockReturnValueOnce(['ccip'] as TProverType[]);
+
+        // First call should throw
+        expect(() => service.selectProverForRoute(1n, 999n)).toThrow(
+          'No compatible prover found for route 1 -> 999',
+        );
+
+        // Verify nothing was cached
+        expect(service['routeProverCache'].size).toBe(0);
+
+        // Second call should also throw (not return cached error)
+        expect(() => service.selectProverForRoute(1n, 999n)).toThrow();
+      });
     });
   });
 });
