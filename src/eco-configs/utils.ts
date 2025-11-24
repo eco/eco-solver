@@ -44,10 +44,9 @@ export function isPreEnv(): boolean {
  * @returns
  */
 export function getChainConfig(chainID: number | string): EcoChainConfig {
-  // FIXME: Temporarily disabling use of preprod contracts
-  const id = chainID.toString()
-  // const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
-  const config = EcoProtocolAddresses[id]
+  const id = isPreEnv() ? `${chainID}-${ChainPrefix}` : chainID.toString()
+  // FIXME: Temporarily disabling use of preprod contracts silently
+  const config = EcoProtocolAddresses[chainID.toString()]
   if (config === undefined) {
     throw EcoError.ChainConfigNotFound(id)
   }
