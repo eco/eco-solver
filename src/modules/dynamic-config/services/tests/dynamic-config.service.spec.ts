@@ -1,27 +1,27 @@
 /* eslint-disable prettier/prettier */
-import { ModuleRef } from '@nestjs/core';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Test, TestingModule } from '@nestjs/testing';
+import { ModuleRef } from '@nestjs/core'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { Test, TestingModule } from '@nestjs/testing'
 
-import { ModuleRefProvider } from '@/common/services/module-ref-provider';
+import { ModuleRefProvider } from '@/common/services/module-ref-provider'
 import {
   CreateConfigurationDTO,
   UpdateConfigurationDTO,
-} from '@/modules/dynamic-config/interfaces/configuration-repository.interface';
-import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository';
-import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service';
-import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service';
-import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service';
-import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service';
+} from '@/modules/dynamic-config/interfaces/configuration-repository.interface'
+import { DynamicConfigRepository } from '@/modules/dynamic-config/repositories/dynamic-config.repository'
+import { DynamicConfigService } from '@/modules/dynamic-config/services/dynamic-config.service'
+import { DynamicConfigAuditService } from '@/modules/dynamic-config/services/dynamic-config-audit.service'
+import { DynamicConfigSanitizerService } from '@/modules/dynamic-config/services/dynamic-config-sanitizer.service'
+import { DynamicConfigValidatorService } from '@/modules/dynamic-config/services/dynamic-config-validator.service'
 
 describe('DynamicConfigService', () => {
-  let service: DynamicConfigService;
-  let repository: jest.Mocked<DynamicConfigRepository>;
-  let eventEmitter: jest.Mocked<EventEmitter2>;
-  let validator: jest.Mocked<DynamicConfigValidatorService>;
-  let auditService: jest.Mocked<DynamicConfigAuditService>;
-  let sanitizer: jest.Mocked<DynamicConfigSanitizerService>;
-  let mockConfigModel: any;
+  let service: DynamicConfigService
+  let repository: jest.Mocked<DynamicConfigRepository>
+  let eventEmitter: jest.Mocked<EventEmitter2>
+  let validator: jest.Mocked<DynamicConfigValidatorService>
+  let auditService: jest.Mocked<DynamicConfigAuditService>
+  let sanitizer: jest.Mocked<DynamicConfigSanitizerService>
+  let mockConfigModel: any
 
   const mockConfigDocument = {
     _id: 'mock-id',
@@ -32,7 +32,7 @@ describe('DynamicConfigService', () => {
     description: 'Test config',
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as any;
+  } as any
 
   beforeEach(async () => {
     const mockRepository = {
@@ -48,17 +48,17 @@ describe('DynamicConfigService', () => {
       findMissingRequired: jest.fn(),
       getStatistics: jest.fn(),
       healthCheck: jest.fn(),
-    };
+    }
 
     const mockEventEmitter = {
       emit: jest.fn(),
       on: jest.fn(),
-    };
+    }
 
     const mockValidator = {
       validateConfiguration: jest.fn(),
       validateValue: jest.fn(),
-    };
+    }
 
     const mockAuditService = {
       createAuditLog: jest.fn(),
@@ -66,17 +66,17 @@ describe('DynamicConfigService', () => {
       getConfigurationHistory: jest.fn(),
       getUserActivity: jest.fn(),
       getAuditStatistics: jest.fn(),
-    };
+    }
 
     const mockSanitizer = {
       sanitizeValue: jest.fn((value) => value),
       validateConfigurationKey: jest.fn(() => ({ isValid: true })),
       detectSensitiveValue: jest.fn(() => false),
-    };
+    }
 
     mockConfigModel = {
       watch: jest.fn(),
-    };
+    }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -88,42 +88,42 @@ describe('DynamicConfigService', () => {
         { provide: DynamicConfigSanitizerService, useValue: mockSanitizer },
         { provide: 'ConfigurationModel', useValue: mockConfigModel },
       ],
-    }).compile();
+    }).compile()
 
-    service = module.get<DynamicConfigService>(DynamicConfigService);
-    repository = module.get(DynamicConfigRepository);
-    eventEmitter = module.get(EventEmitter2);
-    validator = module.get(DynamicConfigValidatorService);
-    auditService = module.get(DynamicConfigAuditService);
-    sanitizer = module.get(DynamicConfigSanitizerService);
+    service = module.get<DynamicConfigService>(DynamicConfigService)
+    repository = module.get(DynamicConfigRepository)
+    eventEmitter = module.get(EventEmitter2)
+    validator = module.get(DynamicConfigValidatorService)
+    auditService = module.get(DynamicConfigAuditService)
+    sanitizer = module.get(DynamicConfigSanitizerService)
 
     // Mock the private timer to avoid actual intervals in tests
-    jest.spyOn(service as any, 'startCacheRefreshTimer').mockImplementation(() => {});
-    ModuleRefProvider.setModuleRef(module as unknown as ModuleRef);
-  });
+    jest.spyOn(service as any, 'startCacheRefreshTimer').mockImplementation(() => {})
+    ModuleRefProvider.setModuleRef(module as unknown as ModuleRef)
+  })
 
   afterEach(() => {
-    jest.clearAllMocks();
-  });
+    jest.clearAllMocks()
+  })
 
   describe('onModuleInit', () => {
     it('should initialize service correctly', async () => {
       repository.findAllWithFilteringAndPagination.mockResolvedValue({
         data: [mockConfigDocument],
         pagination: { page: 1, limit: 50, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
-      });
+      })
 
-      await service.onModuleInit();
+      await service.onModuleInit()
 
-      expect(repository.findAllWithFilteringAndPagination).toHaveBeenCalled();
-    });
+      expect(repository.findAllWithFilteringAndPagination).toHaveBeenCalled()
+    })
 
     it('should handle initialization errors', async () => {
-      repository.findAllWithFilteringAndPagination.mockRejectedValue(new Error('Database error'));
+      repository.findAllWithFilteringAndPagination.mockRejectedValue(new Error('Database error'))
 
-      await expect(service.onModuleInit()).rejects.toThrow('Database error');
-    });
-  });
+      await expect(service.onModuleInit()).rejects.toThrow('Database error')
+    })
+  })
 
   describe('get', () => {
     it('should get configuration from cache', async () => {
@@ -131,50 +131,50 @@ describe('DynamicConfigService', () => {
       repository.findAllWithFilteringAndPagination.mockResolvedValue({
         data: [mockConfigDocument],
         pagination: { page: 1, limit: 50, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
-      });
-      await service.onModuleInit();
+      })
+      await service.onModuleInit()
 
-      const result = await service.get('test.key');
+      const result = await service.get('test.key')
 
-      expect(result).toBe('test-value');
-      expect(repository.findByKey).not.toHaveBeenCalled();
-    });
+      expect(result).toBe('test-value')
+      expect(repository.findByKey).not.toHaveBeenCalled()
+    })
 
     it('should get configuration from database when not in cache', async () => {
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
 
-      const result = await service.get('unknown.key');
+      const result = await service.get('unknown.key')
 
-      expect(repository.findByKey).toHaveBeenCalledWith('unknown.key');
-      expect(result).toBe('test-value');
-    });
+      expect(repository.findByKey).toHaveBeenCalledWith('unknown.key')
+      expect(result).toBe('test-value')
+    })
 
     it('should return null for non-existent configuration', async () => {
-      repository.findByKey.mockResolvedValue(null);
+      repository.findByKey.mockResolvedValue(null)
 
-      const result = await service.get('nonexistent.key');
+      const result = await service.get('nonexistent.key')
 
-      expect(result).toBeNull();
-    });
-  });
+      expect(result).toBeNull()
+    })
+  })
 
   describe('getWithDefault', () => {
     it('should return configuration value when exists', async () => {
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
 
-      const result = await service.getWithDefault('test.key', 'default-value');
+      const result = await service.getWithDefault('test.key', 'default-value')
 
-      expect(result).toBe('test-value');
-    });
+      expect(result).toBe('test-value')
+    })
 
     it('should return default value when configuration does not exist', async () => {
-      repository.findByKey.mockResolvedValue(null);
+      repository.findByKey.mockResolvedValue(null)
 
-      const result = await service.getWithDefault('nonexistent.key', 'default-value');
+      const result = await service.getWithDefault('nonexistent.key', 'default-value')
 
-      expect(result).toBe('default-value');
-    });
-  });
+      expect(result).toBe('default-value')
+    })
+  })
 
   describe('create', () => {
     const createDTO: CreateConfigurationDTO = {
@@ -182,20 +182,20 @@ describe('DynamicConfigService', () => {
       value: 'new-value',
       type: 'string',
       description: 'New configuration',
-    };
+    }
 
     it('should create configuration successfully', async () => {
       validator.validateConfiguration.mockResolvedValue({
         isValid: true,
         errors: [],
         warnings: [],
-      });
-      repository.create.mockResolvedValue(mockConfigDocument);
+      })
+      repository.create.mockResolvedValue(mockConfigDocument)
 
-      const result = await service.create(createDTO, 'user123', 'Mozilla/5.0');
+      const result = await service.create(createDTO, 'user123', 'Mozilla/5.0')
 
-      expect(validator.validateConfiguration).toHaveBeenCalledWith(createDTO.key, createDTO.value);
-      expect(repository.create).toHaveBeenCalledWith(createDTO);
+      expect(validator.validateConfiguration).toHaveBeenCalledWith(createDTO.key, createDTO.value)
+      expect(repository.create).toHaveBeenCalledWith(createDTO)
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'configuration.changed',
         expect.objectContaining({
@@ -205,101 +205,101 @@ describe('DynamicConfigService', () => {
           userId: 'user123',
           userAgent: 'Mozilla/5.0',
         }),
-      );
-      expect(result).toEqual(mockConfigDocument);
-    });
+      )
+      expect(result).toEqual(mockConfigDocument)
+    })
 
     it('should throw validation error', async () => {
       validator.validateConfiguration.mockResolvedValue({
         isValid: false,
         errors: ['Invalid value'],
         warnings: [],
-      });
+      })
 
       await expect(service.create(createDTO)).rejects.toThrow(
         'Configuration validation failed: Invalid value',
-      );
-    });
+      )
+    })
 
     it('should log warnings', async () => {
       validator.validateConfiguration.mockResolvedValue({
         isValid: true,
         errors: [],
         warnings: ['Warning message'],
-      });
-      repository.create.mockResolvedValue(mockConfigDocument);
+      })
+      repository.create.mockResolvedValue(mockConfigDocument)
 
-      const loggerSpy = jest.spyOn((service as any).logger, 'warn');
+      const loggerSpy = jest.spyOn((service as any).logger, 'warn')
 
-      await service.create(createDTO);
+      await service.create(createDTO)
 
-      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Warning message'));
-    });
+      expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('Warning message'))
+    })
 
     it('should sanitize configuration values', async () => {
       const unsafeDTO = {
         key: 'test.key',
         value: '<script>alert("xss")</script>safe-value',
         type: 'string' as const,
-      };
+      }
 
-      sanitizer.sanitizeValue.mockReturnValue('safe-value');
-      sanitizer.validateConfigurationKey.mockReturnValue({ isValid: true });
+      sanitizer.sanitizeValue.mockReturnValue('safe-value')
+      sanitizer.validateConfigurationKey.mockReturnValue({ isValid: true })
       validator.validateConfiguration.mockResolvedValue({
         isValid: true,
         errors: [],
         warnings: [],
-      });
-      repository.create.mockResolvedValue(mockConfigDocument);
+      })
+      repository.create.mockResolvedValue(mockConfigDocument)
 
-      await service.create(unsafeDTO);
+      await service.create(unsafeDTO)
 
-      expect(sanitizer.validateConfigurationKey).toHaveBeenCalledWith(unsafeDTO.key);
-      expect(sanitizer.sanitizeValue).toHaveBeenCalledWith(unsafeDTO.value);
+      expect(sanitizer.validateConfigurationKey).toHaveBeenCalledWith(unsafeDTO.key)
+      expect(sanitizer.sanitizeValue).toHaveBeenCalledWith(unsafeDTO.value)
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           value: 'safe-value',
         }),
-      );
-    });
+      )
+    })
 
     it('should reject invalid configuration keys', async () => {
       const invalidDTO = {
         key: 'invalid key with spaces',
         value: 'test-value',
         type: 'string' as const,
-      };
+      }
 
       sanitizer.validateConfigurationKey.mockReturnValue({
         isValid: false,
         error: 'Invalid key format',
-      });
+      })
 
       await expect(service.create(invalidDTO)).rejects.toThrow(
         'Invalid configuration key: Invalid key format',
-      );
-    });
-  });
+      )
+    })
+  })
 
   describe('update', () => {
     const updateDTO: UpdateConfigurationDTO = {
       value: 'updated-value',
       description: 'Updated configuration',
-    };
+    }
 
     it('should update configuration successfully', async () => {
       validator.validateConfiguration.mockResolvedValue({
         isValid: true,
         errors: [],
         warnings: [],
-      });
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
-      repository.update.mockResolvedValue({ ...mockConfigDocument, ...updateDTO });
+      })
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
+      repository.update.mockResolvedValue({ ...mockConfigDocument, ...updateDTO })
 
-      const result = await service.update('test.key', updateDTO, 'user123');
+      const result = await service.update('test.key', updateDTO, 'user123')
 
-      expect(validator.validateConfiguration).toHaveBeenCalledWith('test.key', updateDTO.value);
-      expect(repository.update).toHaveBeenCalledWith('test.key', updateDTO);
+      expect(validator.validateConfiguration).toHaveBeenCalledWith('test.key', updateDTO.value)
+      expect(repository.update).toHaveBeenCalledWith('test.key', updateDTO)
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'configuration.changed',
         expect.objectContaining({
@@ -309,68 +309,68 @@ describe('DynamicConfigService', () => {
           newValue: updateDTO.value,
           userId: 'user123',
         }),
-      );
-      expect(result).toEqual({ ...mockConfigDocument, ...updateDTO });
-    });
+      )
+      expect(result).toEqual({ ...mockConfigDocument, ...updateDTO })
+    })
 
     it('should return null when configuration not found', async () => {
       validator.validateConfiguration.mockResolvedValue({
         isValid: true,
         errors: [],
         warnings: [],
-      });
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
-      repository.update.mockResolvedValue(null);
+      })
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
+      repository.update.mockResolvedValue(null)
 
-      const result = await service.update('nonexistent.key', updateDTO);
+      const result = await service.update('nonexistent.key', updateDTO)
 
-      expect(result).toBeNull();
-    });
+      expect(result).toBeNull()
+    })
 
     it('should skip validation when value not provided', async () => {
-      const updateDTONoValue = { description: 'Updated description' };
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
-      repository.update.mockResolvedValue({ ...mockConfigDocument, ...updateDTONoValue });
+      const updateDTONoValue = { description: 'Updated description' }
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
+      repository.update.mockResolvedValue({ ...mockConfigDocument, ...updateDTONoValue })
 
-      await service.update('test.key', updateDTONoValue);
+      await service.update('test.key', updateDTONoValue)
 
-      expect(validator.validateConfiguration).not.toHaveBeenCalled();
-    });
+      expect(validator.validateConfiguration).not.toHaveBeenCalled()
+    })
 
     it('should sanitize updated values', async () => {
       const unsafeUpdateDTO = {
         value: '<script>alert("xss")</script>updated-value',
-      };
+      }
 
-      sanitizer.sanitizeValue.mockReturnValue('updated-value');
+      sanitizer.sanitizeValue.mockReturnValue('updated-value')
       validator.validateConfiguration.mockResolvedValue({
         isValid: true,
         errors: [],
         warnings: [],
-      });
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
-      repository.update.mockResolvedValue({ ...mockConfigDocument, ...unsafeUpdateDTO });
+      })
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
+      repository.update.mockResolvedValue({ ...mockConfigDocument, ...unsafeUpdateDTO })
 
-      await service.update('test.key', unsafeUpdateDTO);
+      await service.update('test.key', unsafeUpdateDTO)
 
-      expect(sanitizer.sanitizeValue).toHaveBeenCalledWith(unsafeUpdateDTO.value);
+      expect(sanitizer.sanitizeValue).toHaveBeenCalledWith(unsafeUpdateDTO.value)
       expect(repository.update).toHaveBeenCalledWith(
         'test.key',
         expect.objectContaining({
           value: 'updated-value',
         }),
-      );
-    });
-  });
+      )
+    })
+  })
 
   describe('delete', () => {
     it('should delete configuration successfully', async () => {
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
-      repository.delete.mockResolvedValue(true);
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
+      repository.delete.mockResolvedValue(true)
 
-      const result = await service.delete('test.key', 'user123');
+      const result = await service.delete('test.key', 'user123')
 
-      expect(repository.delete).toHaveBeenCalledWith('test.key');
+      expect(repository.delete).toHaveBeenCalledWith('test.key')
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         'configuration.changed',
         expect.objectContaining({
@@ -379,56 +379,56 @@ describe('DynamicConfigService', () => {
           oldValue: mockConfigDocument.value,
           userId: 'user123',
         }),
-      );
-      expect(result).toBe(true);
-    });
+      )
+      expect(result).toBe(true)
+    })
 
     it('should throw error for required configuration', async () => {
-      const requiredConfig = { ...mockConfigDocument, isRequired: true };
-      repository.findByKey.mockResolvedValue(requiredConfig);
+      const requiredConfig = { ...mockConfigDocument, isRequired: true }
+      repository.findByKey.mockResolvedValue(requiredConfig)
 
       await expect(service.delete('test.key')).rejects.toThrow(
         'Cannot delete required configuration: test.key',
-      );
-    });
+      )
+    })
 
     it('should return false when configuration not found', async () => {
-      repository.findByKey.mockResolvedValue(mockConfigDocument);
-      repository.delete.mockResolvedValue(false);
+      repository.findByKey.mockResolvedValue(mockConfigDocument)
+      repository.delete.mockResolvedValue(false)
 
-      const result = await service.delete('nonexistent.key');
+      const result = await service.delete('nonexistent.key')
 
-      expect(result).toBe(false);
-    });
-  });
+      expect(result).toBe(false)
+    })
+  })
 
   describe('utility methods', () => {
     it('should check if configuration exists', async () => {
-      repository.exists.mockResolvedValue(true);
+      repository.exists.mockResolvedValue(true)
 
-      const result = await service.exists('test.key');
+      const result = await service.exists('test.key')
 
-      expect(repository.exists).toHaveBeenCalledWith('test.key');
-      expect(result).toBe(true);
-    });
+      expect(repository.exists).toHaveBeenCalledWith('test.key')
+      expect(result).toBe(true)
+    })
 
     it('should get required configurations', async () => {
-      repository.findRequired.mockResolvedValue([mockConfigDocument]);
+      repository.findRequired.mockResolvedValue([mockConfigDocument])
 
-      const result = await service.getRequired();
+      const result = await service.getRequired()
 
-      expect(repository.findRequired).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
-    });
+      expect(repository.findRequired).toHaveBeenCalled()
+      expect(result).toHaveLength(1)
+    })
 
     it('should find missing required configurations', async () => {
-      repository.findMissingRequired.mockResolvedValue(['missing.key']);
+      repository.findMissingRequired.mockResolvedValue(['missing.key'])
 
-      const result = await service.findMissingRequired(['test.key', 'missing.key']);
+      const result = await service.findMissingRequired(['test.key', 'missing.key'])
 
-      expect(repository.findMissingRequired).toHaveBeenCalledWith(['test.key', 'missing.key']);
-      expect(result).toEqual(['missing.key']);
-    });
+      expect(repository.findMissingRequired).toHaveBeenCalledWith(['test.key', 'missing.key'])
+      expect(result).toEqual(['missing.key'])
+    })
 
     it('should get statistics', async () => {
       const dbStats = {
@@ -436,10 +436,10 @@ describe('DynamicConfigService', () => {
         byType: { string: 5, number: 3, boolean: 2 },
         required: 3,
         lastModified: new Date(),
-      };
-      repository.getStatistics.mockResolvedValue(dbStats);
+      }
+      repository.getStatistics.mockResolvedValue(dbStats)
 
-      const result = await service.getStatistics();
+      const result = await service.getStatistics()
 
       expect(result).toEqual({
         ...dbStats,
@@ -447,107 +447,107 @@ describe('DynamicConfigService', () => {
           size: expect.any(Number),
           initialized: expect.any(Boolean),
         }),
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('cache management', () => {
     it('should refresh cache', async () => {
       repository.findAllWithFilteringAndPagination.mockResolvedValue({
         data: [mockConfigDocument],
         pagination: { page: 1, limit: 50, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
-      });
+      })
 
-      await service.refreshCache();
+      await service.refreshCache()
 
-      expect(repository.findAllWithFilteringAndPagination).toHaveBeenCalled();
-    });
+      expect(repository.findAllWithFilteringAndPagination).toHaveBeenCalled()
+    })
 
     it('should clear cache', () => {
-      service.clearCache();
+      service.clearCache()
 
-      const metrics = service.getCacheMetrics();
-      expect(metrics.size).toBe(0);
-      expect(metrics.initialized).toBe(false);
-    });
+      const metrics = service.getCacheMetrics()
+      expect(metrics.size).toBe(0)
+      expect(metrics.initialized).toBe(false)
+    })
 
     it('should get cache metrics', () => {
-      const metrics = service.getCacheMetrics();
+      const metrics = service.getCacheMetrics()
 
       expect(metrics).toEqual({
         size: expect.any(Number),
         initialized: expect.any(Boolean),
         keys: expect.any(Array),
         memoryUsage: expect.any(Object),
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('health check', () => {
     it('should return true when healthy', async () => {
-      repository.healthCheck.mockResolvedValue(true);
+      repository.healthCheck.mockResolvedValue(true)
       // Initialize cache to make it healthy
       repository.findAllWithFilteringAndPagination.mockResolvedValue({
         data: [],
         pagination: { page: 1, limit: 50, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
-      });
-      await service.onModuleInit();
+      })
+      await service.onModuleInit()
 
-      const result = await service.healthCheck();
+      const result = await service.healthCheck()
 
-      expect(result).toBe(true);
-    });
+      expect(result).toBe(true)
+    })
 
     it('should return false when repository unhealthy', async () => {
-      repository.healthCheck.mockResolvedValue(false);
+      repository.healthCheck.mockResolvedValue(false)
 
-      const result = await service.healthCheck();
+      const result = await service.healthCheck()
 
-      expect(result).toBe(false);
-    });
+      expect(result).toBe(false)
+    })
 
     it('should return false on error', async () => {
-      repository.healthCheck.mockRejectedValue(new Error('Health check error'));
+      repository.healthCheck.mockRejectedValue(new Error('Health check error'))
 
-      const result = await service.healthCheck();
+      const result = await service.healthCheck()
 
-      expect(result).toBe(false);
-    });
-  });
+      expect(result).toBe(false)
+    })
+  })
 
   describe('audit integration', () => {
     it('should get audit history', async () => {
-      const mockHistory = [{ configKey: 'test.key', operation: 'CREATE' }];
-      auditService.getConfigurationHistory.mockResolvedValue(mockHistory as any);
+      const mockHistory = [{ configKey: 'test.key', operation: 'CREATE' }]
+      auditService.getConfigurationHistory.mockResolvedValue(mockHistory as any)
 
-      const result = await service.getAuditHistory('test.key', 10, 5);
+      const result = await service.getAuditHistory('test.key', 10, 5)
 
-      expect(auditService.getConfigurationHistory).toHaveBeenCalledWith('test.key', 10, 5);
-      expect(result).toEqual(mockHistory);
-    });
+      expect(auditService.getConfigurationHistory).toHaveBeenCalledWith('test.key', 10, 5)
+      expect(result).toEqual(mockHistory)
+    })
 
     it('should get user activity', async () => {
-      const mockActivity = [{ userId: 'user123', operation: 'UPDATE' }];
-      auditService.getUserActivity.mockResolvedValue(mockActivity as any);
+      const mockActivity = [{ userId: 'user123', operation: 'UPDATE' }]
+      auditService.getUserActivity.mockResolvedValue(mockActivity as any)
 
-      const result = await service.getUserActivity('user123', 20, 10);
+      const result = await service.getUserActivity('user123', 20, 10)
 
-      expect(auditService.getUserActivity).toHaveBeenCalledWith('user123', 20, 10);
-      expect(result).toEqual(mockActivity);
-    });
+      expect(auditService.getUserActivity).toHaveBeenCalledWith('user123', 20, 10)
+      expect(result).toEqual(mockActivity)
+    })
 
     it('should get audit statistics', async () => {
-      const mockStats = { totalOperations: 100, operationCounts: {} };
-      auditService.getAuditStatistics.mockResolvedValue(mockStats as any);
+      const mockStats = { totalOperations: 100, operationCounts: {} }
+      auditService.getAuditStatistics.mockResolvedValue(mockStats as any)
 
-      const startDate = new Date('2023-01-01');
-      const endDate = new Date('2023-12-31');
-      const result = await service.getAuditStatistics(startDate, endDate);
+      const startDate = new Date('2023-01-01')
+      const endDate = new Date('2023-12-31')
+      const result = await service.getAuditStatistics(startDate, endDate)
 
-      expect(auditService.getAuditStatistics).toHaveBeenCalledWith(startDate, endDate);
-      expect(result).toEqual(mockStats);
-    });
-  });
+      expect(auditService.getAuditStatistics).toHaveBeenCalledWith(startDate, endDate)
+      expect(result).toEqual(mockStats)
+    })
+  })
 
   describe('validation', () => {
     it('should validate configuration value', async () => {
@@ -555,32 +555,32 @@ describe('DynamicConfigService', () => {
         isValid: true,
         errors: [],
         warnings: ['Warning'],
-      });
+      })
 
-      const result = await service.validateValue('test.key', 'test-value');
+      const result = await service.validateValue('test.key', 'test-value')
 
-      expect(validator.validateConfiguration).toHaveBeenCalledWith('test.key', 'test-value');
+      expect(validator.validateConfiguration).toHaveBeenCalledWith('test.key', 'test-value')
       expect(result).toEqual({
         isValid: true,
         errors: [],
         warnings: ['Warning'],
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('MongoDB Change Streams', () => {
-    let mockChangeStream: any;
+    let mockChangeStream: any
 
     beforeEach(() => {
       mockChangeStream = {
         on: jest.fn(),
         close: jest.fn(),
-      };
-    });
+      }
+    })
 
     describe('startChangeStreamMonitoring', () => {
       it('should start change stream monitoring successfully', async () => {
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
         // Initialize service to trigger change stream setup
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
@@ -593,9 +593,9 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
+        await service.onModuleInit()
 
         expect(mockConfigModel.watch).toHaveBeenCalledWith(
           [
@@ -609,17 +609,17 @@ describe('DynamicConfigService', () => {
             fullDocument: 'updateLookup',
             fullDocumentBeforeChange: 'whenAvailable',
           },
-        );
+        )
 
-        expect(mockChangeStream.on).toHaveBeenCalledWith('change', expect.any(Function));
-        expect(mockChangeStream.on).toHaveBeenCalledWith('error', expect.any(Function));
-        expect(mockChangeStream.on).toHaveBeenCalledWith('close', expect.any(Function));
-      });
+        expect(mockChangeStream.on).toHaveBeenCalledWith('change', expect.any(Function))
+        expect(mockChangeStream.on).toHaveBeenCalledWith('error', expect.any(Function))
+        expect(mockChangeStream.on).toHaveBeenCalledWith('close', expect.any(Function))
+      })
 
       it('should handle change stream initialization errors', async () => {
         mockConfigModel.watch.mockImplementation(() => {
-          throw new Error('Change stream failed');
-        });
+          throw new Error('Change stream failed')
+        })
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -631,21 +631,21 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
         // Should not throw, but log error and continue
-        await expect(service.onModuleInit()).resolves.not.toThrow();
+        await expect(service.onModuleInit()).resolves.not.toThrow()
 
         // Should fall back to polling mode
-        const status = service.getServiceStatus();
-        expect(status.changeStreamsActive).toBe(false);
-        expect(status.mode).toBe('hybrid');
-      });
-    });
+        const status = service.getServiceStatus()
+        expect(status.changeStreamsActive).toBe(false)
+        expect(status.mode).toBe('hybrid')
+      })
+    })
 
     describe('handleChangeStreamEvent', () => {
       beforeEach(async () => {
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -657,10 +657,10 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
-      });
+        await service.onModuleInit()
+      })
 
       it('should handle insert change events', () => {
         const changeEvent = {
@@ -670,14 +670,12 @@ describe('DynamicConfigService', () => {
             value: 'new-value',
           },
           fullDocumentBeforeChange: null,
-        };
+        }
 
         // Get the change handler that was registered
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         // Should emit configuration change event
         expect(eventEmitter.emit).toHaveBeenCalledWith('configuration.changed', {
@@ -688,8 +686,8 @@ describe('DynamicConfigService', () => {
           source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
-        });
-      });
+        })
+      })
 
       it('should handle update change events', () => {
         const changeEvent = {
@@ -702,13 +700,11 @@ describe('DynamicConfigService', () => {
             key: 'test.key',
             value: 'old-value',
           },
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         expect(eventEmitter.emit).toHaveBeenCalledWith('configuration.changed', {
           key: 'test.key',
@@ -718,8 +714,8 @@ describe('DynamicConfigService', () => {
           source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
-        });
-      });
+        })
+      })
 
       it('should handle delete change events', () => {
         const changeEvent = {
@@ -729,13 +725,11 @@ describe('DynamicConfigService', () => {
             key: 'deleted.key',
             value: 'deleted-value',
           },
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         expect(eventEmitter.emit).toHaveBeenCalledWith('configuration.changed', {
           key: 'deleted.key',
@@ -745,8 +739,8 @@ describe('DynamicConfigService', () => {
           source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
-        });
-      });
+        })
+      })
 
       it('should handle change events with missing key gracefully', () => {
         const changeEvent = {
@@ -756,26 +750,24 @@ describe('DynamicConfigService', () => {
             value: 'some-value',
           },
           fullDocumentBeforeChange: null,
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
         // Should not throw
-        expect(() => changeHandler(changeEvent)).not.toThrow();
+        expect(() => changeHandler(changeEvent)).not.toThrow()
 
         // Should not emit event for invalid change
         expect(eventEmitter.emit).not.toHaveBeenCalledWith(
           'configuration.changed',
           expect.any(Object),
-        );
-      });
-    });
+        )
+      })
+    })
 
     describe('handleChangeStreamError', () => {
       beforeEach(async () => {
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -787,49 +779,47 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
-      });
+        await service.onModuleInit()
+      })
 
       it('should handle change stream errors and attempt reconnection', async () => {
         // Mock timers to control setTimeout behavior
-        jest.useFakeTimers();
+        jest.useFakeTimers()
 
-        const error = new Error('Connection lost');
+        const error = new Error('Connection lost')
 
         // Get the error handler that was registered
-        const errorHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'error',
-        )[1];
+        const errorHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'error')[1]
 
         // Reset the mock to track reconnection calls
-        mockConfigModel.watch.mockClear();
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockClear()
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
-        errorHandler(error);
+        errorHandler(error)
 
         // Should close the existing change stream
-        expect(mockChangeStream.close).toHaveBeenCalled();
+        expect(mockChangeStream.close).toHaveBeenCalled()
 
         // Should mark change streams as inactive
-        const status = service.getServiceStatus();
-        expect(status.changeStreamsActive).toBe(false);
+        const status = service.getServiceStatus()
+        expect(status.changeStreamsActive).toBe(false)
 
         // Fast-forward time to trigger reconnection
-        jest.advanceTimersByTime(5000);
+        jest.advanceTimersByTime(5000)
 
         // Should attempt reconnection
-        expect(mockConfigModel.watch).toHaveBeenCalledTimes(1); // Reconnection attempt
+        expect(mockConfigModel.watch).toHaveBeenCalledTimes(1) // Reconnection attempt
 
         // Restore real timers
-        jest.useRealTimers();
-      });
-    });
+        jest.useRealTimers()
+      })
+    })
 
     describe('cache synchronization', () => {
       beforeEach(async () => {
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -841,10 +831,10 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
-      });
+        await service.onModuleInit()
+      })
 
       it('should update cache when configuration is created via change stream', async () => {
         const changeEvent = {
@@ -853,22 +843,20 @@ describe('DynamicConfigService', () => {
             key: 'cache.test',
             value: 'cache-value',
           },
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         // Configuration should now be available from cache
-        const result = await service.get('cache.test');
-        expect(result).toBe('cache-value');
-      });
+        const result = await service.get('cache.test')
+        expect(result).toBe('cache-value')
+      })
 
       it('should update cache when configuration is updated via change stream', async () => {
         // First, ensure the config is in cache
-        await service.get('test.key'); // This will cache it
+        await service.get('test.key') // This will cache it
 
         const changeEvent = {
           operationType: 'update',
@@ -880,22 +868,20 @@ describe('DynamicConfigService', () => {
             key: 'test.key',
             value: 'old-value',
           },
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         // Cache should be updated
-        const result = await service.get('test.key');
-        expect(result).toBe('updated-from-stream');
-      });
+        const result = await service.get('test.key')
+        expect(result).toBe('updated-from-stream')
+      })
 
       it('should remove from cache when configuration is deleted via change stream', async () => {
         // First, ensure the config is in cache
-        await service.get('test.key');
+        await service.get('test.key')
 
         const changeEvent = {
           operationType: 'delete',
@@ -903,24 +889,22 @@ describe('DynamicConfigService', () => {
             key: 'test.key',
             value: 'deleted-value',
           },
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         // Configuration should no longer be in cache
-        repository.findByKey.mockResolvedValue(null);
-        const result = await service.get('test.key');
-        expect(result).toBeNull();
-      });
-    });
+        repository.findByKey.mockResolvedValue(null)
+        const result = await service.get('test.key')
+        expect(result).toBeNull()
+      })
+    })
 
     describe('service status', () => {
       it('should report correct status when change streams are active', async () => {
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -932,21 +916,21 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
+        await service.onModuleInit()
 
-        const status = service.getServiceStatus();
-        expect(status.changeStreamsEnabled).toBe(true);
-        expect(status.changeStreamsActive).toBe(true);
-        expect(status.mode).toBe('real-time');
-        expect(status.cacheRefreshInterval).toBe(30 * 60 * 1000); // 30 minutes
-      });
+        const status = service.getServiceStatus()
+        expect(status.changeStreamsEnabled).toBe(true)
+        expect(status.changeStreamsActive).toBe(true)
+        expect(status.mode).toBe('real-time')
+        expect(status.cacheRefreshInterval).toBe(30 * 60 * 1000) // 30 minutes
+      })
 
       it('should report correct status when change streams fail', async () => {
         mockConfigModel.watch.mockImplementation(() => {
-          throw new Error('Change stream failed');
-        });
+          throw new Error('Change stream failed')
+        })
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -958,20 +942,20 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
+        await service.onModuleInit()
 
-        const status = service.getServiceStatus();
-        expect(status.changeStreamsEnabled).toBe(true);
-        expect(status.changeStreamsActive).toBe(false);
-        expect(status.mode).toBe('hybrid');
-        expect(status.cacheRefreshInterval).toBe(5 * 60 * 1000); // 5 minutes
-      });
+        const status = service.getServiceStatus()
+        expect(status.changeStreamsEnabled).toBe(true)
+        expect(status.changeStreamsActive).toBe(false)
+        expect(status.mode).toBe('hybrid')
+        expect(status.cacheRefreshInterval).toBe(5 * 60 * 1000) // 5 minutes
+      })
 
       it('should report polling mode when change streams are disabled', async () => {
         // Temporarily disable change streams
-        process.env.MONGODB_CHANGE_STREAMS_ENABLED = 'false';
+        process.env.MONGODB_CHANGE_STREAMS_ENABLED = 'false'
 
         // Create a new service instance with change streams disabled
         const module: TestingModule = await Test.createTestingModule({
@@ -984,10 +968,10 @@ describe('DynamicConfigService', () => {
             { provide: DynamicConfigSanitizerService, useValue: sanitizer },
             { provide: 'ConfigurationModel', useValue: { watch: jest.fn() } },
           ],
-        }).compile();
+        }).compile()
 
-        const disabledService = module.get<DynamicConfigService>(DynamicConfigService);
-        jest.spyOn(disabledService as any, 'startCacheRefreshTimer').mockImplementation(() => {});
+        const disabledService = module.get<DynamicConfigService>(DynamicConfigService)
+        jest.spyOn(disabledService as any, 'startCacheRefreshTimer').mockImplementation(() => {})
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -999,23 +983,23 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await disabledService.onModuleInit();
+        await disabledService.onModuleInit()
 
-        const status = disabledService.getServiceStatus();
-        expect(status.changeStreamsEnabled).toBe(false);
-        expect(status.changeStreamsActive).toBe(false);
-        expect(status.mode).toBe('polling');
+        const status = disabledService.getServiceStatus()
+        expect(status.changeStreamsEnabled).toBe(false)
+        expect(status.changeStreamsActive).toBe(false)
+        expect(status.mode).toBe('polling')
 
         // Restore environment variable
-        delete process.env.MONGODB_CHANGE_STREAMS_ENABLED;
-      });
-    });
+        delete process.env.MONGODB_CHANGE_STREAMS_ENABLED
+      })
+    })
 
     describe('multi-instance synchronization', () => {
       it('should emit events that can be consumed by other services', async () => {
-        mockConfigModel.watch.mockReturnValue(mockChangeStream);
+        mockConfigModel.watch.mockReturnValue(mockChangeStream)
 
         repository.findAllWithFilteringAndPagination.mockResolvedValue({
           data: [mockConfigDocument],
@@ -1027,9 +1011,9 @@ describe('DynamicConfigService', () => {
             hasNext: false,
             hasPrev: false,
           },
-        });
+        })
 
-        await service.onModuleInit();
+        await service.onModuleInit()
 
         const changeEvent = {
           operationType: 'update',
@@ -1041,13 +1025,11 @@ describe('DynamicConfigService', () => {
             key: 'multi.instance.test',
             value: 'old-value',
           },
-        };
+        }
 
-        const changeHandler = mockChangeStream.on.mock.calls.find(
-          (call: string[]) => call[0] === 'change',
-        )[1];
+        const changeHandler = mockChangeStream.on.mock.calls.find((call: string[]) => call[0] === 'change')[1]
 
-        changeHandler(changeEvent);
+        changeHandler(changeEvent)
 
         // Should emit event that EcoConfigService can listen to
         expect(eventEmitter.emit).toHaveBeenCalledWith('configuration.changed', {
@@ -1058,8 +1040,8 @@ describe('DynamicConfigService', () => {
           source: 'change-stream',
           timestamp: expect.any(Date),
           userId: 'change-stream',
-        });
-      });
-    });
-  });
-});
+        })
+      })
+    })
+  })
+})

@@ -558,7 +558,8 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           }
 
           // If we reach here, the message structure is invalid
-          this.logger.warn('Received Ok message with invalid structure', message);
+          this.logger.warn(
+            'Received Ok message with invalid structure', message);
           this.logger.warn(
             `Received Ok message with invalid structure: ${JSON.stringify(message)}`,
           );
