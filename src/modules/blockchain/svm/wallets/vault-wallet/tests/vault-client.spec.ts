@@ -571,11 +571,9 @@ describe('VaultClient', () => {
       (vaultError as any).response = { statusCode: 403 };
 
       const rawKey = Buffer.alloc(32, 1);
-      mockVaultInstance.read
-        .mockRejectedValueOnce(vaultError)
-        .mockResolvedValueOnce({
-          data: { keys: { '1': { public_key: rawKey.toString('base64') } } },
-        });
+      mockVaultInstance.read.mockRejectedValueOnce(vaultError).mockResolvedValueOnce({
+        data: { keys: { '1': { public_key: rawKey.toString('base64') } } },
+      });
 
       await vaultClient.getPublicKey();
 
@@ -632,7 +630,13 @@ describe('VaultClient', () => {
         mountPoint: 'kubernetes',
         jwt: 'mock-jwt',
       };
-      vaultClient = new VaultClient(mockEndpoint, mockTransitPath, mockKeyName, authConfig, mockLogger);
+      vaultClient = new VaultClient(
+        mockEndpoint,
+        mockTransitPath,
+        mockKeyName,
+        authConfig,
+        mockLogger,
+      );
 
       const vaultError = new Error('Forbidden');
       (vaultError as any).response = { statusCode: 403 };
