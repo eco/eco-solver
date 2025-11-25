@@ -1,7 +1,7 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 
-import { SolverRegistrationService } from '@/modules/api/solver-registration/services/solver-registration.service';
+import { SolverRegistrationService } from '@/modules/api/quotes/solver-registration/services/solver-registration.service';
 import { ConfigModule } from '@/modules/config/config.module';
 import { RequestSigningModule } from '@/request-signing/request-signing.module';
 

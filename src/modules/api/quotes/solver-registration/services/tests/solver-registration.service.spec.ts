@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EcoError } from '@/errors/eco-error';
-import { SolverRegistrationService } from '@/modules/api/solver-registration/services/solver-registration.service';
+import { SolverRegistrationService } from '@/modules/api/quotes/solver-registration/services/solver-registration.service';
 import { EvmWalletManager } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';

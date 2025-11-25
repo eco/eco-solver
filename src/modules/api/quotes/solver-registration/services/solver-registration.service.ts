@@ -17,7 +17,7 @@ import { INTENT_INITIATION_ROUTE } from '@/modules/api/gasless-intents/constants
 import { API_ROOT, API_V2_ROOT } from '@/modules/api/paths';
 import { QUOTE_ROUTE } from '@/modules/api/quotes/constants/endpoint';
 import { IntentExecutionType } from '@/modules/api/quotes/enums/intent-execution-type.enum';
-import { SolverRegistrationDTO } from '@/modules/api/solver-registration/dtos/solver-registration.dto';
+import { SolverRegistrationDTO } from '@/modules/api/quotes/solver-registration/dtos/solver-registration.dto';
 import { BlockchainConfigService, QuotesConfigService } from '@/modules/config/services';
 import { SIGNATURE_EXPIRE_HEADER } from '@/request-signing/interfaces/signature-headers.interface';
 import { SignatureGenerator } from '@/request-signing/signature-generator';
