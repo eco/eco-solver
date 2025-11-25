@@ -53,38 +53,57 @@ export class GaslessIntentsService {
   async initiateGaslessIntent(
     gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<EcoResponse<GaslessIntentExecutionResponseDTO>> {
-    try {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `initiateGaslessIntent: gaslessIntentRequestDTO`,
-          properties: {
-            dAppID: gaslessIntentRequestDTO.dAppID,
-            intentGroupID: gaslessIntentRequestDTO.intentGroupID,
-            intentCount: gaslessIntentRequestDTO.intents.length,
-          },
-        }),
-      );
+    return await this.otelService.tracer.startActiveSpan(
+      'gasless-intents.initiateGaslessIntent',
+      {
+        attributes: {
+          'intent.dApp_id': gaslessIntentRequestDTO.dAppID,
+          'intent.group_id': gaslessIntentRequestDTO.intentGroupID,
+          'intent.count': gaslessIntentRequestDTO.intents.length,
+        },
+      },
+      async (span) => {
+        try {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `initiateGaslessIntent: gaslessIntentRequestDTO`,
+              properties: {
+                dAppID: gaslessIntentRequestDTO.dAppID,
+                intentGroupID: gaslessIntentRequestDTO.intentGroupID,
+                intentCount: gaslessIntentRequestDTO.intents.length,
+              },
+            }),
+          );
 
-      const { error } = this.checkGaslessIntentSupported(gaslessIntentRequestDTO.dAppID);
+          const { error } = this.checkGaslessIntentSupported(gaslessIntentRequestDTO.dAppID);
 
-      if (error) {
-        return { error };
-      }
+          if (error) {
+            span.setStatus({
+              code: api.SpanStatusCode.ERROR,
+              message: 'Gasless intent not supported',
+            });
+            return { error };
+          }
 
-      return await this._initiateGaslessIntent(gaslessIntentRequestDTO);
-    } catch (ex: any) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `initiateGaslessIntent: error`,
-          properties: {
-            error: ex.message,
-          },
-        }),
-        ex.stack,
-      );
+          const result = await this._initiateGaslessIntent(gaslessIntentRequestDTO);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return result;
+        } catch (ex: any) {
+          this.logger.error(
+            EcoLogMessage.fromDefault({
+              message: `initiateGaslessIntent: error`,
+              properties: { error: ex.message },
+            }),
+            ex.stack,
+          );
 
-      return { error: EcoError.GaslessIntentInitiationError };
-    }
+          span.setStatus({ code: api.SpanStatusCode.ERROR, message: ex.message });
+          return { error: EcoError.GaslessIntentInitiationError };
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

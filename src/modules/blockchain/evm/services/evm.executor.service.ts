@@ -403,7 +403,7 @@ export class EvmExecutorService extends BaseChainExecutor {
 
           span.setAttribute('portal.address', call.to);
 
-          this.ecoLogger.log(
+          this.ecoLogger.debug(
             EcoLogMessage.fromDefault({
               message: `fundFor: wallet.writeContract`,
               properties: {
