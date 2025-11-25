@@ -42,9 +42,9 @@ const quoteTestUtils = new QuoteTestUtils()
 jest.mock('@/eco-configs/utils', () => {
   return {
     ...jest.requireActual('@/eco-configs/utils'),
-    getChainConfig: jest
-      .fn()
-      .mockReturnValue({ IntentSource: '0x0000000000000000000000000000000000000001' }),
+    getChainConfig: jest.fn().mockReturnValue({
+      Portal: '0x0000000000000000000000000000000000000001',
+    }),
   }
 })
 

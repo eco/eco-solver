@@ -205,7 +205,7 @@ async function main() {
   const config: IntentConfig = {
     sourceChain: optimism,
     destinationChain: base,
-    portal: getChainConfig(10).IntentSource,
+    portal: getChainConfig(10).Portal,
     amount: 1000n,
     prover: getChainConfig(10).HyperProver,
   }
