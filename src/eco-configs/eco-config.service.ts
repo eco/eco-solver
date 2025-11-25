@@ -297,8 +297,8 @@ export class EcoConfigService implements OnModuleInit {
   getIntentSources(): EcoConfigType['intentSources'] {
     return this.get<IntentSource[]>('intentSources').map((intent: IntentSource) => {
       const config = getChainConfig(intent.chainID)
-      intent.sourceAddress = config.IntentSource
-      intent.inbox = config.Inbox
+      intent.sourceAddress = config.Portal
+      intent.inbox = config.Portal
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
       // Eco protocol exposes three prover contract slots per chain:
       // - HyperProver (Hyperlane proofs), MetaProver (Metalayer proofs), CCIPProver (Chainlink CCIP proofs).
@@ -348,7 +348,7 @@ export class EcoConfigService implements OnModuleInit {
     const solvers = this.get<Record<number, Solver>>('solvers')
     _.entries(solvers).forEach(([, solver]: [string, Solver]) => {
       const config = getChainConfig(solver.chainID)
-      solver.inboxAddress = config.Inbox
+      solver.inboxAddress = config.Portal
       solver.targets = addressKeys(solver.targets) ?? {}
     })
     return solvers

@@ -55,7 +55,8 @@
     "@eco-foundation/eco-kms-core": "^2.0.0",
     "@eco-foundation/eco-kms-provider-aws": "^2.0.0",
     "@eco-foundation/eco-kms-wallets": "^2.0.0",
-    "@eco-foundation/routes-ts": "2.8.17",
+    "@eco-foundation/routes-ts": "2.8.20",
+    "@eco-foundation/routes-ts-v2": "npm:@eco-foundation/routes-ts@3.2.9",
     "@launchdarkly/node-server-sdk": "^9.7.1",
     "@liaoliaots/nestjs-redis-health": "^9.0.4",
     "@lifi/sdk": "^3.12.6",
@@ -139,9 +140,6 @@
     "typescript": "^5.1.3"
   },
   "pnpm": {
-    "patchedDependencies": {
-      "@eco-foundation/routes-ts@2.8.17": "patches/@eco-foundation__routes-ts@2.8.17.patch"
-    },
     "onlyBuiltDependencies": [
       "@eco-foundation/chains"
     ]
