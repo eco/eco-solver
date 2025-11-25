@@ -9,6 +9,7 @@ import { LoggingModule } from '@/modules/logging/logging.module';
 
 import { QuotesController } from './controllers/quotes.controller';
 import { QuotesService } from './services/quotes.service';
+import { SolverRegistrationModule } from '@/modules/api/quotes/solver-registration/solver-registration.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { QuotesService } from './services/quotes.service';
     HttpModule,
     IntentsModule,
     LoggingModule,
+    SolverRegistrationModule,
   ],
   controllers: [QuotesController],
   providers: [QuotesService],

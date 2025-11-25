@@ -20,7 +20,6 @@ import { QueueModule } from '@/modules/queue/queue.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
 import { RequestSigningModule } from '@/request-signing/request-signing.module';
-import { SolverRegistrationModule } from '@/modules/api/solver-registration/solver-registration.module';
 
 @Module({
   imports: [
@@ -53,7 +52,6 @@ import { SolverRegistrationModule } from '@/modules/api/solver-registration/solv
     HealthModule,
     RequestSigningModule,
     DynamicConfigModule,
-    SolverRegistrationModule,
   ],
   providers: [Logger],
 })

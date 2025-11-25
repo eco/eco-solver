@@ -3,7 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 import { IntentExecutionType } from '@/modules/api/quotes/enums/intent-execution-type.enum';
-import { CrossChainRoutesDTO } from '@/modules/api/solver-registration/dtos/cross-chain-routes.dto';
+import { CrossChainRoutesDTO } from '@/modules/api/quotes/solver-registration/dtos/cross-chain-routes.dto';
 
 export class SolverRegistrationDTO {
   @ApiProperty({ isArray: true, enum: IntentExecutionType.enumKeys })
