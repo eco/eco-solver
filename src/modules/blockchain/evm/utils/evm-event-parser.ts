@@ -4,6 +4,7 @@ import { messageBridgeProverAbi } from '@/common/abis/message-bridge-prover.abi'
 import { portalAbi } from '@/common/abis/portal.abi';
 import {
   IntentFulfilledEvent,
+  IntentFundedEvent,
   IntentProvenEvent,
   IntentWithdrawnEvent,
 } from '@/common/interfaces/events.interface';
@@ -50,6 +51,32 @@ export class EvmEventParser {
           token: AddressNormalizer.normalize(token.token, srcChainType),
         })),
       },
+    };
+  }
+
+  /**
+   * Parse IntentFunded event from EVM logs
+   * @param chainId The chain ID where the event occurred
+   * @param rawLog The raw EVM log
+   * @returns Parsed IntentFundedEvent object
+   */
+  static parseIntentFunded(chainId: bigint, rawLog: Log<bigint, number, false>): IntentFundedEvent {
+    const log = decodeEventLog({
+      abi: portalAbi,
+      eventName: 'IntentFunded',
+      topics: rawLog.topics,
+      data: rawLog.data,
+      strict: true,
+    });
+
+    return {
+      chainId,
+      intentHash: log.args.intentHash,
+      funder: AddressNormalizer.normalizeEvm(log.args.funder),
+      complete: log.args.complete,
+      timestamp: new Date(),
+      blockNumber: rawLog.blockNumber,
+      transactionHash: rawLog.transactionHash,
     };
   }
 
