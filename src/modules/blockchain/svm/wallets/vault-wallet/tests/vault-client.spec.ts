@@ -539,4 +539,112 @@ describe('VaultClient', () => {
       );
     });
   });
+
+  describe('automatic retry on permission denied errors', () => {
+    beforeEach(() => {
+      const authConfig = { type: 'token' as const, token: 'test-token' };
+      vaultClient = new VaultClient(
+        mockEndpoint,
+        mockTransitPath,
+        mockKeyName,
+        authConfig,
+        mockLogger,
+      );
+    });
+
+    it('should retry on 401 Unauthorized', async () => {
+      const vaultError = new Error('Unauthorized');
+      (vaultError as any).response = { statusCode: 401 };
+
+      mockVaultInstance.write
+        .mockRejectedValueOnce(vaultError)
+        .mockResolvedValueOnce({ data: { signature: 'vault:v1:c3VjY2Vzcw==' } });
+
+      await vaultClient.sign(new Uint8Array([1, 2, 3]));
+
+      expect(mockVaultInstance.write).toHaveBeenCalledTimes(2);
+      expect(mockVaultInstance.tokenLookupSelf).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry on 403 Forbidden', async () => {
+      const vaultError = new Error('Forbidden');
+      (vaultError as any).response = { statusCode: 403 };
+
+      const rawKey = Buffer.alloc(32, 1);
+      mockVaultInstance.read
+        .mockRejectedValueOnce(vaultError)
+        .mockResolvedValueOnce({
+          data: { keys: { '1': { public_key: rawKey.toString('base64') } } },
+        });
+
+      await vaultClient.getPublicKey();
+
+      expect(mockVaultInstance.read).toHaveBeenCalledTimes(2);
+      expect(mockVaultInstance.tokenLookupSelf).toHaveBeenCalledTimes(1);
+    });
+
+    it('should NOT retry on other status codes', async () => {
+      const vaultError = new Error('Internal Server Error');
+      (vaultError as any).response = { statusCode: 500 };
+
+      mockVaultInstance.write.mockRejectedValue(vaultError);
+
+      await expect(vaultClient.sign(new Uint8Array([1, 2, 3]))).rejects.toThrow();
+
+      expect(mockVaultInstance.write).toHaveBeenCalledTimes(1);
+      expect(mockVaultInstance.tokenLookupSelf).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if retry also fails', async () => {
+      const vaultError = new Error('permission denied');
+      (vaultError as any).response = { statusCode: 403 };
+
+      mockVaultInstance.write.mockRejectedValue(vaultError);
+
+      await expect(vaultClient.sign(new Uint8Array([1, 2, 3]))).rejects.toThrow(
+        'Failed to sign with Vault: permission denied',
+      );
+
+      expect(mockVaultInstance.write).toHaveBeenCalledTimes(2);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Retry after re-authentication failed: permission denied',
+      );
+    });
+
+    it('should handle re-authentication failure', async () => {
+      const vaultError = new Error('permission denied');
+      (vaultError as any).response = { statusCode: 401 };
+
+      mockVaultInstance.write.mockRejectedValue(vaultError);
+      mockVaultInstance.tokenLookupSelf.mockRejectedValue(new Error('Auth unavailable'));
+
+      await expect(vaultClient.sign(new Uint8Array([1, 2, 3]))).rejects.toThrow(
+        'Failed to authenticate with Vault: Auth unavailable',
+      );
+
+      expect(mockVaultInstance.write).toHaveBeenCalledTimes(1);
+    });
+
+    it('should work with Kubernetes auth', async () => {
+      const authConfig = {
+        type: 'kubernetes' as const,
+        role: 'solver-role',
+        mountPoint: 'kubernetes',
+        jwt: 'mock-jwt',
+      };
+      vaultClient = new VaultClient(mockEndpoint, mockTransitPath, mockKeyName, authConfig, mockLogger);
+
+      const vaultError = new Error('Forbidden');
+      (vaultError as any).response = { statusCode: 403 };
+
+      mockVaultInstance.write
+        .mockRejectedValueOnce(vaultError)
+        .mockResolvedValueOnce({ data: { signature: 'vault:v1:c3VjY2Vzcw==' } });
+
+      await vaultClient.sign(new Uint8Array([1, 2, 3]));
+
+      expect(mockVaultInstance.kubernetesLogin).toHaveBeenCalled();
+      expect(mockVaultInstance.write).toHaveBeenCalledTimes(2);
+    });
+  });
 });

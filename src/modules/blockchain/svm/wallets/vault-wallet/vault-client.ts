@@ -267,17 +267,12 @@ export class VaultClient {
    */
   private isPermissionDeniedError(error: unknown): boolean {
     if (!error) return false;
-
-    const errorMessage = getErrorMessage(error).toLowerCase();
-
-    // Check for common Vault permission error messages
-    return (
-      errorMessage.includes('permission denied') ||
-      errorMessage.includes('403') ||
-      errorMessage.includes('unauthorized') ||
-      errorMessage.includes('token expired') ||
-      errorMessage.includes('invalid token')
-    );
+    const vaultError = error as any;
+    if (vaultError.response?.statusCode) {
+      const statusCode = vaultError.response.statusCode;
+      return statusCode === 401 || statusCode === 403;
+    }
+    return false;
   }
 
   /**
