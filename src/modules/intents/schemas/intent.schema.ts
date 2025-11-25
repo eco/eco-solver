@@ -62,7 +62,7 @@ export class Intent {
     type: {
       funder: { type: String, required: true },
       complete: { type: Boolean, required: true },
-      txHash: { type: String, required: true, index: true },
+      txHash: { type: String, required: true },
       blockNumber: { type: String, required: false }, // Store bigint as string
       timestamp: { type: Date, required: true },
       chainId: { type: String, required: true }, // Store bigint as string
@@ -80,7 +80,7 @@ export class Intent {
   @Prop({
     type: {
       claimant: { type: String, required: true },
-      txHash: { type: String, required: true, index: true },
+      txHash: { type: String, required: true },
       blockNumber: { type: String, required: false }, // Store bigint as string
       timestamp: { type: Date, required: true },
       chainId: { type: String, required: true }, // Store bigint as string
@@ -97,7 +97,7 @@ export class Intent {
   @Prop({
     type: {
       claimant: { type: String, required: true },
-      txHash: { type: String, required: true, index: true },
+      txHash: { type: String, required: true },
       blockNumber: { type: String, required: true }, // Store bigint as string
       timestamp: { type: Date, required: true },
       chainId: { type: String, required: true }, // Store bigint as string
@@ -114,7 +114,7 @@ export class Intent {
   @Prop({
     type: {
       claimant: { type: String, required: true },
-      txHash: { type: String, required: true, index: true },
+      txHash: { type: String, required: true },
       blockNumber: { type: String, required: true }, // Store bigint as string
       timestamp: { type: Date, required: true },
       chainId: { type: String, required: true }, // Store bigint as string
@@ -139,3 +139,8 @@ IntentSchema.index({ 'reward.creator': 1, status: 1 });
 // Index for finding proven but not withdrawn intents
 IntentSchema.index({ 'provenEvent.chainId': 1, withdrawnEvent: 1 });
 IntentSchema.index({ 'provenEvent.timestamp': 1 });
+
+IntentSchema.index({ 'fundedEvent.txHash': 1 });
+IntentSchema.index({ 'fulfilledEvent.txHash': 1 });
+IntentSchema.index({ 'provenEvent.txHash': 1 });
+IntentSchema.index({ 'withdrawnEvent.txHash': 1 });

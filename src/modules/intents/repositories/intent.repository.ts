@@ -44,16 +44,6 @@ export class IntentRepository {
     intentData: IntentData,
   ): Promise<EcoResponse<CreateIntentResponse>> {
     try {
-      this.logger.debug(
-        EcoLogMessage.fromDefault({
-          message: `createIntentFromIntentInitiation`,
-          properties: {
-            intentGroupID,
-            intent: intentData,
-          },
-        }),
-      );
-
       // Convert IntentData to IntentInterface first
       const intentInterface: IntentInterface = {
         intentHash: intentHash as `0x${string}`,

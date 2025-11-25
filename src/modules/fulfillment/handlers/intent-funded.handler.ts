@@ -51,19 +51,6 @@ export class IntentFundedHandler {
       },
       async (span) => {
         try {
-          const intentHash = event.intentHash;
-
-          this.logger.log(
-            EcoLogMessage.fromDefault({
-              message: `handleIntentFunded`,
-              properties: {
-                chainID: event.chainId,
-                intentHash,
-                transactionHash: event.transactionHash,
-              },
-            }),
-          );
-
           // Only process if the funding is marked complete. This should never happen in our setup,
           // since we always have allowPartial set to false, but good practice to check anyway.
           if (!event.complete) {
@@ -111,17 +98,6 @@ export class IntentFundedHandler {
     const updatedIntent = await this.intentsService.updateFundedEvent(event);
 
     if (updatedIntent) {
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `updateIntent: Successfully updated intent ${intentHash} with funded event data.`,
-          properties: {
-            funder: event.funder,
-            complete: event.complete,
-            txHash: event.transactionHash,
-          },
-        }),
-      );
-
       span.addEvent('intent.funded.updated', {
         status: IntentStatus.FUNDED,
         funder: event.funder,
@@ -151,12 +127,6 @@ export class IntentFundedHandler {
     try {
       const interfaceIntent = IntentConverter.toInterface(intent);
       await this.fulfillmentService.submitIntent(interfaceIntent);
-
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `Intent ${intentHash} submitted to fulfillment queue`,
-        }),
-      );
 
       span.addEvent('intent.funded.submitted', {
         intentHash,

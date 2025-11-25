@@ -11,8 +11,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { ApiZodBody, ApiZodResponse } from '@/common/decorators/zod-schema.decorator';
-import { EcoLogMessage } from '@/common/logging/eco-log-message';
-import { EcoLogger } from '@/common/logging/eco-logger';
 import { API_V2_ROOT } from '@/modules/api/paths';
 import { QUOTE_ROUTE } from '@/modules/api/quotes/constants/endpoint';
 import { ValidateRequest } from '@/modules/api/quotes/decorators';
@@ -32,7 +30,6 @@ import { QuotesService } from '../services/quotes.service';
 @UseGuards(ThrottlerGuard)
 @UseInterceptors(BigIntSerializerInterceptor)
 export class QuotesController {
-  private logger = new EcoLogger(QuotesController.name);
   constructor(private readonly quotesService: QuotesService) {}
 
   @Post()
@@ -57,26 +54,7 @@ export class QuotesController {
   )
   @ValidateRequest(QuoteRequestSchema)
   async getQuote(@Body() quoteRequest: QuoteRequest): Promise<QuoteResponse> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Received quotes request:`,
-        properties: {
-          quoteRequest,
-        },
-      }),
-    );
-
     const response = await this.quotesService.getQuote(quoteRequest);
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Quotes request response:`,
-        properties: {
-          response,
-        },
-      }),
-    );
-
     return response;
   }
 
@@ -102,26 +80,7 @@ export class QuotesController {
   )
   @ValidateRequest(QuoteRequestSchema)
   async getReverseQuote(@Body() quoteRequest: QuoteRequest): Promise<QuoteResponse> {
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Received reverse quotes request:`,
-        properties: {
-          quoteRequest,
-        },
-      }),
-    );
-
     const response = await this.quotesService.getReverseQuote(quoteRequest);
-
-    this.logger.debug(
-      EcoLogMessage.fromDefault({
-        message: `Reverse quotes request response:`,
-        properties: {
-          response,
-        },
-      }),
-    );
-
     return response;
   }
 }
