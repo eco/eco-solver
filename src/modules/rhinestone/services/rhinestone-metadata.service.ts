@@ -23,6 +23,7 @@ export class RhinestoneMetadataService {
 
     // Serialize bigints to strings for JSON storage
     const value = JSON.stringify({
+      messageId: payload.messageId,
       claimTo: payload.claimTo,
       claimData: payload.claimData,
       claimValue: payload.claimValue.toString(),
@@ -54,6 +55,7 @@ export class RhinestoneMetadataService {
     // Deserialize and convert string bigints back
     const parsed = JSON.parse(value);
     return {
+      messageId: parsed.messageId,
       claimTo: parsed.claimTo,
       claimData: parsed.claimData,
       claimValue: BigInt(parsed.claimValue),

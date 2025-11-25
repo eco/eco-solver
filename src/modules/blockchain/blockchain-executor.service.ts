@@ -135,9 +135,9 @@ export class BlockchainExecutorService {
    * Execute Rhinestone 4-phase fulfillment flow
    * CLAIM (source) → FILL (destination) → PROVE (destination) → WITHDRAW (via existing system)
    * Retrieves Rhinestone payload from Redis metadata service
-   * Returns the fill transaction hash for preconfirmation
+   * Preconfirmation is sent internally by EvmExecutorService after FILL tx submission
    */
-  async executeRhinestone(intent: Intent, walletId?: WalletType): Promise<string> {
+  async executeRhinestone(intent: Intent, walletId?: WalletType): Promise<void> {
     return this.otelService.tracer.startActiveSpan(
       'rhinestone.execute',
       {
@@ -190,6 +190,7 @@ export class BlockchainExecutorService {
             rhinestonePayload.fillData,
             rhinestonePayload.fillValue,
             effectiveWalletId,
+            rhinestonePayload.messageId,
           );
           span.setAttribute('rhinestone.fill_tx', fillTxHash);
           span.addEvent('rhinestone.phase.fill.complete', { txHash: fillTxHash });
@@ -247,9 +248,6 @@ export class BlockchainExecutorService {
 
           this.logger.log(`Rhinestone fulfillment complete: ${intent.intentHash}`);
           span.setStatus({ code: SpanStatusCode.OK });
-
-          // Return fill tx hash for preconfirmation
-          return fillTxHash;
         } catch (error) {
           this.logger.error(
             `Rhinestone fulfillment failed for ${intent.intentHash}:`,

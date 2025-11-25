@@ -558,6 +558,8 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           }
 
           // If we reach here, the message structure is invalid
+          this.logger.warn(
+            'Received Ok message with invalid structure', message);
           this.logger.warn('Received Ok message with invalid structure', message);
           span.setAttribute('rhinestone.ws.invalid_structure', true);
           span.setStatus({
@@ -566,6 +568,7 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
           });
         } catch (error) {
           this.logger.error(`Error handling Ok message: ${error}`);
+          span.recordException(normalizeError(error));
           span.recordException(normalizeError(error));
           span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;

@@ -60,7 +60,7 @@ const RhinestoneWebSocketSchema = z.object({
 });
 
 /**
- * Rhinestone configuration schema
+ * Rhinestone configuration schema - follows EVM per-chain pattern
  */
 export const RhinestoneSchema = z
   .object({
