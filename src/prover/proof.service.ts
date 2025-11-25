@@ -58,7 +58,7 @@ export class ProofService implements OnModuleInit {
   }
 
   /**
-   * Checks if the prover is a metalayer prover
+   * Checks if the prover is a CCIP prover
    * @param chainID
    * @param proverAddress the prover address
    * @returns
@@ -237,6 +237,8 @@ export class ProofService implements OnModuleInit {
         return proofs.hyperlane_duration_seconds
       case prover.isMetalayer():
         return proofs.metalayer_duration_seconds
+      case prover.isCCIP():
+        return proofs.ccip_duration_seconds
       default:
         throw EcoError.ProverNotSupported(prover)
     }

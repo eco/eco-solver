@@ -10,6 +10,10 @@ export class ProofType extends Enumify {
     super()
   }
 
+  static getAllProofTypes(): ProofType[] {
+    return ProofType.enumValues as ProofType[]
+  }
+
   private static providerValueToEnumMap = new Map<string, ProofType>()
 
   static initializeProofTypeMap() {

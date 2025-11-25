@@ -484,8 +484,7 @@ export class WalletFulfillService implements IFulfillService {
     claimant: Hex,
     model: IntentSourceModel,
   ): Promise<ExecuteSmartWalletArg> {
-    const chainConfig = getChainConfig(Number(model.intent.route.source)) as any
-    const ccipProverAddr: Hex | undefined = chainConfig.CCIPProver
+    const { CcipProver: ccipProverAddr } = getChainConfig(Number(model.intent.route.source))
 
     if (!ccipProverAddr) {
       throw new Error('CCIP prover address not found in chain config')

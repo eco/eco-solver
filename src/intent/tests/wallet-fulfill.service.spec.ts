@@ -824,7 +824,7 @@ describe('WalletFulfillService', () => {
         },
       } as any
 
-      mockGetChainConfig.mockReturnValue({ CCIPProver: address1 })
+      mockGetChainConfig.mockReturnValue({ CcipProver: address1 })
       jest.spyOn(ecoConfigService, 'getCCIPConfig').mockReturnValue({
         defaultGasLimit: 300000n,
         allowOutOfOrderExecution: true,

@@ -164,6 +164,7 @@ export type IntentConfig = {
   proofs: {
     hyperlane_duration_seconds: number
     metalayer_duration_seconds: number
+    ccip_duration_seconds: number
   }
   isNativeETHSupported: boolean
   intentFundedRetries: number

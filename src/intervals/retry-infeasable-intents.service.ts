@@ -72,18 +72,14 @@ export class RetryInfeasableIntentsService implements OnApplicationBootstrap {
   }
 
   private async getInfeasableIntents() {
+    const orClauses = ProofType.getAllProofTypes().map((proofType) => ({
+      'intent.expiration': { $gt: this.proofService.getProofMinimumDate(proofType) },
+      'intent.prover': { $in: this.proofService.getProvers(proofType) },
+    }))
+
     return await this.intentModel.find({
       status: 'INFEASABLE',
-      $or: [
-        {
-          'intent.expiration': { $gt: this.proofService.getProofMinimumDate(ProofType.HYPERLANE) },
-          'intent.prover': { $in: this.proofService.getProvers(ProofType.HYPERLANE) },
-        },
-        {
-          'intent.expiration': { $gt: this.proofService.getProofMinimumDate(ProofType.METALAYER) },
-          'intent.prover': { $in: this.proofService.getProvers(ProofType.METALAYER) },
-        },
-      ],
+      $or: orClauses,
     })
   }
 }

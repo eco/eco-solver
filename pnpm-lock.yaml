@@ -48,8 +48,8 @@ importers:
         specifier: 2.8.20
         version: 2.8.20(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)
       '@eco-foundation/routes-ts-v2':
-        specifier: npm:@eco-foundation/routes-ts@3.2.9
-        version: '@eco-foundation/routes-ts@3.2.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)'
+        specifier: npm:@eco-foundation/routes-ts@3.2.11
+        version: '@eco-foundation/routes-ts@3.2.11(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)'
       '@launchdarkly/node-server-sdk':
         specifier: ^9.7.1
         version: 9.10.1
@@ -727,8 +727,8 @@ packages:
   '@eco-foundation/routes-ts@2.8.20':
     resolution: {integrity: sha512-PPU60CUb3NngxrRBK5HsPtSzzk5lRcYAW57G++Rs0CXBrDXsi1GW08D3gSqwogrb0+jYglH5/WEEB+ImO4pasA==}
 
-  '@eco-foundation/routes-ts@3.2.9':
-    resolution: {integrity: sha512-0bVxZqUnhMCWAEeAX8tjim9w44Hg6XGT8E0P1Zaq4E6thtpF7ytvnzg7jS4K+47b9r/92qymCqZqCvJq8f+Yjw==}
+  '@eco-foundation/routes-ts@3.2.11':
+    resolution: {integrity: sha512-zWbtwhNtUrZ9tZ+kBslTb9MApRXyOSrs6IMiFFK2ZRIDvf8Yfkvq7dPfKsvT+YtxqEpKXrVlOznPaD3IMvy+GA==}
 
   '@eslint-community/eslint-utils@4.7.0':
     resolution: {integrity: sha512-dyybb3AcajC7uha6CvhdVRJqaKyn7w2YKqKyAN37NKYgZT36w+iRb0Dymmc5qEJ549c/S31cMMSFd75bteCpCw==}
@@ -6997,7 +6997,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@eco-foundation/routes-ts@3.2.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
+  '@eco-foundation/routes-ts@3.2.11(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)':
     dependencies:
       tronweb: 6.0.4(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       viem: 2.37.8(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.12)

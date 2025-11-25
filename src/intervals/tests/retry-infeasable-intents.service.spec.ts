@@ -134,36 +134,44 @@ describe('RetryInfeasableIntentsService', () => {
   describe('getInfeasableIntents', () => {
     it('should fetch intents with status INFEASABLE and valid expiration for Hyperlane proofs', async () => {
       const minDateHyper = new Date('2022-01-01')
-      const minDateStorage = new Date('2022-01-02')
+      const minDateMetalayer = new Date('2022-01-02')
+      const minDateCcip = new Date('2022-01-03')
       const proverHyper: Hex[] = ['0x1a', '0x2a']
-      const proverStorage: Hex[] = ['0x3b', '0x4b']
+      const proverMetalayer: Hex[] = ['0x3b', '0x4b']
+      const proverCcip: Hex[] = ['0x5c', '0x6c']
+      const proofConfigs = ProofType.getAllProofTypes().map((proof) => {
+        if (proof === ProofType.HYPERLANE)
+          return { proof, minDate: minDateHyper, provers: proverHyper }
+        if (proof === ProofType.METALAYER)
+          return { proof, minDate: minDateMetalayer, provers: proverMetalayer }
+        if (proof === ProofType.CCIP) return { proof, minDate: minDateCcip, provers: proverCcip }
+        throw new Error('Unhandled proof type')
+      })
       const mockGetProofMinimumDate = jest
         .spyOn(proofService, 'getProofMinimumDate')
-        .mockImplementation((proof) =>
-          proof == ProofType.HYPERLANE ? minDateHyper : minDateStorage,
-        )
-      const mockGetProvers = jest
-        .spyOn(proofService, 'getProvers')
-        .mockImplementation((proof) => (proof == ProofType.HYPERLANE ? proverHyper : proverStorage))
+        .mockImplementation((proof) => {
+          const match = proofConfigs.find((config) => config.proof === proof)
+          if (!match) throw new Error('Unexpected proof type')
+          return match.minDate
+        })
+      const mockGetProvers = jest.spyOn(proofService, 'getProvers').mockImplementation((proof) => {
+        const match = proofConfigs.find((config) => config.proof === proof)
+        if (!match) throw new Error('Unexpected proof type')
+        return match.provers
+      })
 
       await infeasableService['getInfeasableIntents']()
 
       expect(intentSourceModel.find).toHaveBeenCalledWith({
         status: 'INFEASABLE',
-        $or: [
-          {
-            'intent.expiration': { $gt: minDateHyper },
-            'intent.prover': { $in: proverHyper },
-          },
-          {
-            'intent.expiration': { $gt: minDateStorage },
-            'intent.prover': { $in: proverStorage },
-          },
-        ],
+        $or: proofConfigs.map(({ minDate, provers }) => ({
+          'intent.expiration': { $gt: minDate },
+          'intent.prover': { $in: provers },
+        })),
       })
 
-      expect(mockGetProofMinimumDate).toHaveBeenCalledTimes(2)
-      expect(mockGetProvers).toHaveBeenCalledTimes(2)
+      expect(mockGetProofMinimumDate).toHaveBeenCalledTimes(proofConfigs.length)
+      expect(mockGetProvers).toHaveBeenCalledTimes(proofConfigs.length)
     })
   })
 })
