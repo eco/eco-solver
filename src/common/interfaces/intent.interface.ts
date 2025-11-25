@@ -59,6 +59,7 @@ export type BlockchainIntent<source extends ChainType, dest extends ChainType> =
 
 export enum IntentStatus {
   PENDING = 'PENDING',
+  FUNDED = 'FUNDED',
   VALIDATING = 'VALIDATING',
   EXECUTING = 'EXECUTING',
   FULFILLED = 'FULFILLED',

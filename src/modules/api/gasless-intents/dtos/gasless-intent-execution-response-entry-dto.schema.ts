@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodHex } from '@/common/utils/zod-to-swagger.util';
 
 // Response entry schema (for both successes and failures)
-const GaslessIntentExecutionResponseEntrySchema = extendApi(
+export const GaslessIntentExecutionResponseEntryDTOSchema = extendApi(
   z.object({
     chainID: extendApi(z.number().int(), {
       description: 'Chain ID where the transaction was executed',
@@ -25,22 +25,6 @@ const GaslessIntentExecutionResponseEntrySchema = extendApi(
   },
 );
 
-// Main gasless intent response schema
-export const GaslessIntentResponseSchema = extendApi(
-  z.object({
-    successes: extendApi(z.array(GaslessIntentExecutionResponseEntrySchema), {
-      description: 'Array of successful transaction executions',
-    }),
-    failures: extendApi(z.array(GaslessIntentExecutionResponseEntrySchema), {
-      description: 'Array of failed transaction executions',
-    }),
-  }),
-  {
-    description: 'Response containing success and failure results for gasless intent execution',
-  },
-);
-
-export type GaslessIntentResponse = z.infer<typeof GaslessIntentResponseSchema>;
-export type GaslessIntentExecutionResponseEntry = z.infer<
-  typeof GaslessIntentExecutionResponseEntrySchema
+export type GaslessIntentExecutionResponseEntryDTO = z.infer<
+  typeof GaslessIntentExecutionResponseEntryDTOSchema
 >;
