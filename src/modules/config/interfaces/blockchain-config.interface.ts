@@ -87,4 +87,12 @@ export interface IBlockchainConfigService {
    * @param chainId Chain identifier
    */
   getDefaultProver(chainId: ChainIdentifier): TProverType;
+
+  /**
+   * Gets all configured prover types for the chain
+   * @param chainId Chain identifier
+   * @returns Array of prover types that have addresses configured. Returns empty array if no provers are configured for the chain.
+   * @throws {Error} If the chainId is not supported
+   */
+  getAvailableProvers(chainId: ChainIdentifier): TProverType[];
 }

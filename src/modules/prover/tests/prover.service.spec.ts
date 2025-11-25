@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { ProverType } from '@/common/interfaces/prover.interface';
+import { ProverType, TProverType } from '@/common/interfaces/prover.interface';
 import { padTo32Bytes, UniversalAddress } from '@/common/types/universal-address.type';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
+import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
 import { ProverService } from '../prover.service';
 import { CcipProver } from '../provers/ccip.prover';
@@ -25,6 +26,7 @@ describe('ProverService', () => {
   let mockCcipProver: jest.Mocked<CcipProver>;
   let mockLogger: jest.Mocked<SystemLoggerService>;
   let mockBlockchainConfigService: jest.Mocked<BlockchainConfigService>;
+  let mockOtelService: jest.Mocked<OpenTelemetryService>;
 
   const mockHyperAddress = toUniversalAddress(
     padTo32Bytes('0x1234567890123456789012345678901234567890'),
@@ -117,6 +119,22 @@ describe('ProverService', () => {
       warn: jest.fn(),
     } as unknown as jest.Mocked<SystemLoggerService>;
 
+    mockOtelService = {
+      tracer: {
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            addEvent: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      },
+    } as unknown as jest.Mocked<OpenTelemetryService>;
+
     mockBlockchainConfigService = {
       getPortalAddress: jest.fn().mockImplementation((chainId: number) => {
         // Return mock portal addresses for supported chains
@@ -129,6 +147,8 @@ describe('ProverService', () => {
         };
         return portalAddresses[chainId];
       }),
+      getAvailableProvers: jest.fn(),
+      getDefaultProver: jest.fn(),
     } as unknown as jest.Mocked<BlockchainConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -161,6 +181,10 @@ describe('ProverService', () => {
         {
           provide: BlockchainConfigService,
           useValue: mockBlockchainConfigService,
+        },
+        {
+          provide: OpenTelemetryService,
+          useValue: mockOtelService,
         },
       ],
     }).compile();
@@ -416,6 +440,216 @@ describe('ProverService', () => {
       // Note: For UniversalAddress, we test with the same address (case sensitive for branded types)
       const prover = service.getProver(1, mockHyperAddress);
       expect(prover).toBe(mockHyperProver);
+    });
+  });
+
+  describe('selectProverForRoute', () => {
+    beforeEach(() => {
+      // Reset mocks for clean test state
+      mockBlockchainConfigService.getAvailableProvers.mockClear();
+      mockBlockchainConfigService.getDefaultProver.mockClear();
+      mockLogger.debug.mockClear();
+      mockLogger.error.mockClear();
+    });
+
+    it('should select default prover when available in intersection', () => {
+      // Setup: Both chains have hyper and polymer, default is hyper
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['hyper', 'polymer', 'metalayer'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('hyper');
+      expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledWith(1n);
+      expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledWith(10n);
+      expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledWith(1n);
+    });
+
+    it('should fallback to first available prover when default not in intersection', () => {
+      // Setup: Intersection has polymer and metalayer, but default is hyper (not available)
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['polymer', 'metalayer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['polymer', 'metalayer', 'ccip'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('polymer'); // First in intersection
+      expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledWith(1n);
+    });
+
+    it('should throw error when no compatible prover found', () => {
+      // Setup: No intersection between source and destination provers
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['metalayer', 'ccip'] as TProverType[]); // dest chain
+
+      expect(() => service.selectProverForRoute(1n, 10n)).toThrow(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [hyper, polymer], ' +
+          'Destination chain provers: [metalayer, ccip]',
+      );
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [hyper, polymer], ' +
+          'Destination chain provers: [metalayer, ccip]',
+      );
+    });
+
+    it('should handle single prover in intersection', () => {
+      // Setup: Only ccip is available on both chains
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['ccip'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['ccip', 'hyper'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('ccip');
+    });
+
+    it('should handle empty prover list on source chain', () => {
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce([] as TProverType[]) // source chain
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]); // dest chain
+
+      expect(() => service.selectProverForRoute(1n, 10n)).toThrow(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [], ' +
+          'Destination chain provers: [hyper, polymer]',
+      );
+    });
+
+    it('should handle empty prover list on destination chain', () => {
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce([] as TProverType[]); // dest chain
+
+      expect(() => service.selectProverForRoute(1n, 10n)).toThrow(
+        'No compatible prover found for route 1 -> 10. ' +
+          'Source chain provers: [hyper, polymer], ' +
+          'Destination chain provers: []',
+      );
+    });
+
+    it('should handle all provers being compatible', () => {
+      // Setup: All provers available on both chains
+      const allProvers: TProverType[] = [
+        'hyper',
+        'polymer',
+        'metalayer',
+        'dummy',
+        'ccip',
+      ] as TProverType[];
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(allProvers) // source chain
+        .mockReturnValueOnce(allProvers); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('metalayer' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('metalayer'); // Default prover selected
+    });
+
+    it('should maintain order preference when default not available', () => {
+      // Setup: Test that it returns first in intersection, maintaining source order
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['ccip', 'metalayer', 'polymer'] as TProverType[]) // source chain
+        .mockReturnValueOnce(['polymer', 'ccip', 'metalayer'] as TProverType[]); // dest chain (different order)
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('ccip'); // First in source chain order that's also in destination
+    });
+
+    it('should handle duplicate provers in lists correctly', () => {
+      // Even if there are duplicates (shouldn't happen but testing edge case)
+      mockBlockchainConfigService.getAvailableProvers
+        .mockReturnValueOnce(['hyper', 'hyper', 'polymer'] as TProverType[]) // source with duplicate
+        .mockReturnValueOnce(['polymer', 'hyper'] as TProverType[]); // dest chain
+      mockBlockchainConfigService.getDefaultProver.mockReturnValue('polymer' as TProverType);
+
+      const result = service.selectProverForRoute(1n, 10n);
+
+      expect(result).toBe('polymer'); // Default is available
+    });
+
+    describe('caching', () => {
+      beforeEach(() => {
+        // Clear cache before each test
+        service.clearRouteProverCache();
+      });
+
+      it('should cache prover selection results', () => {
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[])
+          .mockReturnValueOnce(['hyper', 'polymer'] as TProverType[]);
+        mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+        // First call - cache miss
+        const result1 = service.selectProverForRoute(1n, 42161n);
+
+        // Second call - cache hit
+        const result2 = service.selectProverForRoute(1n, 42161n);
+
+        expect(result1).toBe('hyper');
+        expect(result2).toBe('hyper');
+        // Config services should only be called once (on cache miss)
+        expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledTimes(2);
+        expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledTimes(1);
+      });
+
+      it('should cache different provers for different routes', () => {
+        // Route 1: 1 -> 10
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['hyper'] as TProverType[])
+          .mockReturnValueOnce(['hyper'] as TProverType[]);
+        mockBlockchainConfigService.getDefaultProver.mockReturnValue('hyper' as TProverType);
+
+        const result1 = service.selectProverForRoute(1n, 10n);
+        expect(result1).toBe('hyper');
+
+        // Route 2: 8453 -> 2020
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['ccip'] as TProverType[])
+          .mockReturnValueOnce(['ccip'] as TProverType[]);
+        mockBlockchainConfigService.getDefaultProver.mockReturnValue('ccip' as TProverType);
+
+        const result2 = service.selectProverForRoute(8453n, 2020n);
+        expect(result2).toBe('ccip');
+
+        // Call both again - should hit cache
+        const result3 = service.selectProverForRoute(1n, 10n);
+        const result4 = service.selectProverForRoute(8453n, 2020n);
+
+        expect(result3).toBe('hyper');
+        expect(result4).toBe('ccip');
+
+        // Verify config services not called again (both routes cached)
+        expect(mockBlockchainConfigService.getAvailableProvers).toHaveBeenCalledTimes(4); // 2 per route
+        expect(mockBlockchainConfigService.getDefaultProver).toHaveBeenCalledTimes(2); // 1 per route
+      });
+
+      it('should not cache errors when no compatible prover found', () => {
+        mockBlockchainConfigService.getAvailableProvers
+          .mockReturnValueOnce(['hyper'] as TProverType[])
+          .mockReturnValueOnce(['ccip'] as TProverType[]);
+
+        // First call should throw
+        expect(() => service.selectProverForRoute(1n, 999n)).toThrow(
+          'No compatible prover found for route 1 -> 999',
+        );
+
+        // Verify nothing was cached
+        expect(service['routeProverCache'].size).toBe(0);
+
+        // Second call should also throw (not return cached error)
+        expect(() => service.selectProverForRoute(1n, 999n)).toThrow();
+      });
     });
   });
 });
