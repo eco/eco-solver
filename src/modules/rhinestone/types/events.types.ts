@@ -35,7 +35,13 @@ export const RHINESTONE_EVENTS = {
    */
   RECONNECT_FAILED: 'rhinestone.reconnect.failed',
 
-  // Future events for intent processing:
-  // RELAYER_ACTION: 'rhinestone.relayerAction',
-  // ACTION_STATUS_ACK: 'rhinestone.actionStatus.ack',
+  /**
+   * Emitted when RelayerAction received from server
+   */
+  RELAYER_ACTION: 'rhinestone.relayerAction',
+
+  /**
+   * Emitted when ActionStatus acknowledged by server
+   */
+  ACTION_STATUS_SENT: 'rhinestone.actionStatus.sent',
 } as const;
