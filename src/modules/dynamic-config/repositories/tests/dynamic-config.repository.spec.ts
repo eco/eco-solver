@@ -84,7 +84,7 @@ describe('DynamicConfigRepository', () => {
 
     it('should create a configuration successfully', async () => {
       const mockSave = jest.fn().mockResolvedValue(mockConfigurationDocument);
-      (model as any).mockImplementation(() => ({
+      (model as any).mockImplementationOnce(() => ({
         ...mockConfigurationDocument,
         save: mockSave,
       }));
@@ -118,7 +118,7 @@ describe('DynamicConfigRepository', () => {
 
     it('should handle database errors', async () => {
       const mockSave = jest.fn().mockRejectedValue(new Error('Database error'));
-      (model as any).mockImplementation(() => ({
+      (model as any).mockImplementationOnce(() => ({
         ...mockConfigurationDocument,
         save: mockSave,
       }));
@@ -310,7 +310,7 @@ describe('DynamicConfigRepository', () => {
 
       // Mock create operation
       const mockSave = jest.fn().mockResolvedValue(mockConfigurationDocument);
-      (model as any).mockImplementation(() => ({
+      (model as any).mockImplementationOnce(() => ({
         ...mockConfigurationDocument,
         save: mockSave,
       }));

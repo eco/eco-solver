@@ -18,6 +18,10 @@ export class RequestSignatureGuard implements CanActivate {
       return true;
     }
 
+    const allowedAddresses = ConfigFactory.getDynamicConfigAllowedAddresses().map((a) =>
+      a.toLowerCase(),
+    );
+
     try {
       const request = context.switchToHttp().getRequest();
       const requestHeaders = new RequestHeaders(request.headers);
@@ -46,11 +50,23 @@ export class RequestSignatureGuard implements CanActivate {
             message: EcoError.getErrorMessage(error),
           }),
         );
+
+        throw new UnauthorizedException(`Invalid or expired signature`);
       }
 
-      return !error;
+      if (!allowedAddresses.includes(claimedAddress.toLowerCase())) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Address ${claimedAddress} is not authorized to make dynamic config changes`,
+          }),
+        );
+
+        throw new UnauthorizedException(`Address not authorized for dynamic config changes`);
+      }
+
+      return true;
     } catch (ex) {
-      throw new UnauthorizedException(`Invalid or expired signature: ${(ex as any).message}`);
+      throw new UnauthorizedException(`Invalid or expired signature`);
     }
   }
 }

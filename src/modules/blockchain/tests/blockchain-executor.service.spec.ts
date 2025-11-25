@@ -302,10 +302,8 @@ describe('BlockchainExecutorService', () => {
       await expect(service.executeIntent(mockIntent)).rejects.toThrow('Execution failed');
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, undefined);
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(
-        mockIntent.intentHash,
-        IntentStatus.FAILED,
-      );
+      // Status update to FAILED now happens in BlockchainProcessor's failed event listener
+      expect(intentsService.updateStatus).not.toHaveBeenCalled();
     });
 
     it('should handle execution errors', async () => {
@@ -314,10 +312,8 @@ describe('BlockchainExecutorService', () => {
       await expect(service.executeIntent(mockIntent)).rejects.toThrow('Network error');
 
       expect(evmExecutor.fulfill).toHaveBeenCalledWith(mockIntent, undefined);
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(
-        mockIntent.intentHash,
-        IntentStatus.FAILED,
-      );
+      // Status update to FAILED now happens in BlockchainProcessor's failed event listener
+      expect(intentsService.updateStatus).not.toHaveBeenCalled();
     });
 
     it('should handle unsupported chain errors', async () => {
@@ -329,10 +325,8 @@ describe('BlockchainExecutorService', () => {
         'No executor for chain 999',
       );
 
-      expect(intentsService.updateStatus).toHaveBeenCalledWith(
-        unsupportedIntent.intentHash,
-        IntentStatus.FAILED,
-      );
+      // Status update to FAILED now happens in BlockchainProcessor's failed event listener
+      expect(intentsService.updateStatus).not.toHaveBeenCalled();
     });
 
     it('should pass wallet ID to executor', async () => {

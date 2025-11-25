@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
 import { ValidationContext } from '@/modules/fulfillment/interfaces/validation-context.interface';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 
@@ -44,8 +46,10 @@ export class DuplicateRewardTokensValidation implements Validation {
           (address, index) => tokenAddresses.indexOf(address) !== index,
         );
         span?.setAttribute('reward.tokens.duplicates', duplicates.join(','));
-        throw new Error(
+        throw new ValidationError(
           `Duplicate reward tokens found: ${duplicates.join(', ')}. Each token address must be unique.`,
+          ValidationErrorType.PERMANENT,
+          'DuplicateRewardTokensValidation',
         );
       }
 

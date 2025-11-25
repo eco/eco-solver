@@ -84,13 +84,11 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     const jobName = `${QueueNames.INTENT_EXECUTION}-chain-${jobData.chainId}`;
 
     const serializedData = BigintSerializer.serialize(jobData);
-    await this.executionQueue.add(jobName, serializedData, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000,
-      },
-    });
+
+    // Use configuration instead of hardcoded values
+    const jobOptions = this.queueConfig.executionJobOptions;
+
+    await this.executionQueue.add(jobName, serializedData, jobOptions);
   }
 
   async addBlockchainEvent(job: BlockchainEventJob): Promise<void> {

@@ -6,9 +6,10 @@ import WebSocket from 'ws';
 import { RhinestoneConfigService } from '@/modules/config/services';
 import { EventsService } from '@/modules/events/events.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
+import { ActionStatus, ActionStatusMessage } from '@/modules/rhinestone/types';
+import { RelayerActionEnvelope } from '@/modules/rhinestone/types';
 
 import { RhinestoneErrorCode, RhinestoneMessageType } from '../enums';
-import { ActionStatus, ActionStatusMessage } from '../types/action-status.types';
 import {
   AuthenticationMessage,
   ErrorMessage,
@@ -20,7 +21,6 @@ import {
 } from '../types/auth-messages.types';
 import { RHINESTONE_EVENTS } from '../types/events.types';
 import { RhinestoneInboundMessageSchema } from '../types/message-schemas';
-import { RelayerActionEnvelope } from '../types/relayer-action.types';
 import { normalizeError } from '../utils/validation';
 
 /**
@@ -358,6 +358,15 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
       this.eventsService.emit(RHINESTONE_EVENTS.ERROR, {
         error,
       });
+    });
+
+    this.ws.on('ping', (_data: Buffer) => {
+      this.logger.debug('Received ping from server');
+      // ws library automatically sends pong - no action needed
+    });
+
+    this.ws.on('pong', (_data: Buffer) => {
+      this.logger.debug('Received pong from server');
     });
   }
 

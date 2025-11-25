@@ -22,7 +22,7 @@ import { SystemLoggerService } from '@/modules/logging';
  * - Remote signing without exposing private keys
  * - Support for token and Kubernetes authentication
  * - Automatic public key caching
- * - DER-encoded public key parsing
+ * - Raw 32-byte Ed25519 public key handling
  *
  * ## Authentication Methods
  *
