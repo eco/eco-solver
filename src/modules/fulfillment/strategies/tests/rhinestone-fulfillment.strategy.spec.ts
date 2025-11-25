@@ -501,6 +501,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       await strategy.execute(mockIntent);
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
         intent: mockIntent,
         chainId: mockIntent.destination,
@@ -565,6 +566,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          type: 'standard',
           strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
           intent,
           chainId: intent.destination,
@@ -589,6 +591,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       // All should be queued for Rhinestone strategy which uses EVM executor
       evmChainIntents.forEach((intent) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+          type: 'standard',
           strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
           intent,
           chainId: intent.destination,

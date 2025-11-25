@@ -419,6 +419,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       await strategy.execute(mockIntent);
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
         intent: mockIntent,
         chainId: mockIntent.destination,
@@ -471,6 +472,7 @@ describe('CrowdLiquidityFulfillmentStrategy', () => {
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          type: 'standard',
           strategy: FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
           intent,
           chainId: intent.destination,

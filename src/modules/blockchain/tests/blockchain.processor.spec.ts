@@ -12,6 +12,7 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
+import { QueueService } from '@/modules/queue/queue.service';
 
 import { BlockchainProcessor } from '../blockchain.processor';
 import { BlockchainExecutorService } from '../blockchain-executor.service';
@@ -56,6 +57,7 @@ describe('BlockchainProcessor', () => {
   };
 
   const mockJobData: ExecutionJobData = {
+    type: 'standard',
     intent: mockIntent,
     strategy: 'standard',
     chainId: 10n,
@@ -107,6 +109,10 @@ describe('BlockchainProcessor', () => {
       updateStatus: jest.fn().mockResolvedValue(undefined),
     } as any;
 
+    const queueService = {
+      addRhinestoneProveJobs: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainProcessor,
@@ -116,6 +122,7 @@ describe('BlockchainProcessor', () => {
         { provide: BullMQOtelFactory, useValue: bullMQOtelFactory },
         { provide: OpenTelemetryService, useValue: otelService },
         { provide: IntentsService, useValue: intentsService },
+        { provide: QueueService, useValue: queueService },
       ],
     }).compile();
 
@@ -403,6 +410,7 @@ describe('BlockchainProcessor', () => {
       } as any;
 
       // Create a new processor instance with the test config
+      const mockQueueService = {} as any; // Mock queueService for test
       const testProcessor = new BlockchainProcessor(
         blockchainService,
         testQueueConfig,
@@ -410,6 +418,7 @@ describe('BlockchainProcessor', () => {
         bullMQOtelFactory,
         otelService,
         intentsService,
+        mockQueueService,
       );
 
       Object.defineProperty(testProcessor, 'worker', {

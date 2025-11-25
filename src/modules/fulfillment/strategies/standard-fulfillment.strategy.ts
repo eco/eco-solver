@@ -92,6 +92,7 @@ export class StandardFulfillmentStrategy extends FulfillmentStrategy {
 
         // Add to execution queue with standard execution data
         await this.queueService.addIntentToExecutionQueue({
+          type: 'standard',
           strategy: this.name,
           intent,
           chainId: intent.destination,

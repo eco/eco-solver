@@ -108,6 +108,7 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
 
       // Queue to ExecutionQueue (payload will be retrieved from Redis during execution)
       await this.queueService.addIntentToExecutionQueue({
+        type: 'standard',
         strategy: this.name,
         intent,
         chainId: intent.destination,

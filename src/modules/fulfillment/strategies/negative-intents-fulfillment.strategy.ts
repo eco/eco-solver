@@ -96,6 +96,7 @@ export class NegativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
       // Negative intents fulfillment uses both EVM and SVM executors
       await this.queueService.addIntentToExecutionQueue({
+        type: 'standard',
         strategy: this.name,
         intent,
         chainId: intent.destination,

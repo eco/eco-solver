@@ -902,6 +902,7 @@ describe.skip('StandardFulfillmentStrategy Integration Tests', () => {
       await expect(standardStrategy.execute(intent)).resolves.not.toThrow();
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
         intent,
         chainId: intent.destination,
