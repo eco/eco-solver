@@ -15,7 +15,7 @@ describe('CCIPChainSelector', () => {
             '0x1234': '0x1234',
           },
         },
-        CCIPProver  : {
+        CCIPProver: {
           defaultGasLimit: 300000n,
           allowOutOfOrderExecution: true,
         },
