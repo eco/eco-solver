@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import {
   Chain,
@@ -14,7 +14,6 @@ import * as chains from 'viem/chains';
 
 import { EvmRpcSchema, EvmWsSchema } from '@/config/schemas/evm.schema';
 import { EvmConfigService } from '@/modules/config/services';
-import { BlockchainTracingService } from '@/modules/opentelemetry/blockchain-tracing.service';
 
 interface ChainTransport {
   chain: Chain;
@@ -27,10 +26,7 @@ export class EvmTransportService implements OnModuleInit {
   private chainTransports: Map<number, ChainTransport> = new Map();
   private allChains: Chain[];
 
-  constructor(
-    private evmConfigService: EvmConfigService,
-    @Optional() private readonly blockchainTracing?: BlockchainTracingService,
-  ) {
+  constructor(private evmConfigService: EvmConfigService) {
     this.allChains = Object.values(chains) as Chain[];
   }
 
@@ -130,14 +126,6 @@ export class EvmTransportService implements OnModuleInit {
       // No polling transport for HTTP-only configuration
     } else {
       throw new Error(`No valid RPC or WebSocket configuration found for chain ${chainId}`);
-    }
-
-    // Wrap transports with OpenTelemetry tracing if available
-    if (this.blockchainTracing) {
-      transport = this.blockchainTracing.wrapTransport(transport, chain);
-      if (pollingTransport) {
-        pollingTransport = this.blockchainTracing.wrapTransport(pollingTransport, chain);
-      }
     }
 
     this.chainTransports.set(chainId, {
