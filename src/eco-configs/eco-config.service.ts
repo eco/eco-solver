@@ -303,7 +303,7 @@ export class EcoConfigService implements OnModuleInit {
       // Eco protocol exposes three prover contract slots per chain:
       // - HyperProver (Hyperlane proofs), MetaProver (Metalayer proofs), CCIPProver (Chainlink CCIP proofs).
       // Chains without a given prover set the address to zero, so we filter zero-address placeholders before merging.
-      const ecoNpmProvers = [config.HyperProver, config.MetaProver, config['CCIPProver']].filter(
+      const ecoNpmProvers = [config.HyperProver, config.MetaProver, config.CcipProver].filter(
         (prover) => this.getAddress(prover) !== zeroAddress,
       )
       switch (ecoNpm) {
