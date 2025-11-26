@@ -91,6 +91,7 @@ export type EcoConfigType = {
   gateway: GatewayConfig
   watch: WatchConfig
   usdt0: USDT0Config
+  ccip: CCIPConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -487,6 +488,48 @@ export interface CCTPConfig {
     tokenMessenger: Hex
     messageTransmitter: Hex
   }[]
+}
+
+// --------------------------- CCIP ----------------------------
+export interface CCIPChainFeeToken {
+  symbol: string
+  address?: Hex
+  decimals?: number
+}
+
+export interface CCIPTokenConfig {
+  symbol: string
+  address: Hex
+  decimals: number
+  tokenPool?: Hex
+}
+
+export interface CCIPChainConfig {
+  chainId: number
+  chainSelector: string
+  router: Hex
+  tokens: {
+    [symbol: string]: CCIPTokenConfig
+  }
+  feeToken?: CCIPChainFeeToken
+  supportsNativeFee?: boolean
+}
+
+export interface CCIPConfig {
+  enabled?: boolean
+  chains: CCIPChainConfig[]
+  delivery: {
+    /** Maximum number of polling attempts before giving up */
+    maxAttempts: number
+    /** Delay between polls in milliseconds */
+    backoffMs: number
+    /** Initial delay before first poll in milliseconds */
+    initialDelayMs: number
+    /** BullMQ retry attempts for transient errors (should be >= maxAttempts) */
+    queueAttempts: number
+    /** Base delay for BullMQ exponential backoff in milliseconds */
+    queueBackoffMs: number
+  }
 }
 
 // --------------------------- USDT0 (OFT v2) ----------------------------

@@ -27,6 +27,11 @@ import {
   USDT0LiFiDestinationSwapJobData,
   USDT0LiFiDestinationSwapJobManager,
 } from '../jobs/usdt0-lifi-destination-swap.job'
+import {
+  CheckCCIPDeliveryJobData,
+  CheckCCIPDeliveryJobManager,
+  CheckCCIPDeliveryJobOptions,
+} from '@/liquidity-manager/jobs/check-ccip-delivery.job'
 
 export enum LiquidityManagerJobName {
   REBALANCE = 'REBALANCE',
@@ -40,6 +45,7 @@ export enum LiquidityManagerJobName {
   CHECK_EVERCLEAR_INTENT = 'CHECK_EVERCLEAR_INTENT',
   GATEWAY_TOP_UP = 'GATEWAY_TOP_UP',
   CHECK_OFT_DELIVERY = 'CHECK_OFT_DELIVERY',
+  CHECK_CCIP_DELIVERY = 'CHECK_CCIP_DELIVERY',
 }
 
 export interface LiquidityManagerQueueDataType {
@@ -123,5 +129,12 @@ export class LiquidityManagerQueue {
 
   startUSDT0LiFiDestinationSwap(data: USDT0LiFiDestinationSwapJobData): Promise<void> {
     return USDT0LiFiDestinationSwapJobManager.start(this.queue, data)
+  }
+
+  startCCIPDeliveryCheck(
+    data: CheckCCIPDeliveryJobData,
+    options: CheckCCIPDeliveryJobOptions,
+  ): Promise<void> {
+    return CheckCCIPDeliveryJobManager.start(this.queue, data, options)
   }
 }

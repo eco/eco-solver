@@ -503,6 +503,10 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('usdt0')
   }
 
+  getCCIP(): EcoConfigType['ccip'] {
+    return this.get('ccip')
+  }
+
   getWatch(): EcoConfigType['watch'] {
     return this.get('watch')
   }
