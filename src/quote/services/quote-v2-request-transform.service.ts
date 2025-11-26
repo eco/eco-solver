@@ -3,12 +3,19 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { ForwardQuoteRequestTransformer } from '@/quote/services/forward-quote-request-transformer'
+import { getChainConfig } from '@/eco-configs/utils'
 import { Hex, zeroAddress } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
+import { IntentSource } from '@/eco-configs/eco-config.types'
 import { QuoteError } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { ReverseQuoteRequestTransformer } from '@/quote/services/reverse-quote-request-transformer'
+
+/**
+ * Chain IDs that require CCIP prover for cross-chain messaging
+ */
+const CCIP_PROVER_CHAIN_IDS = [2020] // Ronin
 
 @Injectable()
 export class QuoteV2RequestTransformService {
@@ -37,7 +44,11 @@ export class QuoteV2RequestTransformService {
         throw new Error(`Missing source or destination config`)
       }
 
-      const prover = sourceConfig.provers?.[0] || zeroAddress
+      const prover = this.selectProver(
+        sourceConfig,
+        quoteRequest.sourceChainID,
+        quoteRequest.destinationChainID,
+      )
 
       const reward = this.reverseTransformer.createRewardData(v2Request, prover)
       const route = this.reverseTransformer.createRouteData(
@@ -95,7 +106,11 @@ export class QuoteV2RequestTransformService {
         throw new Error(`Missing source or destination config`)
       }
 
-      const prover = sourceConfig.provers?.[0] || zeroAddress
+      const prover = this.selectProver(
+        sourceConfig,
+        quoteRequest.sourceChainID,
+        quoteRequest.destinationChainID,
+      )
 
       // Forward: reward = what the solver demands on source side
       // But at transform time, we don’t yet know it, so seed with *zero* and let solver fill
@@ -201,5 +216,57 @@ export class QuoteV2RequestTransformService {
 
       throw QuoteError.UnsupportedContract('Inbox', contracts.inbox)
     }
+  }
+
+  /**
+   * Selects the appropriate prover based on source and destination chain IDs.
+   * Some chains require specific provers (e.g., CCIP for Ronin).
+   *
+   * @param sourceConfig - The intent source configuration
+   * @param sourceChainID - The source chain ID
+   * @param destinationChainID - The destination chain ID
+   * @returns The selected prover address
+   */
+  private selectProver(
+    sourceConfig: IntentSource,
+    sourceChainID: number,
+    destinationChainID: number,
+  ): Hex {
+    // Check if either chain requires CCIP prover
+    if (
+      CCIP_PROVER_CHAIN_IDS.includes(sourceChainID) ||
+      CCIP_PROVER_CHAIN_IDS.includes(destinationChainID)
+    ) {
+      try {
+        const chainConfig = getChainConfig(sourceChainID)
+        if (chainConfig.CcipProver && chainConfig.CcipProver !== zeroAddress) {
+          this.logger.debug(
+            EcoLogMessage.fromDefault({
+              message: `Using CCIP prover for route`,
+              properties: {
+                sourceChainID,
+                destinationChainID,
+                prover: chainConfig.CcipProver,
+              },
+            }),
+          )
+          return chainConfig.CcipProver as Hex
+        }
+      } catch (error) {
+        this.logger.warn(
+          EcoLogMessage.fromDefault({
+            message: `Failed to get CCIP prover for chain, falling back to default`,
+            properties: {
+              sourceChainID,
+              destinationChainID,
+              error: error.message,
+            },
+          }),
+        )
+      }
+    }
+
+    // Default: return first available prover
+    return sourceConfig.provers?.[0] || zeroAddress
   }
 }
