@@ -356,6 +356,11 @@ export default {
     useHyperlaneDefaultHook: false,
   },
 
+  CCIPProver: {
+    defaultGasLimit: 300000n,
+    allowOutOfOrderExecution: true,
+  },
+
   externalAPIs: {},
   logger: {
     usePino: true,

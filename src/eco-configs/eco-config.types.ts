@@ -92,6 +92,7 @@ export type EcoConfigType = {
   watch: WatchConfig
   usdt0: USDT0Config
   ccip: CCIPConfig
+  CCIPProver: CCIPProverConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -164,6 +165,7 @@ export type IntentConfig = {
   proofs: {
     hyperlane_duration_seconds: number
     metalayer_duration_seconds: number
+    ccip_duration_seconds: number
   }
   isNativeETHSupported: boolean
   intentFundedRetries: number
@@ -637,6 +639,12 @@ export interface GatewayConfig {
     fallbackBase6?: number | string
   }
 }
+
+export interface CCIPProverConfig {
+  defaultGasLimit: bigint
+  allowOutOfOrderExecution: boolean
+}
+
 export interface WatchConfig {
   recoveryBackoffBaseMs: number
   recoveryBackoffMaxMs: number

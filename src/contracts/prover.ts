@@ -3,10 +3,15 @@ import { Enumify } from 'enumify'
 export class ProofType extends Enumify {
   static HYPERLANE = new ProofType('Hyperlane')
   static METALAYER = new ProofType('Metalayer')
+  static CCIP = new ProofType('CCIP')
   static _ = ProofType.closeEnum()
 
   constructor(private providerValue: string) {
     super()
+  }
+
+  static getAllProofTypes(): ProofType[] {
+    return ProofType.enumValues as ProofType[]
   }
 
   private static providerValueToEnumMap = new Map<string, ProofType>()
@@ -38,6 +43,10 @@ export class ProofType extends Enumify {
 
   isMetalayer(): boolean {
     return this === ProofType.METALAYER
+  }
+
+  isCCIP(): boolean {
+    return this === ProofType.CCIP
   }
 
   static fromProviderValue(providerValue: string): ProofType {

@@ -17,6 +17,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
 import { EcoAnalyticsService } from '@/analytics'
+import { CCIPChainSelector } from '@/eco-configs/enums/ccip-chain-selector.enum'
 
 jest.mock('viem', () => {
   return {
@@ -629,6 +630,84 @@ describe('WalletFulfillService', () => {
         expect(fulfillIntentService['getFulfillTxForHyperproverBatch']).toHaveBeenCalledTimes(1)
       })
     })
+
+    describe('on PROOF_CCIP', () => {
+      it('should route to getFulfillTxForCCIP', async () => {
+        jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(false)
+        jest.spyOn(proofService, 'isMetalayerProver').mockReturnValue(false)
+        jest.spyOn(proofService, 'isCCIPProver').mockReturnValue(true)
+        const ccipTx = { to: address1, data: '0x', value: 1n }
+        fulfillIntentService['getFulfillTxForCCIP'] = jest.fn().mockReturnValue(ccipTx)
+
+        const tx = await fulfillIntentService['getFulfillIntentTx'](
+          solver.inboxAddress,
+          model as any,
+        )
+
+        expect(tx).toEqual(ccipTx)
+        expect(proofService.isHyperlaneProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isMetalayerProver).toHaveBeenCalledTimes(1)
+        expect(proofService.isCCIPProver).toHaveBeenCalledTimes(1)
+        expect(fulfillIntentService['getFulfillTxForCCIP']).toHaveBeenCalledWith(
+          solver.inboxAddress,
+          expect.anything(),
+          model,
+        )
+      })
+    })
+  })
+
+  describe('CCIP Prover Integration', () => {
+    const inboxAddress = address1
+    const roninChainId = 2020n
+    const claimant = address2
+    const ccipTx = { to: inboxAddress, data: '0xccip', value: 5n }
+
+    const roninModel = {
+      intent: {
+        route: { source: roninChainId, destination: 1n },
+        reward: { prover: address3 },
+      },
+    } as any
+
+    beforeEach(() => {
+      jest.spyOn(ecoConfigService, 'getEth').mockReturnValue({ claimant } as any)
+      fulfillIntentService['getFulfillTxForCCIP'] = jest.fn().mockResolvedValue(ccipTx)
+    })
+
+    it('should route Ronin intents to the CCIP prover and build the transaction', async () => {
+      const hyperSpy = jest.spyOn(proofService, 'isHyperlaneProver').mockReturnValue(false)
+      const metalSpy = jest.spyOn(proofService, 'isMetalayerProver').mockReturnValue(false)
+      const ccipSpy = jest.spyOn(proofService, 'isCCIPProver').mockReturnValue(true)
+
+      const result = await fulfillIntentService['getFulfillIntentTx'](inboxAddress, roninModel)
+
+      expect(result).toEqual(ccipTx)
+      expect(proofService.isHyperlaneProver).toHaveBeenCalledWith(
+        Number(roninChainId),
+        roninModel.intent.reward.prover,
+      )
+      expect(proofService.isMetalayerProver).toHaveBeenCalledWith(
+        Number(roninChainId),
+        roninModel.intent.reward.prover,
+      )
+      expect(proofService.isCCIPProver).toHaveBeenCalledWith(
+        Number(roninChainId),
+        roninModel.intent.reward.prover,
+      )
+      expect(fulfillIntentService['getFulfillTxForCCIP']).toHaveBeenCalledWith(
+        inboxAddress,
+        claimant,
+        roninModel,
+      )
+
+      // Verify the prover checks happen in order: Hyperlane -> Metalayer -> CCIP.
+      const hyperCall = hyperSpy.mock.invocationCallOrder[0]
+      const metalCall = metalSpy.mock.invocationCallOrder[0]
+      const ccipCall = ccipSpy.mock.invocationCallOrder[0]
+      expect(hyperCall).toBeLessThan(metalCall)
+      expect(metalCall).toBeLessThan(ccipCall)
+    })
   })
 
   describe('on getFulfillTxForHyperproverSingle', () => {
@@ -721,6 +800,88 @@ describe('WalletFulfillService', () => {
         [pad(model.intent.reward.prover)],
       )
       expect(mockProverFee).toHaveBeenCalledWith(model, address2, address1, encodedData)
+    })
+  })
+
+  describe('on getFulfillTxForCCIP', () => {
+    beforeEach(() => {
+      mockEncodeAbiParameters.mockClear()
+      mockGetChainConfig.mockClear()
+      mockEncodeFunctionData.mockClear()
+    })
+
+    it('should encode CCIP message data and fulfill call correctly', async () => {
+      const model = {
+        intent: {
+          hash: '0x1234',
+          reward: {
+            prover: address3,
+          },
+          route: {
+            source: 10n,
+            destination: 1n,
+          },
+        },
+      } as any
+
+      mockGetChainConfig.mockReturnValue({ CcipProver: address1 })
+      jest.spyOn(ecoConfigService, 'getCCIPProverConfig').mockReturnValue({
+        defaultGasLimit: 300000n,
+        allowOutOfOrderExecution: true,
+      } as any)
+      jest.spyOn(CCIPChainSelector, 'getCCIPSelector').mockReturnValue(500n)
+
+      const messageData = '0xdeadbeef'
+      mockEncodeAbiParameters.mockReturnValue(messageData)
+      const fee = 7n
+      fulfillIntentService['getProverFee'] = jest.fn().mockResolvedValue(fee) as any
+      const fulfillData = '0xfulfill'
+      mockEncodeFunctionData.mockReturnValue(fulfillData)
+
+      const tx = await fulfillIntentService['getFulfillTxForCCIP'](address2, address3, model)
+
+      expect(mockGetChainConfig).toHaveBeenCalledWith(Number(model.intent.route.source))
+      expect(ecoConfigService.getCCIPProverConfig).toHaveBeenCalledTimes(1)
+      expect(CCIPChainSelector.getCCIPSelector).toHaveBeenCalledWith(
+        Number(model.intent.route.source),
+      )
+      expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
+        [
+          {
+            type: 'tuple',
+            components: [{ type: 'address' }, { type: 'uint256' }, { type: 'bool' }],
+          },
+        ],
+        [[address1, 300000n, true]],
+      )
+      expect(fulfillIntentService['getProverFee']).toHaveBeenCalledWith(
+        model,
+        address3,
+        address1,
+        messageData,
+        Number(model.intent.route.source),
+      )
+      expect(mockEncodeFunctionData).toHaveBeenCalledWith({
+        abi: expect.anything(),
+        functionName: 'fulfillAndProve',
+        args: expect.arrayContaining([address1, 500n, messageData]),
+      })
+      expect(tx).toEqual({ to: address2, data: fulfillData, value: fee })
+    })
+
+    it('should throw if CCIP prover is missing', async () => {
+      const model = {
+        intent: {
+          route: {
+            destination: 1n,
+          },
+        },
+      } as any
+      mockGetChainConfig.mockReturnValue({})
+
+      await expect(
+        fulfillIntentService['getFulfillTxForCCIP'](address2, address3, model),
+      ).rejects.toThrow(/CCIP prover address not found/)
     })
   })
 })

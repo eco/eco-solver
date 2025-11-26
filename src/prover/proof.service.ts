@@ -58,6 +58,16 @@ export class ProofService implements OnModuleInit {
   }
 
   /**
+   * Checks if the prover is a CCIP prover
+   * @param chainID
+   * @param proverAddress the prover address
+   * @returns
+   */
+  isCCIPProver(chainID: number, proverAddress: Hex): boolean {
+    return Boolean(this.getProverType(chainID, proverAddress)?.isCCIP())
+  }
+
+  /**
    * Returns all the prover addresses for a given proof type
    * @param proofType the proof type
    * @returns
@@ -227,6 +237,8 @@ export class ProofService implements OnModuleInit {
         return proofs.hyperlane_duration_seconds
       case prover.isMetalayer():
         return proofs.metalayer_duration_seconds
+      case prover.isCCIP():
+        return proofs.ccip_duration_seconds
       default:
         throw EcoError.ProverNotSupported(prover)
     }

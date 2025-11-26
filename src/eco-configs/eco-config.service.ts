@@ -1,6 +1,7 @@
 import { addressKeys } from '@/common/viem/utils'
 import {
   AwsCredential,
+  CCIPProverConfig,
   EcoConfigType,
   IntentSource,
   KmsConfig,
@@ -8,7 +9,7 @@ import {
   SafeType,
   Solver,
 } from './eco-config.types'
-import { Chain, getAddress, Hex, zeroAddress } from 'viem'
+import { Address, Chain, getAddress, Hex, zeroAddress } from 'viem'
 import { ChainsSupported } from '@/common/chains/supported'
 import { ConfigSource } from './interfaces/config-source.interface'
 import {
@@ -299,8 +300,11 @@ export class EcoConfigService implements OnModuleInit {
       intent.sourceAddress = config.Portal
       intent.inbox = config.Portal
       const ecoNpm = intent.config ? intent.config.ecoRoutes : ProverEcoRoutesProverAppend
-      const ecoNpmProvers = [config.HyperProver, config.MetaProver].filter(
-        (prover) => getAddress(prover) !== zeroAddress,
+      // Eco protocol exposes three prover contract slots per chain:
+      // - HyperProver (Hyperlane proofs), MetaProver (Metalayer proofs), CCIPProver (Chainlink CCIP proofs).
+      // Chains without a given prover set the address to zero, so we filter zero-address placeholders before merging.
+      const ecoNpmProvers = [config.HyperProver, config.MetaProver, config['CCIPProver']].filter(
+        (prover) => this.getAddress(prover) !== zeroAddress,
       )
       switch (ecoNpm) {
         case 'replace':
@@ -594,5 +598,17 @@ export class EcoConfigService implements OnModuleInit {
         {} as Record<number, Hex>,
       ),
     }
+  }
+
+  getCCIPProverConfig(): CCIPProverConfig {
+    return this.get('CCIPProver')
+  }
+
+  private getAddress(address: string): Address {
+    if (!address) {
+      return zeroAddress
+    }
+
+    return getAddress(address)
   }
 }
