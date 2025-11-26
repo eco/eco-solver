@@ -15,8 +15,7 @@ describe('CCIPChainSelector', () => {
             '0x1234': '0x1234',
           },
         },
-        CCIP: {
-          routerAddress: '0xda1513e4BD479AF7Ac192FAc101dD94A7F6F9c0b',
+        CCIPProver  : {
           defaultGasLimit: 300000n,
           allowOutOfOrderExecution: true,
         },
@@ -97,11 +96,8 @@ describe('CCIPChainSelector', () => {
 
   describe('Integration with config', () => {
     it('should fetch EcoConfigService values', () => {
-      expect(ecoConfigService.getCCIPConfig().routerAddress).toBe(
-        '0xda1513e4BD479AF7Ac192FAc101dD94A7F6F9c0b',
-      )
-      expect(ecoConfigService.getCCIPConfig().defaultGasLimit).toBe(300000n)
-      expect(ecoConfigService.getCCIPConfig().allowOutOfOrderExecution).toBe(true)
+      expect(ecoConfigService.getCCIPProverConfig().defaultGasLimit).toBe(300000n)
+      expect(ecoConfigService.getCCIPProverConfig().allowOutOfOrderExecution).toBe(true)
     })
   })
 })

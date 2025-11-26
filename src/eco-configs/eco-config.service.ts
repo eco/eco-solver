@@ -1,7 +1,7 @@
 import { addressKeys } from '@/common/viem/utils'
 import {
   AwsCredential,
-  CCIPConfig,
+  CCIPProverConfig,
   EcoConfigType,
   IntentSource,
   KmsConfig,
@@ -596,8 +596,8 @@ export class EcoConfigService implements OnModuleInit {
     }
   }
 
-  getCCIPConfig(): CCIPConfig {
-    return this.get('CCIP')
+  getCCIPProverConfig(): CCIPProverConfig {
+    return this.get('CCIPProver')
   }
 
   private getAddress(address: string): Address {

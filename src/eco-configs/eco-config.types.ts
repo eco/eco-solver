@@ -91,7 +91,7 @@ export type EcoConfigType = {
   gateway: GatewayConfig
   watch: WatchConfig
   usdt0: USDT0Config
-  CCIP: CCIPConfig
+  CCIPProver: CCIPProverConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -597,8 +597,7 @@ export interface GatewayConfig {
   }
 }
 
-export interface CCIPConfig {
-  routerAddress: string
+export interface CCIPProverConfig {
   defaultGasLimit: bigint
   allowOutOfOrderExecution: boolean
 }

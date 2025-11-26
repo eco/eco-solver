@@ -825,7 +825,7 @@ describe('WalletFulfillService', () => {
       } as any
 
       mockGetChainConfig.mockReturnValue({ CcipProver: address1 })
-      jest.spyOn(ecoConfigService, 'getCCIPConfig').mockReturnValue({
+      jest.spyOn(ecoConfigService, 'getCCIPProverConfig').mockReturnValue({
         defaultGasLimit: 300000n,
         allowOutOfOrderExecution: true,
       } as any)
@@ -841,7 +841,7 @@ describe('WalletFulfillService', () => {
       const tx = await fulfillIntentService['getFulfillTxForCCIP'](address2, address3, model)
 
       expect(mockGetChainConfig).toHaveBeenCalledWith(Number(model.intent.route.source))
-      expect(ecoConfigService.getCCIPConfig).toHaveBeenCalledTimes(1)
+      expect(ecoConfigService.getCCIPProverConfig).toHaveBeenCalledTimes(1)
       expect(CCIPChainSelector.getCCIPSelector).toHaveBeenCalledWith(
         Number(model.intent.route.source),
       )

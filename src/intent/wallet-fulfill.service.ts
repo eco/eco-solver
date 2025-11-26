@@ -490,7 +490,8 @@ export class WalletFulfillService implements IFulfillService {
       throw new Error('CCIP prover address not found in chain config')
     }
 
-    const { defaultGasLimit, allowOutOfOrderExecution } = this.ecoConfigService.getCCIPConfig()
+    const { defaultGasLimit, allowOutOfOrderExecution } =
+      this.ecoConfigService.getCCIPProverConfig()
 
     // CCIP message must originate from the source chain's CCIPProver contract
     // This address is *not* necessarily the same as the reward's intent.prover field
