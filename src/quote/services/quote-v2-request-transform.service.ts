@@ -6,7 +6,6 @@ import { ForwardQuoteRequestTransformer } from '@/quote/services/forward-quote-r
 import { getChainConfig } from '@/eco-configs/utils'
 import { Hex, zeroAddress } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
-import { IntentSource } from '@/eco-configs/eco-config.types'
 import { QuoteError } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
@@ -44,11 +43,7 @@ export class QuoteV2RequestTransformService {
         throw new Error(`Missing source or destination config`)
       }
 
-      const prover = this.selectProver(
-        sourceConfig,
-        quoteRequest.sourceChainID,
-        quoteRequest.destinationChainID,
-      )
+      const prover = this.selectProver(quoteRequest.sourceChainID, quoteRequest.destinationChainID)
 
       const reward = this.reverseTransformer.createRewardData(v2Request, prover)
       const route = this.reverseTransformer.createRouteData(
@@ -106,11 +101,7 @@ export class QuoteV2RequestTransformService {
         throw new Error(`Missing source or destination config`)
       }
 
-      const prover = this.selectProver(
-        sourceConfig,
-        quoteRequest.sourceChainID,
-        quoteRequest.destinationChainID,
-      )
+      const prover = this.selectProver(quoteRequest.sourceChainID, quoteRequest.destinationChainID)
 
       // Forward: reward = what the solver demands on source side
       // But at transform time, we don’t yet know it, so seed with *zero* and let solver fill
@@ -220,53 +211,72 @@ export class QuoteV2RequestTransformService {
 
   /**
    * Selects the appropriate prover based on source and destination chain IDs.
+   * Proving always happens on the destination chain, so the prover address
+   * is always retrieved from the destination chain config.
    * Some chains require specific provers (e.g., CCIP for Ronin).
    *
-   * @param sourceConfig - The intent source configuration
    * @param sourceChainID - The source chain ID
    * @param destinationChainID - The destination chain ID
    * @returns The selected prover address
+   * @throws Error if route requires CCIP but no CCIP prover is available
    */
-  private selectProver(
-    sourceConfig: IntentSource,
-    sourceChainID: number,
-    destinationChainID: number,
-  ): Hex {
-    // Check if either chain requires CCIP prover
-    if (
+  private selectProver(sourceChainID: number, destinationChainID: number): Hex {
+    const destinationChainConfig = getChainConfig(destinationChainID)
+    const routeRequiresCcip =
       CCIP_PROVER_CHAIN_IDS.includes(sourceChainID) ||
       CCIP_PROVER_CHAIN_IDS.includes(destinationChainID)
-    ) {
-      try {
-        const chainConfig = getChainConfig(sourceChainID)
-        if (chainConfig.CcipProver && chainConfig.CcipProver !== zeroAddress) {
-          this.logger.debug(
-            EcoLogMessage.fromDefault({
-              message: `Using CCIP prover for route`,
-              properties: {
-                sourceChainID,
-                destinationChainID,
-                prover: chainConfig.CcipProver,
-              },
-            }),
-          )
-          return chainConfig.CcipProver as Hex
-        }
-      } catch (error) {
-        this.logger.warn(
+
+    // If either chain requires CCIP, we must use CCIP prover or fail
+    if (routeRequiresCcip) {
+      if (!destinationChainConfig.CcipProver || destinationChainConfig.CcipProver === zeroAddress) {
+        this.logger.error(
           EcoLogMessage.fromDefault({
-            message: `Failed to get CCIP prover for chain, falling back to default`,
+            message: `Route requires CCIP prover but none is configured on destination chain`,
             properties: {
               sourceChainID,
               destinationChainID,
-              error: error.message,
             },
           }),
         )
+        throw new Error(
+          `Route requires CCIP prover but none is configured on destination chain ${destinationChainID}`,
+        )
       }
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Using CCIP prover for route`,
+          properties: {
+            sourceChainID,
+            destinationChainID,
+            prover: destinationChainConfig.CcipProver,
+          },
+        }),
+      )
+      return destinationChainConfig.CcipProver as Hex
     }
 
-    // Default: return first available prover
-    return sourceConfig.provers?.[0] || zeroAddress
+    // Default: return first available prover from destination chain config
+    // Priority: HyperProver > MetaProver > CcipProver (filtered by non-zero)
+    const availableProvers = [
+      destinationChainConfig.HyperProver,
+      destinationChainConfig.MetaProver,
+      destinationChainConfig.CcipProver,
+    ].filter((prover) => prover && prover !== zeroAddress)
+
+    if (availableProvers.length === 0) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `No provers available for destination chain`,
+          properties: {
+            sourceChainID,
+            destinationChainID,
+          },
+        }),
+      )
+      throw new Error(`No provers available for destination chain ${destinationChainID}`)
+    }
+
+    return availableProvers[0] as Hex
   }
 }
