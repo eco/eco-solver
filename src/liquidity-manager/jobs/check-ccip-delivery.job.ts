@@ -33,6 +33,15 @@ export interface CheckCCIPDeliveryJobData extends LiquidityManagerQueueDataType 
   fromBlockNumber?: string
 }
 
+export interface CheckCCIPDeliveryJobOptions {
+  /** Initial delay before first poll in milliseconds */
+  initialDelayMs: number
+  /** BullMQ retry attempts for transient errors */
+  queueAttempts: number
+  /** Base delay for BullMQ exponential backoff in milliseconds */
+  queueBackoffMs: number
+}
+
 export type CheckCCIPDeliveryJob = LiquidityManagerJob<
   LiquidityManagerJobName.CHECK_CCIP_DELIVERY,
   CheckCCIPDeliveryJobData,
@@ -52,12 +61,16 @@ export class CheckCCIPDeliveryJobManager extends LiquidityManagerJobManager<Chec
   @AutoInject(RebalanceRepository)
   private rebalanceRepository: RebalanceRepository
 
-  static async start(queue: Queue, data: CheckCCIPDeliveryJobData): Promise<void> {
+  static async start(
+    queue: Queue,
+    data: CheckCCIPDeliveryJobData,
+    options: CheckCCIPDeliveryJobOptions,
+  ): Promise<void> {
     await queue.add(LiquidityManagerJobName.CHECK_CCIP_DELIVERY, data, {
       removeOnFail: false,
-      delay: 30_000,
-      attempts: 10,
-      backoff: { type: 'exponential', delay: 10_000 },
+      delay: options.initialDelayMs,
+      attempts: options.queueAttempts,
+      backoff: { type: 'exponential', delay: options.queueBackoffMs },
     })
   }
 
@@ -85,7 +98,17 @@ export class CheckCCIPDeliveryJobManager extends LiquidityManagerJobManager<Chec
 
     const publicClient = await this.publicClientService.getClient(data.destinationChainId)
     const fromBlockNumber = await this.resolveFromBlockNumber(job, publicClient)
-    const shouldPersistFromBlockNumber = !data.fromBlockNumber
+
+    // Persist fromBlockNumber immediately to avoid race condition on retry.
+    // If the external call fails before updateData, retries would recompute a later
+    // fromBlock, potentially skipping the delivery event.
+    if (!data.fromBlockNumber) {
+      await job.updateData({
+        ...job.data,
+        fromBlockNumber: fromBlockNumber.toString(),
+      })
+    }
+
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'CCIP: querying transfer status',
@@ -151,14 +174,10 @@ export class CheckCCIPDeliveryJobManager extends LiquidityManagerJobManager<Chec
     const pollCount = this.getPollCount(job) + 1
     const maxAttempts = this.getMaxAttempts()
 
-    const nextData: CheckCCIPDeliveryJobData = {
+    await job.updateData({
       ...job.data,
       pollCount,
-    }
-    if (shouldPersistFromBlockNumber) {
-      nextData.fromBlockNumber = fromBlockNumber.toString()
-    }
-    await job.updateData(nextData)
+    })
 
     if (pollCount >= maxAttempts) {
       this.logger.error(

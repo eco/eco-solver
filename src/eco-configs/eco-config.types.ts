@@ -519,8 +519,16 @@ export interface CCIPConfig {
   enabled?: boolean
   chains: CCIPChainConfig[]
   delivery: {
+    /** Maximum number of polling attempts before giving up */
     maxAttempts: number
+    /** Delay between polls in milliseconds */
     backoffMs: number
+    /** Initial delay before first poll in milliseconds */
+    initialDelayMs: number
+    /** BullMQ retry attempts for transient errors (should be >= maxAttempts) */
+    queueAttempts: number
+    /** Base delay for BullMQ exponential backoff in milliseconds */
+    queueBackoffMs: number
   }
 }
 

@@ -30,6 +30,7 @@ import {
 import {
   CheckCCIPDeliveryJobData,
   CheckCCIPDeliveryJobManager,
+  CheckCCIPDeliveryJobOptions,
 } from '@/liquidity-manager/jobs/check-ccip-delivery.job'
 
 export enum LiquidityManagerJobName {
@@ -130,7 +131,10 @@ export class LiquidityManagerQueue {
     return USDT0LiFiDestinationSwapJobManager.start(this.queue, data)
   }
 
-  startCCIPDeliveryCheck(data: CheckCCIPDeliveryJobData): Promise<void> {
-    return CheckCCIPDeliveryJobManager.start(this.queue, data)
+  startCCIPDeliveryCheck(
+    data: CheckCCIPDeliveryJobData,
+    options: CheckCCIPDeliveryJobOptions,
+  ): Promise<void> {
+    return CheckCCIPDeliveryJobManager.start(this.queue, data, options)
   }
 }

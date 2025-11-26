@@ -31,8 +31,11 @@ interface CCIPConfig {
   enabled?: boolean // Set true to allow quotes/execution
   chains: CCIPChainConfig[] // Per-chain router, tokens, and fee tokens
   delivery: {
-    maxAttempts: number
-    backoffMs: number
+    maxAttempts: number // Maximum polling attempts before giving up
+    backoffMs: number // Delay between polls (ms)
+    initialDelayMs: number // Initial delay before first poll (ms)
+    queueAttempts: number // BullMQ retry attempts for transient errors (should be >= maxAttempts)
+    queueBackoffMs: number // Base delay for BullMQ exponential backoff (ms)
   }
 }
 ```

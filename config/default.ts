@@ -346,6 +346,9 @@ export default {
     delivery: {
       maxAttempts: 120,
       backoffMs: 30_000,
+      initialDelayMs: 30_000,
+      queueAttempts: 120,
+      queueBackoffMs: 10_000,
     },
   },
 

@@ -291,7 +291,12 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
         fromBlockNumber: deliveryFromBlockNumber.toString(),
       }
 
-      await this.liquidityManagerQueue.startCCIPDeliveryCheck(jobData)
+      const { delivery } = config
+      await this.liquidityManagerQueue.startCCIPDeliveryCheck(jobData, {
+        initialDelayMs: delivery.initialDelayMs,
+        queueAttempts: delivery.queueAttempts,
+        queueBackoffMs: delivery.queueBackoffMs,
+      })
 
       return txHash
     } catch (error) {
@@ -533,11 +538,23 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
   }
 
   /**
+   * Known CCIP on-ramp version patterns and their corresponding parsing strategies.
+   * v1.5.x uses flat `message.messageId`, v1.6.x uses nested `message.header.messageId`.
+   */
+  private static readonly ONRAMP_VERSION_PATTERNS = {
+    V1_5: /^EVM2EVMOnRamp 1\.5\.\d+$/,
+    V1_6: /^EVM2EVMOnRamp 1\.6\.\d+$|^OnRamp 1\.6\.\d+$/,
+  } as const
+
+  /**
    * Derives the CCIP `messageId` from the on-ramp event emitted by the router transaction.
    * We:
    * - Discover the on-ramp address via the router + destination selector.
    * - Inspect `typeAndVersion()` to decide which event name / ABI to decode.
    * - Parse logs and normalise the messageId across v1.5 and v1.6 on-ramp flavours.
+   *
+   * For unrecognised versions, we attempt v1.6 parsing with a warning since newer
+   * versions are more likely to follow the v1.6 structure than regress to v1.5.
    */
   private async extractMessageId(
     quote: RebalanceQuote<'CCIP'>,
@@ -558,28 +575,28 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
       functionName: 'typeAndVersion',
     })) as string
 
-    const eventName =
-      typeAndVersion === 'EVM2EVMOnRamp 1.5.0' ? 'CCIPSendRequested' : 'CCIPMessageSent'
-    const abi =
-      typeAndVersion === 'EVM2EVMOnRamp 1.5.0' ? (ONRAMP_ABI_V1_5 as any) : (ONRAMP_ABI_V1_6 as any)
+    const versionStrategy = this.resolveOnRampVersionStrategy(typeAndVersion, quote.id)
     const parsedLogs = parseEventLogs({
-      abi: abi as any,
+      abi: versionStrategy.abi as any,
       logs: receipt.logs,
-      eventName,
+      eventName: versionStrategy.eventName,
     }) as any[]
 
     if (!Array.isArray(parsedLogs) || !parsedLogs.length || !parsedLogs[0]?.args) {
-      throw new Error('CCIP: No parsed event logs found for router transaction')
+      throw new Error(
+        `CCIP: No parsed event logs found for router transaction (onRamp version: ${typeAndVersion})`,
+      )
     }
 
     const message = parsedLogs[0]?.args?.message as any
-    const messageId =
-      typeAndVersion === 'EVM2EVMOnRamp 1.5.0'
-        ? (message?.messageId as Hex)
-        : (message?.header?.messageId as Hex)
+    const messageId = this.extractMessageIdFromEvent(message, versionStrategy.variant)
 
     if (!messageId) {
-      throw new Error('CCIP: Unable to extract messageId from router transaction')
+      throw new Error(
+        `CCIP: Unable to extract messageId from router transaction. ` +
+          `onRamp version "${typeAndVersion}" may use an unsupported event structure. ` +
+          `Please update CCIP provider to support this version.`,
+      )
     }
 
     this.logger.debug(
@@ -589,11 +606,54 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
         properties: {
           messageId,
           sourceChainId: sourceChain.chainId,
+          onRampVersion: typeAndVersion,
         },
       }),
     )
 
     return messageId
+  }
+
+  /**
+   * Resolves the parsing strategy (ABI, event name, message structure variant)
+   * for a given on-ramp typeAndVersion string.
+   */
+  private resolveOnRampVersionStrategy(
+    typeAndVersion: string,
+    quoteId: string | undefined,
+  ): { abi: any; eventName: string; variant: 'v1.5' | 'v1.6' } {
+    if (CCIPProviderService.ONRAMP_VERSION_PATTERNS.V1_5.test(typeAndVersion)) {
+      return { abi: ONRAMP_ABI_V1_5, eventName: 'CCIPSendRequested', variant: 'v1.5' }
+    }
+
+    if (CCIPProviderService.ONRAMP_VERSION_PATTERNS.V1_6.test(typeAndVersion)) {
+      return { abi: ONRAMP_ABI_V1_6, eventName: 'CCIPMessageSent', variant: 'v1.6' }
+    }
+
+    // Unrecognised version: log a warning and attempt v1.6 parsing as a best-effort fallback.
+    // Newer Chainlink versions are more likely to follow v1.6 structure than v1.5.
+    this.logger.warn(
+      EcoLogMessage.withId({
+        message:
+          'CCIP: Unrecognised onRamp version detected. Attempting v1.6 parsing as fallback. ' +
+          'Consider updating the CCIP provider to explicitly support this version.',
+        id: quoteId ?? 'unknown',
+        properties: { typeAndVersion },
+      }),
+    )
+    return { abi: ONRAMP_ABI_V1_6, eventName: 'CCIPMessageSent', variant: 'v1.6' }
+  }
+
+  /**
+   * Extracts the messageId from the parsed event message based on the version variant.
+   * v1.5 stores messageId directly on the message, v1.6 nests it under header.
+   */
+  private extractMessageIdFromEvent(message: any, variant: 'v1.5' | 'v1.6'): Hex | undefined {
+    if (variant === 'v1.5') {
+      return message?.messageId as Hex | undefined
+    }
+    // v1.6 and fallback: try header.messageId first, then direct messageId as last resort
+    return (message?.header?.messageId ?? message?.messageId) as Hex | undefined
   }
 
   /**

@@ -108,6 +108,9 @@ describe('CCIPProviderService', () => {
     delivery: {
       backoffMs: 10_000,
       maxAttempts: 5,
+      initialDelayMs: 30_000,
+      queueAttempts: 10,
+      queueBackoffMs: 10_000,
     },
   }
 
@@ -249,6 +252,11 @@ describe('CCIPProviderService', () => {
           sourceChainId: tokenIn.chainId,
           destinationChainId: tokenOut.chainId,
           fromBlockNumber: (500n - TRANSFER_STATUS_FROM_BLOCK_SHIFT).toString(),
+        }),
+        expect.objectContaining({
+          initialDelayMs: baseConfig.delivery.initialDelayMs,
+          queueAttempts: baseConfig.delivery.queueAttempts,
+          queueBackoffMs: baseConfig.delivery.queueBackoffMs,
         }),
       )
       expect(messageIdSpy).toHaveBeenCalled()

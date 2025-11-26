@@ -133,6 +133,9 @@ async function getOnRampAddress(options: OnRampOptions) {
  *   `TRANSFER_STATUS_FROM_BLOCK_SHIFT` to avoid scanning full history.
  * - Tries both v1 and v2 `ExecutionStateChanged` event signatures so it works for older
  *   and newer off-ramp deployments.
+ * - Aggregates logs from ALL matching off-ramps and returns the state from the most
+ *   recent log by block number. This handles the case where multiple off-ramps are
+ *   registered for the same source chain (e.g., after an upgrade).
  * - Returns the last seen state or `null` when no logs are found.
  */
 async function getTransferStatus(options: TransferStatusOptions): Promise<TransferStatus | null> {
@@ -178,6 +181,17 @@ async function getTransferStatus(options: TransferStatusOptions): Promise<Transf
 
   const eventVariants = [EXECUTION_STATE_CHANGED_EVENT_V2, EXECUTION_STATE_CHANGED_EVENT_V1]
 
+  // Collect all matching logs across all off-ramps to handle the case where multiple
+  // off-ramps are registered for the same source chain (e.g., after an upgrade).
+  type MatchedLog = {
+    offRamp: Address
+    blockNumber: bigint
+    logIndex: number
+    state: TransferStatus
+    eventSignature: string
+  }
+  const allMatchedLogs: MatchedLog[] = []
+
   for (const offRamp of matchingOffRamps) {
     for (const eventVariant of eventVariants) {
       const logs = await getLogs(options.client, {
@@ -192,22 +206,41 @@ async function getTransferStatus(options: TransferStatusOptions): Promise<Transf
         eventSignature: eventVariant.name,
       })
 
-      if (logs.length > 0) {
-        // Use the latest log (last in the list) to get the most recent state
-        const latestLog = logs[logs.length - 1]
-        const state = Number(latestLog.args.state ?? TransferStatus.Untouched)
-        log('ccip.getTransferStatus.stateFound', {
+      for (const logEntry of logs) {
+        allMatchedLogs.push({
           offRamp: offRamp.offRamp,
-          state,
+          blockNumber: logEntry.blockNumber ?? 0n,
+          logIndex: logEntry.logIndex ?? 0,
+          state: Number(logEntry.args.state ?? TransferStatus.Untouched) as TransferStatus,
           eventSignature: eventVariant.name,
         })
-        return state as TransferStatus
       }
     }
   }
 
-  log('ccip.getTransferStatus.noLogs', {})
-  return null
+  if (allMatchedLogs.length === 0) {
+    log('ccip.getTransferStatus.noLogs', {})
+    return null
+  }
+
+  // Sort by block number descending, then by log index descending to get the most recent event
+  allMatchedLogs.sort((a, b) => {
+    const blockDiff = Number(b.blockNumber - a.blockNumber)
+    if (blockDiff !== 0) return blockDiff
+    return b.logIndex - a.logIndex
+  })
+
+  const mostRecent = allMatchedLogs[0]
+  log('ccip.getTransferStatus.stateFound', {
+    offRamp: mostRecent.offRamp,
+    blockNumber: mostRecent.blockNumber.toString(),
+    logIndex: mostRecent.logIndex,
+    state: mostRecent.state,
+    eventSignature: mostRecent.eventSignature,
+    totalLogsFound: allMatchedLogs.length,
+  })
+
+  return mostRecent.state
 }
 
 /**
