@@ -114,7 +114,7 @@ export class KernelWallet extends BaseEvmWallet {
       return;
     }
 
-    const tracer = this.otelService.tracer;
+    const tracer = this.otelService.getTracer();
     return tracer.startActiveSpan(
       'kernel.wallet.init',
       {
