@@ -122,6 +122,18 @@ describe('KernelWallet', () => {
             return fn(span);
           }),
         },
+        getTracer: jest.fn().mockReturnValue({
+          startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+            const span = {
+              setAttribute: jest.fn(),
+              setAttributes: jest.fn(),
+              setStatus: jest.fn(),
+              recordException: jest.fn(),
+              end: jest.fn(),
+            };
+            return fn(span);
+          }),
+        }),
       };
 
       // Mock transport service
@@ -300,6 +312,18 @@ describe('KernelWallet', () => {
           return fn(span);
         }),
       },
+      getTracer: jest.fn().mockReturnValue({
+        startActiveSpan: jest.fn().mockImplementation((name, options, fn) => {
+          const span = {
+            setAttribute: jest.fn(),
+            setAttributes: jest.fn(),
+            setStatus: jest.fn(),
+            recordException: jest.fn(),
+            end: jest.fn(),
+          };
+          return fn(span);
+        }),
+      }),
     };
 
     // Mock EVM wallet manager
