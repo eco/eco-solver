@@ -42,6 +42,10 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     if (!this.config.enabled) {
       this.logger.log('OpenTelemetry is disabled');
+      // Initialize with no-op implementations when disabled
+      // This ensures code can still call tracing methods without errors
+      this.tracer = api.trace.getTracer('solver');
+      this.meter = api.metrics.getMeter('solver');
       return;
     }
 
