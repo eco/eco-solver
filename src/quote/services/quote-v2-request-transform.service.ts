@@ -3,12 +3,18 @@ import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { EcoResponse } from '@/common/eco-response'
 import { ForwardQuoteRequestTransformer } from '@/quote/services/forward-quote-request-transformer'
+import { getChainConfig } from '@/eco-configs/utils'
 import { Hex, zeroAddress } from 'viem'
 import { Injectable, Logger } from '@nestjs/common'
 import { QuoteError } from '@/quote/errors'
 import { QuoteIntentDataDTO } from '@/quote/dto/quote.intent.data.dto'
 import { QuoteV2RequestDTO } from '@/quote/dto/v2/quote-v2-request.dto'
 import { ReverseQuoteRequestTransformer } from '@/quote/services/reverse-quote-request-transformer'
+
+/**
+ * Chain IDs that require CCIP prover for cross-chain messaging
+ */
+const CCIP_PROVER_CHAIN_IDS = [2020] // Ronin
 
 @Injectable()
 export class QuoteV2RequestTransformService {
@@ -37,7 +43,7 @@ export class QuoteV2RequestTransformService {
         throw new Error(`Missing source or destination config`)
       }
 
-      const prover = sourceConfig.provers?.[0] || zeroAddress
+      const prover = this.selectProver(quoteRequest.sourceChainID, quoteRequest.destinationChainID)
 
       const reward = this.reverseTransformer.createRewardData(v2Request, prover)
       const route = this.reverseTransformer.createRouteData(
@@ -95,7 +101,7 @@ export class QuoteV2RequestTransformService {
         throw new Error(`Missing source or destination config`)
       }
 
-      const prover = sourceConfig.provers?.[0] || zeroAddress
+      const prover = this.selectProver(quoteRequest.sourceChainID, quoteRequest.destinationChainID)
 
       // Forward: reward = what the solver demands on source side
       // But at transform time, we don’t yet know it, so seed with *zero* and let solver fill
@@ -201,5 +207,75 @@ export class QuoteV2RequestTransformService {
 
       throw QuoteError.UnsupportedContract('Inbox', contracts.inbox)
     }
+  }
+
+  /**
+   * Selects the appropriate prover based on source and destination chain IDs.
+   * The prover address is always retrieved from the source chain config.
+   * Some chains require specific provers (e.g., CCIP for Ronin).
+   *
+   * @param sourceChainID - The source chain ID
+   * @param destinationChainID - The destination chain ID
+   * @returns The selected prover address
+   * @throws Error if route requires CCIP but no CCIP prover is available
+   */
+  private selectProver(sourceChainID: number, destinationChainID: number): Hex {
+    const sourceChainConfig = getChainConfig(sourceChainID)
+    const routeRequiresCcip =
+      CCIP_PROVER_CHAIN_IDS.includes(sourceChainID) ||
+      CCIP_PROVER_CHAIN_IDS.includes(destinationChainID)
+
+    // If either chain requires CCIP, we must use CCIP prover or fail
+    if (routeRequiresCcip) {
+      if (!sourceChainConfig.CcipProver || sourceChainConfig.CcipProver === zeroAddress) {
+        this.logger.error(
+          EcoLogMessage.fromDefault({
+            message: `Route requires CCIP prover but none is configured on source chain`,
+            properties: {
+              sourceChainID,
+              destinationChainID,
+            },
+          }),
+        )
+        throw new Error(
+          `Route requires CCIP prover but none is configured on source chain ${sourceChainID}`,
+        )
+      }
+
+      this.logger.debug(
+        EcoLogMessage.fromDefault({
+          message: `Using CCIP prover for route`,
+          properties: {
+            sourceChainID,
+            destinationChainID,
+            prover: sourceChainConfig.CcipProver,
+          },
+        }),
+      )
+      return sourceChainConfig.CcipProver as Hex
+    }
+
+    // Default: return first available prover from source chain config
+    // Priority: HyperProver > MetaProver > CcipProver (filtered by non-zero)
+    const availableProvers = [
+      sourceChainConfig.HyperProver,
+      sourceChainConfig.MetaProver,
+      sourceChainConfig.CcipProver,
+    ].filter((prover) => prover && prover !== zeroAddress)
+
+    if (availableProvers.length === 0) {
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: `No provers available for source chain`,
+          properties: {
+            sourceChainID,
+            destinationChainID,
+          },
+        }),
+      )
+      throw new Error(`No provers available for source chain ${sourceChainID}`)
+    }
+
+    return availableProvers[0] as Hex
   }
 }
