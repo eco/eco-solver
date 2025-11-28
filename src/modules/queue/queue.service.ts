@@ -56,6 +56,18 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     }
   }
 
+  /**
+   * Adds an intent to the fulfillment queue for validation and processing.
+   *
+   * Uses a deterministic job ID based on intent hash to prevent duplicate queue
+   * submissions. If the same intent is submitted multiple times:
+   * - If still queued: BullMQ replaces the old job with the new one
+   * - If already processing: BullMQ rejects the duplicate submission
+   * - If already completed/failed: Creates a new job (allows retry of failed intents)
+   *
+   * @param intent - The intent to process
+   * @param strategy - The fulfillment strategy to use (defaults to STANDARD)
+   */
   async addIntentToFulfillmentQueue(
     intent: Intent,
     strategy: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.STANDARD,
@@ -66,11 +78,15 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       chainId: Number(intent.destination),
     };
 
+    // Generate deterministic job ID using intent hash
+    const jobId = `fulfillment-${intent.intentHash}`;
+
     // Use maximum retry attempts from config to allow for TEMPORARY error retries
     // The processor will control actual retry behavior based on error type
     const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
     const serializedData = BigintSerializer.serialize(jobData);
     await this.fulfillmentQueue.add('process-intent', serializedData, {
+      jobId,
       attempts,
       backoff: {
         type: 'exponential',
