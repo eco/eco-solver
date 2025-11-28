@@ -251,6 +251,48 @@ describe('BlockchainProcessor', () => {
       expect(blockchainService.executeIntent).toHaveBeenCalledWith(mockIntent, 'basic');
     });
 
+    it('should not block subsequent jobs when a job fails', async () => {
+      const jobData1 = {
+        ...mockJobData,
+        intent: { ...mockIntent, intentHash: '0xfail' as Hex },
+      };
+      const jobData2 = {
+        ...mockJobData,
+        intent: { ...mockIntent, intentHash: '0xsucceed' as Hex },
+      };
+
+      const job1: Job<string> = { data: serializeWithBigInt(jobData1) } as any;
+      const job2: Job<string> = { data: serializeWithBigInt(jobData2) } as any;
+
+      // Mock deserializer
+      (BigintSerializer.deserialize as jest.Mock)
+        .mockReturnValueOnce(jobData1)
+        .mockReturnValueOnce(jobData2);
+
+      // Job 1 fails, Job 2 succeeds
+      const executionOrder: string[] = [];
+      blockchainService.executeIntent.mockImplementation(async (intent) => {
+        executionOrder.push(intent.intentHash);
+        if (intent.intentHash === '0xfail') {
+          throw new Error('Job 1 intentionally failed');
+        }
+      });
+
+      // Start both jobs
+      const promise1 = processor.process(job1);
+      const promise2 = processor.process(job2);
+
+      // Job 1 should fail
+      await expect(promise1).rejects.toThrow('Job 1 intentionally failed');
+
+      // Job 2 should succeed independently
+      await expect(promise2).resolves.toBeUndefined();
+
+      // Both jobs should have attempted execution
+      expect(executionOrder).toEqual(['0xfail', '0xsucceed']);
+      expect(blockchainService.executeIntent).toHaveBeenCalledTimes(2);
+    });
+
     it('should ensure sequential processing per chain', async () => {
       const jobData1 = { ...mockJobData, intent: { ...mockIntent, intentHash: '0xhash1' as Hex } };
       const jobData2 = { ...mockJobData, intent: { ...mockIntent, intentHash: '0xhash2' as Hex } };
@@ -336,7 +378,7 @@ describe('BlockchainProcessor', () => {
       expect(blockchainService.executeIntent).toHaveBeenCalledTimes(3);
     });
 
-    it('should clean up chain locks after completion', async () => {
+    it('should reuse mutexes for chain locks', async () => {
       const mockJob: Job<string> = {
         data: serializeWithBigInt(mockJobData),
       } as any;
@@ -344,8 +386,10 @@ describe('BlockchainProcessor', () => {
       await processor.process(mockJob);
 
       // Access private property for testing
-      const chainLocks = (processor as any).chainLocks as Map<string, Promise<void>>;
-      expect(chainLocks.size).toBe(0);
+      const chainLocks = (processor as any).chainLocks as Map<string, any>;
+      // Mutex should remain in map for reuse by future jobs
+      expect(chainLocks.size).toBe(1);
+      expect(chainLocks.has('10')).toBe(true);
     });
 
     it('should handle bigint chainId', async () => {
