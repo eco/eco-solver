@@ -15,7 +15,7 @@ export class ProversConfigService {
    * Get the complete CCIP prover configuration
    */
   get ccip(): CcipProverConfig {
-    return this.configService.get<CcipProverConfig>('provers.ccip')!;
+    return this.configService.getOrThrow<CcipProverConfig>('provers.ccip');
   }
 
   /**
@@ -25,30 +25,30 @@ export class ProversConfigService {
    */
   getCcipChainSelector(chainId: number): string | undefined {
     const ccipConfig = this.ccip;
-    return ccipConfig?.chainSelectors?.[chainId];
+    return ccipConfig.chainSelectors?.[chainId];
   }
 
   /**
    * Get the CCIP gas limit
-   * @returns The configured gas limit, or default 300000
+   * @returns The configured gas limit
    */
   getCcipGasLimit(): number {
-    return this.ccip?.gasLimit ?? 300000;
+    return this.ccip.gasLimit;
   }
 
   /**
    * Get the CCIP allowOutOfOrderExecution flag
-   * @returns The configured flag, or default true
+   * @returns The configured flag
    */
   getCcipAllowOutOfOrderExecution(): boolean {
-    return this.ccip?.allowOutOfOrderExecution ?? true;
+    return this.ccip.allowOutOfOrderExecution;
   }
 
   /**
    * Get the CCIP deadline buffer in seconds
-   * @returns The configured deadline buffer, or default 7200 (2 hours)
+   * @returns The configured deadline buffer
    */
   getCcipDeadlineBuffer(): number {
-    return this.ccip?.deadlineBuffer ?? 7200;
+    return this.ccip.deadlineBuffer;
   }
 }
