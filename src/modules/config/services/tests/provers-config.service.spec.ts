@@ -82,7 +82,9 @@ describe('ProversConfigService', () => {
       mockConfigService.getOrThrow.mockImplementation(() => {
         throw new Error('Configuration key "provers.ccip" does not exist');
       });
-      expect(() => service.getCcipChainSelector(1)).toThrow('Configuration key "provers.ccip" does not exist');
+      expect(() => service.getCcipChainSelector(1)).toThrow(
+        'Configuration key "provers.ccip" does not exist',
+      );
     });
   });
 
@@ -95,7 +97,9 @@ describe('ProversConfigService', () => {
       mockConfigService.getOrThrow.mockImplementation(() => {
         throw new Error('Configuration key "provers.ccip" does not exist');
       });
-      expect(() => service.getCcipGasLimit()).toThrow('Configuration key "provers.ccip" does not exist');
+      expect(() => service.getCcipGasLimit()).toThrow(
+        'Configuration key "provers.ccip" does not exist',
+      );
     });
   });
 
@@ -108,7 +112,9 @@ describe('ProversConfigService', () => {
       mockConfigService.getOrThrow.mockImplementation(() => {
         throw new Error('Configuration key "provers.ccip" does not exist');
       });
-      expect(() => service.getCcipAllowOutOfOrderExecution()).toThrow('Configuration key "provers.ccip" does not exist');
+      expect(() => service.getCcipAllowOutOfOrderExecution()).toThrow(
+        'Configuration key "provers.ccip" does not exist',
+      );
     });
   });
 
@@ -121,7 +127,9 @@ describe('ProversConfigService', () => {
       mockConfigService.getOrThrow.mockImplementation(() => {
         throw new Error('Configuration key "provers.ccip" does not exist');
       });
-      expect(() => service.getCcipDeadlineBuffer()).toThrow('Configuration key "provers.ccip" does not exist');
+      expect(() => service.getCcipDeadlineBuffer()).toThrow(
+        'Configuration key "provers.ccip" does not exist',
+      );
     });
   });
 });
