@@ -26,6 +26,12 @@ describe('ProversConfigService', () => {
         }
         return undefined;
       }),
+      getOrThrow: jest.fn().mockImplementation((key: string) => {
+        if (key === 'provers.ccip') {
+          return mockCcipConfig;
+        }
+        throw new Error(`Configuration key "${key}" does not exist`);
+      }),
     } as unknown as jest.Mocked<ConfigService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -44,12 +50,14 @@ describe('ProversConfigService', () => {
   describe('ccip getter', () => {
     it('should return CCIP configuration', () => {
       expect(service.ccip).toEqual(mockCcipConfig);
-      expect(mockConfigService.get).toHaveBeenCalledWith('provers.ccip');
+      expect(mockConfigService.getOrThrow).toHaveBeenCalledWith('provers.ccip');
     });
 
-    it('should return undefined when CCIP not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
-      expect(service.ccip).toBeUndefined();
+    it('should throw error when CCIP not configured', () => {
+      mockConfigService.getOrThrow.mockImplementation(() => {
+        throw new Error('Configuration key "provers.ccip" does not exist');
+      });
+      expect(() => service.ccip).toThrow('Configuration key "provers.ccip" does not exist');
     });
   });
 
@@ -70,9 +78,11 @@ describe('ProversConfigService', () => {
       expect(service.getCcipChainSelector(999)).toBeUndefined();
     });
 
-    it('should return undefined when CCIP not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
-      expect(service.getCcipChainSelector(1)).toBeUndefined();
+    it('should throw error when CCIP not configured', () => {
+      mockConfigService.getOrThrow.mockImplementation(() => {
+        throw new Error('Configuration key "provers.ccip" does not exist');
+      });
+      expect(() => service.getCcipChainSelector(1)).toThrow('Configuration key "provers.ccip" does not exist');
     });
   });
 
@@ -81,9 +91,11 @@ describe('ProversConfigService', () => {
       expect(service.getCcipGasLimit()).toBe(300000);
     });
 
-    it('should return default gas limit when not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
-      expect(service.getCcipGasLimit()).toBe(300000);
+    it('should throw error when CCIP not configured', () => {
+      mockConfigService.getOrThrow.mockImplementation(() => {
+        throw new Error('Configuration key "provers.ccip" does not exist');
+      });
+      expect(() => service.getCcipGasLimit()).toThrow('Configuration key "provers.ccip" does not exist');
     });
   });
 
@@ -92,9 +104,11 @@ describe('ProversConfigService', () => {
       expect(service.getCcipAllowOutOfOrderExecution()).toBe(true);
     });
 
-    it('should return default flag when not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
-      expect(service.getCcipAllowOutOfOrderExecution()).toBe(true);
+    it('should throw error when CCIP not configured', () => {
+      mockConfigService.getOrThrow.mockImplementation(() => {
+        throw new Error('Configuration key "provers.ccip" does not exist');
+      });
+      expect(() => service.getCcipAllowOutOfOrderExecution()).toThrow('Configuration key "provers.ccip" does not exist');
     });
   });
 
@@ -103,9 +117,11 @@ describe('ProversConfigService', () => {
       expect(service.getCcipDeadlineBuffer()).toBe(7200);
     });
 
-    it('should return default deadline buffer when not configured', () => {
-      mockConfigService.get.mockReturnValue(undefined);
-      expect(service.getCcipDeadlineBuffer()).toBe(7200);
+    it('should throw error when CCIP not configured', () => {
+      mockConfigService.getOrThrow.mockImplementation(() => {
+        throw new Error('Configuration key "provers.ccip" does not exist');
+      });
+      expect(() => service.getCcipDeadlineBuffer()).toThrow('Configuration key "provers.ccip" does not exist');
     });
   });
 });
