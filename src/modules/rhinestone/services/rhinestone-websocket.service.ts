@@ -359,15 +359,6 @@ export class RhinestoneWebsocketService implements OnModuleInit, OnModuleDestroy
         error,
       });
     });
-
-    this.ws.on('ping', (_data: Buffer) => {
-      this.logger.debug('Received ping from server');
-      // ws library automatically sends pong - no action needed
-    });
-
-    this.ws.on('pong', (_data: Buffer) => {
-      this.logger.debug('Received pong from server');
-    });
   }
 
   /**
