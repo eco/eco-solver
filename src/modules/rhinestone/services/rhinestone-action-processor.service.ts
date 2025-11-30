@@ -1,17 +1,14 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { Address, Hex } from 'viem';
 
-import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
-import { RhinestonePayload } from '@/modules/queue/interfaces/execution-job.interface';
-import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
+import { QueueService } from '@/modules/queue/queue.service';
 
 import { RelayerActionV1 } from '../types/relayer-action.types';
-import { decodeAdapterClaim, decodeAdapterFill } from '../utils/decoder';
+import { decodeAdapterClaim, decodeAdapterFills } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
 
 import { RhinestoneMetadataService } from './rhinestone-metadata.service';
@@ -34,7 +31,7 @@ export class RhinestoneActionProcessor {
     private readonly validationService: RhinestoneValidationService,
     private readonly intentsService: IntentsService,
     private readonly metadataService: RhinestoneMetadataService,
-    @Inject(QUEUE_SERVICE) private readonly queueService: IQueueService,
+    private readonly queueService: QueueService,
   ) {}
 
   /**
@@ -56,74 +53,113 @@ export class RhinestoneActionProcessor {
       },
       async (span) => {
         try {
-          console.dir(payload, { depth: null });
+          const { messageId, action } = payload;
+          const beforeFillClaims = action.claims.filter((c) => c.beforeFill === true);
+          const fill = action.fill;
 
-          // 1. Validate
-          const claim = payload.action.claims.find((c) => c.beforeFill === true);
-          const fill = payload.action.fill;
+          this.logger.log(`Processing Rhinestone action: ${messageId}`);
 
-          if (!claim) {
-            throw new Error('No beforeFill claim found in RelayerAction');
+          if (beforeFillClaims.length === 0) {
+            throw new Error('No beforeFill claims found in RelayerAction');
           }
 
           if (!fill) {
             throw new Error('No fill found in RelayerAction');
           }
 
-          this.validationService.validateSettlementLayerFromMetadata(claim.metadata);
-          this.validationService.validateActionIntegrity(claim.call, fill.call);
+          // Decode all fills from batched transaction
+          const fillsData = decodeAdapterFills(fill.call.data as Hex);
 
-          // 2. Extract intent
-          const claimData = decodeAdapterClaim(claim.call.data as Hex);
-          const fillData = decodeAdapterFill(fill.call.data as Hex);
-          const intent = extractIntent({ claimData, fillData });
-
-          this.logger.log(`Extracted Rhinestone intent: ${intent.intentHash}`);
-          span.setAttribute('rhinestone.intent_hash', intent.intentHash);
-
-          // 3. Store in DB (duplicate detection)
-          const { isNew } = await this.intentsService.createIfNotExists(intent);
-
-          if (!isNew) {
-            this.logger.log(`Duplicate Rhinestone intent: ${intent.intentHash}`);
-            return;
-          }
-
-          // 4. Prepare Rhinestone payload
-          const rhinestonePayload: RhinestonePayload = {
-            messageId: payload.messageId,
-            claimTo: claim.call.to as Address,
-            claimData: claim.call.data as Hex,
-            claimValue: BigInt(claim.call.value),
-            fillTo: fill.call.to as Address,
-            fillData: fill.call.data as Hex,
-            fillValue: BigInt(fill.call.value),
-          };
-
-          this.logger.log('Rhinestone payload:', {
-            claimTo: rhinestonePayload.claimTo,
-            claimData: rhinestonePayload.claimData,
-            claimValue: rhinestonePayload.claimValue.toString(),
-            fillTo: rhinestonePayload.fillTo,
-            fillData: rhinestonePayload.fillData,
-            fillValue: rhinestonePayload.fillValue.toString,
-          });
-
-          // 5. Store payload in Redis (strategy will retrieve it)
-          await this.metadataService.set(intent.intentHash, rhinestonePayload);
-
-          this.logger.log('Rhinestone payload stored in Redis');
-
-          // 6. Queue to FulfillmentQueue (validations will run in strategy)
-          await this.queueService.addIntentToFulfillmentQueue(
-            intent,
-            FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
+          this.logger.log(
+            `Decoded ${fillsData.length} batched eco_handleFill calls from fill transaction`,
           );
 
-          this.logger.log(`Queued Rhinestone intent to FulfillmentQueue: ${intent.intentHash}`);
+          // Process each claim and extract intent
+          const claimsWithIntents = await Promise.all(
+            beforeFillClaims
+              .filter((c) => c.metadata?.settlementLayer === 'ECO')
+              .map(async (claim, index) => {
+                this.validationService.validateSettlementLayerFromMetadata(claim.metadata);
+                this.validationService.validateActionIntegrity(claim.call, fill.call);
 
-          // TODO: For now, we queue and don't send immediate status
-          // Later we can implement async status updates when execution completes
+                const claimData = decodeAdapterClaim(claim.call.data as Hex);
+                const fillData = fillsData[index];
+                const intent = extractIntent({ claimData, fillData });
+
+                this.logger.log(`Extracted intent: ${intent.intentHash} from claim ${index + 1}`);
+
+                return {
+                  intent,
+                  intentHash: intent.intentHash,
+                  chainId: BigInt(claim.call.chainId),
+                  transaction: {
+                    to: claim.call.to as Address,
+                    data: claim.call.data as Hex,
+                    value: BigInt(claim.call.value),
+                  },
+                };
+              }),
+          );
+
+          span.setAttribute('rhinestone.intents_extracted', claimsWithIntents.length);
+
+          // Store all intents in database
+          for (const { intent } of claimsWithIntents) {
+            const { isNew } = await this.intentsService.createIfNotExists(intent);
+
+            if (!isNew) {
+              this.logger.warn(`Intent ${intent.intentHash} already exists - may be retry`);
+            }
+          }
+
+          // Pre-calculate token approval amounts from decoded fills
+          const tokenAmountsMap = new Map<string, bigint>();
+
+          for (const fillData of fillsData) {
+            for (const { token, amount } of fillData.route.tokens) {
+              const current = tokenAmountsMap.get(token) || 0n;
+              tokenAmountsMap.set(token, current + amount);
+            }
+          }
+
+          const requiredApprovals = Array.from(tokenAmountsMap.entries()).map(
+            ([token, amount]) => ({
+              token: token as Address,
+              amount,
+            }),
+          );
+
+          this.logger.log(`Calculated ${requiredApprovals.length} token approvals`);
+
+          // Build claims for flow
+          const claims = claimsWithIntents.map((c) => ({
+            intentHash: c.intentHash,
+            chainId: c.chainId,
+            transaction: c.transaction,
+          }));
+
+          // Build fill data with pre-calculated approvals
+          const fillParams = {
+            intents: claimsWithIntents.map((c) => c.intent),
+            chainId: BigInt(fill.call.chainId),
+            transaction: {
+              to: fill.call.to as Address,
+              data: fill.call.data as Hex,
+              value: BigInt(fill.call.value),
+            },
+            requiredApprovals,
+          };
+
+          // Queue multiclaim flow
+          await this.queueService.addRhinestoneMulticlaimFlow({
+            messageId,
+            actionId: action.id,
+            claims,
+            fill: fillParams,
+            walletId: 'basic',
+          });
+
+          this.logger.log(`Rhinestone multiclaim flow queued: ${messageId}`);
         } catch (error) {
           this.logger.error(
             `Rhinestone action failed: ${error instanceof Error ? error.message : String(error)}`,

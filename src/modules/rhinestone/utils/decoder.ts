@@ -117,24 +117,30 @@ export function decodeAdapterClaim(data: Hex): ClaimData {
   );
 }
 
-export function decodeAdapterFill(data: Hex): FillData {
-  // Decode the optimized router function (optimized_routeFill921336808)
+/**
+ * Decodes ALL eco_handleFill calls from a batched Rhinestone fill transaction
+ *
+ * Rhinestone batches multiple eco_handleFill calls into a single router transaction.
+ * This function extracts all of them, not just the first one.
+ *
+ * @param data - The fill transaction calldata (router.optimized_routeFill921336808)
+ * @returns Array of FillData, one per batched eco_handleFill call
+ */
+export function decodeAdapterFills(data: Hex): FillData[] {
   const routerDecoded = decodeFunctionData({
     abi: rhinestoneRouterAbi,
     data,
   });
 
-  // The second parameter is encodedAdapterCalldatas (bytes)
-  // Per Rhinestone team: "optimized functions have the same args as unoptimized but encoded as bytes"
   const encodedAdapterCalldatas = routerDecoded.args[1] as Hex;
 
-  // Decode it as bytes[] array
   const adapterCalldatasArray = decodeAbiParameters(
     parseAbiParameters('bytes[] adapterCalldatas'),
     encodedAdapterCalldatas,
   )[0];
 
-  // Loop through to find eco_handleFill (same pattern as decodeAdapterClaim)
+  const fills: FillData[] = [];
+
   for (let i = 0; i < adapterCalldatasArray.length; i++) {
     const calldata = adapterCalldatasArray[i];
 
@@ -149,14 +155,32 @@ export function decodeAdapterFill(data: Hex): FillData {
       });
 
       if (adapterDecoded.functionName === 'eco_handleFill') {
-        return adapterDecoded.args[0];
+        fills.push(adapterDecoded.args[0]);
       }
     } catch (error) {
       continue;
     }
   }
 
-  throw new Error(
-    'No valid eco_handleFill found in adapter calldatas. All calldatas were either direct router calls or failed to decode.',
-  );
+  if (fills.length === 0) {
+    throw new Error(
+      'No valid eco_handleFill calls found in batched transaction. All calldatas were either direct router calls or failed to decode.',
+    );
+  }
+
+  return fills;
+}
+
+/**
+ * Decodes the first eco_handleFill call from a Rhinestone fill transaction
+ *
+ * For backwards compatibility with single-claim flows.
+ * For multiclaim support, use decodeAdapterFills() to get all batched fills.
+ *
+ * @param data - The fill transaction calldata
+ * @returns First FillData from the batched transaction
+ */
+export function decodeAdapterFill(data: Hex): FillData {
+  const fills = decodeAdapterFills(data);
+  return fills[0];
 }

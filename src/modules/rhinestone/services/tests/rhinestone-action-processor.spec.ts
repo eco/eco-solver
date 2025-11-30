@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentsService } from '@/modules/intents/intents.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
+import { QueueService } from '@/modules/queue/queue.service';
 
 import { sampleAction } from '../../utils/tests/sample-action';
 import { RhinestoneActionProcessor } from '../rhinestone-action-processor.service';
@@ -13,7 +13,6 @@ import { RhinestoneWebsocketService } from '../rhinestone-websocket.service';
 describe('RhinestoneActionProcessor', () => {
   let service: RhinestoneActionProcessor;
   let intentsService: jest.Mocked<IntentsService>;
-  let metadataService: jest.Mocked<RhinestoneMetadataService>;
   let queueService: jest.Mocked<any>;
   let websocketService: jest.Mocked<RhinestoneWebsocketService>;
   let validationService: jest.Mocked<RhinestoneValidationService>;
@@ -66,9 +65,10 @@ describe('RhinestoneActionProcessor', () => {
           },
         },
         {
-          provide: QUEUE_SERVICE,
+          provide: QueueService,
           useValue: {
             addIntentToFulfillmentQueue: jest.fn().mockResolvedValue(undefined),
+            addRhinestoneMulticlaimFlow: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -76,8 +76,7 @@ describe('RhinestoneActionProcessor', () => {
 
     service = module.get<RhinestoneActionProcessor>(RhinestoneActionProcessor);
     intentsService = module.get(IntentsService);
-    metadataService = module.get(RhinestoneMetadataService);
-    queueService = module.get(QUEUE_SERVICE);
+    queueService = module.get(QueueService);
     websocketService = module.get(RhinestoneWebsocketService);
     validationService = module.get(RhinestoneValidationService);
 
@@ -97,34 +96,26 @@ describe('RhinestoneActionProcessor', () => {
       expect(validationService.validateSettlementLayerFromMetadata).toHaveBeenCalled();
       expect(validationService.validateActionIntegrity).toHaveBeenCalled();
 
-      // Verify intent was stored in DB
-      expect(intentsService.createIfNotExists).toHaveBeenCalledWith(
-        expect.objectContaining({
-          intentHash: expect.any(String),
-        }),
-      );
+      // Verify intents were stored in DB
+      expect(intentsService.createIfNotExists).toHaveBeenCalled();
 
-      // Verify metadata was stored in Redis
-      expect(metadataService.set).toHaveBeenCalledWith(
-        expect.any(String), // intentHash
+      // Verify multiclaim flow was queued
+      expect(queueService.addRhinestoneMulticlaimFlow).toHaveBeenCalledWith(
         expect.objectContaining({
-          claimTo: expect.any(String),
-          claimData: expect.any(String),
-          fillTo: expect.any(String),
-          fillData: expect.any(String),
+          messageId: 'test-message-123',
+          actionId: expect.any(String),
+          claims: expect.any(Array),
+          fill: expect.objectContaining({
+            intents: expect.any(Array),
+            requiredApprovals: expect.any(Array),
+            transaction: expect.any(Object),
+          }),
+          walletId: 'basic',
         }),
-      );
-
-      // Verify intent was queued to FulfillmentQueue
-      expect(queueService.addIntentToFulfillmentQueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          intentHash: expect.any(String),
-        }),
-        'rhinestone',
       );
     });
 
-    it('should skip duplicate intents', async () => {
+    it('should handle duplicate intents (retry support)', async () => {
       intentsService.createIfNotExists.mockResolvedValue({ isNew: false } as any);
 
       const payload = {
@@ -134,13 +125,12 @@ describe('RhinestoneActionProcessor', () => {
 
       await service.handleRelayerAction(payload);
 
-      // Should still validate and store
+      // Should still validate and process
       expect(validationService.validateSettlementLayerFromMetadata).toHaveBeenCalled();
       expect(intentsService.createIfNotExists).toHaveBeenCalled();
 
-      // But should NOT queue or store metadata for duplicates
-      expect(metadataService.set).not.toHaveBeenCalled();
-      expect(queueService.addIntentToFulfillmentQueue).not.toHaveBeenCalled();
+      // Should still queue the flow (allows retries)
+      expect(queueService.addRhinestoneMulticlaimFlow).toHaveBeenCalled();
     });
 
     it('should send error status on validation failure', async () => {

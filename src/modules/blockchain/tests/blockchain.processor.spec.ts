@@ -198,7 +198,7 @@ describe('BlockchainProcessor', () => {
         IntentStatus.FAILED,
       );
       expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Job job-123 failed after 3 attempts'),
+        expect.stringContaining('Job job-123 of type standard failed after 3 attempts'),
       );
     });
 

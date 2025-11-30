@@ -4,6 +4,7 @@ import { SpanStatusCode } from '@opentelemetry/api';
 
 import { BaseChainExecutor } from '@/common/abstractions/base-chain-executor.abstract';
 import { Intent, IntentStatus } from '@/common/interfaces/intent.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainType } from '@/common/utils/chain-type-detector';
 import { getErrorMessage } from '@/common/utils/error-handler';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
@@ -183,9 +184,16 @@ export class BlockchainExecutorService {
           // Phase 2: FILL on destination chain (Arbitrum)
           this.logger.log(`Rhinestone Phase 2: FILL on chain ${destChainId}`);
           span.addEvent('rhinestone.phase.fill.start');
+
+          // Calculate approval amounts from intent
+          const requiredApprovals = intent.route.tokens.map(({ token, amount }) => ({
+            token: AddressNormalizer.denormalizeToEvm(token),
+            amount,
+          }));
+
           const fillTxHash = await destExecutor.executeRhinestoneFill(
             destChainId,
-            intent,
+            requiredApprovals,
             rhinestonePayload.fillTo,
             rhinestonePayload.fillData,
             rhinestonePayload.fillValue,

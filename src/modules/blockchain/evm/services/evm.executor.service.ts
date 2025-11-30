@@ -366,7 +366,7 @@ export class EvmExecutorService extends BaseChainExecutor {
    */
   async executeRhinestoneFill(
     chainId: number,
-    intent: Intent,
+    requiredApprovals: Array<{ token: Address; amount: bigint }>,
     routerAddress: Address,
     fillData: Hex,
     fillValue: bigint,
@@ -379,7 +379,7 @@ export class EvmExecutorService extends BaseChainExecutor {
         attributes: {
           'evm.operation': 'rhinestone_fill',
           'evm.chain_id': chainId.toString(),
-          'evm.intent_hash': intent.intentHash,
+          'evm.approval_count': requiredApprovals.length,
           'evm.fill_value': fillValue.toString(),
           'evm.router_address': routerAddress,
         },
@@ -389,9 +389,13 @@ export class EvmExecutorService extends BaseChainExecutor {
           const wallet = this.walletManager.getWallet(walletId, chainId);
           const solverAddress = await wallet.getAddress();
 
-          // Approve tokens for
-          const approvalTxs = intent.route.tokens.map(({ token, amount }) => ({
-            to: AddressNormalizer.denormalizeToEvm(token),
+          this.logger.log(
+            `Approving ${requiredApprovals.length} tokens for batched fill transaction`,
+          );
+
+          // Create approval transactions using pre-calculated amounts
+          const approvalTxs = requiredApprovals.map(({ token, amount }) => ({
+            to: token,
             data: encodeFunctionData({
               abi: erc20Abi,
               functionName: 'approve',

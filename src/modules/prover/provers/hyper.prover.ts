@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
-import { encodeAbiParameters, Hex, zeroAddress } from 'viem';
+import { encodeAbiParameters, Hex, pad, zeroAddress } from 'viem';
 
 import { BaseProver } from '@/common/abstractions/base-prover.abstract';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { ProverType } from '@/common/interfaces/prover.interface';
+import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { BlockchainConfigService } from '@/modules/config/services';
 
 @Injectable()
@@ -20,6 +21,11 @@ export class HyperProver extends BaseProver {
   }
 
   async generateProof(intent: Intent): Promise<Hex> {
+    // Convert UniversalAddress prover to EVM address, then pad to bytes32
+    // The sourceChainProver in the proof needs to be the EVM address padded to bytes32
+    const proverEvmAddress = AddressNormalizer.denormalizeToEvm(intent.reward.prover);
+    const proverBytes32 = pad(proverEvmAddress, { size: 32 });
+
     return encodeAbiParameters(
       [
         {
@@ -27,7 +33,7 @@ export class HyperProver extends BaseProver {
           components: [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'address' }],
         },
       ],
-      [[intent.reward.prover as Hex, '0x', zeroAddress]],
+      [[proverBytes32, '0x', zeroAddress]],
     );
   }
 

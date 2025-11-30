@@ -25,6 +25,10 @@ describe('QueueService - Fulfillment Job Delay', () => {
     mockExecutionQueue = {
       add: jest.fn().mockResolvedValue({}),
       isPaused: jest.fn().mockResolvedValue(false),
+      opts: {
+        connection: {},
+        prefix: 'test',
+      },
     };
 
     mockFulfillmentQueue = {
@@ -165,6 +169,10 @@ describe('QueueService - Execution Queue Configuration', () => {
     mockExecutionQueue = {
       add: jest.fn().mockResolvedValue({}),
       isPaused: jest.fn().mockResolvedValue(false),
+      opts: {
+        connection: {},
+        prefix: 'test',
+      },
     };
 
     mockFulfillmentQueue = {
@@ -207,6 +215,7 @@ describe('QueueService - Execution Queue Configuration', () => {
   it('should use configured job options for execution queue', async () => {
     const mockIntent = createMockIntent();
     const jobData = {
+      type: 'standard' as const,
       strategy: FULFILLMENT_STRATEGY_NAMES.STANDARD,
       intent: mockIntent,
       chainId: BigInt(1),
