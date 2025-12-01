@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger, NestInterceptor, ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 
 import helmet from 'helmet';
@@ -17,6 +17,12 @@ import { DataDogInterceptor } from '@/modules/datadog';
 import { TraceInterceptor } from '@/modules/opentelemetry';
 
 async function bootstrap() {
+  // temporary kill switch to prevent solver v2 from operating (AWS auth outage)
+  console.error(
+    '🚫 SOLVER DISABLED - This instance is deliberately bricked to prevent racing with other solvers',
+  );
+  process.exit(1);
+
   // Determine environment for winston configuration
   const env = process.env.ENV || process.env.NODE_ENV || 'development';
   const isProduction = env !== 'development';
@@ -81,7 +87,7 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter(httpAdapter));
 
   // Global interceptors
-  const interceptors = [];
+  const interceptors: NestInterceptor[] = [];
 
   // DataDog metrics interceptor (if enabled)
   const dataDogConfig = app.get(DataDogConfigService);
