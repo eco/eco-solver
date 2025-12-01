@@ -61,6 +61,17 @@ type USDT0StrategyContext = {
   minAmountLD?: bigint
 }
 
+// Context to pass through CCIP delivery for destination swap
+interface CCIPLiFiDeliveryContext {
+  destinationSwapQuote: LiFiStrategyContext
+  walletAddress: string
+  originalTokenOut: {
+    address: Hex
+    chainId: number
+    decimals: number
+  }
+}
+
 type CCIPStrategyContext = {
   router: Hex
   sourceChainSelector: string
@@ -72,6 +83,7 @@ type CCIPStrategyContext = {
   feeTokenAddress?: Hex
   feeTokenSymbol?: string
   estimatedFee: bigint
+  ccipLiFiContext?: CCIPLiFiDeliveryContext
 }
 
 interface CCTPV2StrategyContext {
@@ -123,6 +135,27 @@ interface USDT0LiFiStrategyContext {
   id?: string
 }
 
+// CCIPLiFi strategy context for multi-step CCIP + LiFi operations
+interface CCIPLiFiStrategyContext {
+  sourceSwapQuote?: LiFiStrategyContext // LiFi route for token → bridge token
+  ccipTransfer: {
+    sourceChain: number
+    destinationChain: number
+    bridgeTokenSymbol: string
+    bridgeTokenAddress: Hex
+    amount: bigint
+  }
+  destinationSwapQuote?: LiFiStrategyContext // LiFi route for bridge token → token
+  steps: ('sourceSwap' | 'ccipBridge' | 'destinationSwap')[]
+  gasEstimation?: {
+    sourceChainGas: bigint
+    destinationChainGas: bigint
+    totalGasUSD: number
+    gasWarnings: string[]
+  }
+  id?: string
+}
+
 type Strategy =
   | 'LiFi'
   | 'CCTP'
@@ -137,6 +170,7 @@ type Strategy =
   | 'USDT0'
   | 'USDT0LiFi'
   | 'CCIP'
+  | 'CCIPLiFi'
 type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
   ? LiFiStrategyContext
   : S extends 'CCTP'
@@ -163,7 +197,9 @@ type StrategyContext<S extends Strategy = Strategy> = S extends 'LiFi'
                         ? USDT0LiFiStrategyContext
                         : S extends 'CCIP'
                           ? CCIPStrategyContext
-                          : never
+                          : S extends 'CCIPLiFi'
+                            ? CCIPLiFiStrategyContext
+                            : never
 
 // Quote
 

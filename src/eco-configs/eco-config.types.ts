@@ -93,6 +93,7 @@ export type EcoConfigType = {
   usdt0: USDT0Config
   ccip: CCIPConfig
   CCIPProver: CCIPProverConfig
+  ccipLiFi: CCIPLiFiConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -605,6 +606,11 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface CCIPLiFiConfig {
+  maxSlippage: number
+  bridgeTokens: Record<number, Record<string, Hex>>
 }
 
 export interface SquidConfig {

@@ -289,6 +289,7 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
         walletAddress: ccipQuoteContext.destinationAccount,
         id: quote.id,
         fromBlockNumber: deliveryFromBlockNumber.toString(),
+        ccipLiFiContext: ccipQuoteContext.ccipLiFiContext,
       }
 
       const { delivery } = config

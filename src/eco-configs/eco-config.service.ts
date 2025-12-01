@@ -619,6 +619,31 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('CCIPProver')
   }
 
+  getCCIPLiFiConfig(): EcoConfigType['ccipLiFi'] {
+    const liquidityManager = this.getLiquidityManager()
+    const ccip = this.getCCIP()
+
+    // Build bridgeTokens map: chainId -> { symbol -> address }
+    const bridgeTokens = ccip.chains.reduce(
+      (acc, chain) => {
+        acc[chain.chainId] = Object.entries(chain.tokens).reduce(
+          (tokenAcc, [symbol, tokenConfig]) => {
+            tokenAcc[symbol] = getAddress(tokenConfig.address)
+            return tokenAcc
+          },
+          {} as Record<string, Hex>,
+        )
+        return acc
+      },
+      {} as Record<number, Record<string, Hex>>,
+    )
+
+    return {
+      maxSlippage: liquidityManager.maxQuoteSlippage,
+      bridgeTokens,
+    }
+  }
+
   private getAddress(address: string): Address {
     if (!address) {
       return zeroAddress

@@ -26,6 +26,7 @@ import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rej
 import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
 import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
 import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
+import { CCIPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP-LiFi/ccip-lifi-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -48,6 +49,7 @@ export class LiquidityProviderService {
     protected readonly usdt0ProviderService: USDT0ProviderService,
     protected readonly usdt0LiFiProviderService: USDT0LiFiProviderService,
     protected readonly ccipProviderService: CCIPProviderService,
+    protected readonly ccipLiFiProviderService: CCIPLiFiProviderService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rejectionRepository: RebalanceQuoteRejectionRepository,
   ) {
@@ -297,6 +299,8 @@ export class LiquidityProviderService {
         return this.usdt0LiFiProviderService as unknown as IRebalanceProvider<Strategy>
       case 'CCIP':
         return this.ccipProviderService
+      case 'CCIPLiFi':
+        return this.ccipLiFiProviderService as unknown as IRebalanceProvider<Strategy>
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }

@@ -24,6 +24,7 @@ import { EcoAnalyticsService } from '@/analytics/eco-analytics.service'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
+import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 
 @Injectable()
 export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'> {
@@ -379,30 +380,20 @@ export class USDT0LiFiProviderService implements IRebalanceProvider<'USDT0LiFi'>
       id: sourceSwapQuote.id,
     }
     const res = await this.liFiService.execute(walletAddress, quote as any)
-    return this.extractTransactionHashFromLiFiResult(res, sourceSwapQuote.id)
-  }
+    const txHash = extractLiFiTxHash(res)
 
-  private extractTransactionHashFromLiFiResult(lifiResult: any, id: string): Hex {
-    if (Array.isArray(lifiResult?.steps) && lifiResult.steps.length > 0) {
-      for (let i = lifiResult.steps.length - 1; i >= 0; i--) {
-        const step = lifiResult.steps[i]
-        const processes = step?.execution?.process
-        if (Array.isArray(processes) && processes.length > 0) {
-          for (let j = processes.length - 1; j >= 0; j--) {
-            const txHash = processes[j]?.txHash
-            if (txHash) return txHash as Hex
-          }
-        }
-      }
+    if (!txHash) {
+      this.logger.warn(
+        EcoLogMessage.withId({
+          message: 'USDT0LiFi: Could not extract tx hash from LiFi result',
+          id: sourceSwapQuote.id,
+          properties: { lifiResult: res },
+        }),
+      )
+      return '0x0' as Hex
     }
-    this.logger.warn(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFi: Could not extract tx hash from LiFi result',
-        id,
-        properties: { lifiResult },
-      }),
-    )
-    return '0x0' as Hex
+
+    return txHash
   }
 
   private async buildUSDT0Quote(quote: RebalanceQuote<'USDT0LiFi'>) {

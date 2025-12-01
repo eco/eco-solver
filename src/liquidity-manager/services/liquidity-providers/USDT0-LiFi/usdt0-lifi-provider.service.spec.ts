@@ -13,6 +13,7 @@ import { EcoAnalyticsService } from '@/analytics'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 
 describe('USDT0LiFiProviderService', () => {
   let service: USDT0LiFiProviderService
@@ -274,7 +275,7 @@ describe('USDT0LiFiProviderService', () => {
     expect(injectedRepo.updateStatus).toHaveBeenCalledWith('reb-1', RebalanceStatus.FAILED)
   })
 
-  describe('extractTransactionHashFromLiFiResult', () => {
+  describe('extractLiFiTxHash helper', () => {
     it('returns the latest txHash scanning steps and processes in reverse (tx in last process of last step)', () => {
       const lifiResult = {
         steps: [
@@ -296,7 +297,7 @@ describe('USDT0LiFiProviderService', () => {
           },
         ],
       }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-1')
+      const tx = extractLiFiTxHash(lifiResult)
       expect(tx).toBe('0xlast')
     })
 
@@ -307,7 +308,7 @@ describe('USDT0LiFiProviderService', () => {
           { execution: { process: [{ type: 'SWAP', status: 'DONE', txHash: '0xhash2' }] } },
         ],
       }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-2')
+      const tx = extractLiFiTxHash(lifiResult)
       expect(tx).toBe('0xhash2')
     })
 
@@ -318,14 +319,14 @@ describe('USDT0LiFiProviderService', () => {
           { execution: { process: [{ type: 'SWAP', status: 'DONE' }] } },
         ],
       }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-3')
+      const tx = extractLiFiTxHash(lifiResult)
       expect(tx).toBe('0xfirst')
     })
 
     it('returns 0x0 when no txHash is present', () => {
       const lifiResult = { steps: [{ execution: { process: [] } }] }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-4')
-      expect(tx).toBe('0x0')
+      const tx = extractLiFiTxHash(lifiResult)
+      expect(tx).toBeUndefined()
     })
   })
 })

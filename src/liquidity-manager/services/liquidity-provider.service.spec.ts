@@ -20,6 +20,7 @@ import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rej
 import { USDT0ProviderService } from './liquidity-providers/USDT0/usdt0-provider.service'
 import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
 import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
+import { CCIPLiFiProviderService } from './liquidity-providers/CCIP-LiFi/ccip-lifi-provider.service'
 
 const walletAddr = '0xWalletAddress'
 
@@ -38,6 +39,7 @@ describe('LiquidityProviderService', () => {
   let gatewayProviderService: GatewayProviderService
   let usdt0ProviderService: USDT0ProviderService
   let ccipProviderService: CCIPProviderService
+  let ccipLiFiProviderService: CCIPLiFiProviderService
   let rejectionRepository: RebalanceQuoteRejectionRepository
 
   beforeAll(() => {
@@ -86,6 +88,10 @@ describe('LiquidityProviderService', () => {
           provide: CCIPProviderService,
           useValue: createMock<CCIPProviderService>(),
         },
+        {
+          provide: CCIPLiFiProviderService,
+          useValue: createMock<CCIPLiFiProviderService>(),
+        },
       ],
     }).compile()
 
@@ -104,6 +110,7 @@ describe('LiquidityProviderService', () => {
     gatewayProviderService = module.get<GatewayProviderService>(GatewayProviderService)
     usdt0ProviderService = module.get<USDT0ProviderService>(USDT0ProviderService)
     ccipProviderService = module.get<CCIPProviderService>(CCIPProviderService)
+    ccipLiFiProviderService = module.get<CCIPLiFiProviderService>(CCIPLiFiProviderService)
     rejectionRepository = module.get<RebalanceQuoteRejectionRepository>(
       RebalanceQuoteRejectionRepository,
     )

@@ -7,7 +7,7 @@ import {
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
-import { Logger } from '@nestjs/common'
+import { Logger, Inject } from '@nestjs/common'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import {
   createClient as createCcipClient,
@@ -18,6 +18,12 @@ import { Hex, PublicClient } from 'viem'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { TRANSFER_STATUS_FROM_BLOCK_SHIFT } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-abis'
+import { CCIPLiFiDeliveryContext } from '@/liquidity-manager/types/types'
+import {
+  CCIPLiFiDestinationSwapJobData,
+  CCIPLiFiDestinationSwapJobManager,
+} from '@/liquidity-manager/jobs/ccip-lifi-destination-swap.job'
+import { getQueueToken } from '@nestjs/bullmq'
 
 export interface CheckCCIPDeliveryJobData extends LiquidityManagerQueueDataType {
   sourceChainId: number
@@ -31,6 +37,7 @@ export interface CheckCCIPDeliveryJobData extends LiquidityManagerQueueDataType 
   walletAddress: Hex
   pollCount?: number
   fromBlockNumber?: string
+  ccipLiFiContext?: CCIPLiFiDeliveryContext
 }
 
 export interface CheckCCIPDeliveryJobOptions {
@@ -51,6 +58,9 @@ export type CheckCCIPDeliveryJob = LiquidityManagerJob<
 export class CheckCCIPDeliveryJobManager extends LiquidityManagerJobManager<CheckCCIPDeliveryJob> {
   private logger = new Logger(CheckCCIPDeliveryJobManager.name)
   private readonly ccipClient = createCcipClient()
+
+  @Inject(getQueueToken('LiquidityManagerQueue'))
+  private queue: Queue
 
   @AutoInject(EcoConfigService)
   private ecoConfigService: EcoConfigService
@@ -194,8 +204,7 @@ export class CheckCCIPDeliveryJobManager extends LiquidityManagerJobManager<Chec
     return { status: 'pending' }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async onComplete(job: CheckCCIPDeliveryJob, _p0: any): Promise<void> {
+  async onComplete(job: CheckCCIPDeliveryJob, processor: LiquidityManagerProcessor): Promise<void> {
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'CCIP: delivery check complete',
@@ -204,6 +213,50 @@ export class CheckCCIPDeliveryJobManager extends LiquidityManagerJobManager<Chec
       }),
     )
     if (job.returnvalue?.status === 'complete') {
+      // Check if this is a CCIPLiFi flow that requires a destination swap
+      const ctx = job.data.ccipLiFiContext
+      if (ctx && ctx.destinationSwapQuote) {
+        try {
+          const data: CCIPLiFiDestinationSwapJobData = {
+            groupID: job.data.groupID,
+            rebalanceJobID: job.data.rebalanceJobID,
+            destinationChainId: job.data.destinationChainId,
+            destinationSwapQuote: ctx.destinationSwapQuote,
+            walletAddress: ctx.walletAddress,
+            originalTokenOut: ctx.originalTokenOut,
+            ccipTransactionHash: job.data.txHash,
+            id: job.data.id,
+          }
+          await CCIPLiFiDestinationSwapJobManager.start(processor.queue, data)
+          this.logger.log(
+            EcoLogMessage.withId({
+              message: 'CCIP: queued CCIPLiFi destination swap',
+              id: job.data.id,
+              properties: { destinationChainId: job.data.destinationChainId },
+            }),
+          )
+          return // Defer completion until destination swap is done
+        } catch (error) {
+          this.logger.error(
+            EcoLogMessage.withErrorAndId({
+              message: 'CCIP: failed to queue CCIPLiFi destination swap',
+              id: job.data.id,
+              error: error as any,
+            }),
+          )
+          try {
+            await this.rebalanceRepository.updateStatus(
+              job.data.rebalanceJobID,
+              RebalanceStatus.FAILED,
+            )
+          } catch {
+            // ignore
+          }
+          return
+        }
+      }
+
+      // No destination swap needed - mark as completed
       try {
         await this.rebalanceRepository.updateStatus(
           job.data.rebalanceJobID,

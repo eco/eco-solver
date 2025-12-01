@@ -36,6 +36,7 @@ import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-pro
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
 import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
+import { CCIPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP-LiFi/ccip-lifi-provider.service'
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-prov
     RebalanceQuoteRejectionRepository,
     RebalancingHealthRepository,
     CCIPProviderService,
+    CCIPLiFiProviderService,
   ],
   exports: [
     LiquidityManagerService,

@@ -26,6 +26,7 @@ import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 import { CheckCCTPAttestationJobData } from '@/liquidity-manager/jobs/check-cctp-attestation.job'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 
 @Injectable()
 export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
@@ -525,7 +526,25 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       const lifiResult = await this.liFiService.execute(walletAddress, quote)
 
       // Extract transaction hash from LiFi RouteExtended result
-      const txHash = this.extractTransactionHashFromLiFiResult(lifiResult, sourceSwapQuote.id)
+      const txHash = extractLiFiTxHash(lifiResult) ?? ('0x0' as Hex)
+
+      if (txHash === '0x0') {
+        // Log the structure we received for debugging
+        this.logger.debug(
+          EcoLogMessage.withId({
+            message: 'CCTPLiFi: Could not extract transaction hash from LiFi result',
+            id: sourceSwapQuote.id,
+            properties: {
+              resultStructure: Object.keys(lifiResult || {}),
+              stepsCount: lifiResult?.steps?.length || 0,
+              firstStepStructure: lifiResult?.steps?.[0] ? Object.keys(lifiResult.steps[0]) : [],
+              executionStructure: lifiResult?.steps?.[0]?.execution
+                ? Object.keys(lifiResult.steps[0].execution)
+                : [],
+            },
+          }),
+        )
+      }
 
       this.logger.debug(
         EcoLogMessage.withId({
@@ -568,58 +587,6 @@ export class CCTPLiFiProviderService implements IRebalanceProvider<'CCTPLiFi'> {
       )
       throw new Error(`Source swap failed: ${error.message}`)
     }
-  }
-
-  /**
-   * Extracts the transaction hash from LiFi RouteExtended execution result
-   */
-  private extractTransactionHashFromLiFiResult(lifiResult: any, id: string): Hex {
-    // LiFi returns a RouteExtended object with execution details
-    // First, try to extract from the first step's execution process
-    if (lifiResult?.steps?.[0]?.execution?.process?.[0]?.txHash) {
-      return lifiResult.steps[0].execution.process[0].txHash as Hex
-    }
-
-    // Check if there are multiple processes and get the last one (most recent)
-    if (lifiResult?.steps?.[0]?.execution?.process?.length > 0) {
-      const processes = lifiResult.steps[0].execution.process
-      const lastProcess = processes[processes.length - 1]
-      if (lastProcess?.txHash) {
-        return lastProcess.txHash as Hex
-      }
-    }
-
-    // Check for multiple steps and get the last completed one
-    if (lifiResult?.steps?.length > 0) {
-      for (let i = lifiResult.steps.length - 1; i >= 0; i--) {
-        const step = lifiResult.steps[i]
-        if (step?.execution?.process?.length > 0) {
-          const processes = step.execution.process
-          const lastProcess = processes[processes.length - 1]
-          if (lastProcess?.txHash) {
-            return lastProcess.txHash as Hex
-          }
-        }
-      }
-    }
-
-    // Log the structure we received for debugging
-    this.logger.debug(
-      EcoLogMessage.withId({
-        message: 'CCTPLiFi: Could not extract transaction hash from LiFi result',
-        id,
-        properties: {
-          resultStructure: Object.keys(lifiResult || {}),
-          stepsCount: lifiResult?.steps?.length || 0,
-          firstStepStructure: lifiResult?.steps?.[0] ? Object.keys(lifiResult.steps[0]) : [],
-          executionStructure: lifiResult?.steps?.[0]?.execution
-            ? Object.keys(lifiResult.steps[0].execution)
-            : [],
-        },
-      }),
-    )
-
-    return '0x0' as Hex
   }
 
   /**
