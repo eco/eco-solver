@@ -1,5 +1,5 @@
 import { API_ROOT, INTENT_INITIATION_ROUTE } from '@/common/routes/constants'
-import { ApiOperation, ApiResponse } from '@nestjs/swagger'
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
@@ -10,6 +10,7 @@ import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationService } from '@/intent-initiation/services/intent-initiation.service'
 import { QuoteErrorsInterface } from '@/quote/errors'
 
+@ApiTags('Intent Initiation V1')
 @Controller(API_ROOT + INTENT_INITIATION_ROUTE)
 export class IntentInitiationController {
   private logger = new Logger(IntentInitiationController.name)
@@ -19,11 +20,30 @@ export class IntentInitiationController {
   /*
    * Initiate Gasless Intent
    */
-  @ApiOperation({
-    summary: 'Initiate Gasless Intent',
-  })
   @Post('/initiateGaslessIntent')
-  @ApiResponse({ type: GaslessIntentExecutionResponseDTO })
+  @ApiOperation({
+    summary: 'Initiate gasless intent execution',
+    description:
+      'Execute intents on behalf of the user, handling gas costs and intent publishing. Requires permit signatures for token approvals. Returns transaction hashes for successful submissions and error details for failures.',
+  })
+  @ApiBody({ type: GaslessIntentRequestDTO })
+  @ApiResponse({
+    status: 200,
+    description: 'Gasless intent execution initiated successfully',
+    type: GaslessIntentExecutionResponseDTO,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request - check intent data, permit signatures, and quote references',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - authentication required',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - intent initiation failed',
+  })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestDTO,
   ): Promise<GaslessIntentExecutionResponseDTO> {
@@ -59,11 +79,34 @@ export class IntentInitiationController {
   /*
    * Get Gasless Intent Transaction Data
    */
-  @ApiOperation({
-    summary: 'Get Gasless Intent Transaction Data',
-  })
   @Post('/getGaslessIntentTransactionData')
-  @ApiResponse({ type: GaslessIntentTransactionDataDTO })
+  @ApiOperation({
+    summary: 'Get transaction data for gasless intent',
+    description:
+      'Retrieve transaction details for a previously initiated gasless intent. Returns destination chain transaction hash and chain ID for tracking fulfillment status.',
+  })
+  @ApiBody({ type: GaslessIntentTransactionDataRequestDTO })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction data retrieved successfully',
+    type: GaslessIntentTransactionDataDTO,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request - check intent group ID',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - authentication required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Intent group not found or not yet fulfilled',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - failed to retrieve transaction data',
+  })
   async getDestinationChainTransactionHash(
     @Body() gaslessIntentTransactionDataRequestDTO: GaslessIntentTransactionDataRequestDTO,
   ): Promise<GaslessIntentTransactionDataDTO> {

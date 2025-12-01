@@ -17,30 +17,45 @@ import { Hex } from 'viem'
  */
 export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Source chain ID where the transaction originates',
+    example: '1',
+  })
   @Transform(({ value }) => BigInt(value))
   source: bigint
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Destination chain ID where tokens will be received',
+    example: '42161',
+  })
   destination: bigint
 
   @ViemAddressTransform()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Inbox contract address on destination chain',
+    example: '0x1234567890abcdef1234567890abcdef12345678',
+  })
   inbox: Hex
 
   @IsArray()
   @ValidateNested()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Array of tokens involved in the route',
+    type: [QuoteRewardTokensDTO],
+  })
   @Type(() => QuoteRewardTokensDTO)
   tokens: QuoteRewardTokensDTO[]
 
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Array of contract calls to execute on destination chain',
+    type: () => [QuoteCallDataDTO],
+  })
   @Type(() => QuoteCallDataDTO)
   calls: QuoteCallDataDTO[]
 }
@@ -54,16 +69,25 @@ export class QuoteRouteDataDTO implements QuoteRouteDataInterface {
 export class QuoteCallDataDTO implements CallDataInterface {
   @ViemAddressTransform()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Target contract address for the call',
+    example: '0xabcdef1234567890abcdef1234567890abcdef12',
+  })
   target: Hex
 
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Encoded calldata for the contract interaction',
+    example: '0x095ea7b3000000000000000000000000',
+  })
   data: Hex
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Native token value (wei) to send with the call',
+    example: '0',
+  })
   value: bigint
 }
 

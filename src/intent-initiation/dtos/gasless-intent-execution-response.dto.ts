@@ -4,13 +4,19 @@ import { IsArray, ValidateNested } from 'class-validator'
 import { Type } from 'class-transformer'
 
 export class GaslessIntentExecutionResponseDTO {
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Array of successfully executed intents with transaction details',
+    type: [GaslessIntentExecutionResponseEntryDTO],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GaslessIntentExecutionResponseEntryDTO)
   successes: GaslessIntentExecutionResponseEntryDTO[]
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Array of failed intent executions with error information',
+    type: [GaslessIntentExecutionResponseEntryDTO],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GaslessIntentExecutionResponseEntryDTO)

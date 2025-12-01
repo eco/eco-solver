@@ -14,7 +14,11 @@ import { QuoteCallDataDTO, QuoteRouteDataDTO } from '@/quote/dto/quote.route.dat
 import { Transform, Type } from 'class-transformer'
 
 export class QuoteDataEntryDTO {
-  @ApiProperty({ enum: IntentExecutionType.enumKeys })
+  @ApiProperty({
+    description: 'Execution method for this quote entry',
+    enum: IntentExecutionType.enumKeys,
+    example: 'SELF_PUBLISH',
+  })
   @IsString()
   @IsIn(IntentExecutionType.enumKeys)
   @IsNotEmpty()
@@ -22,7 +26,10 @@ export class QuoteDataEntryDTO {
 
   @IsNotEmpty()
   @IsArray()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Tokens required for the route execution',
+    type: [QuoteRewardTokensDTO],
+  })
   @ValidateNested()
   @Type(() => QuoteRewardTokensDTO)
   routeTokens: QuoteRewardTokensDTO[]
@@ -30,35 +37,53 @@ export class QuoteDataEntryDTO {
   @IsNotEmpty()
   @ArrayNotEmpty()
   @IsArray()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Contract calls to be executed',
+    type: [QuoteCallDataDTO],
+  })
   @ValidateNested()
   @Type(() => QuoteRouteDataDTO)
   routeCalls: QuoteCallDataDTO[]
 
   @IsNotEmpty()
   @IsArray()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Tokens included in the solver reward',
+    type: [QuoteRewardTokensDTO],
+  })
   @ValidateNested()
   @Type(() => QuoteRewardTokensDTO)
   rewardTokens: QuoteRewardTokensDTO[]
 
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Native token amount (wei) in solver reward',
+    example: '0',
+  })
   @Transform(({ value }) => BigInt(value))
   rewardNative: bigint
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'ISO 8601 timestamp when this quote expires',
+    example: '2024-12-01T12:00:00Z',
+  })
   expiryTime: string
 
   @IsNotEmpty()
   @IsNumber()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Estimated seconds for solver to fulfill the intent',
+    example: 300,
+  })
   estimatedFulfillTimeSec: number
 
   @IsNotEmpty()
   @IsNumber()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Estimated gas units overhead for execution',
+    example: 150000,
+  })
   gasOverhead: number
 }

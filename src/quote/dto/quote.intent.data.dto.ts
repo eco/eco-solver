@@ -14,14 +14,25 @@ import { Type } from 'class-transformer'
 export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   @IsString()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Unique identifier for this quote request',
+    example: 'quote:966ee977-586b-4bca-abf1-e7def508a19c',
+  })
   quoteID: string
 
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Identifier of the dApp requesting the quote',
+    example: 'my-dapp-id',
+  })
   dAppID: string
 
-  @ApiProperty({ isArray: true, enum: IntentExecutionType.enumKeys })
+  @ApiProperty({
+    description: 'Array of supported execution methods for the intent',
+    isArray: true,
+    enum: IntentExecutionType.enumKeys,
+    example: ['SELF_PUBLISH', 'GASLESS'],
+  })
   @IsArray()
   @IsString({ each: true })
   @IsIn(IntentExecutionType.enumKeys, { each: true })
@@ -29,20 +40,29 @@ export class QuoteIntentDataDTO implements QuoteIntentDataInterface {
   intentExecutionTypes: string[]
 
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Route configuration specifying source, destination, and calls',
+    type: () => QuoteRouteDataDTO,
+  })
   @ValidateNested()
   @Type(() => QuoteRouteDataDTO)
   route: QuoteRouteDataDTO
 
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Reward configuration for solvers fulfilling the intent',
+    type: () => QuoteRewardDataDTO,
+  })
   @ValidateNested()
   @Type(() => QuoteRewardDataDTO)
   reward: QuoteRewardDataDTO
 
   @IsOptional()
   @ValidateNested()
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Optional permit signatures for gasless execution',
+    type: () => GaslessIntentDataDTO,
+  })
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData?: GaslessIntentDataDTO
 }

@@ -66,13 +66,12 @@ function getNestParams(): NestApplicationOptions {
 
 function addSwagger(app: NestExpressApplication) {
   const config = new DocumentBuilder()
-    .setTitle('Solver API')
-    .setDescription('The api for the solver queries')
-    .setVersion('0.1')
-    .addTag('solver')
+    .setTitle('Eco Solver API')
+    .setDescription('Eco Solver API documentation')
+    .setVersion('1.0')
     .build()
   const documentFactory = () => SwaggerModule.createDocument(app, config)
-  SwaggerModule.setup('api', app, documentFactory)
+  SwaggerModule.setup('apidocs', app, documentFactory)
 }
 
 function setupProcessHandlers(app: NestExpressApplication) {

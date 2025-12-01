@@ -1,6 +1,7 @@
 import { API_ROOT, QUOTE_ROUTE } from '@/common/routes/constants'
 import { BigIntToStringInterceptor } from '@/interceptors/big-int.interceptor'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { QuoteDataDTO } from '@/quote/dto/quote-data.dto'
@@ -10,6 +11,7 @@ import { QuoteService } from '@/quote/quote.service'
 import { EcoAnalyticsService } from '@/analytics'
 import { ANALYTICS_EVENTS } from '@/analytics/events.constants'
 
+@ApiTags('Quote V1')
 @Controller(API_ROOT + QUOTE_ROUTE)
 export class QuoteController {
   private logger = new Logger(QuoteController.name)
@@ -20,6 +22,30 @@ export class QuoteController {
   ) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Get quote',
+    description:
+      'Given desired destination operations and amounts, calculate and return the required source token amounts. Returns multiple quote entries, one for each requested execution type (e.g., SELF_PUBLISH, GASLESS), including fees and execution estimates.',
+  })
+  @ApiBody({ type: QuoteIntentDataDTO })
+  @ApiResponse({
+    status: 200,
+    description: 'Quote successfully generated',
+    type: QuoteDataDTO,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid request parameters - check route configuration, token addresses, and amounts',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - authentication required',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - quote generation failed',
+  })
   async getQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
     const startTime = Date.now()
 
@@ -76,6 +102,30 @@ export class QuoteController {
   }
 
   @Post('/reverse')
+  @ApiOperation({
+    summary: 'Get reverse quote',
+    description:
+      'Given the source token amount, calculate and return the destination amounts after subtracting fees. Returns multiple quote entries for each requested execution type.',
+  })
+  @ApiBody({ type: QuoteIntentDataDTO })
+  @ApiResponse({
+    status: 200,
+    description: 'Reverse quote successfully generated',
+    type: QuoteDataDTO,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid request parameters - check route configuration, token addresses, and amounts',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - authentication required',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - reverse quote generation failed',
+  })
   async getReverseQuote(@Body() quoteIntentDataDTO: QuoteIntentDataDTO): Promise<QuoteDataDTO> {
     const startTime = Date.now()
 

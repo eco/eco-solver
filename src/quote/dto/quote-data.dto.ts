@@ -4,7 +4,10 @@ import { QuoteDataEntryDTO } from '@/quote/dto/quote-data-entry.dto'
 import { Type } from 'class-transformer'
 
 export class QuoteDataDTO {
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Array of quote entries, one for each requested execution type',
+    type: [QuoteDataEntryDTO],
+  })
   @IsArray()
   @IsNotEmpty()
   @ValidateNested()

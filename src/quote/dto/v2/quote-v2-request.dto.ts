@@ -15,7 +15,10 @@ export class QuoteV2RequestDTO {
   @IsNotEmpty()
   quoteID: string
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Identifier of the dApp requesting the quote',
+    example: 'my-dapp-id',
+  })
   @IsNotEmpty()
   @IsString()
   dAppID: string
@@ -31,13 +34,19 @@ export class QuoteV2RequestDTO {
   @IsNotEmpty()
   intentExecutionTypes: string[]
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Quote request details specifying chains, tokens, and amounts',
+    type: () => QuoteV2QuoteRequestDTO,
+  })
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => QuoteV2QuoteRequestDTO)
   quoteRequest: QuoteV2QuoteRequestDTO
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Optional contract addresses for custom intent execution',
+    type: () => QuoteV2ContractsRequestDTO,
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => QuoteV2ContractsRequestDTO)

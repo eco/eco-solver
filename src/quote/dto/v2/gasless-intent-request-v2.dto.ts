@@ -8,7 +8,10 @@ import { Type } from 'class-transformer'
 export class GaslessIntentRequestV2DTO extends BaseGaslessIntentRequestDTO {
   @IsNotEmpty()
   @ValidateNested()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Permit3 signature data for multi-chain token approvals',
+    type: () => GaslessIntentDataV2DTO,
+  })
   @Type(() => GaslessIntentDataDTO)
   gaslessIntentData: GaslessIntentDataV2DTO
 }

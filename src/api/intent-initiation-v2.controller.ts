@@ -1,5 +1,5 @@
 import { API_V2_ROOT, INTENT_INITIATION_ROUTE } from '@/common/routes/constants'
-import { ApiOperation, ApiResponse } from '@nestjs/swagger'
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger'
 import { Body, Controller, InternalServerErrorException, Logger, Post } from '@nestjs/common'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { GaslessIntentExecutionResponseDTO } from '@/intent-initiation/dtos/gasless-intent-execution-response.dto'
@@ -8,6 +8,7 @@ import { getEcoServiceException } from '@/common/errors/eco-service-exception'
 import { IntentInitiationV2Service } from '@/intent-initiation/services/intent-initiation-v2.service'
 import { QuoteErrorsInterface } from '@/quote/errors'
 
+@ApiTags('Intent Initiation V2')
 @Controller(API_V2_ROOT + INTENT_INITIATION_ROUTE)
 export class IntentInitiationV2Controller {
   private logger = new Logger(IntentInitiationV2Controller.name)
@@ -17,11 +18,30 @@ export class IntentInitiationV2Controller {
   /*
    * Initiate Gasless Intent
    */
-  @ApiOperation({
-    summary: 'Initiate Gasless Intent',
-  })
   @Post('/initiateGaslessIntent')
-  @ApiResponse({ type: GaslessIntentExecutionResponseDTO })
+  @ApiOperation({
+    summary: 'Initiate gasless intent execution (V2)',
+    description:
+      'Execute intents on behalf of the user using Permit3 for multi-chain token approvals. Handles all gas costs and intent publishing. Returns transaction details for successful submissions and error information for failures.',
+  })
+  @ApiBody({ type: GaslessIntentRequestV2DTO })
+  @ApiResponse({
+    status: 200,
+    description: 'Gasless intent execution initiated successfully',
+    type: GaslessIntentExecutionResponseDTO,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request - check intent data, Permit3 signatures, and quote references',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - authentication required',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - intent initiation failed',
+  })
   async initiateGaslessIntent(
     @Body() gaslessIntentRequestDTO: GaslessIntentRequestV2DTO,
   ): Promise<GaslessIntentExecutionResponseDTO> {

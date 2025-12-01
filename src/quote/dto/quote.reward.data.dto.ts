@@ -19,27 +19,42 @@ import { ViemAddressTransform } from '@/transforms/viem-address.decorator'
 export class QuoteRewardDataDTO implements QuoteRewardDataType {
   @ViemAddressTransform()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Address of the intent creator',
+    example: '0x742d35Cc6527C92b4A1F3a2a8b1c9b3e8c4c5b2a',
+  })
   creator: Hex
 
   @ViemAddressTransform()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Address authorized to prove intent fulfillment',
+    example: '0xabcdef1234567890abcdef1234567890abcdef12',
+  })
   prover: Hex
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Unix timestamp (seconds) when the reward expires',
+    example: '1672531200',
+  })
   deadline: bigint
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Amount of native token (wei) included in reward',
+    example: '0',
+  })
   nativeValue: bigint
 
   @IsArray()
   @ValidateNested()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Array of ERC20 tokens included in the reward',
+    type: () => [QuoteRewardTokensDTO],
+  })
   @Type(() => QuoteRewardTokensDTO)
   tokens: QuoteRewardTokensDTO[]
 
@@ -61,13 +76,19 @@ export class QuoteRewardDataDTO implements QuoteRewardDataType {
 export class QuoteRewardTokensDTO implements RewardTokensInterface {
   @ViemAddressTransform()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({
+    description: 'ERC20 token contract address',
+    example: '0xA0b86a33E6441e45C3b9d1C3D6a0b5be4b7b5b5a',
+  })
   @Transform(({ value }) => getAddress(value))
   token: Hex
 
   @IsNotEmpty()
   @Transform(({ value }) => BigInt(value))
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Token amount (in smallest unit/wei) for the reward',
+    example: '1000000',
+  })
   amount: bigint
 }
 type QuoteRewardType = RewardType
