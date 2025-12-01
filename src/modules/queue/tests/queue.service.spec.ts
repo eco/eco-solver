@@ -315,7 +315,8 @@ describe('QueueService - Fulfillment Queue Deduplication', () => {
       FULFILLMENT_STRATEGY_NAMES.CROWD_LIQUIDITY,
     );
 
-    // Both should use the same jobId (based only on intent hash)
+    // Both should use the same jobId (based only on intent hash).
+    // BullMQ will ignore the second submission since the jobId is the same.
     expect(mockFulfillmentQueue.add).toHaveBeenNthCalledWith(
       1,
       'process-intent',
@@ -362,6 +363,6 @@ describe('QueueService - Fulfillment Queue Deduplication', () => {
       }),
     );
 
-    // BullMQ will handle deduplication - newer job replaces older if still queued
+    // BullMQ will handle deduplication - second submission is ignored (not replaced)
   });
 });

@@ -61,9 +61,11 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
    *
    * Uses a deterministic job ID based on intent hash to prevent duplicate queue
    * submissions. If the same intent is submitted multiple times:
-   * - If still queued: BullMQ replaces the old job with the new one
-   * - If already processing: BullMQ rejects the duplicate submission
+   * - If still queued: BullMQ ignores the duplicate submission (no replacement)
+   * - If already processing: BullMQ ignores the duplicate submission
    * - If already completed/failed: Creates a new job (allows retry of failed intents)
+   *
+   * Note: To replace an existing job, pass `replace: true` in the job options.
    *
    * @param intent - The intent to process
    * @param strategy - The fulfillment strategy to use (defaults to STANDARD)
