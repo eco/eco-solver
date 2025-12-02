@@ -520,7 +520,7 @@ export class WalletFulfillService implements IFulfillService {
       claimant,
       ccipProverAddr,
       messageData,
-      Number(model.intent.route.source),
+      Number(model.intent.route.destination),
       sourceChainSelector,
     )
 
