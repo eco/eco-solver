@@ -859,6 +859,7 @@ describe('WalletFulfillService', () => {
         address1,
         messageData,
         Number(model.intent.route.source),
+        500n, // CCIP chain selector as domainID
       )
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),

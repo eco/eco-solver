@@ -508,21 +508,24 @@ export class WalletFulfillService implements IFulfillService {
       [[ccipProverAddr, defaultGasLimit, allowOutOfOrderExecution]],
     )
 
+    // Get the CCIP chain selector for the source chain
+    const sourceChainSelector = this.ecoConfigService.getCCIPChainSelector(
+      Number(model.intent.route.source),
+    )
+
     // CCIP prover exists on the source chain, so fetch fees from the source network
+    // Pass the CCIP chain selector as the domainID for correct fee calculation
     const fee = await this.getProverFee(
       model,
       claimant,
       ccipProverAddr,
       messageData,
       Number(model.intent.route.source),
+      sourceChainSelector,
     )
 
     const intentV2 = IntentDataModel.toIntentV2(model.intent)
     const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
-
-    const sourceChainSelector = this.ecoConfigService.getCCIPChainSelector(
-      Number(model.intent.route.source),
-    )
 
     const fulfillIntentData = encodeFunctionData({
       abi: portalAbi,
@@ -552,6 +555,8 @@ export class WalletFulfillService implements IFulfillService {
    * @param claimant - The claimant address
    * @param proverAddr - The address of the prover contract
    * @param messageData - The message data to send
+   * @param chainID - The chain ID to use for the client (defaults to destination chain)
+   * @param domainID - Optional domain ID to use for CCIP provers (chain selector instead of chain ID)
    * @return {Promise<bigint>} A promise that resolves to the fee amount
    */
   private async getProverFee(
@@ -560,6 +565,7 @@ export class WalletFulfillService implements IFulfillService {
     proverAddr: Hex,
     messageData: Hex,
     chainID: number = Number(model.intent.route.destination),
+    domainID?: bigint,
   ): Promise<bigint> {
     const client = await this.kernelAccountClientService.getClient(chainID)
 
@@ -572,7 +578,7 @@ export class WalletFulfillService implements IFulfillService {
       abi: IMessageBridgeProverAbi,
       functionName: 'fetchFee',
       args: [
-        IntentSourceModel.getSource(model), //_sourceChainID
+        domainID ?? IntentSourceModel.getSource(model), // Use provided domainID or default
         encodedProofs,
         messageData,
       ],
