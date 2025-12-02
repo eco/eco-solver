@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+
+# Build output (will be built in container)
+dist
+
+# Test and coverage
+coverage
+test
+*.spec.ts
+*.e2e-spec.ts
+jest*.js
+jest*.ts
+
+# Git
+.gitignore
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+*.md
+!README.md
+
+# Environment and secrets
+.env*
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Scripts not needed at runtime
+scripts
+
+# Misc
+*.txt
+*.tmp
+
