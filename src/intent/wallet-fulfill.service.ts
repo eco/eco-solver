@@ -513,6 +513,17 @@ export class WalletFulfillService implements IFulfillService {
       Number(model.intent.route.source),
     )
 
+    this.logger.log(
+      EcoLogMessage.fromDefault({
+        message: 'CCIP source chain selector fetched',
+        properties: {
+          sourceChainID: model.intent.route.source,
+          numberSourceChainID: Number(model.intent.route.source),
+          sourceChainSelector,
+        },
+      }),
+    )
+
     // CCIP prover exists on the source chain, so fetch fees from the source network
     // Pass the CCIP chain selector as the domainID for correct fee calculation
     const fee = await this.getProverFee(
