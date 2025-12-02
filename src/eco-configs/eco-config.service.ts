@@ -511,6 +511,21 @@ export class EcoConfigService implements OnModuleInit {
     return this.get('ccip')
   }
 
+  /**
+   * Gets the CCIP chain selector for a given chain ID.
+   * @param chainID - The chain ID to look up
+   * @returns The CCIP chain selector as a bigint
+   * @throws Error if the chain is not configured in CCIP
+   */
+  getCCIPChainSelector(chainID: number): bigint {
+    const ccipConfig = this.getCCIP()
+    const chain = ccipConfig.chains.find((c) => c.chainId === chainID)
+    if (!chain) {
+      throw new Error(`CCIP chain selector not found for chainID: ${chainID}`)
+    }
+    return BigInt(chain.chainSelector)
+  }
+
   getWatch(): EcoConfigType['watch'] {
     return this.get('watch')
   }

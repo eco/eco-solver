@@ -34,7 +34,6 @@ import { EcoAnalyticsService } from '@/analytics'
 import { IMessageBridgeProverAbi } from '@/contracts/v2-abi/IMessageBridgeProver'
 import { IntentV2Pure, portalAbi } from '@/contracts/v2-abi/Portal'
 import { PortalHashUtils } from '@/common/utils/portal'
-import { CCIPChainSelector } from '@/eco-configs/enums/ccip-chain-selector.enum'
 
 /**
  * This class fulfills an intent by creating the transactions for the intent targets and the fulfill intent transaction.
@@ -521,7 +520,9 @@ export class WalletFulfillService implements IFulfillService {
     const intentV2 = IntentDataModel.toIntentV2(model.intent)
     const { intentHash, rewardHash } = PortalHashUtils.getIntentHash(intentV2 as IntentV2Pure)
 
-    const sourceChainSelector = CCIPChainSelector.getCCIPSelector(Number(model.intent.route.source))
+    const sourceChainSelector = this.ecoConfigService.getCCIPChainSelector(
+      Number(model.intent.route.source),
+    )
 
     const fulfillIntentData = encodeFunctionData({
       abi: portalAbi,
