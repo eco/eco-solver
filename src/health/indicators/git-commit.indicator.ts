@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus'
-import { exec } from 'child_process'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { EcoLogMessage } from '../../common/logging/eco-log-message'
@@ -22,15 +21,26 @@ export class GitCommitHealthIndicator extends HealthIndicator {
   }
 
   private async getCommitHash(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      exec('git rev-parse HEAD', (error, stdout) => {
-        if (error) {
-          reject(error)
-        } else {
-          resolve(stdout.trim())
-        }
-      })
-    })
+    try {
+      const commitFile = join(process.cwd(), '.git-commit')
+      const hash = readFileSync(commitFile, 'utf-8').trim()
+      if (hash) {
+        return hash
+      }
+      this.logger.error(
+        EcoLogMessage.fromDefault({
+          message: 'Commit hash not found in .git-commit file',
+        }),
+      )
+    } catch (error) {
+      this.logger.error(
+        EcoLogMessage.withError({
+          message: 'Error reading .git-commit file:',
+          error,
+        }),
+      )
+    }
+    return 'unknown'
   }
 
   private getDependencyVersion(
