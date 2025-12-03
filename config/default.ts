@@ -311,6 +311,20 @@ export default {
         supportsNativeFee: true,
       },
       {
+        chainId: 8453,
+        chainSelector: '15971525489660198786',
+        router: '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD',
+        tokens: {
+          USDC: {
+            symbol: 'USDC',
+            address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            decimals: 6,
+            tokenPool: '0x6378c36C44B28f4d1513e7a5510A8481a23eecda',
+          },
+        },
+        supportsNativeFee: true,
+      },
+      {
         chainId: 2020,
         chainSelector: '6916147374840168594',
         router: '0x46527571D5D1B68eE7Eb60B18A32e6C60DcEAf99',
