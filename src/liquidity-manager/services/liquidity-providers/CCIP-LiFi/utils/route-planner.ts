@@ -23,6 +23,15 @@ export interface PlannedRoute {
  */
 export type BridgeTokenConfig = Record<number, Record<string, Hex>>
 
+/**
+ * Function type for validating if a CCIP route is available for a specific token
+ */
+export type CCIPRouteValidator = (
+  sourceChainId: number,
+  destChainId: number,
+  tokenSymbol: string,
+) => Promise<boolean>
+
 export class CCIPLiFiRoutePlanner {
   private static bridgeTokens: BridgeTokenConfig = {}
 
@@ -41,11 +50,23 @@ export class CCIPLiFiRoutePlanner {
   }
 
   /**
-   * Plans the route steps needed for a CCIPLiFi operation
+   * Gets common bridge token symbols between two chains
    */
-  static planRoute(tokenIn: TokenData, tokenOut: TokenData): PlannedRoute {
-    const bridgeToken = this.selectBridgeToken(tokenIn.chainId, tokenOut.chainId)
+  static getCommonBridgeTokens(sourceChainId: number, destChainId: number): string[] {
+    const sourceTokens = this.bridgeTokens[sourceChainId] || {}
+    const destTokens = this.bridgeTokens[destChainId] || {}
+    return Object.keys(sourceTokens).filter((sym) => destTokens[sym])
+  }
 
+  /**
+   * Plans the route steps needed for a CCIPLiFi operation.
+   * Requires a pre-validated bridge token (use selectBridgeTokenAsync first).
+   */
+  static planRoute(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    bridgeToken: BridgeTokenInfo,
+  ): PlannedRoute {
     const sourceIsBridgeToken = this.isBridgeTokenOnChain(tokenIn, bridgeToken.sourceAddress)
     const destinationIsBridgeToken = this.isBridgeTokenOnChain(
       tokenOut,
@@ -68,10 +89,15 @@ export class CCIPLiFiRoutePlanner {
   }
 
   /**
-   * Selects the best bridge token for the given chain pair
-   * Prefers USDC if available on both chains
+   * Selects the best bridge token for the given chain pair using the provided validator.
+   * The validator should check if a CCIP route is available (e.g., via CCIPProviderService).
+   * Prefers USDC if available and has a valid CCIP lane.
    */
-  static selectBridgeToken(sourceChainId: number, destinationChainId: number): BridgeTokenInfo {
+  static async selectBridgeTokenAsync(
+    sourceChainId: number,
+    destinationChainId: number,
+    validator: CCIPRouteValidator,
+  ): Promise<BridgeTokenInfo> {
     const sourceTokens = this.bridgeTokens[sourceChainId] || {}
     const destTokens = this.bridgeTokens[destinationChainId] || {}
 
@@ -84,8 +110,23 @@ export class CCIPLiFiRoutePlanner {
       )
     }
 
+    // Filter to only tokens with valid CCIP lanes (using the validator)
+    const validSymbols: string[] = []
+    for (const sym of commonSymbols) {
+      const isValid = await validator(sourceChainId, destinationChainId, sym)
+      if (isValid) {
+        validSymbols.push(sym)
+      }
+    }
+
+    if (validSymbols.length === 0) {
+      throw new Error(
+        `CCIPLiFi: No supported bridge token between chains ${sourceChainId} and ${destinationChainId}`,
+      )
+    }
+
     // Prefer USDC, then first available
-    const symbol = commonSymbols.includes('USDC') ? 'USDC' : commonSymbols[0]
+    const symbol = validSymbols.includes('USDC') ? 'USDC' : validSymbols[0]
 
     return {
       symbol,
@@ -95,19 +136,29 @@ export class CCIPLiFiRoutePlanner {
   }
 
   /**
-   * Validates that both chains support CCIP bridging
+   * Validates that both chains support CCIP bridging with at least one common bridge token
+   * that has a valid CCIP lane (checked via the provided validator).
    */
-  static validateCCIPSupport(sourceChainId: number, destinationChainId: number): boolean {
-    const sourceTokens = this.bridgeTokens[sourceChainId]
-    const destTokens = this.bridgeTokens[destinationChainId]
+  static async validateCCIPSupportAsync(
+    sourceChainId: number,
+    destinationChainId: number,
+    validator: CCIPRouteValidator,
+  ): Promise<boolean> {
+    const commonSymbols = this.getCommonBridgeTokens(sourceChainId, destinationChainId)
 
-    if (!sourceTokens || !destTokens) {
+    if (commonSymbols.length === 0) {
       return false
     }
 
-    // Check for at least one common token
-    const commonSymbols = Object.keys(sourceTokens).filter((sym) => destTokens[sym])
-    return commonSymbols.length > 0
+    // Check if at least one common token has a valid CCIP lane
+    for (const sym of commonSymbols) {
+      const isValid = await validator(sourceChainId, destinationChainId, sym)
+      if (isValid) {
+        return true
+      }
+    }
+
+    return false
   }
 
   private static isBridgeTokenOnChain(token: TokenData, bridgeTokenAddress: Hex): boolean {

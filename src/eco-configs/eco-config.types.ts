@@ -506,6 +506,12 @@ export interface CCIPTokenConfig {
   address: Hex
   decimals: number
   tokenPool?: Hex
+  /**
+   * Chain IDs that this token CANNOT bridge to from this source chain.
+   * If undefined or empty, all configured destinations are supported.
+   * Use this to block specific routes that don't have CCIP lanes.
+   */
+  deniedDestinations?: number[]
 }
 
 export interface CCIPChainConfig {

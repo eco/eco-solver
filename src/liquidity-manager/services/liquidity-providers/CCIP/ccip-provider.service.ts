@@ -63,7 +63,8 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
 
   /**
    * Checks if a CCIP route is available between the given tokens.
-   * Returns true if both chains and tokens are configured and compatible.
+   * Returns true if both chains and tokens are configured, compatible,
+   * and the CCIP lane exists (destination is in supportedDestinations).
    */
   async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
     const config = this.ecoConfigService.getCCIP()
@@ -107,7 +108,20 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
     }
 
     // CCIP requires same-token routes (same symbol)
-    return sourceToken.symbol === destinationToken.symbol
+    if (sourceToken.symbol !== destinationToken.symbol) {
+      return false
+    }
+
+    // Check that the CCIP lane is not denied
+    // If deniedDestinations is not configured or empty, all destinations are supported
+    if (
+      sourceToken.deniedDestinations &&
+      sourceToken.deniedDestinations.includes(tokenOut.chainId)
+    ) {
+      return false
+    }
+
+    return true
   }
 
   /**

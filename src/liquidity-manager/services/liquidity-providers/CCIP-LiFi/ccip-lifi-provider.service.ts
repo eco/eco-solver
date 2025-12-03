@@ -15,7 +15,7 @@ import { LiFiProviderService } from '@/liquidity-manager/services/liquidity-prov
 import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
 import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { CCIPLiFiConfig, CCIPTokenConfig } from '@/eco-configs/eco-config.types'
-import { CCIPLiFiRoutePlanner, RouteStep } from './utils/route-planner'
+import { CCIPLiFiRoutePlanner, RouteStep, CCIPRouteValidator } from './utils/route-planner'
 import * as SlippageCalculator from './utils/slippage-calculator'
 import { CCIPLiFiValidator } from './utils/validation'
 import { parseUnits, formatUnits, Hex, isAddressEqual } from 'viem'
@@ -46,6 +46,28 @@ export class CCIPLiFiProviderService implements IRebalanceProvider<'CCIPLiFi'> {
     CCIPLiFiRoutePlanner.updateBridgeTokens(this.config.bridgeTokens)
   }
 
+  /**
+   * Creates a validator function that checks if a CCIP route is available
+   * by delegating to CCIPProviderService.isRouteAvailable().
+   */
+  private createCCIPRouteValidator(): CCIPRouteValidator {
+    return async (sourceChainId: number, destChainId: number, tokenSymbol: string) => {
+      const bridgeTokens = CCIPLiFiRoutePlanner.getBridgeTokens()
+      const sourceAddress = bridgeTokens[sourceChainId]?.[tokenSymbol]
+      const destAddress = bridgeTokens[destChainId]?.[tokenSymbol]
+
+      if (!sourceAddress || !destAddress) {
+        return false
+      }
+
+      // Create minimal TokenData for the bridge tokens to check CCIP availability
+      const bridgeTokenIn = this.createBridgeTokenData(sourceChainId, sourceAddress)
+      const bridgeTokenOut = this.createBridgeTokenData(destChainId, destAddress)
+
+      return this.ccipService.isRouteAvailable(bridgeTokenIn, bridgeTokenOut)
+    }
+  }
+
   getStrategy() {
     return 'CCIPLiFi' as const
   }
@@ -55,7 +77,12 @@ export class CCIPLiFiProviderService implements IRebalanceProvider<'CCIPLiFi'> {
       return false
     }
 
-    return CCIPLiFiRoutePlanner.validateCCIPSupport(tokenIn.chainId, tokenOut.chainId)
+    const validator = this.createCCIPRouteValidator()
+    return CCIPLiFiRoutePlanner.validateCCIPSupportAsync(
+      tokenIn.chainId,
+      tokenOut.chainId,
+      validator,
+    )
   }
 
   async getQuote(
@@ -76,7 +103,16 @@ export class CCIPLiFiProviderService implements IRebalanceProvider<'CCIPLiFi'> {
       }),
     )
 
-    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+    // Select a bridge token with a valid CCIP lane
+    const validator = this.createCCIPRouteValidator()
+    let bridgeToken
+    try {
+      bridgeToken = await CCIPLiFiRoutePlanner.selectBridgeTokenAsync(
+        tokenIn.chainId,
+        tokenOut.chainId,
+        validator,
+      )
+    } catch {
       throw EcoError.RebalancingRouteNotAvailable(
         tokenIn.chainId,
         tokenIn.config.address,
@@ -85,7 +121,7 @@ export class CCIPLiFiProviderService implements IRebalanceProvider<'CCIPLiFi'> {
       )
     }
 
-    const plannedRoute = CCIPLiFiRoutePlanner.planRoute(tokenIn, tokenOut)
+    const plannedRoute = CCIPLiFiRoutePlanner.planRoute(tokenIn, tokenOut, bridgeToken)
     const context = await this.buildRouteContext(
       tokenIn,
       tokenOut,

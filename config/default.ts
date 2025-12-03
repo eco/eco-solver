@@ -306,6 +306,7 @@ export default {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             decimals: 6,
             tokenPool: '0x03D19033AdA17750D5BC2d8E325337D0748F9FEF',
+            // No deniedDestinations = can bridge to all configured chains (Base, Ronin)
           },
         },
         supportsNativeFee: true,
@@ -320,6 +321,7 @@ export default {
             address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
             decimals: 6,
             tokenPool: '0x6378c36C44B28f4d1513e7a5510A8481a23eecda',
+            deniedDestinations: [2020], // Cannot bridge to Ronin (no CCIP lane)
           },
         },
         supportsNativeFee: true,
@@ -334,6 +336,7 @@ export default {
             address: '0x0B7007c13325C48911F73A2daD5FA5dCBf808aDc',
             decimals: 6,
             tokenPool: '0xe26D9c68cF6d284367C5e90EC834C6Ec0051f73C',
+            deniedDestinations: [8453], // Cannot bridge to Base (no CCIP lane)
           },
         },
         supportsNativeFee: true,

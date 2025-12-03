@@ -15,7 +15,6 @@ describe('CCIPLiFiProviderService', () => {
   let service: CCIPLiFiProviderService
   let liFiService: jest.Mocked<LiFiProviderService>
   let ccipService: jest.Mocked<CCIPProviderService>
-  let ecoConfigService: jest.Mocked<EcoConfigService>
 
   const bridgeTokenSource = '0x0000000000000000000000000000000000000001' as Hex
   const bridgeTokenDestination = '0x000000000000000000000000000000000000000A' as Hex
@@ -84,7 +83,12 @@ describe('CCIPLiFiProviderService', () => {
         },
         {
           provide: CCIPProviderService,
-          useValue: { getQuote: jest.fn(), execute: jest.fn(), getStrategy: () => 'CCIP' },
+          useValue: {
+            getQuote: jest.fn(),
+            execute: jest.fn(),
+            getStrategy: () => 'CCIP',
+            isRouteAvailable: jest.fn().mockResolvedValue(true), // Default: all routes allowed
+          },
         },
         {
           provide: EcoConfigService,
@@ -100,12 +104,22 @@ describe('CCIPLiFiProviderService', () => {
               chains: [
                 {
                   chainId: 1,
-                  tokens: { USDC: { symbol: 'USDC', address: bridgeTokenSource, decimals: 6 } },
+                  tokens: {
+                    USDC: {
+                      symbol: 'USDC',
+                      address: bridgeTokenSource,
+                      decimals: 6,
+                    },
+                  },
                 },
                 {
                   chainId: 10,
                   tokens: {
-                    USDC: { symbol: 'USDC', address: bridgeTokenDestination, decimals: 6 },
+                    USDC: {
+                      symbol: 'USDC',
+                      address: bridgeTokenDestination,
+                      decimals: 6,
+                    },
                   },
                 },
               ],
@@ -121,16 +135,18 @@ describe('CCIPLiFiProviderService', () => {
     service = module.get<CCIPLiFiProviderService>(CCIPLiFiProviderService)
     liFiService = module.get(LiFiProviderService)
     ccipService = module.get(CCIPProviderService)
-    ecoConfigService = module.get(EcoConfigService)
   })
 
   describe('isRouteAvailable', () => {
-    it('should return true for supported cross-chain CCIP route', async () => {
+    it('should return true when CCIPProviderService allows the route', async () => {
+      ccipService.isRouteAvailable.mockResolvedValue(true)
+
       const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
       const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
 
       const result = await service.isRouteAvailable(tokenIn, tokenOut)
       expect(result).toBe(true)
+      expect(ccipService.isRouteAvailable).toHaveBeenCalled()
     })
 
     it('should return false for same-chain routes', async () => {
@@ -141,25 +157,28 @@ describe('CCIPLiFiProviderService', () => {
       expect(result).toBe(false)
     })
 
-    it('should return false when source chain does not support CCIP', async () => {
-      const tokenIn = makeTokenData(56, '0x1111111111111111111111111111111111111111') // BSC not supported
+    it('should return false when source chain has no bridge tokens configured', async () => {
+      const tokenIn = makeTokenData(56, '0x1111111111111111111111111111111111111111') // BSC not in bridge tokens
       const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
 
       const result = await service.isRouteAvailable(tokenIn, tokenOut)
       expect(result).toBe(false)
     })
 
-    it('should return false when destination chain does not support CCIP', async () => {
+    it('should return false when destination chain has no bridge tokens configured', async () => {
       const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
-      const tokenOut = makeTokenData(56, '0x2222222222222222222222222222222222222222') // BSC not supported
+      const tokenOut = makeTokenData(56, '0x2222222222222222222222222222222222222222') // BSC not in bridge tokens
 
       const result = await service.isRouteAvailable(tokenIn, tokenOut)
       expect(result).toBe(false)
     })
 
-    it('should return false when both chains do not support CCIP', async () => {
-      const tokenIn = makeTokenData(56, '0x1111111111111111111111111111111111111111')
-      const tokenOut = makeTokenData(97, '0x2222222222222222222222222222222222222222')
+    it('should return false when CCIPProviderService denies the route', async () => {
+      // CCIPProviderService denies the route (e.g., deniedDestinations contains the chain)
+      ccipService.isRouteAvailable.mockResolvedValue(false)
+
+      const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
+      const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
 
       const result = await service.isRouteAvailable(tokenIn, tokenOut)
       expect(result).toBe(false)
@@ -167,6 +186,8 @@ describe('CCIPLiFiProviderService', () => {
   })
 
   it('builds route context with source and destination swaps', async () => {
+    ccipService.isRouteAvailable.mockResolvedValue(true)
+
     const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
     const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
 
@@ -182,6 +203,8 @@ describe('CCIPLiFiProviderService', () => {
   })
 
   it('executes flow with source swap and CCIP bridge', async () => {
+    ccipService.isRouteAvailable.mockResolvedValue(true)
+
     const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
     const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
 
@@ -229,5 +252,15 @@ describe('CCIPLiFiProviderService', () => {
     expect(result).toBe('0xbridge')
     expect(liFiService.execute).toHaveBeenCalledTimes(1)
     expect(ccipService.execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when no valid bridge token route exists', async () => {
+    // CCIPProviderService denies all routes
+    ccipService.isRouteAvailable.mockResolvedValue(false)
+
+    const tokenIn = makeTokenData(1, '0x1111111111111111111111111111111111111111')
+    const tokenOut = makeTokenData(10, '0x2222222222222222222222222222222222222222')
+
+    await expect(service.getQuote(tokenIn, tokenOut, 1, 'test-id')).rejects.toThrow()
   })
 })

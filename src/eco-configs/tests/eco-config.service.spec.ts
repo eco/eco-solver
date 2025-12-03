@@ -336,6 +336,11 @@ describe('Eco Config Helper Tests', () => {
       expect(selector).toBe(5009297550715157269n)
     })
 
+    it('should return chain selector for Base', () => {
+      const selector = ecoConfigService.getCCIPChainSelector(8453)
+      expect(selector).toBe(15971525489660198786n)
+    })
+
     it('should return chain selector for Ronin', () => {
       const selector = ecoConfigService.getCCIPChainSelector(2020)
       expect(selector).toBe(6916147374840168594n)
