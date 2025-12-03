@@ -329,4 +329,32 @@ describe('Eco Config Helper Tests', () => {
       expect(ecoConfigService.getLiquidityManagerMaxQuoteSlippageBps()).toBe('100')
     })
   })
+
+  describe('getCCIPChainSelector', () => {
+    it('should return chain selector for Ethereum', () => {
+      const selector = ecoConfigService.getCCIPChainSelector(1)
+      expect(selector).toBe(5009297550715157269n)
+    })
+
+    it('should return chain selector for Base', () => {
+      const selector = ecoConfigService.getCCIPChainSelector(8453)
+      expect(selector).toBe(15971525489660198786n)
+    })
+
+    it('should return chain selector for Ronin', () => {
+      const selector = ecoConfigService.getCCIPChainSelector(2020)
+      expect(selector).toBe(6916147374840168594n)
+    })
+
+    it('should throw error for unsupported chain', () => {
+      expect(() => ecoConfigService.getCCIPChainSelector(999999)).toThrow(
+        /CCIP chain selector not found for chainID/,
+      )
+    })
+
+    it('should convert string selector to bigint', () => {
+      const selector = ecoConfigService.getCCIPChainSelector(1)
+      expect(typeof selector).toBe('bigint')
+    })
+  })
 })

@@ -17,7 +17,6 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { UtilsIntentService } from '../utils-intent.service'
 import { WalletFulfillService } from '../wallet-fulfill.service'
 import { EcoAnalyticsService } from '@/analytics'
-import { CCIPChainSelector } from '@/eco-configs/enums/ccip-chain-selector.enum'
 
 jest.mock('viem', () => {
   return {
@@ -829,7 +828,7 @@ describe('WalletFulfillService', () => {
         defaultGasLimit: 300000n,
         allowOutOfOrderExecution: true,
       } as any)
-      jest.spyOn(CCIPChainSelector, 'getCCIPSelector').mockReturnValue(500n)
+      jest.spyOn(ecoConfigService, 'getCCIPChainSelector').mockReturnValue(500n)
 
       const messageData = '0xdeadbeef'
       mockEncodeAbiParameters.mockReturnValue(messageData)
@@ -842,7 +841,7 @@ describe('WalletFulfillService', () => {
 
       expect(mockGetChainConfig).toHaveBeenCalledWith(Number(model.intent.route.source))
       expect(ecoConfigService.getCCIPProverConfig).toHaveBeenCalledTimes(1)
-      expect(CCIPChainSelector.getCCIPSelector).toHaveBeenCalledWith(
+      expect(ecoConfigService.getCCIPChainSelector).toHaveBeenCalledWith(
         Number(model.intent.route.source),
       )
       expect(mockEncodeAbiParameters).toHaveBeenCalledWith(
@@ -859,7 +858,8 @@ describe('WalletFulfillService', () => {
         address3,
         address1,
         messageData,
-        Number(model.intent.route.source),
+        Number(model.intent.route.destination),
+        500n, // CCIP chain selector as domainID
       )
       expect(mockEncodeFunctionData).toHaveBeenCalledWith({
         abi: expect.anything(),
