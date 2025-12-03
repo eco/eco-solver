@@ -27,9 +27,9 @@ export default {
   ],
   //don't add anything else here
 
-  // solverRegistrationConfig: {
-  //   apiOptions: {
-  //     baseUrl: process.env.REGISTRATION_URL || 'https://quotes-magenta.eco.com',
-  //   },
-  // },
+  solverRegistrationConfig: {
+    apiOptions: {
+      baseUrl: process.env.REGISTRATION_URL || 'https://quotes-magenta.eco.com',
+    },
+  },
 }
