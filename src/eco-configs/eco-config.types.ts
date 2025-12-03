@@ -109,6 +109,7 @@ export type LaunchDarklyConfig = {
  * The configs for the fulfillment params
  */
 export type FulfillType = {
+  enabled?: boolean
   run: 'batch' | 'single'
   type?: 'crowd-liquidity' | 'smart-wallet-account'
 }
