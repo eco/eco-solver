@@ -3,7 +3,9 @@ import { OnEvent } from '@nestjs/event-emitter';
 
 import { Address, Hex } from 'viem';
 
+import { IntentDiscovery } from '@/common/enums/intent-discovery.enum';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 import { QueueService } from '@/modules/queue/queue.service';
 
@@ -32,6 +34,7 @@ export class RhinestoneActionProcessor {
     private readonly intentsService: IntentsService,
     private readonly metadataService: RhinestoneMetadataService,
     private readonly queueService: QueueService,
+    private readonly intentDiscoveryService: IntentDiscoveryService,
   ) {}
 
   /**
@@ -103,15 +106,33 @@ export class RhinestoneActionProcessor {
 
           span.setAttribute('rhinestone.intents_extracted', claimsWithIntents.length);
 
-          // Store all intents in database
+          // Store all intents in database with discovery marker
           for (const { intent } of claimsWithIntents) {
-            const { isNew } = await this.intentsService.createIfNotExists(intent);
+            const { isNew } = await this.intentsService.createIfNotExists({
+              ...intent,
+              discovery: IntentDiscovery.RHINESTONE_WEBSOCKET,
+            });
+
+            // Proactively populate cache to avoid cache miss when IntentPublished fires
+            await this.intentDiscoveryService.setDiscovery(
+              intent.intentHash,
+              IntentDiscovery.RHINESTONE_WEBSOCKET,
+            );
+
+            this.logger.debug(
+              `Intent ${intent.intentHash} created in database: ${isNew ? 'yes' : 'no'}, discovery cached`,
+            );
 
             if (!isNew) {
-              this.logger.warn(`Intent ${intent.intentHash} already exists - may be retry`);
+              this.logger.warn(
+                `Intent ${intent.intentHash} already exists - may be retry or duplicate from blockchain event`,
+              );
             }
           }
 
+          this.logger.log(
+            `Stored ${claimsWithIntents.length} Rhinestone intents with discovery=rhinestone-websocket (cached)`,
+          );
           // Pre-calculate token approval amounts from decoded fills
           const tokenAmountsMap = new Map<string, bigint>();
 

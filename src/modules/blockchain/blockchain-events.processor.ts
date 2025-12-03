@@ -4,6 +4,7 @@ import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as api from '@opentelemetry/api';
 import { Job } from 'bullmq';
 
+import { IntentDiscovery } from '@/common/enums/intent-discovery.enum';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -12,6 +13,7 @@ import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-e
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -24,6 +26,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
   constructor(
     private fulfillmentService: FulfillmentService,
     private eventsService: EventsService,
+    private intentDiscoveryService: IntentDiscoveryService,
     private readonly logger: SystemLoggerService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
     private readonly otelService: OpenTelemetryService,
@@ -144,10 +147,25 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
         throw new Error(`Unsupported chain type for IntentPublished: ${jobData.chainType}`);
     }
 
-    // Submit intent to fulfillment service
+    // Only process intents discovered via blockchain events
+    // Skip intents discovered via other methods (rhinestone-websocket, api, etc.)
+    const discovery = await this.intentDiscoveryService.getDiscovery(intent.intentHash);
+
+    if (discovery !== IntentDiscovery.BLOCKCHAIN_EVENT) {
+      this.logger.log(
+        `Intent ${intent.intentHash} discovered via ${discovery}, ` +
+          `skipping blockchain event processing (only handles blockchain-event discoveries)`,
+      );
+      return;
+    }
+
+    // Submit intent to fulfillment service (standard flow)
+    // Processes if:
+    // - Intent doesn't exist (new intent from blockchain)
+    // - Intent exists with discovery='blockchain-event' (retry scenario)
+    // - Intent exists without discovery field (treated as blockchain-event for backward compat)
     try {
       await this.fulfillmentService.submitIntent(intent);
-      this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
     } catch (error) {
       this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
       throw error;

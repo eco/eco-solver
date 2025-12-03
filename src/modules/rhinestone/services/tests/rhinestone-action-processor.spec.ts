@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
@@ -69,6 +70,12 @@ describe('RhinestoneActionProcessor', () => {
           useValue: {
             addIntentToFulfillmentQueue: jest.fn().mockResolvedValue(undefined),
             addRhinestoneMulticlaimFlow: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: IntentDiscoveryService,
+          useValue: {
+            setDiscovery: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

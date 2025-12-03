@@ -1,5 +1,6 @@
 import { Hex } from 'viem';
 
+import { IntentDiscovery } from '@/common/enums/intent-discovery.enum';
 import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { ChainType } from '@/common/utils/chain-type-detector';
 
@@ -45,6 +46,12 @@ export interface Intent<
   vaultAddress?: string; // Derived vault address
   // Transaction tracking
   publishTxHash?: string; // Transaction hash where intent was published
+  /**
+   * How this intent was discovered/ingested into the system
+   * - 'blockchain-event': Detected by blockchain event listener
+   * - 'rhinestone-websocket': Received via Rhinestone WebSocket
+   */
+  discovery?: IntentDiscovery;
 }
 
 export type BlockchainIntent<source extends ChainType, dest extends ChainType> = Intent<

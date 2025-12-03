@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { Document } from 'mongoose';
 
+import { IntentDiscovery } from '@/common/enums/intent-discovery.enum';
 import { IntentStatus } from '@/common/interfaces/intent.interface';
 import { UniversalAddress } from '@/common/types/universal-address.type';
 
@@ -115,6 +116,15 @@ export class Intent {
 
   @Prop({ type: String, index: true })
   publishTxHash?: string;
+
+  @Prop({
+    type: String,
+    enum: Object.values(IntentDiscovery),
+    index: true,
+    required: false,
+    default: IntentDiscovery.BLOCKCHAIN_EVENT,
+  })
+  discovery?: IntentDiscovery;
 
   @Prop({
     type: {
