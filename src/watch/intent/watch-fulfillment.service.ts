@@ -35,6 +35,32 @@ export class WatchFulfillmentService extends WatchEventService<Solver> {
   }
 
   /**
+   * Override base class to add enabled check before subscribing
+   */
+  async onApplicationBootstrap() {
+    const config = this.ecoConfigService.getFulfill()
+
+    if (config?.enabled !== false) {
+      await this.subscribe()
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message: 'Fulfillments enabled and subscribed to blockchain events',
+          properties: {
+            solverCount: Object.keys(this.ecoConfigService.getSolvers()).length,
+          },
+        }),
+      )
+    } else {
+      this.logger.log(
+        EcoLogMessage.fromDefault({
+          message:
+            'Fulfillments disabled by configuration - skipping blockchain event subscriptions',
+        }),
+      )
+    }
+  }
+
+  /**
    * Subscribes to all Inbox constacts for Fulfillment events. It loads a mapping of the unsubscribe events to
    * call {@link onModuleDestroy} to close the clients.
    */

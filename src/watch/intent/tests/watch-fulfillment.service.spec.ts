@@ -183,4 +183,71 @@ describe('WatchFulfillmentService', () => {
       })
     })
   })
+
+  describe('onApplicationBootstrap with enabled flag', () => {
+    describe('when fulfillments are enabled', () => {
+      beforeEach(() => {
+        jest.spyOn(ecoConfigService, 'getFulfill').mockReturnValue({
+          enabled: true,
+          run: 'single',
+          type: 'smart-wallet-account',
+        })
+        jest.spyOn(ecoConfigService, 'getSolvers').mockReturnValue(inboxRecord)
+      })
+
+      it('should subscribe to blockchain events', async () => {
+        const subscribeSpy = jest.spyOn(watchFulfillmentService, 'subscribe')
+
+        await watchFulfillmentService.onApplicationBootstrap()
+
+        expect(subscribeSpy).toHaveBeenCalled()
+        expect(mockLogLog).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: expect.stringContaining('Fulfillments enabled'),
+          }),
+        )
+      })
+    })
+
+    describe('when fulfillments are disabled', () => {
+      beforeEach(() => {
+        jest.spyOn(ecoConfigService, 'getFulfill').mockReturnValue({
+          enabled: false,
+          run: 'single',
+          type: 'smart-wallet-account',
+        })
+      })
+
+      it('should skip subscription when disabled', async () => {
+        const subscribeSpy = jest.spyOn(watchFulfillmentService, 'subscribe')
+
+        await watchFulfillmentService.onApplicationBootstrap()
+
+        expect(subscribeSpy).not.toHaveBeenCalled()
+        expect(mockLogLog).toHaveBeenCalledWith(
+          expect.objectContaining({
+            msg: expect.stringContaining('Fulfillments disabled by configuration'),
+          }),
+        )
+      })
+    })
+
+    describe('when enabled is undefined (default)', () => {
+      beforeEach(() => {
+        jest.spyOn(ecoConfigService, 'getFulfill').mockReturnValue({
+          run: 'single',
+          type: 'smart-wallet-account',
+        })
+        jest.spyOn(ecoConfigService, 'getSolvers').mockReturnValue(inboxRecord)
+      })
+
+      it('should subscribe to blockchain events (default enabled)', async () => {
+        const subscribeSpy = jest.spyOn(watchFulfillmentService, 'subscribe')
+
+        await watchFulfillmentService.onApplicationBootstrap()
+
+        expect(subscribeSpy).toHaveBeenCalled()
+      })
+    })
+  })
 })

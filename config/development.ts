@@ -118,6 +118,7 @@ export default {
   },
 
   fulfillment: {
+    enabled: true,
     run: 'single',
     type: 'smart-wallet-account',
   },
