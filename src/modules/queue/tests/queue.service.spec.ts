@@ -257,6 +257,10 @@ describe('QueueService - Fulfillment Queue Deduplication', () => {
     mockExecutionQueue = {
       add: jest.fn().mockResolvedValue({}),
       isPaused: jest.fn().mockResolvedValue(false),
+      opts: {
+        connection: {},
+        prefix: '{blockchain-execution}',
+      },
     };
 
     mockFulfillmentQueue = {

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentDiscovery } from '@/common/enums/intent-discovery.enum';
-import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { IntentsService } from '@/modules/intents/intents.service';
+import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { RedisService } from '@/modules/redis/redis.service';
 
 describe('IntentDiscoveryService', () => {
@@ -144,7 +144,10 @@ describe('IntentDiscoveryService', () => {
       await service.clearCache();
 
       expect(mockClient.keys).toHaveBeenCalledWith('intent:discovery:*');
-      expect(mockClient.del).toHaveBeenCalledWith('intent:discovery:0x111', 'intent:discovery:0x222');
+      expect(mockClient.del).toHaveBeenCalledWith(
+        'intent:discovery:0x111',
+        'intent:discovery:0x222',
+      );
     });
 
     it('should handle empty cache', async () => {
