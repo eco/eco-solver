@@ -75,6 +75,8 @@ export class FulfillmentService {
             this.logger.warn(`Intent ${intent.intentHash} already exists`);
             span.setAttribute('intent.already_exists', true);
             // For existing intents, we still proceed to queue them (they may have failed previously)
+            // The deterministic job ID prevents duplicate queue jobs for pending intents
+            // But allows retry if the intent failed in a previous attempt
           }
 
           // Use the submission service for queueing only (persistence already handled above)
