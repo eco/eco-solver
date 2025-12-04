@@ -18,6 +18,7 @@ import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 import { LmTxGatedWalletClientService } from '../../../wallet-wrappers/wallet-gated-client.service'
+import { EcoError } from '@/common/errors/eco-error'
 
 const CCTPV2_FINALITY_THRESHOLD_FAST = 1000
 const CCTPV2_FINALITY_THRESHOLD_STANDARD = 2000
@@ -44,6 +45,13 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
     return 'CCTPV2' as const
   }
 
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    return (
+      this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) &&
+      this.isSupportedToken(tokenOut.config.chainId, tokenOut.config.address)
+    )
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -62,11 +70,13 @@ export class CCTPV2ProviderService implements IRebalanceProvider<'CCTPV2'> {
       }),
     )
 
-    if (
-      !this.isSupportedToken(tokenIn.config.chainId, tokenIn.config.address) ||
-      !this.isSupportedToken(tokenOut.config.chainId, tokenOut.config.address)
-    ) {
-      throw new Error('Unsupported route for CCTP V2')
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
+      )
     }
 
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)

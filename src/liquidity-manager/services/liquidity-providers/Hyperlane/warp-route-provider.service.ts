@@ -59,6 +59,31 @@ export class WarpRouteProviderService implements IRebalanceProvider<'WarpRoute'>
     return 'WarpRoute' as const
   }
 
+  /**
+   * Checks if a warp route is available between the given tokens.
+   * Returns true if both tokens have valid warp routes configured with a supported action path.
+   */
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    // Same-chain routes are not supported for warp routes
+    if (tokenIn.chainId === tokenOut.chainId) {
+      return false
+    }
+
+    try {
+      // Get all possible warp routes for both tokens
+      const warpRoutesIn = this.getAllWarpRoutes(tokenIn.config.chainId, tokenIn.config.address)
+      const warpRoutesOut = this.getAllWarpRoutes(tokenOut.config.chainId, tokenOut.config.address)
+
+      // Determine the route viability
+      const { actionPath } = this.determineWarpRoutes(warpRoutesIn, warpRoutesOut)
+
+      // Route is available if action path is not UNSUPPORTED
+      return actionPath !== ActionPath.UNSUPPORTED
+    } catch {
+      return false
+    }
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,

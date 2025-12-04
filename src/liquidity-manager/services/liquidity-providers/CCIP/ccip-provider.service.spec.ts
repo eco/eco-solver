@@ -86,6 +86,7 @@ describe('CCIPProviderService', () => {
             address: SOURCE_TOKEN_ADDRESS,
             decimals: 6,
             tokenPool: '0x6666666666666666666666666666666666666666',
+            // No deniedDestinations = all destinations supported
           },
         },
         supportsNativeFee: true,
@@ -100,6 +101,7 @@ describe('CCIPProviderService', () => {
             address: DEST_TOKEN_ADDRESS,
             decimals: 6,
             tokenPool: '0x8888888888888888888888888888888888888888',
+            // No deniedDestinations = all destinations supported
           },
         },
         supportsNativeFee: true,
@@ -161,6 +163,96 @@ describe('CCIPProviderService', () => {
 
   it('returns CCIP strategy identifier', () => {
     expect(service.getStrategy()).toBe('CCIP')
+  })
+
+  describe('isRouteAvailable', () => {
+    it('returns true when route is configured and supported', async () => {
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('returns false when CCIP is disabled', async () => {
+      ecoConfigService.getCCIP.mockReturnValue({ ...baseConfig, enabled: false })
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('returns false for same-chain routes', async () => {
+      const result = await service.isRouteAvailable(tokenIn, tokenIn)
+      expect(result).toBe(false)
+    })
+
+    it('returns false when destination is in deniedDestinations', async () => {
+      const configWithDeniedRoute: CCIPConfig = {
+        ...baseConfig,
+        chains: [
+          {
+            ...baseConfig.chains[0],
+            tokens: {
+              USDC: {
+                ...baseConfig.chains[0].tokens.USDC,
+                deniedDestinations: [2], // Chain 2 is denied
+              },
+            },
+          },
+          baseConfig.chains[1],
+        ],
+      }
+      ecoConfigService.getCCIP.mockReturnValue(configWithDeniedRoute)
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('returns true when deniedDestinations is not configured (all allowed)', async () => {
+      // baseConfig already has no deniedDestinations
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('returns true when deniedDestinations is empty array (all allowed)', async () => {
+      const configWithEmptyDenied: CCIPConfig = {
+        ...baseConfig,
+        chains: [
+          {
+            ...baseConfig.chains[0],
+            tokens: {
+              USDC: {
+                ...baseConfig.chains[0].tokens.USDC,
+                deniedDestinations: [], // Empty array = all allowed
+              },
+            },
+          },
+          baseConfig.chains[1],
+        ],
+      }
+      ecoConfigService.getCCIP.mockReturnValue(configWithEmptyDenied)
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('returns true when destination is NOT in deniedDestinations', async () => {
+      const configWithOtherDenied: CCIPConfig = {
+        ...baseConfig,
+        chains: [
+          {
+            ...baseConfig.chains[0],
+            tokens: {
+              USDC: {
+                ...baseConfig.chains[0].tokens.USDC,
+                deniedDestinations: [999, 888], // Chain 2 is NOT denied
+              },
+            },
+          },
+          baseConfig.chains[1],
+        ],
+      }
+      ecoConfigService.getCCIP.mockReturnValue(configWithOtherDenied)
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
   })
 
   describe('getQuote', () => {

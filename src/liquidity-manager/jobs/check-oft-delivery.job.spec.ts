@@ -25,7 +25,7 @@ describe('CheckOFTDeliveryJobManager', () => {
     expect(add).toHaveBeenCalledWith(
       LiquidityManagerJobName.CHECK_OFT_DELIVERY,
       data,
-      expect.objectContaining({ removeOnFail: false, delay: 123, attempts: 20 }),
+      expect.objectContaining({ removeOnFail: false, delay: 123, attempts: 10 }),
     )
   })
 

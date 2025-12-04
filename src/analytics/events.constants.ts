@@ -209,6 +209,12 @@ export const LIQUIDITY_MANAGER_EVENTS = {
   // USDT0 LiFi Provider Errors
   USDT0_LIFI_EXECUTION_ERROR: 'liquidity_usdt0_lifi_execution_error',
 
+  // CCIP LiFi Provider Errors
+  CCIP_LIFI_EXECUTION_ERROR: 'liquidity_ccip_lifi_execution_error',
+  CCIP_LIFI_ROUTE_CONTEXT_ERROR: 'liquidity_ccip_lifi_route_context_error',
+  CCIP_LIFI_SOURCE_SWAP_ERROR: 'liquidity_ccip_lifi_source_swap_error',
+  CCIP_LIFI_BRIDGE_ERROR: 'liquidity_ccip_lifi_bridge_error',
+
   // LiFi Provider Errors
   LIFI_CACHE_INIT_ERROR: 'liquidity_lifi_cache_init_error',
   LIFI_CORE_TOKEN_ROUTE_ERROR: 'liquidity_lifi_core_token_route_error',

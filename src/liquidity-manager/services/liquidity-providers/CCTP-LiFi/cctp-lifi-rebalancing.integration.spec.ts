@@ -40,6 +40,7 @@ import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-
 import { USDT0ProviderService } from '../USDT0/usdt0-provider.service'
 import { USDT0LiFiProviderService } from '../USDT0-LiFi/usdt0-lifi-provider.service'
 import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
+import { CCIPLiFiProviderService } from '../CCIP-LiFi/ccip-lifi-provider.service'
 
 function mockLiFiRoute(partial: Partial<LiFi.Route> = {}): LiFi.Route {
   return {
@@ -94,6 +95,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
   let rebalanceModel: DeepMocked<Model<RebalanceModel>>
   let rebalanceRepo: { create: jest.Mock; getPendingReservedByTokenForWallet: jest.Mock }
   let ccipProviderService: DeepMocked<CCIPProviderService>
+  let ccipLiFiProviderService: DeepMocked<CCIPLiFiProviderService>
 
   const walletAddress = '0x1234567890123456789012345678901234567890'
 
@@ -244,6 +246,10 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
           provide: CCIPProviderService,
           useValue: createMock<CCIPProviderService>(),
         },
+        {
+          provide: CCIPLiFiProviderService,
+          useValue: createMock<CCIPLiFiProviderService>(),
+        },
       ],
     }).compile()
 
@@ -256,6 +262,7 @@ describe('CCTP-LiFi Rebalancing Integration Tests', () => {
     relayService = module.get(RelayProviderService)
     stargateService = module.get(StargateProviderService)
     ccipProviderService = module.get(CCIPProviderService)
+    ccipLiFiProviderService = module.get(CCIPLiFiProviderService)
     balanceService = module.get(BalanceService)
     ecoConfigService = module.get(EcoConfigService)
     const crowdLiquidityService = module.get(CrowdLiquidityService)

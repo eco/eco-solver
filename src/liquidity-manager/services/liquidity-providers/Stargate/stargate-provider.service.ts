@@ -2,7 +2,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex, parseUnits } from 'viem'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { MultichainPublicClientService } from '@/transaction/multichain-public-client.service'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
@@ -12,10 +12,12 @@ import { StargateQuote } from '@/liquidity-manager/services/liquidity-providers/
 import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
-export class StargateProviderService implements OnModuleInit, IRebalanceProvider<'Stargate'> {
+export class StargateProviderService implements IRebalanceProvider<'Stargate'> {
   private logger = new Logger(StargateProviderService.name)
   private walletAddress: string
   private chainKeyMap: Record<number, string> = {}
+  private initialized = false
+  private initializationPromise: Promise<void> | null = null
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -24,12 +26,35 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
-  async onModuleInit() {
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) {
+      return
+    }
+
+    // Prevent concurrent initialization
+    if (this.initializationPromise) {
+      return this.initializationPromise
+    }
+
+    this.initializationPromise = this.doInitialize()
+    await this.initializationPromise
+    this.initialized = true
+    this.initializationPromise = null
+  }
+
+  private async doInitialize(): Promise<void> {
     // Use first intent source's network as the default network
     const [intentSource] = this.ecoConfigService.getIntentSources()
 
     const client = await this.kernelAccountClientService.getClient(intentSource.chainID)
     this.walletAddress = client.account!.address
+  }
+
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    await this.ensureInitialized()
+    const srcChainKey = await this.getChainKey(tokenIn.chainId)
+    const dstChainKey = await this.getChainKey(tokenOut.chainId)
+    return srcChainKey !== undefined && dstChainKey !== undefined
   }
 
   getStrategy() {
@@ -42,13 +67,20 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'Stargate'>> {
+    await this.ensureInitialized()
+
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
+      )
+    }
+
     // Convert chain IDs to Stargate chain keys
     const srcChainKey = await this.getChainKey(tokenIn.chainId)
     const dstChainKey = await this.getChainKey(tokenOut.chainId)
-
-    if (!srcChainKey || !dstChainKey) {
-      throw EcoError.RebalancingRouteNotFound()
-    }
 
     const amountIn = parseUnits(swapAmount.toString(), tokenIn.balance.decimals)
 
@@ -60,8 +92,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
       const params = new URLSearchParams({
         srcToken: tokenIn.config.address,
         dstToken: tokenOut.config.address,
-        srcChainKey: srcChainKey,
-        dstChainKey: dstChainKey,
+        srcChainKey: srcChainKey!,
+        dstChainKey: dstChainKey!,
         srcAddress: this.walletAddress,
         dstAddress: this.walletAddress,
         srcAmount: amountIn.toString(),
@@ -131,6 +163,8 @@ export class StargateProviderService implements OnModuleInit, IRebalanceProvider
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Stargate'>) {
+    await this.ensureInitialized()
+
     try {
       // Verify wallet matches
       const kernelWalletAddress = await this.kernelAccountClientService.getAddress()

@@ -52,7 +52,7 @@ export class CheckOFTDeliveryJobManager extends LiquidityManagerJobManager<Check
     await queue.add(LiquidityManagerJobName.CHECK_OFT_DELIVERY, data, {
       removeOnFail: false,
       delay,
-      attempts: 20,
+      attempts: 10,
       backoff: { type: 'exponential', delay: 10_000 },
     })
   }

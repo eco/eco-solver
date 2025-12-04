@@ -17,6 +17,7 @@ import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { USDT0ChainConfig } from '@/eco-configs/eco-config.types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { EcoError } from '@/common/errors/eco-error'
 
 type SendParam = {
   dstEid: number
@@ -42,25 +43,13 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
     return 'USDT0' as const
   }
 
-  async getQuote(
-    tokenIn: TokenData,
-    tokenOut: TokenData,
-    swapAmount: number,
-    id?: string,
-  ): Promise<RebalanceQuote<'USDT0'>> {
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
     const cfg = this.ecoConfigService.getUSDT0()
 
     const src = cfg.chains.find((c) => c.chainId === tokenIn.chainId)
     const dst = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
     if (!src || !dst) {
-      this.logger.error(
-        EcoLogMessage.withId({
-          message: 'USDT0: getQuote: Unsupported chain pair',
-          id,
-          properties: { tokenIn, tokenOut },
-        }),
-      )
-      throw new Error('USDT0 unsupported chain pair')
+      return false
     }
 
     // Optional token address validation when config provides token/underlyingToken
@@ -71,21 +60,30 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
     const dstMismatch = dstExpected && !isAddressEqual(tokenOut.config.address as Hex, dstExpected)
 
     if (srcMismatch || dstMismatch) {
-      this.logger.error(
-        EcoLogMessage.withId({
-          message: 'USDT0: getQuote: Unsupported token',
-          id,
-          properties: {
-            srcExpected,
-            dstExpected,
-            tokenInAddress: tokenIn.config.address,
-            tokenOutAddress: tokenOut.config.address,
-          },
-        }),
-      )
-      throw new Error('USDT0 unsupported token')
+      return false
     }
 
+    return true
+  }
+
+  async getQuote(
+    tokenIn: TokenData,
+    tokenOut: TokenData,
+    swapAmount: number,
+    id?: string,
+  ): Promise<RebalanceQuote<'USDT0'>> {
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
+      )
+    }
+
+    const cfg = this.ecoConfigService.getUSDT0()
+    const src = cfg.chains.find((c) => c.chainId === tokenIn.chainId)
+    const dst = cfg.chains.find((c) => c.chainId === tokenOut.chainId)
     const amountLD = parseUnits(String(swapAmount), tokenIn.balance?.decimals ?? 6)
 
     const walletAddress = await this.kernel.getAddress()
@@ -99,8 +97,8 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
       strategy: 'USDT0',
       context: {
         sourceChainId: tokenIn.chainId,
-        sourceEid: src.eid,
-        destinationEid: dst.eid,
+        sourceEid: src!.eid,
+        destinationEid: dst!.eid,
         to: walletAddress as Hex,
         amountLD,
       },
@@ -114,8 +112,8 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
         properties: {
           sourceChainId: tokenIn.chainId,
           destinationChainId: tokenOut.chainId,
-          sourceEid: src.eid,
-          destinationEid: dst.eid,
+          sourceEid: src!.eid,
+          destinationEid: dst!.eid,
           to: walletAddress,
           amountLD: amountLD,
         },
@@ -145,6 +143,25 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
       )
 
       const txHash = await this.broadcastBatch(client, calls, quote)
+
+      // Wait for source transaction to be mined before checking delivery
+      try {
+        await client.waitForTransactionReceipt({ hash: txHash, retryCount: 12 })
+      } catch (waitError) {
+        this.logger.error(
+          EcoLogMessage.withErrorAndId({
+            message: 'USDT0: execute: Failed to confirm source transaction',
+            id: quote.id,
+            error: waitError as any,
+            properties: {
+              txHash,
+              sourceChainId: quote.tokenIn.chainId,
+            },
+          }),
+        )
+        throw new Error('USDT0: timed out waiting for source transaction receipt')
+      }
+
       await this.enqueueDeliveryCheck(quote, txHash as Hex, walletAddress as Hex)
       return txHash as Hex
     } catch (error) {

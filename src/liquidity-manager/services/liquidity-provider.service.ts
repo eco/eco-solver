@@ -26,6 +26,7 @@ import { RejectionReason } from '@/liquidity-manager/schemas/rebalance-quote-rej
 import { USDT0ProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0/usdt0-provider.service'
 import { USDT0LiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/USDT0-LiFi/usdt0-lifi-provider.service'
 import { CCIPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP/ccip-provider.service'
+import { CCIPLiFiProviderService } from '@/liquidity-manager/services/liquidity-providers/CCIP-LiFi/ccip-lifi-provider.service'
 
 @Injectable()
 export class LiquidityProviderService {
@@ -48,6 +49,7 @@ export class LiquidityProviderService {
     protected readonly usdt0ProviderService: USDT0ProviderService,
     protected readonly usdt0LiFiProviderService: USDT0LiFiProviderService,
     protected readonly ccipProviderService: CCIPProviderService,
+    protected readonly ccipLiFiProviderService: CCIPLiFiProviderService,
     private readonly ecoAnalytics: EcoAnalyticsService,
     private readonly rejectionRepository: RebalanceQuoteRejectionRepository,
   ) {
@@ -102,6 +104,16 @@ export class LiquidityProviderService {
             id: quoteId,
           }),
         )
+        if (!(await service.isRouteAvailable(tokenIn, tokenOut))) {
+          this.logger.debug(
+            EcoLogMessage.withId({
+              message: 'Route not available for strategy',
+              properties: { strategy, tokenIn, tokenOut, swapAmount },
+              id: quoteId,
+            }),
+          )
+          return undefined
+        }
         const quotes = await service.getQuote(tokenIn, tokenOut, swapAmount, quoteId)
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes]
         hadAnyQuotes = true // Mark that at least one strategy succeeded in getting quotes
@@ -198,7 +210,9 @@ export class LiquidityProviderService {
     const quoteBatchResults = await Promise.all(quoteBatchRequests)
 
     // Filter out undefined results
-    const validQuoteBatches = quoteBatchResults.filter((batch) => batch !== undefined)
+    const validQuoteBatches = quoteBatchResults.filter(
+      (batch) => batch !== undefined && batch.length > 0,
+    )
 
     // Use the quote from the strategy returning the biggest amount out
     const bestQuotes = validQuoteBatches.reduce((bestBatch, quoteBatch) => {
@@ -297,6 +311,8 @@ export class LiquidityProviderService {
         return this.usdt0LiFiProviderService as unknown as IRebalanceProvider<Strategy>
       case 'CCIP':
         return this.ccipProviderService
+      case 'CCIPLiFi':
+        return this.ccipLiFiProviderService as unknown as IRebalanceProvider<Strategy>
     }
     throw new Error(`Strategy not supported: ${strategy}`)
   }

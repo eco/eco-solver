@@ -62,6 +62,69 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
   }
 
   /**
+   * Checks if a CCIP route is available between the given tokens.
+   * Returns true if both chains and tokens are configured, compatible,
+   * and the CCIP lane exists (destination is in supportedDestinations).
+   */
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    const config = this.ecoConfigService.getCCIP()
+
+    // CCIP must be enabled
+    if (config.enabled === false) {
+      return false
+    }
+
+    // Same-chain routes are not supported
+    if (tokenIn.chainId === tokenOut.chainId) {
+      return false
+    }
+
+    // Check source chain is configured
+    const sourceChain = config.chains.find((c) => c.chainId === tokenIn.chainId)
+    if (!sourceChain) {
+      return false
+    }
+
+    // Check destination chain is configured
+    const destinationChain = config.chains.find((c) => c.chainId === tokenOut.chainId)
+    if (!destinationChain) {
+      return false
+    }
+
+    // Check source token is configured
+    const sourceToken = Object.values(sourceChain.tokens).find((t) =>
+      isAddressEqual(t.address as Hex, tokenIn.config.address as Hex),
+    )
+    if (!sourceToken) {
+      return false
+    }
+
+    // Check destination token is configured
+    const destinationToken = Object.values(destinationChain.tokens).find((t) =>
+      isAddressEqual(t.address as Hex, tokenOut.config.address as Hex),
+    )
+    if (!destinationToken) {
+      return false
+    }
+
+    // CCIP requires same-token routes (same symbol)
+    if (sourceToken.symbol !== destinationToken.symbol) {
+      return false
+    }
+
+    // Check that the CCIP lane is not denied
+    // If deniedDestinations is not configured or empty, all destinations are supported
+    if (
+      sourceToken.deniedDestinations &&
+      sourceToken.deniedDestinations.includes(tokenOut.chainId)
+    ) {
+      return false
+    }
+
+    return true
+  }
+
+  /**
    * Generates a quote for a CCIP rebalance.
    * Validates chain/token support, estimates fees via the CCIP client, and constructs the quote.
    */
@@ -255,7 +318,7 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
       try {
         receipt = (await client.waitForTransactionReceipt({
           hash: txHash,
-          timeout: 600_000,
+          retryCount: 12,
         })) as TransactionReceipt
       } catch (waitError) {
         this.logger.error(
@@ -289,6 +352,7 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
         walletAddress: ccipQuoteContext.destinationAccount,
         id: quote.id,
         fromBlockNumber: deliveryFromBlockNumber.toString(),
+        ccipLiFiContext: ccipQuoteContext.ccipLiFiContext,
       }
 
       const { delivery } = config

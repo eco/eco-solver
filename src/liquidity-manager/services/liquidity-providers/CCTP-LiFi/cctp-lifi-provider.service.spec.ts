@@ -206,6 +206,38 @@ describe('CCTPLiFiProviderService', () => {
     })
   })
 
+  describe('isRouteAvailable', () => {
+    it('should return true for supported cross-chain CCTP route', async () => {
+      const result = await service.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false for same-chain routes', async () => {
+      const sameChainTokenOut = { ...mockTokenOut, chainId: 1 }
+      const result = await service.isRouteAvailable(mockTokenIn, sameChainTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source chain does not support CCTP', async () => {
+      const unsupportedSourceToken = { ...mockTokenIn, chainId: 56 } // BSC
+      const result = await service.isRouteAvailable(unsupportedSourceToken, mockTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain does not support CCTP', async () => {
+      const unsupportedDestToken = { ...mockTokenOut, chainId: 56 } // BSC
+      const result = await service.isRouteAvailable(mockTokenIn, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both chains do not support CCTP', async () => {
+      const unsupportedSourceToken = { ...mockTokenIn, chainId: 56 }
+      const unsupportedDestToken = { ...mockTokenOut, chainId: 97 }
+      const result = await service.isRouteAvailable(unsupportedSourceToken, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
+  })
+
   describe('getQuote - Phase 3 Comprehensive Testing', () => {
     it('should get quote for TOKEN → TOKEN route with all steps', async () => {
       // Mock LiFi quotes
@@ -328,7 +360,7 @@ describe('CCTPLiFiProviderService', () => {
       const sameChainTokenOut = { ...mockTokenOut, chainId: 1 }
 
       await expect(service.getQuote(mockTokenIn, sameChainTokenOut, 100)).rejects.toThrow(
-        'Invalid CCTPLiFi route',
+        'A rebalancing route is not available',
       )
     })
 
@@ -336,7 +368,7 @@ describe('CCTPLiFiProviderService', () => {
       const unsupportedTokenOut = { ...mockTokenOut, chainId: 56 } // BSC not supported
 
       await expect(service.getQuote(mockTokenIn, unsupportedTokenOut, 100)).rejects.toThrow(
-        'Invalid CCTPLiFi route',
+        'A rebalancing route is not available',
       )
     })
 

@@ -1,4 +1,5 @@
 import { BaseProcessor } from '@/common/bullmq/base.processor'
+import { CCIPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/ccip-lifi-destination-swap.job'
 import { CCTPLiFiDestinationSwapJobManager } from '@/liquidity-manager/jobs/cctp-lifi-destination-swap.job'
 import { CCTPProviderService } from '@/liquidity-manager/services/liquidity-providers/CCTP/cctp-provider.service'
 import { CCTPV2ProviderService } from '../services/liquidity-providers/CCTP-V2/cctpv2-provider.service'
@@ -54,6 +55,7 @@ export class LiquidityManagerProcessor extends BaseProcessor<LiquidityManagerJob
       new CheckOFTDeliveryJobManager(),
       new USDT0LiFiDestinationSwapJobManager(),
       new CheckCCIPDeliveryJobManager(),
+      new CCIPLiFiDestinationSwapJobManager(),
     ])
   }
 }

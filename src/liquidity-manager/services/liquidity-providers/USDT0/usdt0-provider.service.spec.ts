@@ -105,8 +105,70 @@ describe('USDT0ProviderService', () => {
         balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
       }
       await expect(svc.getQuote(tokenIn, tokenOut, 1)).rejects.toThrow(
-        'USDT0 unsupported chain pair',
+        'A rebalancing route is not available',
       )
+    })
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true when both chains are configured', async () => {
+      const tokenIn: any = {
+        chainId: 1,
+        config: { chainId: 1, address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source chain is not configured', async () => {
+      const tokenIn: any = {
+        chainId: 999, // Unsupported chain
+        config: { chainId: 999, address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain is not configured', async () => {
+      const tokenIn: any = {
+        chainId: 1,
+        config: { chainId: 1, address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 999, // Unsupported chain
+        config: { chainId: 999, address: '0xdddddddddddddddddddddddddddddddddddddddd' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when token address does not match config', async () => {
+      const tokenIn: any = {
+        chainId: 8453, // Base - has token address validation
+        config: { chainId: 8453, address: '0xWrongAddress0000000000000000000000000000' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const tokenOut: any = {
+        chainId: 42161,
+        config: { chainId: 42161, address: '0xcccccccccccccccccccccccccccccccccccccccc' },
+        balance: { address: '0x1111111111111111111111111111111111111111', decimals: 6 },
+      }
+      const result = await svc.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
     })
   })
 
@@ -135,7 +197,10 @@ describe('USDT0ProviderService', () => {
 
       // mock kernel execute
       const execute = jest.fn().mockResolvedValue('0xtxhash')
-      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({ execute })
+      const waitForTransactionReceipt = jest.fn().mockResolvedValue({})
+      ;(kernel.getClient as any) = jest
+        .fn()
+        .mockResolvedValue({ execute, waitForTransactionReceipt })
 
       // spy on queue starter
       const startSpy = jest
@@ -173,7 +238,10 @@ describe('USDT0ProviderService', () => {
         expect(calls[1].to).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') // send on adapter
         return '0xtx'
       })
-      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({ execute })
+      const waitForTransactionReceipt = jest.fn().mockResolvedValue({})
+      ;(kernel.getClient as any) = jest
+        .fn()
+        .mockResolvedValue({ execute, waitForTransactionReceipt })
 
       jest
         .spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
@@ -221,7 +289,10 @@ describe('USDT0ProviderService', () => {
         .mockResolvedValueOnce({ nativeFee: 0n, lzTokenFee: 0n })
       ;(pub.getClient as any) = jest.fn().mockResolvedValue({ readContract })
       const execute = jest.fn().mockResolvedValue('0xtx')
-      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({ execute })
+      const waitForTransactionReceipt = jest.fn().mockResolvedValue({})
+      ;(kernel.getClient as any) = jest
+        .fn()
+        .mockResolvedValue({ execute, waitForTransactionReceipt })
       jest
         .spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
         .mockResolvedValue(undefined)
@@ -252,9 +323,10 @@ describe('USDT0ProviderService', () => {
         // quoteSend: capture args
         .mockResolvedValueOnce({ nativeFee: 0n, lzTokenFee: 0n })
       ;(pub.getClient as any) = jest.fn().mockResolvedValue({ readContract })
-      ;(kernel.getClient as any) = jest
-        .fn()
-        .mockResolvedValue({ execute: jest.fn().mockResolvedValue('0xtx') })
+      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({
+        execute: jest.fn().mockResolvedValue('0xtx'),
+        waitForTransactionReceipt: jest.fn().mockResolvedValue({}),
+      })
       jest
         .spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
         .mockResolvedValue(undefined)

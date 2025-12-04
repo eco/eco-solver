@@ -93,6 +93,7 @@ export type EcoConfigType = {
   usdt0: USDT0Config
   ccip: CCIPConfig
   CCIPProver: CCIPProverConfig
+  ccipLiFi: CCIPLiFiConfig
 }
 
 export type EcoConfigKeys = keyof EcoConfigType
@@ -505,6 +506,12 @@ export interface CCIPTokenConfig {
   address: Hex
   decimals: number
   tokenPool?: Hex
+  /**
+   * Chain IDs that this token CANNOT bridge to from this source chain.
+   * If undefined or empty, all configured destinations are supported.
+   * Use this to block specific routes that don't have CCIP lanes.
+   */
+  deniedDestinations?: number[]
 }
 
 export interface CCIPChainConfig {
@@ -605,6 +612,11 @@ export interface HyperlaneConfig {
 export interface CCTPLiFiConfig {
   maxSlippage: number
   usdcAddresses: Record<number, Hex>
+}
+
+export interface CCIPLiFiConfig {
+  maxSlippage: number
+  bridgeTokens: Record<number, Record<string, Hex>>
 }
 
 export interface SquidConfig {

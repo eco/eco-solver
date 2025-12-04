@@ -16,8 +16,11 @@ const mockSquidInstance = {
   init: jest.fn().mockResolvedValue(undefined),
   getRoute: jest.fn(),
   executeRoute: jest.fn(),
+  tokens: [
+    { chainId: '1', address: '0xTokenIn' },
+    { chainId: '10', address: '0xTokenOut' },
+  ],
 }
-mockedSquid.mockImplementation(() => mockSquidInstance as any)
 
 describe('SquidProviderService', () => {
   let squidProviderService: SquidProviderService
@@ -27,21 +30,11 @@ describe('SquidProviderService', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SquidProviderService,
-        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
-        { provide: EcoConfigService, useValue: createMock<EcoConfigService>() },
-        {
-          provide: LmTxGatedKernelAccountClientService,
-          useValue: createMock<LmTxGatedKernelAccountClientService>(),
-        },
-      ],
-    }).compile()
+    // Re-apply mock implementation after clearAllMocks
+    mockedSquid.mockImplementation(() => mockSquidInstance as any)
 
-    squidProviderService = module.get<SquidProviderService>(SquidProviderService)
-    ecoConfigService = module.get(EcoConfigService)
-    kernelAccountClientService = module.get(LmTxGatedKernelAccountClientService)
+    ecoConfigService = createMock<EcoConfigService>()
+    kernelAccountClientService = createMock<LmTxGatedKernelAccountClientService>()
 
     ecoConfigService.getSquid.mockReturnValue({
       integratorId: 'test-integrator',
@@ -51,22 +44,140 @@ describe('SquidProviderService', () => {
       swapSlippage: 0.01,
     } as any)
     kernelAccountClientService.getAddress.mockResolvedValue(zeroAddress)
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SquidProviderService,
+        { provide: RebalanceRepository, useValue: createMock<RebalanceRepository>() },
+        { provide: EcoConfigService, useValue: ecoConfigService },
+        {
+          provide: LmTxGatedKernelAccountClientService,
+          useValue: kernelAccountClientService,
+        },
+      ],
+    }).compile()
+
+    squidProviderService = module.get<SquidProviderService>(SquidProviderService)
   })
 
-  describe('onModuleInit', () => {
-    it('should initialize the Squid SDK', async () => {
-      await squidProviderService.onModuleInit()
+  describe('initialization', () => {
+    it('should initialize the Squid SDK lazily on first method call', async () => {
+      // Squid SDK should NOT be initialized in constructor
+      expect(Squid).not.toHaveBeenCalled()
+      expect(mockSquidInstance.init).not.toHaveBeenCalled()
+
+      // Call a method that triggers initialization
+      const mockTokenIn: TokenData = {
+        chainId: 1,
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 18 },
+      } as any
+      const mockTokenOut: TokenData = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      } as any
+
+      await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+
+      // Now initialization should have happened
       expect(Squid).toHaveBeenCalledWith({
         baseUrl: 'https://test.api.squidrouter.com',
         integratorId: 'test-integrator',
       })
       expect(mockSquidInstance.init).toHaveBeenCalled()
     })
+
+    it('should only initialize once even when called multiple times', async () => {
+      const mockTokenIn: TokenData = {
+        chainId: 1,
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 18 },
+      } as any
+      const mockTokenOut: TokenData = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      } as any
+
+      // Call isRouteAvailable multiple times
+      await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+      await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+
+      // Initialization should only happen once
+      expect(Squid).toHaveBeenCalledTimes(1)
+      expect(mockSquidInstance.init).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true when both tokens are in the Squid token list', async () => {
+      const mockTokenIn: TokenData = {
+        chainId: 1,
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 18 },
+      } as any
+      const mockTokenOut: TokenData = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      } as any
+
+      const result = await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source token is not in the Squid token list', async () => {
+      const mockTokenIn: TokenData = {
+        chainId: 1,
+        config: { address: '0xUnsupportedToken' },
+        balance: { decimals: 18 },
+      } as any
+      const mockTokenOut: TokenData = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      } as any
+
+      const result = await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination token is not in the Squid token list', async () => {
+      const mockTokenIn: TokenData = {
+        chainId: 1,
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 18 },
+      } as any
+      const mockTokenOut: TokenData = {
+        chainId: 10,
+        config: { address: '0xUnsupportedToken' },
+        balance: { decimals: 6 },
+      } as any
+
+      const result = await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source chain does not match token list', async () => {
+      const mockTokenIn: TokenData = {
+        chainId: 999, // Different chain than in token list
+        config: { address: '0xTokenIn' },
+        balance: { decimals: 18 },
+      } as any
+      const mockTokenOut: TokenData = {
+        chainId: 10,
+        config: { address: '0xTokenOut' },
+        balance: { decimals: 6 },
+      } as any
+
+      const result = await squidProviderService.isRouteAvailable(mockTokenIn, mockTokenOut)
+      expect(result).toBe(false)
+    })
   })
 
   describe('getQuote', () => {
     it('should get a quote and return it in the correct format', async () => {
-      await squidProviderService.onModuleInit()
       const mockTokenIn: TokenData = {
         chainId: 1,
         config: { address: '0xTokenIn' },
@@ -84,6 +195,11 @@ describe('SquidProviderService', () => {
           fromAmount: '100000000000000000000',
           toAmount: '99000000',
           toAmountMin: '98010000',
+        },
+        transactionRequest: {
+          target: '0x1234567890123456789012345678901234567890',
+          data: '0xabcdef',
+          value: '0',
         },
       }
 
@@ -110,7 +226,6 @@ describe('SquidProviderService', () => {
     })
 
     it('should throw if squid.getRoute fails', async () => {
-      await squidProviderService.onModuleInit()
       const mockTokenIn: TokenData = {
         chainId: 1,
         config: { address: '0xTokenIn' },
@@ -131,7 +246,6 @@ describe('SquidProviderService', () => {
 
   describe('execute', () => {
     it('should execute a valid quote', async () => {
-      await squidProviderService.onModuleInit()
       const mockRoute = {
         estimate: { fromAmount: '100', toAmount: '95', toAmountMin: '94' },
         transactionRequest: {
@@ -165,7 +279,6 @@ describe('SquidProviderService', () => {
     })
 
     it('should throw an error for a non-kernel wallet address', async () => {
-      await squidProviderService.onModuleInit()
       const otherAddress = '0x1234567890123456789012345678901234567890'
       await expect(squidProviderService.execute(otherAddress, {} as any)).rejects.toThrow(
         'The kernel account config is invalid',

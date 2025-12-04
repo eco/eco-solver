@@ -3,7 +3,7 @@ import { EcoConfigService } from '@/eco-configs/eco-config.service'
 import { EcoError } from '@/common/errors/eco-error'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { getSlippage } from '@/liquidity-manager/utils/math'
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { IRebalanceProvider } from '@/liquidity-manager/interfaces/IRebalanceProvider'
 import { parseUnits } from 'viem'
 import { RebalanceQuote, TokenData } from '@/liquidity-manager/types/types'
@@ -13,9 +13,11 @@ import { Squid } from '@0xsquid/sdk'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
 
 @Injectable()
-export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'Squid'> {
+export class SquidProviderService implements IRebalanceProvider<'Squid'> {
   private logger = new Logger(SquidProviderService.name)
   private squid: Squid
+  private initialized = false
+  private initializationPromise: Promise<void> | null = null
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -23,25 +25,50 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     private readonly rebalanceRepository: RebalanceRepository,
   ) {}
 
-  async onModuleInit() {
-    try {
-      const squidConfig = this.ecoConfigService.getSquid()
-      if (!squidConfig?.integratorId) {
-        this.logger.warn('Squid configuration not found or incomplete, service will be disabled')
-        return
-      }
-      this.squid = new Squid({
-        baseUrl: squidConfig.baseUrl,
-        integratorId: squidConfig.integratorId,
-      })
-      await this.squid.init()
-    } catch (error) {
-      this.logger.warn('Failed to initialize Squid service, it will be disabled', error)
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) {
+      return
     }
+
+    // Prevent concurrent initialization
+    if (this.initializationPromise) {
+      return this.initializationPromise
+    }
+
+    this.initializationPromise = this.doInitialize()
+    await this.initializationPromise
+    this.initialized = true
+    this.initializationPromise = null
+  }
+
+  private async doInitialize(): Promise<void> {
+    const squidConfig = this.ecoConfigService.getSquid()
+    this.squid = new Squid({
+      baseUrl: squidConfig.baseUrl,
+      integratorId: squidConfig.integratorId,
+    })
+    await this.squid.init()
   }
 
   getStrategy() {
     return 'Squid' as const
+  }
+
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    await this.ensureInitialized()
+    const tokens = this.squid.tokens
+    return (
+      tokens.some(
+        (t) =>
+          t.address === tokenIn.config.address &&
+          t.chainId.toString() === tokenIn.chainId.toString(),
+      ) &&
+      tokens.some(
+        (t) =>
+          t.address === tokenOut.config.address &&
+          t.chainId.toString() === tokenOut.chainId.toString(),
+      )
+    )
   }
 
   async getQuote(
@@ -50,6 +77,8 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'Squid'>[]> {
+    await this.ensureInitialized()
+
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Squid: getting quote',
@@ -57,6 +86,15 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
         properties: { tokenIn, tokenOut, swapAmount },
       }),
     )
+
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
+      )
+    }
 
     const walletAddress = await this.kernelAccountClientService.getAddress()
     const { swapSlippage } = this.ecoConfigService.getLiquidityManager()
@@ -75,6 +113,10 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
 
     try {
       const { route } = await this.squid.getRoute(params)
+
+      if (route.transactionRequest === undefined) {
+        throw EcoError.RebalancingRouteNotFound()
+      }
 
       const slippage = getSlippage(route.estimate.toAmountMin, route.estimate.fromAmount)
 
@@ -112,6 +154,8 @@ export class SquidProviderService implements OnModuleInit, IRebalanceProvider<'S
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'Squid'>): Promise<string> {
+    await this.ensureInitialized()
+
     this.logger.debug(
       EcoLogMessage.withId({
         message: 'Squid: executing quote',

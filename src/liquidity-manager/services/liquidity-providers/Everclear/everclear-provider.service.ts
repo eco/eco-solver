@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
 import {
@@ -21,9 +21,10 @@ import { erc20Abi } from 'viem'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
 import { LmTxGatedKernelAccountClientService } from '@/liquidity-manager/wallet-wrappers/kernel-gated-client.service'
+import { EcoError } from '@/common/errors/eco-error'
 
 @Injectable()
-export class EverclearProviderService implements IRebalanceProvider<'Everclear'>, OnModuleInit {
+export class EverclearProviderService implements IRebalanceProvider<'Everclear'> {
   private logger = new Logger(EverclearProviderService.name)
   private config: EverclearConfig
   private readonly liquidityManagerQueue: LiquidityManagerQueue
@@ -36,11 +37,8 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     @InjectQueue(LiquidityManagerQueue.queueName)
     private readonly queue: LiquidityManagerQueueType,
   ) {
-    this.liquidityManagerQueue = new LiquidityManagerQueue(this.queue)
-  }
-
-  async onModuleInit() {
     this.config = this.configService.getEverclear()
+    this.liquidityManagerQueue = new LiquidityManagerQueue(this.queue)
   }
 
   getStrategy() {
@@ -57,6 +55,20 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
     })
   }
 
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    // same-chain swaps are not supported
+    if (tokenIn.chainId === tokenOut.chainId) return false
+
+    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
+      this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
+      this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
+    ])
+    // cross-token swaps are not supported
+    if (tokenInSymbol !== tokenOutSymbol) return false
+
+    return true
+  }
+
   async getQuote(
     tokenIn: TokenData,
     tokenOut: TokenData,
@@ -71,53 +83,13 @@ export class EverclearProviderService implements IRebalanceProvider<'Everclear'>
       }),
     )
 
-    // Everclear only supports cross-chain transfers of the same token representation.
-    // If origin and destination chains are the same, skip quoting entirely.
-    if (tokenIn.chainId === tokenOut.chainId) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: `Everclear: same-chain swaps are not supported ${tokenIn.chainId} -> ${tokenOut.chainId}`,
-          id,
-          properties: {
-            tokenIn: {
-              address: tokenIn.config.address,
-              chainId: tokenIn.chainId,
-            },
-            tokenOut: {
-              address: tokenOut.config.address,
-              chainId: tokenOut.chainId,
-            },
-          },
-        }),
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
       )
-      return []
-    }
-
-    const [tokenInSymbol, tokenOutSymbol] = await Promise.all([
-      this.getTokenSymbol(tokenIn.config.chainId, tokenIn.config.address),
-      this.getTokenSymbol(tokenOut.config.chainId, tokenOut.config.address),
-    ])
-
-    if (tokenInSymbol !== tokenOutSymbol) {
-      this.logger.warn(
-        EcoLogMessage.withId({
-          message: `Everclear: cross-token swaps are not supported ${tokenInSymbol} -> ${tokenOutSymbol}`,
-          id,
-          properties: {
-            tokenIn: {
-              symbol: tokenInSymbol,
-              address: tokenIn.config.address,
-              chainId: tokenIn.config.chainId,
-            },
-            tokenOut: {
-              symbol: tokenOutSymbol,
-              address: tokenOut.config.address,
-              chainId: tokenOut.config.chainId,
-            },
-          },
-        }),
-      )
-      return []
     }
 
     const walletAddress = await this.kernelAccountClientService.getAddress()

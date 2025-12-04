@@ -84,6 +84,16 @@ describe('RelayProviderService', () => {
   } as unknown as WalletClient
 
   beforeEach(async () => {
+    // Mock ChainsSupported.find BEFORE service is created (constructor calls getRelayChains)
+    jest.spyOn(ChainsSupported, 'find').mockImplementation((predicate: any) => {
+      const testChains = [
+        { id: 1, name: 'Ethereum' },
+        { id: 10, name: 'Optimism' },
+        { id: 137, name: 'Polygon' },
+      ]
+      return testChains.find(predicate) as any
+    })
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RelayProviderService,
@@ -111,18 +121,62 @@ describe('RelayProviderService', () => {
     kernelAccountClientV2Service = module.get<LmTxGatedKernelAccountClientV2Service>(
       LmTxGatedKernelAccountClientV2Service,
     )
-
-    // Bypass the onModuleInit for unit tests
-    jest.spyOn(ChainsSupported, 'find').mockReturnValue({
-      id: 1,
-      name: 'Ethereum',
-    } as any)
   })
 
-  it('should initialize the Relay client on module init', async () => {
-    await service.onModuleInit()
+  it('should initialize the Relay client in constructor', async () => {
+    // Wait for async initialization to complete
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(createClient).toHaveBeenCalled()
+  })
+
+  describe('isRouteAvailable', () => {
+    const mockRelayChains = [{ id: 1 }, { id: 10 }, { id: 137 }]
+
+    beforeEach(() => {
+      // Mock getRelayChains to return supported chains
+      jest.spyOn(service as any, 'getRelayChains').mockReturnValue(mockRelayChains)
+    })
+
+    it('should return true when both chains are supported by Relay', async () => {
+      const result = await service.isRouteAvailable(mockTokenData, mockTokenDataOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source chain is not supported', async () => {
+      const unsupportedSourceToken = {
+        ...mockTokenData,
+        chainId: 999, // Unsupported chain
+        config: { ...mockTokenData.config, chainId: 999 },
+      }
+      const result = await service.isRouteAvailable(unsupportedSourceToken, mockTokenDataOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain is not supported', async () => {
+      const unsupportedDestToken = {
+        ...mockTokenDataOut,
+        chainId: 999, // Unsupported chain
+        config: { ...mockTokenDataOut.config, chainId: 999 },
+      }
+      const result = await service.isRouteAvailable(mockTokenData, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both chains are not supported', async () => {
+      const unsupportedSourceToken = {
+        ...mockTokenData,
+        chainId: 998,
+        config: { ...mockTokenData.config, chainId: 998 },
+      }
+      const unsupportedDestToken = {
+        ...mockTokenDataOut,
+        chainId: 999,
+        config: { ...mockTokenDataOut.config, chainId: 999 },
+      }
+      const result = await service.isRouteAvailable(unsupportedSourceToken, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
   })
 
   it('should get a quote successfully', async () => {

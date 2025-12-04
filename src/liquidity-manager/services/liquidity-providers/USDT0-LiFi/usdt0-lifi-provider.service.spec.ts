@@ -13,6 +13,7 @@ import { EcoAnalyticsService } from '@/analytics'
 import { TokenData } from '@/liquidity-manager/types/types'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 
 describe('USDT0LiFiProviderService', () => {
   let service: USDT0LiFiProviderService
@@ -80,6 +81,48 @@ describe('USDT0LiFiProviderService', () => {
     jest.spyOn(Logger.prototype, 'debug').mockImplementation()
     jest.spyOn(Logger.prototype, 'log').mockImplementation()
     jest.spyOn(Logger.prototype, 'warn').mockImplementation()
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true for supported cross-chain USDT0 route', async () => {
+      const tokenIn = token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7')
+      const tokenOut = token(10, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false for same-chain routes', async () => {
+      const tokenIn = token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7')
+      const tokenOut = token(1, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when source chain does not support USDT0', async () => {
+      const tokenIn = token(56, '0x1111111111111111111111111111111111111111') // Unsupported chain
+      const tokenOut = token(10, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain does not support USDT0', async () => {
+      const tokenIn = token(1, '0xdAC17F958D2ee523a2206206994597C13D831ec7')
+      const tokenOut = token(56, '0x1111111111111111111111111111111111111111') // Unsupported chain
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both chains do not support USDT0', async () => {
+      const tokenIn = token(56, '0x1111111111111111111111111111111111111111')
+      const tokenOut = token(97, '0x2222222222222222222222222222222222222222')
+
+      const result = await service.isRouteAvailable(tokenIn, tokenOut)
+      expect(result).toBe(false)
+    })
   })
 
   describe('getQuote', () => {
@@ -274,7 +317,7 @@ describe('USDT0LiFiProviderService', () => {
     expect(injectedRepo.updateStatus).toHaveBeenCalledWith('reb-1', RebalanceStatus.FAILED)
   })
 
-  describe('extractTransactionHashFromLiFiResult', () => {
+  describe('extractLiFiTxHash helper', () => {
     it('returns the latest txHash scanning steps and processes in reverse (tx in last process of last step)', () => {
       const lifiResult = {
         steps: [
@@ -296,7 +339,7 @@ describe('USDT0LiFiProviderService', () => {
           },
         ],
       }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-1')
+      const tx = extractLiFiTxHash(lifiResult)
       expect(tx).toBe('0xlast')
     })
 
@@ -307,7 +350,7 @@ describe('USDT0LiFiProviderService', () => {
           { execution: { process: [{ type: 'SWAP', status: 'DONE', txHash: '0xhash2' }] } },
         ],
       }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-2')
+      const tx = extractLiFiTxHash(lifiResult)
       expect(tx).toBe('0xhash2')
     })
 
@@ -318,14 +361,14 @@ describe('USDT0LiFiProviderService', () => {
           { execution: { process: [{ type: 'SWAP', status: 'DONE' }] } },
         ],
       }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-3')
+      const tx = extractLiFiTxHash(lifiResult)
       expect(tx).toBe('0xfirst')
     })
 
     it('returns 0x0 when no txHash is present', () => {
       const lifiResult = { steps: [{ execution: { process: [] } }] }
-      const tx = (service as any)['extractTransactionHashFromLiFiResult'](lifiResult, 'id-4')
-      expect(tx).toBe('0x0')
+      const tx = extractLiFiTxHash(lifiResult)
+      expect(tx).toBeUndefined()
     })
   })
 })

@@ -63,7 +63,7 @@ export const adaptKernelWallet = (
       return client.extend(publicActions).waitForTransactionReceipt({
         hash: hash as Hex,
         confirmations: 1,
-        timeout: 60_000,
+        retryCount: 10,
         onReplaced: (replacement) => {
           if (replacement.reason === 'cancelled') {
             onCancelled()

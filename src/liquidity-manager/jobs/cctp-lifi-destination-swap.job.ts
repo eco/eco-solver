@@ -14,6 +14,7 @@ import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-pr
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 
 export interface CCTPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
   messageHash: Hex
@@ -216,25 +217,28 @@ export class CCTPLiFiDestinationSwapJobManager extends LiquidityManagerJobManage
       tempQuote,
     )
 
+    const txHash = extractLiFiTxHash(result) ?? ('0x0' as Hex)
+
+    if (txHash === '0x0') {
+      processor.logger.warn(
+        EcoLogMessage.withId({
+          message: 'CCTPLiFiDestinationSwapJob: Could not extract tx hash from LiFi result',
+          id: destinationSwapQuote.id,
+          properties: { lifiResult: result },
+        }),
+      )
+    }
+
     processor.logger.debug(
       EcoLogMessage.withId({
         message: 'CCTPLiFi: CCTPLiFiDestinationSwapJob: Destination swap completed',
         id: destinationSwapQuote.id,
-        properties: { walletAddress, tempQuote, result },
+        properties: { walletAddress, tempQuote, result, txHash },
       }),
     )
 
-    // TODO: Extract actual transaction hash from LiFi result
-    // Current limitation: liquidityProviderManager.execute() doesn't return the execution result
-    // This placeholder is acceptable because:
-    // 1. The swap still executes successfully without the hash
-    // 2. We have comprehensive error logging for failed swaps ("STRANDED USDC ALERT")
-    // 3. The main flow tracking uses the CCTP transaction hash
-    //
-    // To implement: Modify liquidityProviderManager.execute() to return the LiFi result,
-    // then use the extractTransactionHashFromLiFiResult() logic from cctp-lifi-provider.service.ts
     return {
-      txHash: '0x0' as Hex, // Placeholder - see TODO above
+      txHash,
       finalAmount: destinationSwapQuote.toAmount,
     }
   }

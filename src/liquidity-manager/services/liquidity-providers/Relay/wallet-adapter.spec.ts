@@ -116,7 +116,7 @@ describe('adaptKernelWallet', () => {
       expect.objectContaining({
         hash: '0xhash',
         confirmations: 1,
-        timeout: 60_000,
+        retryCount: 10,
         onReplaced: expect.any(Function),
       }),
     )

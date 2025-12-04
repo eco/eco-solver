@@ -194,8 +194,15 @@ describe('StargateProviderService', () => {
     expect(service).toBeDefined()
   })
 
-  it('should initialize wallet address on module init', async () => {
-    await service.onModuleInit()
+  it('should initialize wallet address lazily on first method call', async () => {
+    // Before any method call, wallet address should not be set
+    expect(service['walletAddress']).toBeUndefined()
+    expect(kernelAccountClientV2Service.getClient).not.toHaveBeenCalled()
+
+    // Call a method that triggers initialization
+    await service.isRouteAvailable(mockTokenData, mockTokenDataOut)
+
+    // Now initialization should have happened
     expect(ecoConfigService.getIntentSources).toHaveBeenCalled()
     expect(kernelAccountClientV2Service.getClient).toHaveBeenCalledWith(1)
     expect(service['walletAddress']).toEqual(mockWalletAddress)
@@ -203,6 +210,51 @@ describe('StargateProviderService', () => {
 
   it('should return the correct strategy name', () => {
     expect(service.getStrategy()).toEqual('Stargate')
+  })
+
+  describe('isRouteAvailable', () => {
+    it('should return true when both chains are supported', async () => {
+      const result = await service.isRouteAvailable(mockTokenData, mockTokenDataOut)
+      expect(result).toBe(true)
+    })
+
+    it('should return false when source chain is not supported', async () => {
+      const unsupportedSourceToken: TokenData = {
+        ...mockTokenData,
+        chainId: 999, // Unsupported chain
+        config: { ...mockTokenData.config, chainId: 999 },
+      }
+
+      const result = await service.isRouteAvailable(unsupportedSourceToken, mockTokenDataOut)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when destination chain is not supported', async () => {
+      const unsupportedDestToken: TokenData = {
+        ...mockTokenDataOut,
+        chainId: 999, // Unsupported chain
+        config: { ...mockTokenDataOut.config, chainId: 999 },
+      }
+
+      const result = await service.isRouteAvailable(mockTokenData, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
+
+    it('should return false when both chains are not supported', async () => {
+      const unsupportedSourceToken: TokenData = {
+        ...mockTokenData,
+        chainId: 998,
+        config: { ...mockTokenData.config, chainId: 998 },
+      }
+      const unsupportedDestToken: TokenData = {
+        ...mockTokenDataOut,
+        chainId: 999,
+        config: { ...mockTokenDataOut.config, chainId: 999 },
+      }
+
+      const result = await service.isRouteAvailable(unsupportedSourceToken, unsupportedDestToken)
+      expect(result).toBe(false)
+    })
   })
 
   describe('getQuote', () => {
@@ -267,7 +319,7 @@ describe('StargateProviderService', () => {
       )
 
       await expect(service.getQuote(mockTokenData, mockTokenDataOut, 10)).rejects.toThrow(
-        EcoError.RebalancingRouteNotFound().message,
+        'A rebalancing route is not available',
       )
     })
   })
@@ -288,11 +340,14 @@ describe('StargateProviderService', () => {
     })
 
     it('should execute a quote successfully', async () => {
+      // Clear call counts from initialization
+      jest.clearAllMocks()
+
       await service.execute(mockWalletAddress, mockQuote)
 
-      // Should have called getClient for both steps
+      // Should have called getClient for initialization + both steps
       expect(kernelAccountClientV2Service.getClient).toHaveBeenCalledWith(1) // ethereum chainId
-      expect(kernelAccountClientV2Service.getClient).toHaveBeenCalledTimes(2)
+      expect(kernelAccountClientV2Service.getClient).toHaveBeenCalledTimes(3) // 1 for init + 2 for steps
 
       // Should have sent two transactions (one for each step)
       expect(mockClient.sendTransaction).toHaveBeenCalledTimes(2)

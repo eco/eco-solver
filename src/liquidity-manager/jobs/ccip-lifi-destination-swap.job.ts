@@ -1,7 +1,7 @@
 import { AutoInject } from '@/common/decorators/auto-inject.decorator'
 import { EcoLogMessage } from '@/common/logging/eco-log-message'
 import { Hex } from 'viem'
-import { LiFiStrategyContext } from '@/liquidity-manager/types/types'
+import { LiFiStrategyContext, RebalanceQuote } from '@/liquidity-manager/types/types'
 import {
   LiquidityManagerJob,
   LiquidityManagerJobManager,
@@ -13,10 +13,10 @@ import {
 import { LiquidityManagerProcessor } from '@/liquidity-manager/processors/eco-protocol-intents.processor'
 import { Queue } from 'bullmq'
 import { RebalanceRepository } from '@/liquidity-manager/repositories/rebalance.repository'
-import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum'
+import { extractLiFiTxHash } from '@/liquidity-manager/services/liquidity-providers/LiFi/utils/get-transaction-hashes'
 
-export interface USDT0LiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
+export interface CCIPLiFiDestinationSwapJobData extends LiquidityManagerQueueDataType {
   destinationChainId: number
   destinationSwapQuote: LiFiStrategyContext
   walletAddress: string
@@ -25,25 +25,21 @@ export interface USDT0LiFiDestinationSwapJobData extends LiquidityManagerQueueDa
     chainId: number
     decimals: number
   }
-  usdt0TransactionHash?: Hex
+  ccipTransactionHash?: Hex
 }
 
-export type USDT0LiFiDestinationSwapJob = LiquidityManagerJob<
-  LiquidityManagerJobName.USDT0_LIFI_DESTINATION_SWAP,
-  USDT0LiFiDestinationSwapJobData,
+export type CCIPLiFiDestinationSwapJob = LiquidityManagerJob<
+  LiquidityManagerJobName.CCIP_LIFI_DESTINATION_SWAP,
+  CCIPLiFiDestinationSwapJobData,
   { txHash: Hex; finalAmount: string }
 >
 
-export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManager<USDT0LiFiDestinationSwapJob> {
+export class CCIPLiFiDestinationSwapJobManager extends LiquidityManagerJobManager<CCIPLiFiDestinationSwapJob> {
   @AutoInject(RebalanceRepository)
   private rebalanceRepository: RebalanceRepository
 
-  static async start(
-    queue: Queue,
-    data: USDT0LiFiDestinationSwapJobData,
-    delay = 0,
-  ): Promise<void> {
-    await queue.add(LiquidityManagerJobName.USDT0_LIFI_DESTINATION_SWAP, data, {
+  static async start(queue: Queue, data: CCIPLiFiDestinationSwapJobData, delay = 0): Promise<void> {
+    await queue.add(LiquidityManagerJobName.CCIP_LIFI_DESTINATION_SWAP, data, {
       removeOnFail: false,
       delay,
       attempts: 3,
@@ -54,39 +50,25 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     })
   }
 
-  is(job: USDT0LiFiDestinationSwapJob): boolean {
-    return job.name === LiquidityManagerJobName.USDT0_LIFI_DESTINATION_SWAP
+  is(job: CCIPLiFiDestinationSwapJob): boolean {
+    return job.name === LiquidityManagerJobName.CCIP_LIFI_DESTINATION_SWAP
   }
 
   async process(
-    job: USDT0LiFiDestinationSwapJob,
+    job: CCIPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
-  ): Promise<USDT0LiFiDestinationSwapJob['returnvalue']> {
-    const { destinationChainId, destinationSwapQuote, walletAddress, originalTokenOut, id } =
-      job.data
+  ): Promise<CCIPLiFiDestinationSwapJob['returnvalue']> {
+    const { destinationChainId, destinationSwapQuote, walletAddress, id } = job.data
 
     processor.logger.debug(
       EcoLogMessage.withId({
-        message: 'USDT0LiFiDestinationSwapJob: process start',
+        message: 'CCIPLiFiDestinationSwapJob: process start',
         id,
         properties: {
           destinationChainId,
           walletAddress,
           fromToken: destinationSwapQuote?.fromToken?.address,
           toToken: destinationSwapQuote?.toToken?.address,
-        },
-      }),
-    )
-
-    processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFi: DestinationSwapJob: Starting execution',
-        id,
-        properties: {
-          destinationChainId,
-          walletAddress,
-          originalTokenOut,
-          destinationSwapQuote,
         },
       }),
     )
@@ -101,7 +83,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
 
       processor.logger.debug(
         EcoLogMessage.withId({
-          message: 'USDT0LiFi: DestinationSwapJob: Completed successfully',
+          message: 'CCIPLiFi: DestinationSwapJob: Completed successfully',
           id,
           properties: { swapTxHash: result.txHash, finalAmount: result.finalAmount },
         }),
@@ -111,9 +93,9 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     } catch (error) {
       processor.logger.error(
         EcoLogMessage.withErrorAndId({
-          error,
-          message: 'USDT0LiFi: DestinationSwapJob: Execution failed',
+          message: 'CCIPLiFi: DestinationSwapJob: Execution failed',
           id,
+          error: error as any,
           properties: {
             destinationChainId,
             walletAddress,
@@ -132,20 +114,13 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
   ): Promise<{ txHash: Hex; finalAmount: string }> {
     processor.logger.debug(
       EcoLogMessage.withId({
-        message: 'USDT0LiFiDestinationSwapJob: executeDestinationSwap start',
+        message: 'CCIPLiFiDestinationSwapJob: executeDestinationSwap start',
         id: destinationSwapQuote.id,
         properties: { destinationChainId, walletAddress },
       }),
     )
-    processor.logger.debug(
-      EcoLogMessage.withId({
-        message: 'USDT0LiFi: DestinationSwapJob: Executing destination swap',
-        id: destinationSwapQuote.id,
-        properties: { destinationSwapQuote, walletAddress, destinationChainId },
-      }),
-    )
 
-    const tempQuote = {
+    const quote: RebalanceQuote<'LiFi'> = {
       tokenIn: {
         chainId: destinationChainId,
         config: {
@@ -153,7 +128,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
           chainId: destinationChainId,
           minBalance: 0,
           targetBalance: 0,
-          type: 'erc20' as const,
+          type: 'erc20',
         },
         balance: {
           address: destinationSwapQuote.fromToken.address as Hex,
@@ -168,7 +143,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
           chainId: destinationChainId,
           minBalance: 0,
           targetBalance: 0,
-          type: 'erc20' as const,
+          type: 'erc20',
         },
         balance: {
           address: destinationSwapQuote.toToken.address as Hex,
@@ -181,13 +156,13 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
       slippage:
         1 -
         parseFloat(destinationSwapQuote.toAmountMin) / parseFloat(destinationSwapQuote.fromAmount),
-      strategy: 'LiFi' as const,
+      strategy: 'LiFi',
       context: destinationSwapQuote,
     }
 
     const execResult = await processor.liquidityManagerService.liquidityProviderManager.execute(
       walletAddress,
-      tempQuote as any,
+      quote,
     )
 
     const txHash = extractLiFiTxHash(execResult) ?? ('0x0' as Hex)
@@ -195,7 +170,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     if (txHash === '0x0') {
       processor.logger.warn(
         EcoLogMessage.withId({
-          message: 'USDT0LiFiDestinationSwapJob: Could not extract tx hash from LiFi result',
+          message: 'CCIPLiFiDestinationSwapJob: Could not extract tx hash from LiFi result',
           id: destinationSwapQuote.id,
           properties: { lifiResult: execResult },
         }),
@@ -204,7 +179,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
 
     processor.logger.debug(
       EcoLogMessage.withId({
-        message: 'USDT0LiFiDestinationSwapJob: executeDestinationSwap completed',
+        message: 'CCIPLiFiDestinationSwapJob: executeDestinationSwap completed',
         id: destinationSwapQuote.id,
         properties: { execResult, txHash },
       }),
@@ -217,7 +192,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
   }
 
   async onComplete(
-    job: USDT0LiFiDestinationSwapJob,
+    job: CCIPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
   ): Promise<void> {
     const jobData: LiquidityManagerQueueDataType = job.data as LiquidityManagerQueueDataType
@@ -225,7 +200,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
 
     processor.logger.log(
       EcoLogMessage.withId({
-        message: 'USDT0LiFi: DestinationSwapJob: Completed',
+        message: 'CCIPLiFi: DestinationSwapJob: Completed',
         id: job.data.id,
         properties: {
           groupID,
@@ -242,7 +217,7 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
   }
 
   async onFailed(
-    job: USDT0LiFiDestinationSwapJob,
+    job: CCIPLiFiDestinationSwapJob,
     processor: LiquidityManagerProcessor,
     error: unknown,
   ) {
@@ -257,8 +232,8 @@ export class USDT0LiFiDestinationSwapJobManager extends LiquidityManagerJobManag
     processor.logger.error(
       EcoLogMessage.withErrorAndId({
         message: isFinal
-          ? 'USDT0LiFi: DestinationSwapJob: FINAL FAILURE'
-          : 'USDT0LiFi: DestinationSwapJob: Failed: Retrying...',
+          ? 'CCIPLiFi: DestinationSwapJob: FINAL FAILURE'
+          : 'CCIPLiFi: DestinationSwapJob: Failed: Retrying...',
         id: job.data.id,
         error: error as any,
         properties: {

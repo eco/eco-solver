@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { parseUnits } from 'viem'
 import {
   createConfig,
@@ -28,10 +28,12 @@ import { RebalanceStatus } from '@/liquidity-manager/enums/rebalance-status.enum
 import { LmTxGatedKernelAccountClientV2Service } from '../../../wallet-wrappers/kernel-gated-client-v2.service'
 
 @Injectable()
-export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'LiFi'> {
+export class LiFiProviderService implements IRebalanceProvider<'LiFi'> {
   private logger = new Logger(LiFiProviderService.name)
   private walletAddress: string
   private assetCacheManager: LiFiAssetCacheManager
+  private initialized = false
+  private initializationPromise: Promise<void> | null = null
 
   constructor(
     private readonly ecoConfigService: EcoConfigService,
@@ -40,11 +42,26 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     private readonly rebalanceRepository: RebalanceRepository,
     private readonly ecoAnalytics: EcoAnalyticsService,
   ) {
-    // Initialize the asset cache manager
     this.assetCacheManager = new LiFiAssetCacheManager(this.ecoConfigService, this.logger)
   }
 
-  async onModuleInit() {
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) {
+      return
+    }
+
+    // Prevent concurrent initialization
+    if (this.initializationPromise) {
+      return this.initializationPromise
+    }
+
+    this.initializationPromise = this.doInitialize()
+    await this.initializationPromise
+    this.initialized = true
+    this.initializationPromise = null
+  }
+
+  private async doInitialize(): Promise<void> {
     const liFiConfig = this.ecoConfigService.getLiFi()
 
     // Use first intent source's network as the default network
@@ -93,6 +110,11 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     }
   }
 
+  async isRouteAvailable(tokenIn: TokenData, tokenOut: TokenData): Promise<boolean> {
+    await this.ensureInitialized()
+    return this.validateTokenSupport(tokenIn, tokenOut)
+  }
+
   getStrategy() {
     return 'LiFi' as const
   }
@@ -103,24 +125,19 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     swapAmount: number,
     id?: string,
   ): Promise<RebalanceQuote<'LiFi'>> {
+    await this.ensureInitialized()
+
     const { swapSlippage, maxQuoteSlippage } = this.ecoConfigService.getLiquidityManager()
     const liFiConfig = this.ecoConfigService.getLiFi()
 
-    // Validate tokens and chains before making API call
-    const isValidRoute = this.validateTokenSupport(tokenIn, tokenOut)
-    if (!isValidRoute) {
-      this.logger.warn(
-        EcoLogMessage.fromDefault({
-          message: 'LiFi: Skipping quote request for unsupported token/chain combination',
-          properties: {
-            fromToken: tokenIn.config.address,
-            fromChain: tokenIn.chainId,
-            toToken: tokenOut.config.address,
-            toChain: tokenOut.chainId,
-          },
-        }),
+    // Validate route availability
+    if (!(await this.isRouteAvailable(tokenIn, tokenOut))) {
+      throw EcoError.RebalancingRouteNotAvailable(
+        tokenIn.chainId,
+        tokenIn.config.address,
+        tokenOut.chainId,
+        tokenOut.config.address,
       )
-      throw EcoError.RebalancingRouteNotFound()
     }
 
     const routesRequest: RoutesRequest = {
@@ -167,6 +184,8 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
   }
 
   async execute(walletAddress: string, quote: RebalanceQuote<'LiFi'>) {
+    await this.ensureInitialized()
+
     try {
       const kernelWalletAddress = await this.kernelAccountClientService.getAddress()
 
@@ -380,7 +399,7 @@ export class LiFiProviderService implements OnModuleInit, IRebalanceProvider<'Li
     const lifiRPCUrls: SDKConfig['rpcUrls'] = {}
 
     for (const chainId in rpcUrl) {
-      lifiRPCUrls[parseInt(chainId)] = [rpcUrl[chainId]]
+      lifiRPCUrls[parseInt(chainId)] = rpcUrl[chainId]
     }
 
     return lifiRPCUrls
