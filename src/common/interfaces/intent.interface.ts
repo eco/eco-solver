@@ -45,6 +45,14 @@ export interface Intent<
   vaultAddress?: string; // Derived vault address
   // Transaction tracking
   publishTxHash?: string; // Transaction hash where intent was published
+  // Fulfillment tracking
+  fulfilledEvent?: {
+    claimant: string;
+    txHash: string;
+    blockNumber?: string;
+    timestamp: Date;
+    chainId: string;
+  };
 }
 
 export type BlockchainIntent<source extends ChainType, dest extends ChainType> = Intent<
