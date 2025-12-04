@@ -1,6 +1,7 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
+import { Mutex } from 'async-mutex';
 import { Job } from 'bullmq';
 
 import { IntentStatus } from '@/common/interfaces/intent.interface';
@@ -20,7 +21,7 @@ import { createExponentialCappedStrategy } from '@/modules/queue/utils/backoff-s
   prefix: `{${QueueNames.INTENT_EXECUTION}}`,
 })
 export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnModuleDestroy {
-  private chainLocks: Map<string, Promise<void>> = new Map();
+  private chainLocks: Map<string, Mutex> = new Map();
   constructor(
     private blockchainService: BlockchainExecutorService,
     @Inject(QueueConfigService) private queueConfig: QueueConfigService,
@@ -119,38 +120,31 @@ export class BlockchainProcessor extends WorkerHost implements OnModuleInit, OnM
           'intent.destination_chain': intent.destination.toString(),
         });
 
-        // Ensure sequential processing per chain
-        const currentLock = this.chainLocks.get(chainKey) || Promise.resolve();
+        // Ensure sequential processing per chain using mutex
+        let mutex = this.chainLocks.get(chainKey);
+        if (!mutex) {
+          mutex = new Mutex();
+          this.chainLocks.set(chainKey, mutex);
+        }
 
-        // Create a new lock for this chain
-        const newLock = currentLock.then(async () => {
-          try {
-            this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
-            span.addEvent('execution.started');
-            await this.blockchainService.executeIntent(intent, walletId);
-            span.addEvent('execution.completed');
-            this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
-          } catch (error) {
-            this.logger.error(
-              `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
-              toError(error),
-            );
-            span.recordException(toError(error));
-            throw error;
-          }
-        });
+        // Acquire lock for this chain
+        const release = await mutex.acquire();
 
-        // Update the lock for this chain
-        this.chainLocks.set(chainKey, newLock);
-
-        // Wait for execution to complete and ensure cleanup happens even on error
         try {
-          await newLock;
+          this.logger.log(`Executing intent ${intent.intentHash} on chain ${chainKey}`);
+          span.addEvent('execution.started');
+          await this.blockchainService.executeIntent(intent, walletId);
+          span.addEvent('execution.completed');
+          this.logger.log(`Completed intent ${intent.intentHash} on chain ${chainKey}`);
+        } catch (error) {
+          this.logger.error(
+            `Failed to execute intent ${intent.intentHash} on chain ${chainKey}:`,
+            toError(error),
+          );
+          span.recordException(toError(error));
+          throw error;
         } finally {
-          // Clean up lock to prevent memory leaks and stale rejected promises
-          if (this.chainLocks.get(chainKey) === newLock) {
-            this.chainLocks.delete(chainKey);
-          }
+          release();
         }
       },
       {
