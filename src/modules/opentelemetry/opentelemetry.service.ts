@@ -27,8 +27,8 @@ import { SystemLoggerService } from '@/modules/logging/logger.service';
 
 @Injectable()
 export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
-  private sdk?: NodeSDK;
   public tracer: api.Tracer;
+  private sdk?: NodeSDK;
   private meter: api.Meter;
   private meterProvider?: MeterProvider;
 
@@ -37,20 +37,24 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     private readonly logger: SystemLoggerService,
   ) {
     this.logger.setContext(OpenTelemetryService.name);
-    // Always get tracer - it will be no-op if no provider is registered
-    this.tracer = api.trace.getTracer('solver');
-    // Always get meter - it will be no-op if no provider is registered
-    this.meter = api.metrics.getMeter('solver');
   }
 
   async onModuleInit() {
     if (!this.config.enabled) {
       this.logger.log('OpenTelemetry is disabled');
+      // Initialize with no-op implementations when disabled
+      // This ensures code can still call tracing methods without errors
+      this.tracer = api.trace.getTracer('solver');
+      this.meter = api.metrics.getMeter('solver');
       return;
     }
 
     try {
       await this.initializeOpenTelemetry();
+
+      // Get tracer and meter after providers are initialized
+      this.tracer = api.trace.getTracer('solver');
+
       this.logger.log('OpenTelemetry initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize OpenTelemetry', toError(error));
@@ -78,16 +82,31 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Get the OpenTelemetry meter instance
+   * Returns the meter after provider initialization, or gets it if not yet retrieved
    */
   getMeter(): api.Meter {
+    if (!this.meter) {
+      this.meter = api.metrics.getMeter('solver');
+    }
     return this.meter;
+  }
+
+  /**
+   * Get the OpenTelemetry tracer instance
+   * Returns the tracer after provider initialization, or gets it if not yet retrieved
+   */
+  getTracer(): api.Tracer {
+    if (!this.tracer) {
+      this.tracer = api.trace.getTracer('solver');
+    }
+    return this.tracer;
   }
 
   /**
    * Start a new span
    */
   startSpan(name: string, options?: api.SpanOptions): api.Span {
-    return this.tracer.startSpan(name, options);
+    return this.getTracer().startSpan(name, options);
   }
 
   /**
@@ -125,7 +144,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     fn: (span: api.Span) => Promise<T>,
     options?: api.SpanOptions,
   ): Promise<T> {
-    return this.tracer.startActiveSpan(name, options || {}, async (span) => {
+    return this.getTracer().startActiveSpan(name, options || {}, async (span) => {
       try {
         const result = await fn(span);
         span.setStatus({ code: api.SpanStatusCode.OK });
@@ -174,7 +193,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     // Break context propagation by creating span without parent context
     const correlationAttrs = this.createCorrelationAttributes(intentHash, stage);
 
-    return this.tracer.startSpan(name, {
+    return this.getTracer().startSpan(name, {
       root: true, // Ensure this is a root span
       attributes: {
         ...correlationAttrs,
@@ -202,7 +221,7 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
 
     // Start a new active span in the root context (new trace)
     return api.context.with(rootContext, () => {
-      return this.tracer.startActiveSpan(
+      return this.getTracer().startActiveSpan(
         name,
         {
           attributes: {
@@ -280,12 +299,17 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
     }
 
     // OTLP Metric Exporter
+    const otlpMetricsUrl = `${this.config.otlp.endpoint}/v1/metrics`;
+
+    const otlpExporter = new OTLPMetricExporter({
+      url: otlpMetricsUrl,
+      headers: this.config.otlp.headers,
+      timeoutMillis: 10000,
+    });
+
     metricExporters.push(
       new PeriodicExportingMetricReader({
-        exporter: new OTLPMetricExporter({
-          url: `${this.config.otlp.endpoint}/v1/metrics`,
-          headers: this.config.otlp.headers,
-        }),
+        exporter: otlpExporter,
         exportIntervalMillis: 60000, // Export every minute
       }),
     );
@@ -297,6 +321,9 @@ export class OpenTelemetryService implements OnModuleInit, OnModuleDestroy {
 
     // Set the global meter provider
     api.metrics.setGlobalMeterProvider(this.meterProvider);
+
+    // Get the meter after provider is set
+    this.meter = api.metrics.getMeter('solver');
   }
 
   private createExporters(): SpanExporter[] {

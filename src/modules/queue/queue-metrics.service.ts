@@ -3,7 +3,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Queue } from 'bullmq';
 
-import { DataDogService } from '@/modules/datadog';
+import { MetricsRegistryService } from '@/modules/opentelemetry/metrics-registry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class QueueMetricsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     @InjectQueue(QueueNames.INTENT_EXECUTION) private executionQueue: Queue,
-    private dataDogService: DataDogService,
+    private metricsRegistry: MetricsRegistryService,
   ) {}
 
   onModuleInit() {
@@ -35,8 +35,8 @@ export class QueueMetricsService implements OnModuleInit, OnModuleDestroy {
           this.executionQueue.getWaitingCount(),
         ]);
 
-        this.dataDogService.setQueueDepth('fulfillment', fulfillmentDepth);
-        this.dataDogService.setQueueDepth('execution', executionDepth);
+        this.metricsRegistry.setQueueDepth('fulfillment', fulfillmentDepth);
+        this.metricsRegistry.setQueueDepth('execution', executionDepth);
       } catch (error) {
         // Silently catch errors to prevent interval from crashing
       }

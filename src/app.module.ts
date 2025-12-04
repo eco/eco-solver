@@ -8,7 +8,6 @@ import { BlockchainModule } from '@/modules/blockchain/blockchain.module';
 import { BullBoardDashboardModule } from '@/modules/bull-board/bull-board.module';
 import { ConfigModule } from '@/modules/config/config.module';
 import { DatabaseConfigService } from '@/modules/config/services';
-import { DataDogModule } from '@/modules/datadog/datadog.module';
 import { DynamicConfigModule } from '@/modules/dynamic-config/dynamic-config.module';
 import { EventsModule } from '@/modules/events/events.module';
 import { FulfillmentModule } from '@/modules/fulfillment/fulfillment.module';
@@ -26,7 +25,6 @@ import { WithdrawalModule } from '@/modules/withdrawal/withdrawal.module';
     ConfigModule,
     LoggingModule,
     OpenTelemetryModule.forRootAsync(),
-    DataDogModule.forRootAsync(),
     EventsModule,
     ThrottlerModule.forRoot([
       {
