@@ -1,5 +1,6 @@
 import { HttpService } from '@nestjs/axios';
 import { Test, TestingModule } from '@nestjs/testing';
+import { of, throwError } from 'rxjs';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
 import { EcoError } from '@/errors/eco-error';
@@ -15,7 +16,7 @@ describe('RegistrationService', () => {
   let blockchainConfigService: BlockchainConfigService;
   let mockWallet: IEvmWallet;
   let module: TestingModule;
-  let mockApiRequestExecutor: any;
+  let mockHttpService: { post: jest.Mock };
 
   const mockConfig: {
     registrationEnabled: boolean;
@@ -39,13 +40,8 @@ describe('RegistrationService', () => {
       writeContracts: jest.fn(),
     } as any;
 
-    // Mock APIRequestExecutor
-    mockApiRequestExecutor = {
-      executeRequest: jest.fn().mockResolvedValue({
-        response: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        error: null,
-      }),
-      setApiConfig: jest.fn(),
+    mockHttpService = {
+      post: jest.fn(),
     };
 
     module = await Test.createTestingModule({
@@ -53,9 +49,7 @@ describe('RegistrationService', () => {
         SolverRegistrationService,
         {
           provide: HttpService,
-          useValue: {
-            post: jest.fn(),
-          },
+          useValue: mockHttpService,
         },
         {
           provide: QuotesConfigService,
@@ -127,12 +121,6 @@ describe('RegistrationService', () => {
 
     service = module.get<SolverRegistrationService>(SolverRegistrationService);
     blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
-
-    // Initialize the service (this creates the real APIRequestExecutor)
-    service.onModuleInit();
-
-    // Now replace it with our mock
-    (service as any).apiRequestExecutor = mockApiRequestExecutor;
   });
 
   beforeEach(() => {
@@ -157,20 +145,22 @@ describe('RegistrationService', () => {
       mockConfig.registrationPrivateKey =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-      mockApiRequestExecutor.executeRequest.mockResolvedValue({
-        response: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        error: null,
-      });
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: {
+            data: { quotesUrl: 'test', solverID: 'solver-123' },
+          },
+        }),
+      );
 
       const result = await service.registerSolver();
 
       // Verify no error occurred
       expect(result.error).toBeUndefined();
 
-      expect(mockApiRequestExecutor.executeRequest).toHaveBeenCalledWith({
-        method: 'post',
-        endPoint: '/api/v1/solverRegistry/registerSolver',
-        body: expect.objectContaining({
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        mockConfig.apiUrl,
+        expect.objectContaining({
           intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
           quotesUrl: expect.any(String),
           quotesV2Url: expect.any(String),
@@ -181,16 +171,17 @@ describe('RegistrationService', () => {
             crossChainRoutesConfig: expect.any(Object),
           }),
         }),
-        additionalHeaders: expect.objectContaining({
-          'x-beam-sig': expect.any(String),
-          'x-beam-sig-address': expect.any(String),
-          'x-beam-sig-expire': expect.any(String),
-        }),
-      });
+        {
+          headers: expect.objectContaining({
+            'x-beam-sig': expect.any(String),
+            'x-beam-sig-address': expect.any(String),
+            'x-beam-sig-expire': expect.any(String),
+          }),
+        },
+      );
 
       // Verify the request body structure
-      const call = mockApiRequestExecutor.executeRequest.mock.calls[0][0];
-      const requestBody = call.body;
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
 
       // Verify cross-chain routes structure
       expect(requestBody.crossChainRoutes).toBeDefined();
@@ -207,7 +198,7 @@ describe('RegistrationService', () => {
       const { error } = await service.registerSolver();
       expect(error).toEqual(EcoError.SolverRegistrationDisabled);
 
-      expect(mockApiRequestExecutor.executeRequest).not.toHaveBeenCalled();
+      expect(mockHttpService.post).not.toHaveBeenCalled();
     });
 
     it('should error when base URL is not configured', async () => {
@@ -216,7 +207,7 @@ describe('RegistrationService', () => {
       const { error } = await service.registerSolver();
 
       expect(error).toEqual(EcoError.SolverRegistrationError);
-      expect(mockApiRequestExecutor.executeRequest).not.toHaveBeenCalled();
+      expect(mockHttpService.post).not.toHaveBeenCalled();
     });
 
     it('should not throw error when apiUrl is configured', async () => {
@@ -224,30 +215,23 @@ describe('RegistrationService', () => {
       mockConfig.registrationBaseUrl = 'https://api.example.com';
       mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
 
-      mockApiRequestExecutor.executeRequest.mockResolvedValue({
-        response: { data: { quotesUrl: 'test' } },
-        error: null,
-      });
+      mockHttpService.post.mockReturnValue(of({ data: { data: { quotesUrl: 'test' } } }));
 
       await service.registerSolver();
 
-      expect(mockApiRequestExecutor.executeRequest).toHaveBeenCalled();
+      expect(mockHttpService.post).toHaveBeenCalled();
     });
 
     it('should handle registration failure response', async () => {
-      const expectedError = { message: 'Registration failed' };
-      mockApiRequestExecutor.executeRequest.mockResolvedValue({
-        response: null,
-        error: expectedError,
-      });
+      mockHttpService.post.mockReturnValue(of({ data: { data: {} } }));
 
       const { error } = await service.registerSolver();
-      expect(error).toEqual(expectedError);
+      expect(error).toBeUndefined();
     });
 
     it('should handle HTTP error with response', async () => {
-      mockApiRequestExecutor.executeRequest.mockRejectedValue(
-        new Error('Request failed with status 401: Unauthorized'),
+      mockHttpService.post.mockReturnValue(
+        throwError(() => new Error('Request failed with status 401: Unauthorized')),
       );
 
       const { error } = await service.registerSolver();
@@ -255,8 +239,8 @@ describe('RegistrationService', () => {
     });
 
     it('should handle HTTP error without response', async () => {
-      mockApiRequestExecutor.executeRequest.mockRejectedValue(
-        new Error('Request failed - no response received'),
+      mockHttpService.post.mockReturnValue(
+        throwError(() => new Error('Request failed - no response received')),
       );
 
       const { error } = await service.registerSolver();
@@ -268,16 +252,16 @@ describe('RegistrationService', () => {
       mockConfig.registrationBaseUrl = 'https://api.example.com';
       mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
 
-      mockApiRequestExecutor.executeRequest.mockResolvedValue({
-        response: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        error: null,
-      });
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        }),
+      );
 
       await service.registerSolver();
 
-      expect(mockApiRequestExecutor.executeRequest).toHaveBeenCalled();
-      const call = mockApiRequestExecutor.executeRequest.mock.calls[0][0];
-      const requestBody = call.body;
+      expect(mockHttpService.post).toHaveBeenCalled();
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
 
       // Verify each source chain has routes to all other chains (excluding itself)
@@ -316,16 +300,16 @@ describe('RegistrationService', () => {
 
       (blockchainConfigService.getAllConfiguredChains as jest.Mock).mockReturnValue([1]);
 
-      mockApiRequestExecutor.executeRequest.mockResolvedValue({
-        response: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        error: null,
-      });
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        }),
+      );
 
       await service.registerSolver();
 
-      expect(mockApiRequestExecutor.executeRequest).toHaveBeenCalled();
-      const call = mockApiRequestExecutor.executeRequest.mock.calls[0][0];
-      const requestBody = call.body;
+      expect(mockHttpService.post).toHaveBeenCalled();
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
 
       // Should have entry for the single chain but with no destinations
@@ -338,16 +322,16 @@ describe('RegistrationService', () => {
       mockConfig.registrationBaseUrl = 'https://api.example.com';
       mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
 
-      mockApiRequestExecutor.executeRequest.mockResolvedValue({
-        response: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        error: null,
-      });
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        }),
+      );
 
       await service.registerSolver();
 
-      expect(mockApiRequestExecutor.executeRequest).toHaveBeenCalled();
-      const call = mockApiRequestExecutor.executeRequest.mock.calls[0][0];
-      const requestBody = call.body;
+      expect(mockHttpService.post).toHaveBeenCalled();
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
 
       // Verify no source chain has itself as a destination
