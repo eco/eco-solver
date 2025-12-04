@@ -7,12 +7,12 @@ import { IntentsService } from '@/modules/intents/intents.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry';
 import { QueueService } from '@/modules/queue/queue.service';
 
+import { RHINESTONE_EVENTS } from '../types/events.types';
 import { RelayerActionV1 } from '../types/relayer-action.types';
 import { decodeAdapterClaim, decodeAdapterFills } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
 
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service';
-import { RHINESTONE_EVENTS } from '../types/events.types';
 
 /**
  * Processes RelayerAction events and queues to FulfillmentQueue

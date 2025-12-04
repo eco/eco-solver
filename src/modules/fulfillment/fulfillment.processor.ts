@@ -16,11 +16,12 @@ import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
 
+import { RHINESTONE_EVENTS } from '../rhinestone/types/events.types';
+
 import {
   RhinestoneActionFulfillmentJob,
   StandardFulfillmentJob,
 } from './interfaces/fulfillment-job.interface';
-import { RHINESTONE_EVENTS } from '../rhinestone/types/events.types';
 
 @Processor(QueueNames.INTENT_FULFILLMENT, {
   prefix: `{${QueueNames.INTENT_FULFILLMENT}}`,

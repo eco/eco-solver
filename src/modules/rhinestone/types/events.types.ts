@@ -45,7 +45,6 @@ export const RHINESTONE_EVENTS = {
    */
   ACTION_STATUS_SENT: 'rhinestone.actionStatus.sent',
 
-
   /**
    * Emitted when Rhinestone action failed
    */
