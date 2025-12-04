@@ -5,6 +5,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
+import { TProverType } from '@/common/interfaces/prover.interface';
 import { denormalize } from '@/common/tokens/normalize';
 import { BlockchainAddress, UniversalAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
@@ -15,6 +16,7 @@ import { hours, now } from '@/common/utils/time';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
 import { BlockchainConfigService, FulfillmentConfigService } from '@/modules/config/services';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
+import { ProverService } from '@/modules/prover/prover.service';
 
 import { QuoteRequest } from '../schemas/quote-request.schema';
 import { FailedQuoteResponse, QuoteResponse } from '../schemas/quote-response.schema';
@@ -26,6 +28,7 @@ export class QuotesService {
     private readonly fulfillmentService: FulfillmentService,
     private readonly blockchainConfigService: BlockchainConfigService,
     private readonly blockchainReaderService: BlockchainReaderService,
+    private readonly proverService: ProverService,
   ) {}
 
   async getQuote(request: QuoteRequest): Promise<QuoteResponse> {
@@ -182,7 +185,7 @@ export class QuotesService {
     const salt = this.generateSalt();
 
     // Set the deadline to 2 hours from now
-    const deadline = now() + hours(2);
+    const deadline = now() + hours(2.5);
 
     // Get portal address for a destination chain
     const portalAddressUA = this.blockchainConfigService.getPortalAddress(
@@ -194,15 +197,21 @@ export class QuotesService {
       );
     }
 
-    // Get default prover for the source chain
-    const defaultProver = this.blockchainConfigService.getDefaultProver(Number(sourceChainId));
+    // Select prover based on route compatibility
+    let selectedProver: TProverType;
+    try {
+      selectedProver = this.proverService.selectProverForRoute(sourceChainId, destinationChainId);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
+
     const proverAddressUA = this.blockchainConfigService.getProverAddress(
-      Number(sourceChainId),
-      defaultProver,
+      sourceChainId,
+      selectedProver,
     );
     if (!proverAddressUA) {
       throw new BadRequestException(
-        `Default prover ${defaultProver} not configured for chain ${sourceChainId}`,
+        `Prover ${selectedProver} not configured for chain ${sourceChainId}`,
       );
     }
 
@@ -301,7 +310,12 @@ export class QuotesService {
     );
 
     // Validate prover
-    this.validateProver(request.contracts.prover, sourceChainId, sourceChainType);
+    this.validateProver(
+      request.contracts.prover,
+      BigInt(sourceChainId),
+      BigInt(destinationChainId),
+      sourceChainType,
+    );
   }
 
   private validatePortal(
@@ -333,16 +347,29 @@ export class QuotesService {
 
   private validateProver(
     providedProver: string | undefined,
-    chainId: number,
+    sourceChainId: bigint,
+    destinationChainId: bigint,
     chainType: ChainType,
   ): void {
     if (!providedProver) return;
 
-    const defaultProver = this.blockchainConfigService.getDefaultProver(chainId);
-    const expectedProverUA = this.blockchainConfigService.getProverAddress(chainId, defaultProver);
+    // Use route-aware prover selection
+    let selectedProver: TProverType;
+    try {
+      selectedProver = this.proverService.selectProverForRoute(sourceChainId, destinationChainId);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
+
+    const expectedProverUA = this.blockchainConfigService.getProverAddress(
+      sourceChainId,
+      selectedProver,
+    );
 
     if (!expectedProverUA) {
-      throw new BadRequestException(`Prover ${defaultProver} not configured for chain ${chainId}`);
+      throw new BadRequestException(
+        `Prover ${selectedProver} not configured for chain ${sourceChainId}`,
+      );
     }
 
     const normalizedProvidedProver = AddressNormalizer.normalize(

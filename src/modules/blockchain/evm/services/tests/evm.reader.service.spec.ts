@@ -129,6 +129,7 @@ describe('EvmReaderService', () => {
     it('should fetch prover fee successfully', async () => {
       const expectedFee = BigInt(500000000000000000); // 0.5 ETH
       const messageData = '0xdeadbeef' as Hex;
+      const sourceDomainId = BigInt(1); // Domain ID for Ethereum
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const result = await service.fetchProverFee(
@@ -136,6 +137,7 @@ describe('EvmReaderService', () => {
         prover,
         messageData,
         chainId,
+        sourceDomainId,
         mockClaimant,
       );
 
@@ -146,7 +148,7 @@ describe('EvmReaderService', () => {
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: expect.arrayContaining([
-          mockIntent.sourceChainId,
+          sourceDomainId,
           expect.anything(), // encodeProof result
           messageData,
         ]),
@@ -158,11 +160,13 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const messageData = '0xdeadbeef' as Hex;
+      const sourceDomainId = BigInt(1); // Domain ID for Ethereum
       const result = await service.fetchProverFee(
         mockIntent,
         prover,
         messageData,
         chainId,
+        sourceDomainId,
         mockClaimant,
       );
 
@@ -172,7 +176,7 @@ describe('EvmReaderService', () => {
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: expect.arrayContaining([
-          mockIntent.sourceChainId,
+          sourceDomainId,
           expect.anything(), // encodeProof result
           messageData,
         ]),
@@ -185,7 +189,14 @@ describe('EvmReaderService', () => {
       });
 
       await expect(
-        service.fetchProverFee(mockIntent, prover, '0xdeadbeef' as Hex, chainId, mockClaimant),
+        service.fetchProverFee(
+          mockIntent,
+          prover,
+          '0xdeadbeef' as Hex,
+          chainId,
+          BigInt(1),
+          mockClaimant,
+        ),
       ).rejects.toThrow('No transport client available');
     });
 
@@ -194,7 +205,14 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockRejectedValue(contractError);
 
       await expect(
-        service.fetchProverFee(mockIntent, prover, '0xdeadbeef' as Hex, chainId, mockClaimant),
+        service.fetchProverFee(
+          mockIntent,
+          prover,
+          '0xdeadbeef' as Hex,
+          chainId,
+          BigInt(1),
+          mockClaimant,
+        ),
       ).rejects.toThrow('Failed to fetch prover fee: Contract execution reverted');
     });
 
@@ -203,7 +221,14 @@ describe('EvmReaderService', () => {
       mockPublicClient.readContract.mockRejectedValue(networkError);
 
       await expect(
-        service.fetchProverFee(mockIntent, prover, '0xdeadbeef' as Hex, chainId, mockClaimant),
+        service.fetchProverFee(
+          mockIntent,
+          prover,
+          '0xdeadbeef' as Hex,
+          chainId,
+          BigInt(1),
+          mockClaimant,
+        ),
       ).rejects.toThrow('Failed to fetch prover fee: Network timeout');
     });
 
@@ -220,6 +245,7 @@ describe('EvmReaderService', () => {
         },
       };
       const expectedFee = BigInt(100000000000000); // 0.0001 ETH
+      const sourceDomainId = BigInt(137); // Domain ID for Polygon
       mockPublicClient.readContract.mockResolvedValue(expectedFee);
 
       const result = await service.fetchProverFee(
@@ -227,6 +253,7 @@ describe('EvmReaderService', () => {
         customIntent.reward.prover,
         '0x' as Hex,
         chainId,
+        sourceDomainId,
         mockClaimant,
       );
 
@@ -236,7 +263,7 @@ describe('EvmReaderService', () => {
         abi: messageBridgeProverAbi,
         functionName: 'fetchFee',
         args: expect.arrayContaining([
-          customIntent.sourceChainId,
+          sourceDomainId,
           expect.anything(), // encodeProof result
           '0x' as Hex,
         ]),
