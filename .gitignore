@@ -82,6 +82,7 @@ config/*
 !config/yellow-production.ts
 !config/magenta-production.ts
 !config/magenta-v1-production.ts
+!config/yellow-v1-production.ts
 config.yaml
 
 #AI
