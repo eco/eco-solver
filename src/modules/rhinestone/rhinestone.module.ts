@@ -10,7 +10,6 @@ import { RedisModule } from '@/modules/redis/redis.module';
 import {
   RhinestoneActionProcessor,
   RhinestoneContractsService,
-  RhinestoneMetadataService,
   RhinestoneValidationService,
   RhinestoneWebsocketService,
 } from './services';
@@ -44,14 +43,12 @@ export class RhinestoneModule {
         RhinestoneContractsService,
         RhinestoneValidationService,
         RhinestoneWebsocketService,
-        RhinestoneMetadataService,
         RhinestoneActionProcessor,
       ],
       exports: [
         RhinestoneContractsService,
         RhinestoneValidationService,
         RhinestoneWebsocketService,
-        RhinestoneMetadataService,
       ],
     };
   }

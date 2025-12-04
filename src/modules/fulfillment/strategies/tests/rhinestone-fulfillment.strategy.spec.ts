@@ -64,7 +64,6 @@ import { createMockIntent } from '@/modules/fulfillment/validations/test-helpers
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { RhinestoneFulfillmentStrategy } from '../rhinestone-fulfillment.strategy';
 
@@ -96,18 +95,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
     const mockBlockchainReaderService = {};
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
-    };
-    const mockMetadataService = {
-      get: jest.fn().mockResolvedValue({
-        claimTo: '0x123...',
-        claimData: '0xabc...',
-        claimValue: 0n,
-        fillTo: '0x456...',
-        fillData: '0xdef...',
-        fillValue: 0n,
-      }),
-      set: jest.fn(),
-      delete: jest.fn(),
+      addRhinestoneMulticlaimFlow: jest.fn(),
     };
     const mockOtelService = {
       tracer: {
@@ -218,10 +206,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
         {
           provide: RhinestoneValidation,
           useValue: rhinestoneValidation,
-        },
-        {
-          provide: RhinestoneMetadataService,
-          useValue: mockMetadataService,
         },
       ],
     }).compile();

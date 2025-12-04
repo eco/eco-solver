@@ -10,7 +10,10 @@ import { toError } from '@/common/utils/error-handler';
 import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
-import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
+import {
+  RhinestoneActionFulfillmentJob,
+  StandardFulfillmentJob,
+} from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
@@ -90,7 +93,8 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     intent: Intent,
     strategy: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.STANDARD,
   ): Promise<void> {
-    const jobData: FulfillmentJobData = {
+    const jobData: StandardFulfillmentJob = {
+      type: 'standard', // Add discriminator
       intent,
       strategy,
       chainId: Number(intent.destination),
@@ -123,6 +127,34 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     const jobOptions = this.queueConfig.executionJobOptions;
 
     await this.executionQueue.add(jobName, serializedData, jobOptions);
+  }
+
+  /**
+   * Queue Rhinestone action to FULFILLMENT queue for validation
+   * One job per action (multi-intent), payload stored in BullMQ
+   */
+  async addRhinestoneActionToFulfillmentQueue(
+    jobData: RhinestoneActionFulfillmentJob,
+  ): Promise<void> {
+    const jobId = `rhinestone-action-${jobData.actionId}`;
+
+    const serializedData = BigintSerializer.serialize(jobData);
+
+    const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
+
+    await this.fulfillmentQueue.add('process-rhinestone-action', serializedData, {
+      jobId,
+      attempts,
+      backoff: {
+        type: 'exponential',
+        delay: backoffMs || 5000,
+      },
+    });
+
+    this.logger.log(
+      `Queued Rhinestone action to FULFILLMENT: ${jobId} ` +
+        `(${jobData.claims.length} claims, ${jobData.fill.intents.length} intents)`,
+    );
   }
 
   /**

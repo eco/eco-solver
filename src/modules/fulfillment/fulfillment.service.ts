@@ -4,7 +4,9 @@ import { Intent } from '@/common/interfaces/intent.interface';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
 import { FulfillmentConfigService } from '@/modules/config/services';
 import { DataDogService } from '@/modules/datadog';
+import { RhinestoneActionFulfillmentJob } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import { FulfillmentStrategy } from '@/modules/fulfillment/strategies';
+import { RhinestoneFulfillmentStrategy } from '@/modules/fulfillment/strategies/rhinestone-fulfillment.strategy';
 import { FulfillmentStrategyName } from '@/modules/fulfillment/types/strategy-name.type';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { IntentConverter } from '@/modules/intents/utils/intent-converter';
@@ -32,6 +34,7 @@ export class FulfillmentService {
     private readonly submissionService: IntentSubmissionService,
     private readonly processingService: IntentProcessingService,
     private readonly strategyManagement: StrategyManagementService,
+    private readonly rhinestoneStrategy: RhinestoneFulfillmentStrategy, // Direct injection
   ) {
     this.logger.setContext(FulfillmentService.name);
   }
@@ -163,5 +166,14 @@ export class FulfillmentService {
     });
 
     return typedStrategies;
+  }
+
+  /**
+   * Process a Rhinestone action (multi-intent fulfillment)
+   * Direct strategy injection - no casting needed
+   */
+  async processRhinestoneAction(jobData: RhinestoneActionFulfillmentJob): Promise<void> {
+    await this.rhinestoneStrategy.validateAction(jobData);
+    await this.rhinestoneStrategy.executeAction(jobData);
   }
 }

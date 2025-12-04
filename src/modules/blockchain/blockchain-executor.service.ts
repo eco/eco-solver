@@ -11,7 +11,6 @@ import { BlockchainConfigService } from '@/modules/config/services';
 import { IntentsService } from '@/modules/intents/intents.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
-import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { EvmExecutorService } from './evm/services/evm.executor.service';
 import { SvmExecutorService } from './svm/services/svm.executor.service';
@@ -26,7 +25,6 @@ export class BlockchainExecutorService {
     private intentsService: IntentsService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
-    @Optional() private rhinestoneMetadataService?: RhinestoneMetadataService,
     @Optional() private evmExecutor?: EvmExecutorService,
     @Optional() private svmExecutor?: SvmExecutorService,
     @Optional() private tvmExecutor?: TvmExecutorService,

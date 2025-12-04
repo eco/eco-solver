@@ -11,14 +11,13 @@ import { RelayerActionV1 } from '../types/relayer-action.types';
 import { decodeAdapterClaim, decodeAdapterFills } from '../utils/decoder';
 import { extractIntent } from '../utils/intent-extractor';
 
-import { RhinestoneMetadataService } from './rhinestone-metadata.service';
-import { RhinestoneValidationService } from './rhinestone-validation.service';
 import { RhinestoneWebsocketService } from './rhinestone-websocket.service';
+import { RHINESTONE_EVENTS } from '../types/events.types';
 
 /**
  * Processes RelayerAction events and queues to FulfillmentQueue
  *
- * Flow: Validate → Extract Intent → Store in DB → Queue to FulfillmentQueue → Strategy validates → Execute
+ * Flow: Parse WebSocket → Extract Intents → Store in DB → Queue to FulfillmentQueue → Strategy validates → Execute
  * Rhinestone flow: CLAIM (Base) → FILL (Arbitrum) → PROVE (Arbitrum→Base) → WITHDRAW (via existing system)
  */
 @Injectable()
@@ -28,16 +27,36 @@ export class RhinestoneActionProcessor {
   constructor(
     private readonly websocketService: RhinestoneWebsocketService,
     private readonly otelService: OpenTelemetryService,
-    private readonly validationService: RhinestoneValidationService,
     private readonly intentsService: IntentsService,
-    private readonly metadataService: RhinestoneMetadataService,
     private readonly queueService: QueueService,
   ) {}
 
   /**
+   * Handle failed Rhinestone actions (from FulfillmentProcessor)
+   * Send error status back to Rhinestone via WebSocket
+   */
+  @OnEvent(RHINESTONE_EVENTS.ACTION_FAILED)
+  async handleActionFailed(payload: {
+    messageId: string;
+    actionId: string;
+    error: string;
+    errorType: string;
+  }): Promise<void> {
+    this.logger.error(
+      `Rhinestone action ${payload.actionId} failed during fulfillment: ${payload.error}`,
+    );
+
+    await this.websocketService.sendActionStatus(payload.messageId, {
+      type: 'Error',
+      reason: 'PreconditionFailed', // Validation failures are precondition failures
+      message: payload.error,
+    });
+  }
+
+  /**
    * Handle RelayerAction events from Rhinestone WebSocket
    */
-  @OnEvent('rhinestone.relayerAction')
+  @OnEvent(RHINESTONE_EVENTS.RELAYER_ACTION)
   async handleRelayerAction(payload: {
     messageId: string;
     action: RelayerActionV1;
@@ -74,14 +93,11 @@ export class RhinestoneActionProcessor {
             `Decoded ${fillsData.length} batched eco_handleFill calls from fill transaction`,
           );
 
-          // Process each claim and extract intent
+          // Process each claim and extract intent (NO validation - just parse!)
           const claimsWithIntents = await Promise.all(
             beforeFillClaims
               .filter((c) => c.metadata?.settlementLayer === 'ECO')
               .map(async (claim, index) => {
-                this.validationService.validateSettlementLayerFromMetadata(claim.metadata);
-                this.validationService.validateActionIntegrity(claim.call, fill.call);
-
                 const claimData = decodeAdapterClaim(claim.call.data as Hex);
                 const fillData = fillsData[index];
                 const intent = extractIntent({ claimData, fillData });
@@ -97,6 +113,8 @@ export class RhinestoneActionProcessor {
                     data: claim.call.data as Hex,
                     value: BigInt(claim.call.value),
                   },
+                  // Include metadata for validation in FulfillmentStrategy
+                  metadata: claim.metadata,
                 };
               }),
           );
@@ -134,13 +152,6 @@ export class RhinestoneActionProcessor {
 
           this.logger.log(`Calculated ${requiredApprovals.length} token approvals`);
 
-          // Build claims for flow
-          const claims = claimsWithIntents.map((c) => ({
-            intentHash: c.intentHash,
-            chainId: c.chainId,
-            transaction: c.transaction,
-          }));
-
           // Build fill data with pre-calculated approvals
           const fillParams = {
             intents: claimsWithIntents.map((c) => c.intent),
@@ -153,16 +164,27 @@ export class RhinestoneActionProcessor {
             requiredApprovals,
           };
 
-          // Queue multiclaim flow
-          await this.queueService.addRhinestoneMulticlaimFlow({
+          // Queue to FULFILLMENT for validation
+          await this.queueService.addRhinestoneActionToFulfillmentQueue({
+            type: 'rhinestone-action', // Discriminator
+            strategy: 'rhinestone',
             messageId,
             actionId: action.id,
-            claims,
+            claims: claimsWithIntents.map((c) => ({
+              intent: c.intent,
+              intentHash: c.intentHash,
+              chainId: c.chainId,
+              transaction: c.transaction,
+              metadata: c.metadata, // Include for strategy validation
+            })),
             fill: fillParams,
             walletId: 'basic',
           });
 
-          this.logger.log(`Rhinestone multiclaim flow queued: ${messageId}`);
+          this.logger.log(
+            `Rhinestone action queued to FULFILLMENT: ${messageId} ` +
+              `(${claimsWithIntents.length} claims)`,
+          );
         } catch (error) {
           this.logger.error(
             `Rhinestone action failed: ${error instanceof Error ? error.message : String(error)}`,

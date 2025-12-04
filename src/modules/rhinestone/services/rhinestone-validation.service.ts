@@ -122,7 +122,7 @@ export class RhinestoneValidationService {
 
   /**
    * Validate complete action integrity for RelayerAction
-   * Validates router addresses, zero values, and cross-chain requirements
+   * Validates router addresses, zero values, cross-chain requirements, and settlement layer
    *
    * @param claimCall The claim call details
    * @param fillCall The fill call details
@@ -130,9 +130,19 @@ export class RhinestoneValidationService {
    * @throws {ValidationError} If validation fails
    */
   validateActionIntegrity(
-    claimCall: { to: string; chainId: number; value: string },
+    claimCall: {
+      to: string;
+      chainId: number;
+      value: string;
+      metadata?: { settlementLayer?: string };
+    },
     fillCall: { to: string; chainId: number; value: string },
   ): void {
+    // Validate settlement layer first (if metadata provided)
+    if (claimCall.metadata) {
+      this.validateSettlementLayerFromMetadata(claimCall.metadata);
+    }
+
     // Validate router addresses
     this.validateRouterAddress(claimCall.to, claimCall.chainId);
     this.validateRouterAddress(fillCall.to, fillCall.chainId);

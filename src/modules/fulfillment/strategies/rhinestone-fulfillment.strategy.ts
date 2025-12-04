@@ -1,12 +1,17 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { ValidationErrorType } from '@/modules/fulfillment/enums/validation-error-type.enum';
+import { AggregatedValidationError } from '@/modules/fulfillment/errors/aggregated-validation.error';
+import { ValidationError } from '@/modules/fulfillment/errors/validation.error';
+import { RhinestoneActionFulfillmentJob } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
+import { ValidationContextImpl } from '@/modules/fulfillment/validation-context.impl';
 import {
   ChainSupportValidation,
   DuplicateRewardTokensValidation,
@@ -22,13 +27,13 @@ import {
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QUEUE_SERVICE } from '@/modules/queue/constants/queue.constants';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
-import { RhinestoneMetadataService } from '@/modules/rhinestone/services/rhinestone-metadata.service';
 
 import { FulfillmentStrategy } from './fulfillment-strategy.abstract';
 
 @Injectable()
 export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
   readonly name: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.RHINESTONE;
+  private readonly logger = new Logger(RhinestoneFulfillmentStrategy.name);
   private readonly validations: ReadonlyArray<Validation>;
 
   constructor(
@@ -48,8 +53,6 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     private readonly proverSupportValidation: ProverSupportValidation,
     private readonly executorBalanceValidation: ExecutorBalanceValidation,
     private readonly rhinestoneValidation: RhinestoneValidation,
-    @Optional()
-    private readonly metadataService?: RhinestoneMetadataService,
   ) {
     super(blockchainExecutor, blockchainReader, otelService);
     // Define immutable validations for this strategy
@@ -72,57 +75,116 @@ export class RhinestoneFulfillmentStrategy extends FulfillmentStrategy {
     return true;
   }
 
-  async execute(intent: Intent): Promise<void> {
-    return this.otelService.withSpan('rhinestone-strategy.execute', async (span) => {
-      span.setAttributes({
-        'intent.hash': intent.intentHash,
-        'intent.source_chain': intent.sourceChainId.toString(),
-        'intent.destination_chain': intent.destination.toString(),
-        'intent.calls_count': intent.route.calls.length,
-        'intent.tokens_count': intent.route.tokens.length + intent.reward.tokens.length,
-        'strategy.name': this.name,
-        'strategy.skips_route_calls_validation': true,
-      });
+  async validate(_intent: Intent): Promise<boolean> {
+    throw new Error(
+      'RhinestoneFulfillmentStrategy.validate() not supported. ' +
+        'Use validateAction() for Rhinestone action-based processing.',
+    );
+  }
 
-      if (!this.metadataService) {
-        throw new Error('MetadataService is missing. Rhinestone module may not be enabled.');
-      }
-
-      // Retrieve Rhinestone payload from Redis
-      const rhinestonePayload = await this.metadataService.get(intent.intentHash);
-
-      if (!rhinestonePayload) {
-        throw new Error(
-          `No Rhinestone payload found for intent ${intent.intentHash}. ` +
-            'Payload must be stored before queueing to FulfillmentQueue.',
-        );
-      }
-
-      // Get wallet ID for this intent
-      const walletId = await this.getWalletIdForIntent(intent);
-
-      span.setAttributes({
-        'wallet.id': walletId,
-        'rhinestone.payload_verified': true,
-      });
-
-      // Queue to ExecutionQueue (payload will be retrieved from Redis during execution)
-      await this.queueService.addIntentToExecutionQueue({
-        type: 'standard',
-        strategy: this.name,
-        intent,
-        chainId: intent.destination,
-        walletId,
-      });
-
-      span.addEvent('intent-queued', {
-        queue: 'execution',
-        strategy: this.name,
-      });
-    });
+  async execute(_intent: Intent): Promise<void> {
+    throw new Error(
+      'RhinestoneFulfillmentStrategy.execute() not supported. ' +
+        'Use executeAction() for Rhinestone action-based processing.',
+    );
   }
 
   protected getValidations(): ReadonlyArray<Validation> {
     return this.validations;
+  }
+
+  /**
+   * Validate entire Rhinestone action (all intents together)
+   * This is used for action-based processing from the fulfillment queue
+   */
+  async validateAction(jobData: RhinestoneActionFulfillmentJob): Promise<void> {
+    return this.otelService.withSpan('rhinestone.validate-action', async (span) => {
+      span.setAttributes({
+        'rhinestone.message_id': jobData.messageId,
+        'rhinestone.action_id': jobData.actionId,
+        'rhinestone.claims_count': jobData.claims.length,
+        'rhinestone.intents_count': jobData.fill.intents.length,
+      });
+
+      // STEP 1: Payload validations (moved from ActionProcessor)
+      for (const claim of jobData.claims) {
+        if (claim.metadata) {
+          // Validate settlement layer
+          if (claim.metadata.settlementLayer !== 'ECO') {
+            throw new ValidationError(
+              `Unsupported settlement layer: ${claim.metadata.settlementLayer}`,
+              ValidationErrorType.PERMANENT,
+              'RhinestoneFulfillmentStrategy.validateAction',
+            );
+          }
+        }
+      }
+
+      // STEP 2: Intent validations (for ALL intents)
+      const allIntents = jobData.claims.map((c) => c.intent);
+      const validations = this.getValidations();
+
+      this.logger.log(
+        `Validating ${allIntents.length} intents with ${validations.length} validations each ` +
+          `(total: ${allIntents.length * validations.length} validation checks)`,
+      );
+
+      // Create validation contexts and run all validations
+      const validationPromises = allIntents.flatMap((intent) => {
+        const context = new ValidationContextImpl(
+          intent,
+          this,
+          this.blockchainExecutor,
+          this.blockchainReader,
+        );
+        return validations.map((validation) => validation.validate(intent, context));
+      });
+
+      const results = await Promise.allSettled(validationPromises);
+
+      // Collect errors
+      const failures = results
+        .filter((r) => r.status === 'rejected')
+        .map((r) => (r as PromiseRejectedResult).reason as Error);
+
+      if (failures.length > 0) {
+        this.logger.error(
+          `Action validation failed: ${failures.length} validation(s) failed across ${allIntents.length} intents`,
+        );
+        throw new AggregatedValidationError(failures);
+      }
+
+      this.logger.log(`All validations passed for action ${jobData.actionId}`);
+    });
+  }
+
+  /**
+   * Execute Rhinestone action (queue to FlowProducer)
+   * This is used for action-based processing from the fulfillment queue
+   */
+  async executeAction(jobData: RhinestoneActionFulfillmentJob): Promise<void> {
+    return this.otelService.withSpan('rhinestone.execute-action', async (span) => {
+      span.setAttributes({
+        'rhinestone.message_id': jobData.messageId,
+        'rhinestone.action_id': jobData.actionId,
+      });
+
+      // Queue to FlowProducer (existing logic in QueueService)
+      await this.queueService.addRhinestoneMulticlaimFlow({
+        messageId: jobData.messageId,
+        actionId: jobData.actionId,
+        claims: jobData.claims.map((c) => ({
+          intentHash: c.intentHash,
+          chainId: c.chainId,
+          transaction: c.transaction,
+        })),
+        fill: jobData.fill,
+        walletId: jobData.walletId,
+      });
+
+      span.addEvent('action-queued-to-flowproducer', {
+        claims: jobData.claims.length,
+      });
+    });
   }
 }

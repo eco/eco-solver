@@ -61,14 +61,3 @@ export interface RhinestoneProveJob {
   walletId?: WalletType;
   messageId: string;
 }
-
-// Legacy: Keep for reference (still used for Redis storage temporarily)
-export interface RhinestonePayload {
-  messageId: string;
-  claimTo: Address; // Router address for CLAIM transaction
-  claimData: Hex;
-  claimValue: bigint;
-  fillTo: Address; // Router address for FILL transaction
-  fillData: Hex;
-  fillValue: bigint;
-}

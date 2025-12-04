@@ -1,14 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IntentsService } from '@/modules/intents/intents.service';
-import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { QueueService } from '@/modules/queue/queue.service';
 
 import { sampleAction } from '../../utils/tests/sample-action';
 import { RhinestoneActionProcessor } from '../rhinestone-action-processor.service';
-import { RhinestoneMetadataService } from '../rhinestone-metadata.service';
-import { RhinestoneValidationService } from '../rhinestone-validation.service';
 import { RhinestoneWebsocketService } from '../rhinestone-websocket.service';
 
 describe('RhinestoneActionProcessor', () => {
@@ -16,7 +13,6 @@ describe('RhinestoneActionProcessor', () => {
   let intentsService: jest.Mocked<IntentsService>;
   let queueService: jest.Mocked<any>;
   let websocketService: jest.Mocked<RhinestoneWebsocketService>;
-  let validationService: jest.Mocked<RhinestoneValidationService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,35 +43,15 @@ describe('RhinestoneActionProcessor', () => {
           },
         },
         {
-          provide: RhinestoneValidationService,
-          useValue: {
-            validateSettlementLayerFromMetadata: jest.fn(),
-            validateActionIntegrity: jest.fn(),
-          },
-        },
-        {
           provide: IntentsService,
           useValue: {
             createIfNotExists: jest.fn().mockResolvedValue({ isNew: true }),
           },
         },
         {
-          provide: RhinestoneMetadataService,
-          useValue: {
-            set: jest.fn().mockResolvedValue(undefined),
-          },
-        },
-        {
           provide: QueueService,
           useValue: {
-            addIntentToFulfillmentQueue: jest.fn().mockResolvedValue(undefined),
-            addRhinestoneMulticlaimFlow: jest.fn().mockResolvedValue(undefined),
-          },
-        },
-        {
-          provide: IntentDiscoveryService,
-          useValue: {
-            setDiscovery: jest.fn().mockResolvedValue(undefined),
+            addRhinestoneActionToFulfillmentQueue: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -85,7 +61,6 @@ describe('RhinestoneActionProcessor', () => {
     intentsService = module.get(IntentsService);
     queueService = module.get(QueueService);
     websocketService = module.get(RhinestoneWebsocketService);
-    validationService = module.get(RhinestoneValidationService);
 
     jest.clearAllMocks();
   });
@@ -99,16 +74,14 @@ describe('RhinestoneActionProcessor', () => {
 
       await service.handleRelayerAction(payload);
 
-      // Verify validation was called
-      expect(validationService.validateSettlementLayerFromMetadata).toHaveBeenCalled();
-      expect(validationService.validateActionIntegrity).toHaveBeenCalled();
-
       // Verify intents were stored in DB
       expect(intentsService.createIfNotExists).toHaveBeenCalled();
 
-      // Verify multiclaim flow was queued
-      expect(queueService.addRhinestoneMulticlaimFlow).toHaveBeenCalledWith(
+      // Verify action was queued to FULFILLMENT
+      expect(queueService.addRhinestoneActionToFulfillmentQueue).toHaveBeenCalledWith(
         expect.objectContaining({
+          type: 'rhinestone-action',
+          strategy: 'rhinestone',
           messageId: 'test-message-123',
           actionId: expect.any(String),
           claims: expect.any(Array),
@@ -132,18 +105,15 @@ describe('RhinestoneActionProcessor', () => {
 
       await service.handleRelayerAction(payload);
 
-      // Should still validate and process
-      expect(validationService.validateSettlementLayerFromMetadata).toHaveBeenCalled();
+      // Should still process
       expect(intentsService.createIfNotExists).toHaveBeenCalled();
 
-      // Should still queue the flow (allows retries)
-      expect(queueService.addRhinestoneMulticlaimFlow).toHaveBeenCalled();
+      // Should queue to fulfillment (allows retries)
+      expect(queueService.addRhinestoneActionToFulfillmentQueue).toHaveBeenCalled();
     });
 
-    it('should send error status on validation failure', async () => {
-      validationService.validateSettlementLayerFromMetadata.mockImplementation(() => {
-        throw new Error('Invalid settlement layer');
-      });
+    it('should send error status on processing failure', async () => {
+      intentsService.createIfNotExists.mockRejectedValue(new Error('Database error'));
 
       const payload = {
         messageId: 'test-message-123',
