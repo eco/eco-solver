@@ -1,10 +1,9 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 
-import { IntentDiscovery } from '@/common/enums/intent-discovery.enum';
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { getErrorMessage, toError } from '@/common/utils/error-handler';
@@ -13,7 +12,6 @@ import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-e
 import { TvmEventParser } from '@/modules/blockchain/tvm/utils/tvm-event-parser';
 import { EventsService } from '@/modules/events/events.service';
 import { FulfillmentService } from '@/modules/fulfillment/fulfillment.service';
-import { IntentDiscoveryService } from '@/modules/intents/services/intent-discovery.service';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { BullMQOtelFactory } from '@/modules/opentelemetry/bullmq-otel.factory';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
@@ -26,7 +24,7 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
   constructor(
     private fulfillmentService: FulfillmentService,
     private eventsService: EventsService,
-    private intentDiscoveryService: IntentDiscoveryService,
+    @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     private readonly logger: SystemLoggerService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
     private readonly otelService: OpenTelemetryService,
@@ -147,23 +145,23 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
         throw new Error(`Unsupported chain type for IntentPublished: ${jobData.chainType}`);
     }
 
-    // Only process intents discovered via blockchain events
-    // Skip intents discovered via other methods (rhinestone-websocket, api, etc.)
-    const discovery = await this.intentDiscoveryService.getDiscovery(intent.intentHash);
+    // Check if job already exists in FULFILLMENT queue (for deduplication verification)
+    const jobId = `fulfillment-${intent.intentHash}`;
+    const existingJob = await this.fulfillmentQueue.getJob(jobId);
 
-    if (discovery !== IntentDiscovery.BLOCKCHAIN_EVENT) {
+    if (existingJob) {
       this.logger.log(
-        `Intent ${intent.intentHash} discovered via ${discovery}, ` +
-          `skipping blockchain event processing (only handles blockchain-event discoveries)`,
+        `Job ${jobId} already exists in FULFILLMENT queue ` +
+          `(state: ${await existingJob.getState()}, name: ${existingJob.name}). ` +
+          `BullMQ will deduplicate this submission.`,
       );
-      return;
+    } else {
+      this.logger.log(`No existing job found for ${jobId}, will create new fulfillment job`);
     }
 
     // Submit intent to fulfillment service (standard flow)
-    // Processes if:
-    // - Intent doesn't exist (new intent from blockchain)
-    // - Intent exists with discovery='blockchain-event' (retry scenario)
-    // - Intent exists without discovery field (treated as blockchain-event for backward compat)
+    // BullMQ deduplication via jobId will prevent duplicate processing
+    // (e.g., if Rhinestone already queued this intent with a placeholder job)
     try {
       await this.fulfillmentService.submitIntent(intent);
     } catch (error) {

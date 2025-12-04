@@ -35,7 +35,6 @@ export class IntentConverter {
         })),
       },
       status: intent.status,
-      discovery: intent.discovery,
     };
   }
 
@@ -71,7 +70,6 @@ export class IntentConverter {
       destination: BigInt(schema.route.destination),
       sourceChainId: BigInt(schema.route.source),
       status: schema.status,
-      discovery: schema.discovery,
     };
   }
 }

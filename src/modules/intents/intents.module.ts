@@ -5,7 +5,6 @@ import { EventsModule } from '@/modules/events/events.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 
 import { Intent, IntentSchema } from './schemas/intent.schema';
-import { IntentDiscoveryService } from './services/intent-discovery.service';
 import { IntentsService } from './intents.service';
 import { IntentsEventsHandler } from './intents-events.handler';
 
@@ -15,7 +14,7 @@ import { IntentsEventsHandler } from './intents-events.handler';
     EventsModule,
     RedisModule,
   ],
-  providers: [IntentsService, IntentDiscoveryService, IntentsEventsHandler],
-  exports: [IntentsService, IntentDiscoveryService],
+  providers: [IntentsService, IntentsEventsHandler],
+  exports: [IntentsService],
 })
 export class IntentsModule {}

@@ -127,8 +127,14 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
 
   /**
    * Queue Rhinestone multiclaim flow: N claims → 1 fill
-   * Claims execute in parallel, fill waits for all claims to succeed
-   * After fill confirms, proves are queued independently
+   *
+   * Deduplication strategy: Creates placeholder jobs in FULFILLMENT queue
+   * to prevent blockchain event listener from creating duplicate jobs.
+   * Placeholder jobs use jobId `fulfillment-{intentHash}` and job name
+   * 'rhinestone-deduplication' which FulfillmentProcessor ignores.
+   *
+   * Execution flow: Uses FlowProducer in EXECUTION queue.
+   * Claims execute in parallel, fill waits for all claims to succeed.
    */
   async addRhinestoneMulticlaimFlow(params: {
     messageId: string;
@@ -154,6 +160,20 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     this.logger.log(
       `Queueing Rhinestone multiclaim flow: ${messageId} with ${claims.length} claims`,
     );
+
+    // Create placeholder jobs in FULFILLMENT queue for deduplication
+    // These jobs do nothing but prevent blockchain listener from creating duplicates
+    for (const claim of claims) {
+      await this.fulfillmentQueue.add(
+        'rhinestone-deduplication', // Different name so processor ignores it
+        {}, // Empty data
+        {
+          jobId: `fulfillment-${claim.intentHash}`, //Enables BullMQ deduplication!
+        },
+      );
+    }
+
+    this.logger.log(`Created ${claims.length} placeholder jobs in FULFILLMENT for deduplication`);
 
     // Build claim children (execute in parallel)
     const claimChildren = claims.map((claim, index) => ({
