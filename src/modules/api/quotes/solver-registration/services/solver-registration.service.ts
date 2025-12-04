@@ -7,7 +7,6 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { EcoResponse } from '@/common/eco-response';
 import { EcoLogMessage } from '@/common/logging/eco-log-message';
 import { EcoLogger } from '@/common/logging/eco-logger';
-import { APIRequestExecutor } from '@/common/rest-api/api-request-executor';
 import { BlockchainAddress } from '@/common/types/universal-address.type';
 import { AddressNormalizer } from '@/common/utils/address-normalizer';
 import { ChainTypeDetector } from '@/common/utils/chain-type-detector';
@@ -21,11 +20,12 @@ import { SolverRegistrationDTO } from '@/modules/api/quotes/solver-registration/
 import { BlockchainConfigService, QuotesConfigService } from '@/modules/config/services';
 import { SIGNATURE_EXPIRE_HEADER } from '@/request-signing/interfaces/signature-headers.interface';
 import { SignatureGenerator } from '@/request-signing/signature-generator';
+import { SolverRegistrationResponseDTO } from '@/modules/api/quotes/solver-registration/dtos/solver-registration-response.dto';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class SolverRegistrationService implements OnModuleInit, OnApplicationBootstrap {
   private readonly logger = new EcoLogger(SolverRegistrationService.name);
-  private apiRequestExecutor: APIRequestExecutor;
 
   constructor(
     private readonly httpService: HttpService,
@@ -45,8 +45,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
         },
       }),
     );
-
-    this.apiRequestExecutor = new APIRequestExecutor(this.httpService, this.logger);
   }
 
   async onApplicationBootstrap() {
@@ -83,43 +81,24 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
         }),
       );
 
-      const { response: urlParts, error: urlError } = this.splitUrl(
-        this.quotesConfigService.apiUrl,
+      const response = await firstValueFrom(
+        this.httpService.post<{ data: SolverRegistrationResponseDTO }>(
+          this.quotesConfigService.apiUrl,
+          solverRegistrationDTO,
+          { headers },
+        ),
       );
 
-      if (urlError) {
-        return { error: urlError };
-      }
-
-      const { baseUrl, endPoint } = urlParts!;
-      this.apiRequestExecutor.setApiConfig({ baseUrl });
-
-      const { response, error } = await this.apiRequestExecutor.executeRequest<any>({
-        method: 'post',
-        endPoint,
-        body: solverRegistrationDTO,
-        additionalHeaders: headers,
-      });
-
-      if (error) {
-        this.logger.error(
+      if ('quotesUrl' in response.data.data) {
+        this.logger.log(
           EcoLogMessage.fromDefault({
-            message: `Error registering solver`,
-            properties: {
-              error,
-            },
+            message: `registerSolver: Solver has been registered`,
+            properties: { response },
           }),
         );
-
-        return { error };
+      } else {
+        this.logger.error(`registerSolver: Solver Registration failed`);
       }
-
-      this.logger.log(
-        EcoLogMessage.fromDefault({
-          message: `registerSolver: Solver has been registered`,
-          properties: { response },
-        }),
-      );
 
       return {};
     } catch (ex: any) {
@@ -277,30 +256,6 @@ export class SolverRegistrationService implements OnModuleInit, OnApplicationBoo
         message: `tryRegisterWithBackoff: Solver registration failed after ${max} retries`,
       }),
     );
-  }
-
-  private splitUrl(fullUrl: string): EcoResponse<{ baseUrl: string; endPoint: string }> {
-    try {
-      const url = new URL(fullUrl);
-
-      return {
-        response: {
-          baseUrl: `${url.protocol}//${url.host}`, // http://localhost:9494
-          endPoint: url.pathname, // /api/v1/solverRegistry/registerSolver
-        },
-      };
-    } catch (ex: any) {
-      this.logger.error(
-        EcoLogMessage.fromDefault({
-          message: `splitUrl: Invalid URL ${fullUrl}`,
-          properties: {
-            error: ex.message,
-          },
-        }),
-      );
-
-      return { error: EcoError.InvalidURL };
-    }
   }
 
   private getServerEndpoint(...parts: string[]): string {
