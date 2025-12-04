@@ -12,6 +12,11 @@ export enum NodeEnv {
   preproduction = 'preproduction',
   staging = 'staging',
   development = 'development',
+  // Compound environment names mapped to their base type
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'green-production' = 'green-production',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'yellow-production' = 'yellow-production',
 }
 
 /**
