@@ -318,7 +318,7 @@ export class CCIPProviderService implements IRebalanceProvider<'CCIP'> {
       try {
         receipt = (await client.waitForTransactionReceipt({
           hash: txHash,
-          timeout: 600_000,
+          retryCount: 12,
         })) as TransactionReceipt
       } catch (waitError) {
         this.logger.error(

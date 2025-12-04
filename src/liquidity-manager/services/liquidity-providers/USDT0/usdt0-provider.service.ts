@@ -146,7 +146,7 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
 
       // Wait for source transaction to be mined before checking delivery
       try {
-        await client.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 })
+        await client.waitForTransactionReceipt({ hash: txHash, retryCount: 12 })
       } catch (waitError) {
         this.logger.error(
           EcoLogMessage.withErrorAndId({
