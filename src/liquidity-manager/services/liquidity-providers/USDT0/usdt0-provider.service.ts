@@ -143,6 +143,25 @@ export class USDT0ProviderService implements IRebalanceProvider<'USDT0'> {
       )
 
       const txHash = await this.broadcastBatch(client, calls, quote)
+
+      // Wait for source transaction to be mined before checking delivery
+      try {
+        await client.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 })
+      } catch (waitError) {
+        this.logger.error(
+          EcoLogMessage.withErrorAndId({
+            message: 'USDT0: execute: Failed to confirm source transaction',
+            id: quote.id,
+            error: waitError as any,
+            properties: {
+              txHash,
+              sourceChainId: quote.tokenIn.chainId,
+            },
+          }),
+        )
+        throw new Error('USDT0: timed out waiting for source transaction receipt')
+      }
+
       await this.enqueueDeliveryCheck(quote, txHash as Hex, walletAddress as Hex)
       return txHash as Hex
     } catch (error) {

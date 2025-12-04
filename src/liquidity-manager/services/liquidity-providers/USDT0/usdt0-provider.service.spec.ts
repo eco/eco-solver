@@ -197,7 +197,10 @@ describe('USDT0ProviderService', () => {
 
       // mock kernel execute
       const execute = jest.fn().mockResolvedValue('0xtxhash')
-      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({ execute })
+      const waitForTransactionReceipt = jest.fn().mockResolvedValue({})
+      ;(kernel.getClient as any) = jest
+        .fn()
+        .mockResolvedValue({ execute, waitForTransactionReceipt })
 
       // spy on queue starter
       const startSpy = jest
@@ -235,7 +238,10 @@ describe('USDT0ProviderService', () => {
         expect(calls[1].to).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') // send on adapter
         return '0xtx'
       })
-      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({ execute })
+      const waitForTransactionReceipt = jest.fn().mockResolvedValue({})
+      ;(kernel.getClient as any) = jest
+        .fn()
+        .mockResolvedValue({ execute, waitForTransactionReceipt })
 
       jest
         .spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
@@ -283,7 +289,10 @@ describe('USDT0ProviderService', () => {
         .mockResolvedValueOnce({ nativeFee: 0n, lzTokenFee: 0n })
       ;(pub.getClient as any) = jest.fn().mockResolvedValue({ readContract })
       const execute = jest.fn().mockResolvedValue('0xtx')
-      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({ execute })
+      const waitForTransactionReceipt = jest.fn().mockResolvedValue({})
+      ;(kernel.getClient as any) = jest
+        .fn()
+        .mockResolvedValue({ execute, waitForTransactionReceipt })
       jest
         .spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
         .mockResolvedValue(undefined)
@@ -314,9 +323,10 @@ describe('USDT0ProviderService', () => {
         // quoteSend: capture args
         .mockResolvedValueOnce({ nativeFee: 0n, lzTokenFee: 0n })
       ;(pub.getClient as any) = jest.fn().mockResolvedValue({ readContract })
-      ;(kernel.getClient as any) = jest
-        .fn()
-        .mockResolvedValue({ execute: jest.fn().mockResolvedValue('0xtx') })
+      ;(kernel.getClient as any) = jest.fn().mockResolvedValue({
+        execute: jest.fn().mockResolvedValue('0xtx'),
+        waitForTransactionReceipt: jest.fn().mockResolvedValue({}),
+      })
       jest
         .spyOn(LiquidityManagerQueue.prototype as any, 'startOFTDeliveryCheck')
         .mockResolvedValue(undefined)
