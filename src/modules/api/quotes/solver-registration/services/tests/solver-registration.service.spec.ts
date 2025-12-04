@@ -1,26 +1,24 @@
 import { HttpService } from '@nestjs/axios';
 import { Test, TestingModule } from '@nestjs/testing';
-
-import { AxiosError, AxiosHeaders, AxiosResponse } from 'axios';
 import { of, throwError } from 'rxjs';
 
 import { IEvmWallet } from '@/common/interfaces/evm-wallet.interface';
+import { EcoError } from '@/errors/eco-error';
+import { SolverRegistrationService } from '@/modules/api/quotes/solver-registration/services/solver-registration.service';
 import { EvmWalletManager } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainConfigService } from '@/modules/config/services';
 import { QuotesConfigService } from '@/modules/config/services/quotes-config.service';
 import { SystemLoggerService } from '@/modules/logging';
-
-import { QuoteRegistrationService } from '../services/quote-registration.service';
+import { SignatureGenerator } from '@/request-signing/signature-generator';
 
 describe('RegistrationService', () => {
-  let service: QuoteRegistrationService;
-  let httpService: HttpService;
-  let logger: SystemLoggerService;
+  let service: SolverRegistrationService;
   let blockchainConfigService: BlockchainConfigService;
   let mockWallet: IEvmWallet;
   let module: TestingModule;
+  let mockHttpService: { post: jest.Mock };
 
-  let mockConfig: {
+  const mockConfig: {
     registrationEnabled: boolean;
     registrationBaseUrl?: string;
     apiUrl?: string;
@@ -42,14 +40,16 @@ describe('RegistrationService', () => {
       writeContracts: jest.fn(),
     } as any;
 
+    mockHttpService = {
+      post: jest.fn(),
+    };
+
     module = await Test.createTestingModule({
       providers: [
-        QuoteRegistrationService,
+        SolverRegistrationService,
         {
           provide: HttpService,
-          useValue: {
-            post: jest.fn(),
-          },
+          useValue: mockHttpService,
         },
         {
           provide: QuotesConfigService,
@@ -65,6 +65,9 @@ describe('RegistrationService', () => {
             },
             get registrationPrivateKey() {
               return mockConfig.registrationPrivateKey;
+            },
+            get config() {
+              return mockConfig;
             },
           },
         },
@@ -93,23 +96,40 @@ describe('RegistrationService', () => {
             warn: jest.fn(),
           },
         },
+        {
+          provide: SignatureGenerator,
+          useValue: {
+            signPayload: jest.fn().mockResolvedValue({
+              signature: '0xmocksignature',
+              address: '0x1234567890123456789012345678901234567890',
+              expire: Date.now() + 300000, // 5 minutes from now
+            }),
+            generateHeaders: jest.fn().mockReturnValue({
+              'x-beam-sig': '0xmocksignature',
+              'x-beam-sig-address': '0x1234567890123456789012345678901234567890',
+              'x-beam-sig-expire': Date.now() + 300000,
+            }),
+            getHeadersWithWalletClient: jest.fn().mockResolvedValue({
+              'x-beam-sig': '0xmocksignature',
+              'x-beam-sig-address': '0x1234567890123456789012345678901234567890',
+              'x-beam-sig-expire': Date.now() + 300000,
+            }),
+          },
+        },
       ],
     }).compile();
 
-    service = module.get<QuoteRegistrationService>(QuoteRegistrationService);
-    httpService = module.get<HttpService>(HttpService);
-    logger = module.get<SystemLoggerService>(SystemLoggerService);
+    service = module.get<SolverRegistrationService>(SolverRegistrationService);
     blockchainConfigService = module.get<BlockchainConfigService>(BlockchainConfigService);
   });
 
   beforeEach(() => {
     // Reset mockConfig to default values before each test
-    mockConfig = {
-      registrationEnabled: true,
-      registrationBaseUrl: 'https://api.example.com',
-      apiUrl: 'https://api.example.com/api/v1/quotes',
-      registrationPrivateKey: '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-    };
+    mockConfig.registrationEnabled = true;
+    mockConfig.registrationBaseUrl = 'https://api.example.com';
+    mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
+    mockConfig.registrationPrivateKey =
+      '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   });
 
   afterEach(() => {
@@ -118,40 +138,50 @@ describe('RegistrationService', () => {
 
   describe('register', () => {
     it('should successfully register when enabled', async () => {
-      const mockResponse: AxiosResponse = {
-        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
+      // Ensure all required config is set
+      mockConfig.registrationEnabled = true;
+      mockConfig.registrationBaseUrl = 'https://api.example.com';
+      mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
+      mockConfig.registrationPrivateKey =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
-
-      await service.register();
-
-      const call = (httpService.post as jest.Mock).mock.calls[0];
-      const requestBody = call[1];
-
-      expect(httpService.post).toHaveBeenCalledWith(
-        'https://api.example.com/api/v1/quotes',
-        expect.objectContaining({
-          intentExecutionTypes: ['SELF_PUBLISH'],
-          quotesUrl: 'https://api.example.com/api/v1/quotes',
-          receiveSignedIntentUrl: 'https://api.example.com/api/v1/quotes',
-          supportsNativeTransfers: false,
-        }),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            'x-beam-sig': expect.any(String),
-            'x-beam-sig-expire': expect.any(Number),
-            'x-beam-sig-address': expect.any(String),
-          }),
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: {
+            data: { quotesUrl: 'test', solverID: 'solver-123' },
+          },
         }),
       );
+
+      const result = await service.registerSolver();
+
+      // Verify no error occurred
+      expect(result.error).toBeUndefined();
+
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        mockConfig.apiUrl,
+        expect.objectContaining({
+          intentExecutionTypes: ['SELF_PUBLISH', 'GASLESS'],
+          quotesUrl: expect.any(String),
+          quotesV2Url: expect.any(String),
+          receiveSignedIntentUrl: expect.any(String),
+          gaslessIntentTransactionDataUrl: expect.any(String),
+          supportsNativeTransfers: false,
+          crossChainRoutes: expect.objectContaining({
+            crossChainRoutesConfig: expect.any(Object),
+          }),
+        }),
+        {
+          headers: expect.objectContaining({
+            'x-beam-sig': expect.any(String),
+            'x-beam-sig-address': expect.any(String),
+            'x-beam-sig-expire': expect.any(String),
+          }),
+        },
+      );
+
+      // Verify the request body structure
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
 
       // Verify cross-chain routes structure
       expect(requestBody.crossChainRoutes).toBeDefined();
@@ -160,118 +190,78 @@ describe('RegistrationService', () => {
       // Should have routes for each source chain
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
       expect(Object.keys(routeConfig)).toEqual(['1', '10', '137']);
-
-      expect(logger.log).toHaveBeenCalledWith('Successfully registered with ID: solver-123');
     });
 
     it('should not register when disabled', async () => {
       mockConfig.registrationEnabled = false;
 
-      await service.register();
+      const { error } = await service.registerSolver();
+      expect(error).toEqual(EcoError.SolverRegistrationDisabled);
 
-      expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.log).toHaveBeenCalledWith('Registration is disabled');
+      expect(mockHttpService.post).not.toHaveBeenCalled();
     });
 
     it('should error when base URL is not configured', async () => {
       mockConfig.registrationBaseUrl = undefined;
 
-      await service.register();
+      const { error } = await service.registerSolver();
 
-      expect(httpService.post).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed: Registration base URL is not configured',
-      );
+      expect(error).toEqual(EcoError.SolverRegistrationError);
+      expect(mockHttpService.post).not.toHaveBeenCalled();
     });
 
     it('should not throw error when apiUrl is configured', async () => {
-      const mockResponse: AxiosResponse = {
-        data: { data: { quotesUrl: 'test' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
+      // Ensure both registrationBaseUrl and apiUrl are properly configured
+      mockConfig.registrationBaseUrl = 'https://api.example.com';
+      mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
+      mockHttpService.post.mockReturnValue(of({ data: { data: { quotesUrl: 'test' } } }));
 
-      await service.register();
+      await service.registerSolver();
 
-      expect(httpService.post).toHaveBeenCalled();
-      expect(logger.log).toHaveBeenCalledWith('Successfully registered with ID: N/A');
+      expect(mockHttpService.post).toHaveBeenCalled();
     });
 
     it('should handle registration failure response', async () => {
-      const mockResponse: AxiosResponse = {
-        data: { data: {} }, // Missing quotesUrl indicates failure
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
+      mockHttpService.post.mockReturnValue(of({ data: { data: {} } }));
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
-
-      await service.register();
-
-      expect(logger.error).toHaveBeenCalledWith('Registration failed');
+      const { error } = await service.registerSolver();
+      expect(error).toBeUndefined();
     });
 
     it('should handle HTTP error with response', async () => {
-      const error = new AxiosError('Request failed');
-      error.response = {
-        status: 401,
-        data: { message: 'Unauthorized' },
-        statusText: 'Unauthorized',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockReturnValue(throwError(() => error));
-
-      await service.register();
-
-      expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed with status 401: Unauthorized',
+      mockHttpService.post.mockReturnValue(
+        throwError(() => new Error('Request failed with status 401: Unauthorized')),
       );
+
+      const { error } = await service.registerSolver();
+      expect(error).toEqual(EcoError.SolverRegistrationError);
     });
 
     it('should handle HTTP error without response', async () => {
-      const error = new AxiosError('Request failed');
-      error.request = {};
-
-      jest.spyOn(httpService, 'post').mockReturnValue(throwError(() => error));
-
-      await service.register();
-
-      expect(logger.error).toHaveBeenCalledWith(
-        'Registration failed - no response received: Request failed',
+      mockHttpService.post.mockReturnValue(
+        throwError(() => new Error('Request failed - no response received')),
       );
+
+      const { error } = await service.registerSolver();
+      expect(error).toEqual(EcoError.SolverRegistrationError);
     });
 
     it('should create cross-chain routes for multiple chains', async () => {
-      const mockResponse: AxiosResponse = {
-        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
+      // Ensure proper configuration
+      mockConfig.registrationBaseUrl = 'https://api.example.com';
+      mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        }),
+      );
 
-      await service.register();
+      await service.registerSolver();
 
-      const call = (httpService.post as jest.Mock).mock.calls[0];
-      const requestBody = call[1];
+      expect(mockHttpService.post).toHaveBeenCalled();
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
 
       // Verify each source chain has routes to all other chains (excluding itself)
@@ -304,24 +294,22 @@ describe('RegistrationService', () => {
     });
 
     it('should handle single chain configuration', async () => {
+      // Ensure proper configuration
+      mockConfig.registrationBaseUrl = 'https://api.example.com';
+      mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
+
       (blockchainConfigService.getAllConfiguredChains as jest.Mock).mockReturnValue([1]);
 
-      const mockResponse: AxiosResponse = {
-        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        }),
+      );
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
+      await service.registerSolver();
 
-      await service.register();
-
-      const call = (httpService.post as jest.Mock).mock.calls[0];
-      const requestBody = call[1];
+      expect(mockHttpService.post).toHaveBeenCalled();
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
 
       // Should have entry for the single chain but with no destinations
@@ -330,22 +318,20 @@ describe('RegistrationService', () => {
     });
 
     it('should skip same-chain routes', async () => {
-      const mockResponse: AxiosResponse = {
-        data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {
-          headers: new AxiosHeaders(),
-        },
-      };
+      // Ensure proper configuration
+      mockConfig.registrationBaseUrl = 'https://api.example.com';
+      mockConfig.apiUrl = 'https://api.example.com/api/v1/solverRegistry/registerSolver';
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse));
+      mockHttpService.post.mockReturnValue(
+        of({
+          data: { data: { quotesUrl: 'test', solverID: 'solver-123' } },
+        }),
+      );
 
-      await service.register();
+      await service.registerSolver();
 
-      const call = (httpService.post as jest.Mock).mock.calls[0];
-      const requestBody = call[1];
+      expect(mockHttpService.post).toHaveBeenCalled();
+      const [, requestBody] = mockHttpService.post.mock.calls[0];
       const routeConfig = requestBody.crossChainRoutes.crossChainRoutesConfig;
 
       // Verify no source chain has itself as a destination
