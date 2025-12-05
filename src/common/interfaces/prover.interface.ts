@@ -9,6 +9,7 @@ export const ProverType = {
   POLYMER: 'polymer',
   METALAYER: 'metalayer',
   DUMMY: 'dummy',
+  CCIP: 'ccip',
 } as const;
 
 export const ProverTypeValues = [
@@ -16,5 +17,6 @@ export const ProverTypeValues = [
   ProverType.POLYMER,
   ProverType.METALAYER,
   ProverType.DUMMY,
+  ProverType.CCIP,
 ] as const;
 export type TProverType = (typeof ProverType)[keyof typeof ProverType];

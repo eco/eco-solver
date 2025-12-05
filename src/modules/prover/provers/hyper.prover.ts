@@ -31,10 +31,17 @@ export class HyperProver extends BaseProver {
     );
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // Reduced buffer for Rhinestone compatibility (SDK sets ~5 minute deadlines)
     // Original was 3600 seconds (1 hour), reduced to 120 seconds (2 minutes)
     return 120n;
+  }
+
+  /**
+   * Hyperlane uses standard chain IDs as domain IDs (1:1 mapping)
+   */
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
   }
 }

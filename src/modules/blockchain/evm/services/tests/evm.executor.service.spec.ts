@@ -61,6 +61,7 @@ describe('EvmExecutorService', () => {
       .mockReturnValue('0x0000000000000000000000009999999999999999999999999999999999999999' as any),
     getFee: jest.fn().mockResolvedValue(100000000000000000n),
     generateProof: jest.fn().mockResolvedValue('0xProofData'),
+    getDomainId: jest.fn().mockImplementation((chainId: number) => BigInt(chainId)),
   };
 
   const mockPublicClient = {

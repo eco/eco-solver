@@ -208,9 +208,16 @@ export class PolymerProver extends BaseProver {
     return true;
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // PolymerProver requires 1 hour (3600 seconds) for processing
     return 3600n;
+  }
+
+  /**
+   * Polymer uses standard chain IDs as domain IDs (1:1 mapping)
+   */
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
   }
 }

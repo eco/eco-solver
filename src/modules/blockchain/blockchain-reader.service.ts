@@ -109,6 +109,7 @@ export class BlockchainReaderService {
    * @param intent The intent to check
    * @param prover The prover address in the chain
    * @param messageData The message data
+   * @param sourceDomainId The source chain domain ID (prover-specific)
    * @param claimant The recipient of the rewards
    * @returns The prover fee amount in the chain's native token
    */
@@ -117,6 +118,7 @@ export class BlockchainReaderService {
     intent: Intent,
     prover: UniversalAddress,
     messageData: Hex,
+    sourceDomainId: bigint,
     claimant?: UniversalAddress,
   ): Promise<bigint> {
     return this.getReaderForChain(chainId).fetchProverFee(
@@ -124,6 +126,7 @@ export class BlockchainReaderService {
       prover,
       messageData,
       Number(chainId),
+      sourceDomainId,
       claimant!,
     );
   }

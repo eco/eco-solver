@@ -26,9 +26,16 @@ export class MetalayerProver extends BaseProver {
     ] as const);
   }
 
-  getDeadlineBuffer(): bigint {
+  getDeadlineBuffer(_chainId: number): bigint {
     // TODO: Move to validation
     // MetalayerProver requires 100 minutes (6000 seconds) for processing
     return 6000n;
+  }
+
+  /**
+   * Metalayer uses standard chain IDs as domain IDs (1:1 mapping)
+   */
+  getDomainId(chainId: number): bigint {
+    return BigInt(chainId);
   }
 }

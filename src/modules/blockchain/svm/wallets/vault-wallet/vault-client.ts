@@ -24,6 +24,11 @@ import { SystemLoggerService } from '@/modules/logging';
  * - Automatic public key caching
  * - Raw 32-byte Ed25519 public key handling
  *
+ * ## Token Expiration Handling
+ * When a Vault token expires, operations will fail with "permission denied" errors. This client
+ * automatically detects these errors, re-authenticates with Vault, and retries the operation once.
+ * This ensures seamless operation even after token expiration.
+ *
  * ## Authentication Methods
  *
  * ### Token Authentication (Testing Only)
@@ -99,9 +104,9 @@ export class VaultClient {
 
         // Verify the token is valid
         await this.client.tokenLookupSelf();
+        this.logger.log('Token authentication successful');
       } else if (this.authConfig.type === 'kubernetes') {
         // Kubernetes authentication
-
         let jwt: string;
         if (this.authConfig.jwt) {
           jwt = this.authConfig.jwt;
@@ -122,6 +127,11 @@ export class VaultClient {
         }
 
         this.client.token = response.auth.client_token;
+
+        const leaseDuration = response.auth.lease_duration || response.lease_duration;
+        this.logger.log(
+          `Kubernetes authentication successful${leaseDuration ? ` (TTL: ${leaseDuration}s)` : ''}`,
+        );
       } else {
         throw new Error(`Unsupported auth type: ${(this.authConfig as any).type}`);
       }
@@ -132,33 +142,36 @@ export class VaultClient {
 
   /**
    * Signs data using Vault Transit Secrets Engine
+   * Automatically re-authenticates if token has expired
    * @param data - The data to sign (Uint8Array)
    * @returns Signature as Uint8Array
    */
   async sign(data: Uint8Array): Promise<Uint8Array> {
     try {
-      // Convert data to base64 for Vault API
-      const base64Data = Buffer.from(data).toString('base64');
+      return await this.executeWithRetry(async () => {
+        // Convert data to base64 for Vault API
+        const base64Data = Buffer.from(data).toString('base64');
 
-      // Call Transit sign endpoint
-      const response = await this.client.write(`${this.transitPath}/sign/${this.keyName}`, {
-        input: base64Data,
+        // Call Transit sign endpoint
+        const response = await this.client.write(`${this.transitPath}/sign/${this.keyName}`, {
+          input: base64Data,
+        });
+
+        if (!response.data || !response.data.signature) {
+          throw new Error('Vault sign operation did not return a signature');
+        }
+
+        // Parse the signature from Vault format (vault:v1:base64signature)
+        const signatureParts = response.data.signature.split(':');
+        if (signatureParts.length < 3) {
+          throw new Error(`Invalid signature format from Vault: ${response.data.signature}`);
+        }
+
+        const signatureBase64 = signatureParts[2];
+        const signatureBuffer = Buffer.from(signatureBase64, 'base64');
+
+        return new Uint8Array(signatureBuffer);
       });
-
-      if (!response.data || !response.data.signature) {
-        throw new Error('Vault sign operation did not return a signature');
-      }
-
-      // Parse the signature from Vault format (vault:v1:base64signature)
-      const signatureParts = response.data.signature.split(':');
-      if (signatureParts.length < 3) {
-        throw new Error(`Invalid signature format from Vault: ${response.data.signature}`);
-      }
-
-      const signatureBase64 = signatureParts[2];
-      const signatureBuffer = Buffer.from(signatureBase64, 'base64');
-
-      return new Uint8Array(signatureBuffer);
     } catch (error) {
       throw new Error(`Failed to sign with Vault: ${getErrorMessage(error)}`);
     }
@@ -167,6 +180,7 @@ export class VaultClient {
   /**
    * Gets the public key from Vault Transit Secrets Engine
    * Returns cached public key if already fetched
+   * Automatically re-authenticates if token has expired
    * @returns PublicKey for this signing key
    */
   async getPublicKey(): Promise<PublicKey> {
@@ -175,41 +189,90 @@ export class VaultClient {
     }
 
     try {
-      // Read the public key from Vault
-      const response = await this.client.read(`${this.transitPath}/keys/${this.keyName}`);
+      return await this.executeWithRetry(async () => {
+        // Read the public key from Vault
+        const response = await this.client.read(`${this.transitPath}/keys/${this.keyName}`);
 
-      if (!response.data || !response.data.keys) {
-        throw new Error('Vault did not return key information');
-      }
+        if (!response.data || !response.data.keys) {
+          throw new Error('Vault did not return key information');
+        }
 
-      // Get the latest version of the key
-      const versions = Object.keys(response.data.keys);
-      if (versions.length === 0) {
-        throw new Error('No key versions found in Vault');
-      }
+        // Get the latest version of the key
+        const versions = Object.keys(response.data.keys);
+        if (versions.length === 0) {
+          throw new Error('No key versions found in Vault');
+        }
 
-      // Use the latest version
-      const latestVersion = Math.max(...versions.map(Number)).toString();
-      const keyData = response.data.keys[latestVersion];
+        // Use the latest version
+        const latestVersion = Math.max(...versions.map(Number)).toString();
+        const keyData = response.data.keys[latestVersion];
 
-      if (!keyData || !keyData.public_key) {
-        throw new Error('Public key not found in Vault key data');
-      }
+        if (!keyData || !keyData.public_key) {
+          throw new Error('Public key not found in Vault key data');
+        }
 
-      const keyBuffer = Buffer.from(keyData.public_key, 'base64');
+        const keyBuffer = Buffer.from(keyData.public_key, 'base64');
 
-      // Validate the raw key size
-      if (keyBuffer.length !== 32) {
-        throw new Error(`Expected 32-byte raw Ed25519 public key, got ${keyBuffer.length} bytes`);
-      }
+        // Validate the raw key size
+        if (keyBuffer.length !== 32) {
+          throw new Error(`Expected 32-byte raw Ed25519 public key, got ${keyBuffer.length} bytes`);
+        }
 
-      // Convert to Solana PublicKey
-      this.publicKey = new PublicKey(keyBuffer);
+        // Convert to Solana PublicKey
+        this.publicKey = new PublicKey(keyBuffer);
 
-      return this.publicKey;
+        return this.publicKey;
+      });
     } catch (error) {
       throw new Error(`Failed to get public key from Vault: ${getErrorMessage(error)}`);
     }
+  }
+
+  /**
+   * Executes a Vault operation with automatic retry on permission denied errors
+   * If a permission denied error occurs, re-authenticates and retries once
+   * @param operation - The async operation to execute
+   * @returns The result of the operation
+   */
+  private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      // Check if this is a permission denied error
+      if (this.isPermissionDeniedError(error)) {
+        this.logger.warn('Vault operation failed with permission denied. Re-authenticating...');
+
+        try {
+          // Re-authenticate
+          await this.authenticate();
+          this.logger.log('Re-authentication successful. Retrying operation...');
+
+          // Retry the operation once
+          return await operation();
+        } catch (retryError) {
+          this.logger.error(`Retry after re-authentication failed: ${getErrorMessage(retryError)}`);
+          throw retryError;
+        }
+      }
+
+      // If not a permission error, throw the original error
+      throw error;
+    }
+  }
+
+  /**
+   * Checks if an error is a permission denied error from Vault
+   * @param error - The error to check
+   * @returns true if this is a permission denied error
+   */
+  private isPermissionDeniedError(error: unknown): boolean {
+    if (!error) return false;
+    const vaultError = error as any;
+    if (vaultError.response?.statusCode) {
+      const statusCode = vaultError.response.statusCode;
+      return statusCode === 401 || statusCode === 403;
+    }
+    return false;
   }
 
   /**
