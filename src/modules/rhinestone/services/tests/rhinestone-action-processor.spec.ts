@@ -120,9 +120,7 @@ describe('RhinestoneActionProcessor', () => {
         action: sampleAction.action as any,
       };
 
-      await expect(service.handleRelayerAction(payload)).rejects.toThrow(
-        'Invalid settlement layer',
-      );
+      await expect(service.handleRelayerAction(payload)).rejects.toThrow('Database error');
 
       // Verify error status was sent
       expect(websocketService.sendActionStatus).toHaveBeenCalledWith(
@@ -130,12 +128,12 @@ describe('RhinestoneActionProcessor', () => {
         expect.objectContaining({
           type: 'Error',
           reason: 'PreconditionFailed',
-          message: 'Invalid settlement layer',
+          message: 'Database error',
         }),
       );
 
-      // Verify intent was NOT queued
-      expect(queueService.addIntentToFulfillmentQueue).not.toHaveBeenCalled();
+      // Verify action was NOT queued (error occurred before queueing)
+      expect(queueService.addRhinestoneActionToFulfillmentQueue).not.toHaveBeenCalled();
     });
 
     it('should send error status on extraction failure', async () => {
