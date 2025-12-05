@@ -1,8 +1,8 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Job, Queue } from 'bullmq';
+import { Job } from 'bullmq';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
@@ -24,7 +24,6 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
   constructor(
     private fulfillmentService: FulfillmentService,
     private eventsService: EventsService,
-    @InjectQueue(QueueNames.INTENT_FULFILLMENT) private fulfillmentQueue: Queue,
     private readonly logger: SystemLoggerService,
     @Inject(BullMQOtelFactory) private bullMQOtelFactory: BullMQOtelFactory,
     private readonly otelService: OpenTelemetryService,
@@ -145,25 +144,10 @@ export class BlockchainEventsProcessor extends WorkerHost implements OnModuleIni
         throw new Error(`Unsupported chain type for IntentPublished: ${jobData.chainType}`);
     }
 
-    // Check if job already exists in FULFILLMENT queue (for deduplication verification)
-    const jobId = `fulfillment-${intent.intentHash}`;
-    const existingJob = await this.fulfillmentQueue.getJob(jobId);
-
-    if (existingJob) {
-      this.logger.log(
-        `Job ${jobId} already exists in FULFILLMENT queue ` +
-          `(state: ${await existingJob.getState()}, name: ${existingJob.name}). ` +
-          `BullMQ will deduplicate this submission.`,
-      );
-    } else {
-      this.logger.log(`No existing job found for ${jobId}, will create new fulfillment job`);
-    }
-
-    // Submit intent to fulfillment service (standard flow)
-    // BullMQ deduplication via jobId will prevent duplicate processing
-    // (e.g., if Rhinestone already queued this intent with a placeholder job)
+    // Submit intent to fulfillment service
     try {
       await this.fulfillmentService.submitIntent(intent);
+      this.logger.log(`Intent ${intent.intentHash} submitted to fulfillment queue`);
     } catch (error) {
       this.logger.error(`Failed to submit intent ${intent.intentHash}:`, toError(error));
       throw error;
