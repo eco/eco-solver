@@ -54,7 +54,7 @@ export class WithdrawalProcessor extends WorkerHost implements OnModuleInit, OnM
     }
   }
 
-  async process(job: Job<string>) {
+  async process(job: Job) {
     const jobData =
       typeof job.data === 'string'
         ? BigintSerializer.deserialize<WithdrawalJobData>(job.data)

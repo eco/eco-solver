@@ -97,6 +97,7 @@ export class NativeIntentsFulfillmentStrategy extends FulfillmentStrategy {
 
       // Native intents fulfillment uses EVM executor for native token handling
       await this.queueService.addIntentToExecutionQueue({
+        type: 'standard',
         strategy: this.name,
         intent,
         chainId: intent.destination,

@@ -44,4 +44,9 @@ export const RHINESTONE_EVENTS = {
    * Emitted when ActionStatus acknowledged by server
    */
   ACTION_STATUS_SENT: 'rhinestone.actionStatus.sent',
+
+  /**
+   * Emitted when Rhinestone action failed
+   */
+  ACTION_FAILED: 'rhinestone.action.failed',
 } as const;

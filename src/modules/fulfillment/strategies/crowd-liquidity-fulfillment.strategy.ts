@@ -89,6 +89,7 @@ export class CrowdLiquidityFulfillmentStrategy extends FulfillmentStrategy {
 
       // Crowd liquidity fulfillment only uses the CL executor
       await this.queueService.addIntentToExecutionQueue({
+        type: 'standard',
         strategy: this.name,
         intent,
         chainId: intent.destination,

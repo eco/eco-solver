@@ -1,26 +1,37 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 
-import { Queue } from 'bullmq';
+import { FlowProducer, Queue } from 'bullmq';
+import { Address, Hex } from 'viem';
 
 import { Intent } from '@/common/interfaces/intent.interface';
 import { BigintSerializer } from '@/common/utils/bigint-serializer';
 import { toError } from '@/common/utils/error-handler';
+import { WalletType } from '@/modules/blockchain/evm/services/evm-wallet-manager.service';
 import { BlockchainEventJob } from '@/modules/blockchain/interfaces/blockchain-event-job.interface';
 import { QueueConfigService } from '@/modules/config/services/queue-config.service';
-import { FulfillmentJobData } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
+import {
+  RhinestoneActionFulfillmentJob,
+  StandardFulfillmentJob,
+} from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import {
   FULFILLMENT_STRATEGY_NAMES,
   FulfillmentStrategyName,
 } from '@/modules/fulfillment/types/strategy-name.type';
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { QueueNames } from '@/modules/queue/enums/queue-names.enum';
-import { ExecutionJobData } from '@/modules/queue/interfaces/execution-job.interface';
+import {
+  ExecutionJobData,
+  RhinestoneClaimJob,
+  RhinestoneFillJob,
+  RhinestoneProveJob,
+} from '@/modules/queue/interfaces/execution-job.interface';
 import { IQueueService } from '@/modules/queue/interfaces/queue-service.interface';
 
 @Injectable()
 export class QueueService implements IQueueService, OnApplicationBootstrap, OnModuleDestroy {
   private readonly queues: Map<string, Queue>;
+  private readonly flowProducer: FlowProducer;
 
   constructor(
     private readonly logger: SystemLoggerService,
@@ -39,6 +50,14 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
       [QueueNames.INTENT_WITHDRAWAL, this.withdrawalQueue],
       [QueueNames.BLOCKCHAIN_EVENTS, this.blockchainEventsQueue],
     ]);
+
+    // Initialize FlowProducer (reuse execution queue connection)
+    this.flowProducer = new FlowProducer({
+      connection: this.executionQueue.opts.connection,
+      prefix: this.executionQueue.opts.prefix,
+    });
+
+    this.logger.log('FlowProducer initialized');
   }
 
   async onApplicationBootstrap() {
@@ -56,21 +75,40 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     }
   }
 
+  /**
+   * Adds an intent to the fulfillment queue for validation and processing.
+   *
+   * Uses a deterministic job ID based on intent hash to prevent duplicate queue
+   * submissions. If the same intent is submitted multiple times:
+   * - If still queued: BullMQ ignores the duplicate submission (no replacement)
+   * - If already processing: BullMQ ignores the duplicate submission
+   * - If already completed/failed: Creates a new job (allows retry of failed intents)
+   *
+   * Note: To replace an existing job, pass `replace: true` in the job options.
+   *
+   * @param intent - The intent to process
+   * @param strategy - The fulfillment strategy to use (defaults to STANDARD)
+   */
   async addIntentToFulfillmentQueue(
     intent: Intent,
     strategy: FulfillmentStrategyName = FULFILLMENT_STRATEGY_NAMES.STANDARD,
   ): Promise<void> {
-    const jobData: FulfillmentJobData = {
+    const jobData: StandardFulfillmentJob = {
+      type: 'standard', // Add discriminator
       intent,
       strategy,
       chainId: Number(intent.destination),
     };
+
+    // Generate deterministic job ID using intent hash
+    const jobId = `fulfillment-${intent.intentHash}`;
 
     // Use maximum retry attempts from config to allow for TEMPORARY error retries
     // The processor will control actual retry behavior based on error type
     const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
     const serializedData = BigintSerializer.serialize(jobData);
     await this.fulfillmentQueue.add('process-intent', serializedData, {
+      jobId,
       attempts,
       backoff: {
         type: 'exponential',
@@ -89,6 +127,161 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
     const jobOptions = this.queueConfig.executionJobOptions;
 
     await this.executionQueue.add(jobName, serializedData, jobOptions);
+  }
+
+  /**
+   * Queue Rhinestone action to FULFILLMENT queue for validation
+   * One job per action (multi-intent), payload stored in BullMQ
+   */
+  async addRhinestoneActionToFulfillmentQueue(
+    jobData: RhinestoneActionFulfillmentJob,
+  ): Promise<void> {
+    const jobId = `rhinestone-action-${jobData.actionId}`;
+
+    const serializedData = BigintSerializer.serialize(jobData);
+
+    const { attempts, backoffMs } = this.queueConfig.temporaryRetryConfig;
+
+    await this.fulfillmentQueue.add('process-rhinestone-action', serializedData, {
+      jobId,
+      attempts,
+      backoff: {
+        type: 'exponential',
+        delay: backoffMs || 5000,
+      },
+    });
+
+    this.logger.log(
+      `Queued Rhinestone action to FULFILLMENT: ${jobId} ` +
+        `(${jobData.claims.length} claims, ${jobData.fill.intents.length} intents)`,
+    );
+  }
+
+  /**
+   * Queue Rhinestone multiclaim flow: N claims → 1 fill
+   *
+   * Deduplication strategy: Creates placeholder jobs in FULFILLMENT queue
+   * to prevent blockchain event listener from creating duplicate jobs.
+   * Placeholder jobs use jobId `fulfillment-{intentHash}` and job name
+   * 'rhinestone-deduplication' which FulfillmentProcessor ignores.
+   *
+   * Execution flow: Uses FlowProducer in EXECUTION queue.
+   * Claims execute in parallel, fill waits for all claims to succeed.
+   */
+  async addRhinestoneMulticlaimFlow(params: {
+    messageId: string;
+    actionId: string;
+    claims: Array<{
+      intentHash: Hex;
+      chainId: bigint;
+      transaction: { to: Address; data: Hex; value: bigint };
+    }>;
+    fill: {
+      intents: Intent[];
+      chainId: bigint;
+      transaction: { to: Address; data: Hex; value: bigint };
+      requiredApprovals: Array<{
+        token: Address;
+        amount: bigint;
+      }>;
+    };
+    walletId?: WalletType;
+  }): Promise<void> {
+    const { messageId, actionId, claims, fill, walletId } = params;
+
+    this.logger.log(
+      `Queueing Rhinestone multiclaim flow: ${messageId} with ${claims.length} claims`,
+    );
+
+    // Create placeholder jobs in FULFILLMENT queue for deduplication
+    // These jobs do nothing but prevent blockchain listener from creating duplicates
+    for (const claim of claims) {
+      await this.fulfillmentQueue.add(
+        'rhinestone-deduplication', // Different name so processor ignores it
+        {}, // Empty data
+        {
+          jobId: `fulfillment-${claim.intentHash}`, //Enables BullMQ deduplication!
+        },
+      );
+    }
+
+    this.logger.log(`Created ${claims.length} placeholder jobs in FULFILLMENT for deduplication`);
+
+    // Build claim children (execute in parallel)
+    const claimChildren = claims.map((claim, index) => ({
+      name: `rhinestone-claim-${index}`,
+      queueName: QueueNames.INTENT_EXECUTION,
+      data: BigintSerializer.serialize<RhinestoneClaimJob>({
+        type: 'rhinestone-claim',
+        intentHash: claim.intentHash,
+        chainId: claim.chainId,
+        transaction: claim.transaction,
+        messageId,
+        walletId,
+      }),
+      opts: this.queueConfig.executionJobOptions,
+    }));
+
+    // Build fill parent job (waits for all claims)
+    const fillJob = {
+      name: 'rhinestone-fill',
+      queueName: QueueNames.INTENT_EXECUTION,
+      data: BigintSerializer.serialize<RhinestoneFillJob>({
+        type: 'rhinestone-fill',
+        intents: fill.intents,
+        chainId: fill.chainId,
+        transaction: fill.transaction,
+        requiredApprovals: fill.requiredApprovals,
+        messageId,
+        walletId,
+      }),
+      opts: {
+        ...this.queueConfig.executionJobOptions,
+        jobId: `rhinestone-fill-${actionId}`,
+      },
+      children: claimChildren,
+    };
+
+    // Create flow (BullMQ deduplicates by jobId)
+    const flow = await this.flowProducer.add(fillJob);
+
+    this.logger.log(
+      `Rhinestone multiclaim flow created: ${flow.job.id} (fill) with ${claims.length} claim children`,
+    );
+  }
+
+  /**
+   * Queue Rhinestone prove jobs (independent, no coordinator)
+   * Each prove job runs independently and marks its intent as PROVEN
+   * Withdrawal system will pick up proven intents automatically
+   */
+  async addRhinestoneProveJobs(params: {
+    intents: Intent[];
+    chainId: bigint;
+    walletId?: WalletType;
+    messageId: string;
+  }): Promise<void> {
+    const { intents, chainId, walletId, messageId } = params;
+
+    this.logger.log(`Queueing ${intents.length} Rhinestone prove jobs for ${messageId}`);
+
+    // Build independent prove jobs (one per intent)
+    const proveJobs = intents.map((intent, index) => ({
+      name: `rhinestone-prove-${index}`,
+      data: BigintSerializer.serialize<RhinestoneProveJob>({
+        type: 'rhinestone-prove',
+        intent,
+        chainId,
+        walletId,
+        messageId,
+      }),
+      opts: this.queueConfig.executionJobOptions,
+    }));
+
+    // Add all jobs in bulk (independent execution)
+    await this.executionQueue.addBulk(proveJobs);
+
+    this.logger.log(`Queued ${intents.length} Rhinestone prove jobs`);
   }
 
   async addBlockchainEvent(job: BlockchainEventJob): Promise<void> {
@@ -227,6 +420,10 @@ export class QueueService implements IQueueService, OnApplicationBootstrap, OnMo
 
       // Close all queue connections
       await Promise.all(Array.from(this.queues.values()).map((queue) => queue.close()));
+
+      // Close FlowProducer
+      await this.flowProducer.close();
+      this.logger.log('FlowProducer closed');
 
       this.logger.log('Queues shutdown completed');
     } catch (error) {

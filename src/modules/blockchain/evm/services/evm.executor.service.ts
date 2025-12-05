@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import * as api from '@opentelemetry/api';
-import { Address, encodeFunctionData, erc20Abi, Hex } from 'viem';
+import { Address, encodeFunctionData, erc20Abi, Hex, TransactionReceipt } from 'viem';
 
 import { portalAbi } from '@/common/abis/portal.abi';
 import {
@@ -18,6 +18,8 @@ import { BlockchainConfigService, EvmConfigService } from '@/modules/config/serv
 import { SystemLoggerService } from '@/modules/logging/logger.service';
 import { OpenTelemetryService } from '@/modules/opentelemetry/opentelemetry.service';
 import { ProverService } from '@/modules/prover/prover.service';
+import { RhinestoneWebsocketService } from '@/modules/rhinestone/services/rhinestone-websocket.service';
+import { replaceRelayerContext } from '@/modules/rhinestone/utils/replace-relayer-context';
 import { BatchWithdrawData } from '@/modules/withdrawal/interfaces/withdrawal-job.interface';
 
 import { EvmTransportService } from './evm-transport.service';
@@ -33,6 +35,7 @@ export class EvmExecutorService extends BaseChainExecutor {
     private proverService: ProverService,
     private readonly logger: SystemLoggerService,
     private readonly otelService: OpenTelemetryService,
+    @Optional() private rhinestoneWebsocketService?: RhinestoneWebsocketService,
   ) {
     super();
     this.logger.setContext(EvmExecutorService.name);
@@ -286,6 +289,269 @@ export class EvmExecutorService extends BaseChainExecutor {
             `Failed to execute batchWithdraw on chain ${chainId}: ${getErrorMessage(error)}`,
             toError(error),
           );
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Execute CLAIM phase for Rhinestone
+   * Funds the intent on the source chain using pre-encoded calldata
+   */
+  async executeRhinestoneClaim(
+    chainId: number,
+    routerAddress: Address,
+    claimData: Hex,
+    claimValue: bigint,
+    walletId: WalletType,
+  ): Promise<Hex> {
+    return this.otelService.tracer.startActiveSpan(
+      'evm.rhinestone.claim',
+      {
+        attributes: {
+          'evm.operation': 'rhinestone_claim',
+          'evm.chain_id': chainId.toString(),
+          'evm.claim_value': claimValue.toString(),
+          'evm.router_address': routerAddress,
+        },
+      },
+      async (span) => {
+        try {
+          const wallet = this.walletManager.getWallet(walletId, chainId);
+          const solverAddress = await wallet.getAddress();
+
+          // Patch relayerContext to solver address
+          const patchedData = replaceRelayerContext(claimData, solverAddress);
+
+          // Send transaction using writeContract
+          const txHash = await wallet.writeContract({
+            to: routerAddress as Address,
+            data: patchedData,
+            value: claimValue,
+          });
+
+          span.setAttribute('evm.tx_hash', txHash);
+
+          // Wait for confirmation
+          const publicClient = this.transportService.getPublicClient(chainId);
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+          });
+
+          if (receipt.status !== 'success') {
+            throw new Error(`CLAIM transaction reverted: ${txHash}`);
+          }
+
+          this.logger.log(`Rhinestone CLAIM complete: ${txHash}`);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return txHash;
+        } catch (error) {
+          this.logger.error('Rhinestone CLAIM error:', toError(error));
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Execute FILL phase for Rhinestone
+   * Fulfills the intent on destination chain using pre-encoded calldata
+   */
+  async executeRhinestoneFill(
+    chainId: number,
+    requiredApprovals: Array<{ token: Address; amount: bigint }>,
+    routerAddress: Address,
+    fillData: Hex,
+    fillValue: bigint,
+    walletId: WalletType,
+    messageId: string,
+  ): Promise<Hex> {
+    return this.otelService.tracer.startActiveSpan(
+      'evm.rhinestone.fill',
+      {
+        attributes: {
+          'evm.operation': 'rhinestone_fill',
+          'evm.chain_id': chainId.toString(),
+          'evm.approval_count': requiredApprovals.length,
+          'evm.fill_value': fillValue.toString(),
+          'evm.router_address': routerAddress,
+        },
+      },
+      async (span) => {
+        try {
+          const wallet = this.walletManager.getWallet(walletId, chainId);
+          const solverAddress = await wallet.getAddress();
+
+          this.logger.log(
+            `Approving ${requiredApprovals.length} tokens for batched fill transaction`,
+          );
+
+          // Create approval transactions using pre-calculated amounts
+          const approvalTxs = requiredApprovals.map(({ token, amount }) => ({
+            to: token,
+            data: encodeFunctionData({
+              abi: erc20Abi,
+              functionName: 'approve',
+              args: [routerAddress, amount],
+            }),
+          }));
+
+          // Execute approvals if needed
+          if (approvalTxs.length > 0) {
+            await wallet.writeContracts(approvalTxs, { value: 0n });
+            this.logger.log(`Approved ${approvalTxs.length} tokens for Rhinestone FILL`);
+          }
+
+          // Patch relayerContext
+          const patchedData = replaceRelayerContext(fillData, solverAddress);
+
+          // Send transaction using writeContract
+          const txHash = await wallet.writeContract({
+            to: routerAddress as Address,
+            data: patchedData,
+            value: fillValue,
+          });
+
+          span.setAttribute('evm.tx_hash', txHash);
+
+          // Send preconfirmation IMMEDIATELY after tx submission (don't wait for mining)
+          if (this.rhinestoneWebsocketService) {
+            try {
+              await this.rhinestoneWebsocketService.sendActionStatus(messageId, {
+                type: 'Success',
+                preconfirmation: { txId: txHash },
+              });
+              this.logger.log(`Sent preconfirmation for FILL tx: ${txHash}`);
+              span.addEvent('rhinestone.preconfirmation.sent', { txHash });
+            } catch (error) {
+              // Log error but don't fail execution
+              this.logger.warn(
+                `Failed to send preconfirmation: ${error instanceof Error ? error.message : String(error)}`,
+              );
+              span.addEvent('rhinestone.preconfirmation.failed', {
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
+          // Wait for confirmation
+          const publicClient = this.transportService.getPublicClient(chainId);
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+          });
+
+          if (receipt.status !== 'success') {
+            throw new Error(`FILL transaction reverted: ${txHash}`);
+          }
+
+          this.logger.log(`Rhinestone FILL complete: ${txHash}`);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return txHash;
+        } catch (error) {
+          this.logger.error('Rhinestone FILL error:', toError(error));
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  /**
+   * Execute PROVE phase for Rhinestone
+   * Submits proof to Portal contract via Hyperlane
+   */
+  async executeRhinestoneProve(
+    chainId: number,
+    intent: Intent,
+    walletId: WalletType,
+  ): Promise<{ txHash: Hex; receipt: TransactionReceipt }> {
+    return this.otelService.tracer.startActiveSpan(
+      'evm.rhinestone.prove',
+      {
+        attributes: {
+          'evm.operation': 'rhinestone_prove',
+          'evm.chain_id': chainId.toString(),
+          'evm.intent_hash': intent.intentHash,
+        },
+      },
+      async (span) => {
+        try {
+          const wallet = this.walletManager.getWallet(walletId, chainId);
+
+          // Get source chain info for prover
+          const sourceChainId = Number(intent.sourceChainId);
+
+          // Get prover
+          const prover = this.proverService.getProver(sourceChainId, intent.reward.prover);
+          if (!prover) {
+            throw new Error('Prover not found for Rhinestone PROVE');
+          }
+
+          // Calculate prover fee
+          const configuredClaimant = this.blockchainConfigService.getClaimant(sourceChainId);
+          const proverFee = await prover.getFee(intent, configuredClaimant);
+
+          // Generate proof
+          const proofData = await prover.generateProof(intent);
+
+          // Get prover contract address
+          const proverContract = prover.getContractAddress(chainId);
+          if (!proverContract) {
+            throw new Error(`No prover contract address found for chain ${chainId}`);
+          }
+          const proverAddr = AddressNormalizer.denormalizeToEvm(proverContract);
+
+          // Get Portal address
+          const portalAddressUA = this.evmConfigService.getPortalAddress(chainId);
+          if (!portalAddressUA) {
+            throw new Error(`No Portal address configured for chain ${chainId}`);
+          }
+          const portalAddress = AddressNormalizer.denormalizeToEvm(portalAddressUA);
+
+          // Call Portal.prove()
+          const proveTx = {
+            to: portalAddress,
+            data: encodeFunctionData({
+              abi: portalAbi,
+              functionName: 'prove',
+              args: [proverAddr, BigInt(sourceChainId), [intent.intentHash as Hex], proofData],
+            }),
+            value: proverFee,
+          };
+
+          const txHash = await wallet.writeContract(proveTx);
+
+          span.setAttribute('evm.tx_hash', txHash);
+          span.setAttribute('evm.prover_address', proverAddr);
+          span.setAttribute('evm.prover_fee', proverFee.toString());
+
+          // Wait for confirmation
+          const publicClient = this.transportService.getPublicClient(chainId);
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+          });
+
+          if (receipt.status !== 'success') {
+            throw new Error(`PROVE transaction reverted: ${txHash}`);
+          }
+
+          this.logger.log(`Rhinestone PROVE complete: ${txHash}`);
+          span.setStatus({ code: api.SpanStatusCode.OK });
+          return { txHash, receipt };
+        } catch (error) {
+          this.logger.error('Rhinestone PROVE error:', toError(error));
+          span.recordException(toError(error));
+          span.setStatus({ code: api.SpanStatusCode.ERROR });
           throw error;
         } finally {
           span.end();

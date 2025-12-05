@@ -488,6 +488,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       await strategy.execute(mockIntent);
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS,
         intent: mockIntent,
         chainId: mockIntent.destination,
@@ -530,6 +531,7 @@ describe('NativeIntentsFulfillmentStrategy', () => {
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          type: 'standard',
           strategy: FULFILLMENT_STRATEGY_NAMES.NATIVE_INTENTS,
           intent,
           chainId: intent.destination,

@@ -64,3 +64,6 @@ CLAUDE.md
 # Secret detection
 # Note: .secretlintrc.json and .secretlintignore are tracked to share configuration with the team
 thoughts/
+
+# Claude Code local settings
+.claude/settings.local.json

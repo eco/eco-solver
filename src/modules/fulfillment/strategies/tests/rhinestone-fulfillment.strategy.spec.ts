@@ -1,5 +1,7 @@
 import { Test } from '@nestjs/testing';
 
+import { Address, Hex } from 'viem';
+
 // Mock the dependencies before any imports
 jest.mock('@/modules/blockchain/blockchain-executor.service', () => ({
   BlockchainExecutorService: jest.fn().mockImplementation(() => ({})),
@@ -46,14 +48,15 @@ jest.mock('@/modules/opentelemetry/opentelemetry.service', () => ({
 
 import { BlockchainExecutorService } from '@/modules/blockchain/blockchain-executor.service';
 import { BlockchainReaderService } from '@/modules/blockchain/blockchain-reader.service';
+import { RhinestoneActionFulfillmentJob } from '@/modules/fulfillment/interfaces/fulfillment-job.interface';
 import { FULFILLMENT_STRATEGY_NAMES } from '@/modules/fulfillment/types/strategy-name.type';
 import {
   ChainSupportValidation,
   DuplicateRewardTokensValidation,
   ExecutorBalanceValidation,
   ExpirationValidation,
-  IntentFundedValidation,
   ProverSupportValidation,
+  RhinestoneValidation,
   RouteAmountLimitValidation,
   RouteCallsValidation,
   RouteEnabledValidation,
@@ -74,7 +77,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let queueService: jest.Mocked<IQueueService>;
   let _otelService: jest.Mocked<OpenTelemetryService>;
   // Mock validation services
-  let intentFundedValidation: jest.Mocked<IntentFundedValidation>;
   let duplicateRewardTokensValidation: jest.Mocked<any>;
   let routeTokenValidation: jest.Mocked<RouteTokenValidation>;
   let routeCallsValidation: jest.Mocked<RouteCallsValidation>;
@@ -85,6 +87,44 @@ describe('RhinestoneFulfillmentStrategy', () => {
   let proverSupportValidation: jest.Mocked<ProverSupportValidation>;
   let executorBalanceValidation: jest.Mocked<ExecutorBalanceValidation>;
   let standardFeeValidation: jest.Mocked<StandardFeeValidation>;
+  let rhinestoneValidation: jest.Mocked<RhinestoneValidation>;
+
+  // Helper to create mock action job data
+  function createMockActionJobData(
+    overrides?: Partial<RhinestoneActionFulfillmentJob>,
+  ): RhinestoneActionFulfillmentJob {
+    const mockIntent = createMockIntent();
+    return {
+      type: 'rhinestone-action' as const,
+      strategy: 'rhinestone' as const,
+      messageId: 'test-message-id',
+      actionId: 'test-action-id',
+      claims: [
+        {
+          intent: mockIntent,
+          intentHash: mockIntent.intentHash,
+          chainId: BigInt(10),
+          transaction: {
+            to: '0x1234567890123456789012345678901234567890' as Address,
+            data: '0xabcdef' as Hex,
+            value: BigInt(0),
+          },
+        },
+      ],
+      fill: {
+        intents: [mockIntent],
+        chainId: BigInt(10),
+        transaction: {
+          to: '0x1234567890123456789012345678901234567890' as Address,
+          data: '0xfedcba' as Hex,
+          value: BigInt(0),
+        },
+        requiredApprovals: [],
+      },
+      walletId: 'kernel',
+      ...overrides,
+    };
+  }
 
   beforeEach(async () => {
     // Clear all mocks
@@ -95,6 +135,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
     const mockBlockchainReaderService = {};
     const mockQueueService = {
       addIntentToExecutionQueue: jest.fn(),
+      addRhinestoneMulticlaimFlow: jest.fn(),
     };
     const mockOtelService = {
       tracer: {
@@ -129,7 +170,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
       constructor: { name },
     });
 
-    intentFundedValidation = createMockValidation('IntentFundedValidation') as any;
     duplicateRewardTokensValidation = createMockValidation(
       'DuplicateRewardTokensValidation',
     ) as any;
@@ -142,6 +182,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
     proverSupportValidation = createMockValidation('ProverSupportValidation') as any;
     executorBalanceValidation = createMockValidation('ExecutorBalanceValidation') as any;
     standardFeeValidation = createMockValidation('StandardFeeValidation') as any;
+    rhinestoneValidation = createMockValidation('RhinestoneValidation') as any;
 
     const module = await Test.createTestingModule({
       providers: [
@@ -161,10 +202,6 @@ describe('RhinestoneFulfillmentStrategy', () => {
         {
           provide: OpenTelemetryService,
           useValue: mockOtelService,
-        },
-        {
-          provide: IntentFundedValidation,
-          useValue: intentFundedValidation,
         },
         {
           provide: DuplicateRewardTokensValidation,
@@ -206,6 +243,10 @@ describe('RhinestoneFulfillmentStrategy', () => {
           provide: StandardFeeValidation,
           useValue: standardFeeValidation,
         },
+        {
+          provide: RhinestoneValidation,
+          useValue: rhinestoneValidation,
+        },
       ],
     }).compile();
 
@@ -226,18 +267,18 @@ describe('RhinestoneFulfillmentStrategy', () => {
 
     it('should have the correct validations in order WITHOUT RouteCallsValidation', () => {
       const validations = (strategy as any).getValidations();
-      expect(validations).toHaveLength(10); // One less than standard strategy (which has 11)
-      expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(duplicateRewardTokensValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      // RouteCallsValidation is intentionally skipped
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(routeEnabledValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(standardFeeValidation);
+      expect(validations).toHaveLength(9); // Excludes IntentFundedValidation and RouteCallsValidation
+      // NOTE: IntentFundedValidation excluded (Rhinestone solver funds via CLAIM)
+      // NOTE: RouteCallsValidation excluded (smart accounts have custom patterns)
+      expect(validations[0]).toBe(duplicateRewardTokensValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[2]).toBe(routeAmountLimitValidation);
+      expect(validations[3]).toBe(expirationValidation);
+      expect(validations[4]).toBe(chainSupportValidation);
+      expect(validations[5]).toBe(routeEnabledValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(rhinestoneValidation);
     });
 
     it('should exclude RouteCallsValidation from validations', () => {
@@ -260,12 +301,12 @@ describe('RhinestoneFulfillmentStrategy', () => {
   });
 
   describe('canHandle', () => {
-    it('should always return false (only enabled via configuration)', () => {
+    it('should always return true (Rhinestone intents explicitly queued)', () => {
       const mockIntent = createMockIntent();
-      expect(strategy.canHandle(mockIntent)).toBe(false);
+      expect(strategy.canHandle(mockIntent)).toBe(true);
     });
 
-    it('should return false for various smart account scenarios', () => {
+    it('should return true for various smart account scenarios', () => {
       const intents = [
         // Normal intent
         createMockIntent(),
@@ -313,11 +354,11 @@ describe('RhinestoneFulfillmentStrategy', () => {
       ];
 
       intents.forEach((intent) => {
-        expect(strategy.canHandle(intent)).toBe(false);
+        expect(strategy.canHandle(intent)).toBe(true);
       });
     });
 
-    it('should return false even for EIP-4337 UserOperation patterns', () => {
+    it('should return true even for EIP-4337 UserOperation patterns', () => {
       // Even with patterns that indicate account abstraction,
       // the strategy currently only activates via configuration
       const userOpIntent = createMockIntent({
@@ -333,257 +374,337 @@ describe('RhinestoneFulfillmentStrategy', () => {
         } as any,
       });
 
-      expect(strategy.canHandle(userOpIntent)).toBe(false);
+      expect(strategy.canHandle(userOpIntent)).toBe(true);
     });
   });
 
   describe('validate', () => {
-    it('should run all validations in order excluding RouteCallsValidation', async () => {
+    it('should throw error - not supported for Rhinestone (use validateAction instead)', async () => {
       const mockIntent = createMockIntent();
-      const result = await strategy.validate(mockIntent);
-
-      expect(result).toBe(true);
-
-      // Verify validations were called (excluding RouteCallsValidation)
-      expect(intentFundedValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(routeTokenValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(0); // Should NOT be called
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(expirationValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(chainSupportValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(routeEnabledValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(proverSupportValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(executorBalanceValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-      expect(standardFeeValidation.validate).toHaveBeenCalledWith(
-        mockIntent,
-        expect.objectContaining({ strategy }),
-      );
-
-      // Verify each validation was called exactly once (except RouteCallsValidation)
-      [
-        intentFundedValidation,
-        routeTokenValidation,
-        routeAmountLimitValidation,
-        expirationValidation,
-        chainSupportValidation,
-        routeEnabledValidation,
-        proverSupportValidation,
-        executorBalanceValidation,
-        standardFeeValidation,
-      ].forEach((validation) => {
-        expect(validation.validate).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('should allow intents with complex call data that would fail RouteCallsValidation', async () => {
-      const complexIntent = createMockIntent({
-        route: {
-          calls: [
-            {
-              target: '0x0000000000000000000000000000000000000000' as any, // Zero address
-              data: '0x' as any, // Empty data
-              value: BigInt(0),
-            },
-            {
-              target: '0xInvalidAddress' as any, // Invalid format
-              data: '0xmalformed' as any,
-              value: BigInt(-1), // Negative value
-            },
-          ],
-        } as any,
-      });
-
-      // Should still pass because RouteCallsValidation is skipped
-      const result = await strategy.validate(complexIntent);
-      expect(result).toBe(true);
-      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(0);
-    });
-
-    it('should throw aggregated error on validation failure', async () => {
-      const mockIntent = createMockIntent();
-
-      // Make the expiration validation fail
-      expirationValidation.validate.mockResolvedValue(false);
 
       await expect(strategy.validate(mockIntent)).rejects.toThrow(
-        'Validation failed: ExpirationValidation',
+        'RhinestoneFulfillmentStrategy.validate() not supported',
       );
-
-      // Verify validations were called in order until failure
-      expect(intentFundedValidation.validate).toHaveBeenCalledTimes(1);
-      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
-      expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
-      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(0); // Skipped
-      expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
-      expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
-
-      // Verify subsequent validations were still called (because validation runs all in parallel)
-      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
-      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
-      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
-      expect(standardFeeValidation.validate).toHaveBeenCalledTimes(1);
-    });
-
-    it('should propagate validation errors', async () => {
-      const mockIntent = createMockIntent();
-      const validationError = new Error('Smart account validation error');
-
-      chainSupportValidation.validate.mockRejectedValue(validationError);
-
-      await expect(strategy.validate(mockIntent)).rejects.toThrow(validationError.message);
-    });
-
-    it('should handle smart account specific scenarios', async () => {
-      const smartAccountIntent = createMockIntent({
-        route: {
-          calls: [
-            {
-              target: '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67' as any, // Safe Proxy Factory
-              data: '0x1688f0b9' as any, // createProxyWithNonce
-              value: BigInt(0),
-            },
-            {
-              target: '0x29fcB43b46531BcA003ddC8FCB67FFE91900C762' as any, // Module
-              data: '0xd4d9bdcd' as any, // execTransactionFromModule
-              value: BigInt(1000000000000000000),
-            },
-          ],
-        } as any,
-      });
-
-      const result = await strategy.validate(smartAccountIntent);
-      expect(result).toBe(true);
-
-      // RouteCallsValidation should not be invoked even for complex smart account operations
-      expect(routeCallsValidation.validate).toHaveBeenCalledTimes(0);
     });
   });
 
   describe('execute', () => {
-    it('should add intent to execution queue with correct parameters', async () => {
+    it('should throw error - not supported for Rhinestone (use executeAction instead)', async () => {
       const mockIntent = createMockIntent();
 
-      await strategy.execute(mockIntent);
+      await expect(strategy.execute(mockIntent)).rejects.toThrow(
+        'RhinestoneFulfillmentStrategy.execute() not supported',
+      );
+    });
+  });
 
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
-        strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
-        intent: mockIntent,
-        chainId: mockIntent.destination,
+  describe('validateAction', () => {
+    it('should validate all intents in the action', async () => {
+      const jobData = createMockActionJobData();
+
+      await strategy.validateAction(jobData);
+
+      // Each validation should be called once per intent (1 intent * 9 validations = 9 calls total)
+      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(1);
+      expect(routeTokenValidation.validate).toHaveBeenCalledTimes(1);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(1);
+      expect(expirationValidation.validate).toHaveBeenCalledTimes(1);
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(routeEnabledValidation.validate).toHaveBeenCalledTimes(1);
+      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(1);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(1);
+      expect(rhinestoneValidation.validate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should validate multiple intents in the action', async () => {
+      const intent1 = createMockIntent();
+      const intent2 = createMockIntent({
+        intentHash: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef0001' as Hex,
+      });
+      const intent3 = createMockIntent({
+        intentHash: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef0002' as Hex,
+      });
+
+      const jobData = createMockActionJobData({
+        claims: [
+          {
+            intent: intent1,
+            intentHash: intent1.intentHash,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+          },
+          {
+            intent: intent2,
+            intentHash: intent2.intentHash,
+            chainId: BigInt(42161),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+          },
+          {
+            intent: intent3,
+            intentHash: intent3.intentHash,
+            chainId: BigInt(137),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+          },
+        ],
+        fill: {
+          intents: [intent1, intent2, intent3],
+          chainId: BigInt(10),
+          transaction: {
+            to: '0x1234567890123456789012345678901234567890' as Address,
+            data: '0xfedcba' as Hex,
+            value: BigInt(0),
+          },
+          requiredApprovals: [],
+        },
+      });
+
+      await strategy.validateAction(jobData);
+
+      // Each validation should be called 3 times (once per intent)
+      expect(duplicateRewardTokensValidation.validate).toHaveBeenCalledTimes(3);
+      expect(routeTokenValidation.validate).toHaveBeenCalledTimes(3);
+      expect(routeAmountLimitValidation.validate).toHaveBeenCalledTimes(3);
+      expect(expirationValidation.validate).toHaveBeenCalledTimes(3);
+      expect(chainSupportValidation.validate).toHaveBeenCalledTimes(3);
+      expect(routeEnabledValidation.validate).toHaveBeenCalledTimes(3);
+      expect(proverSupportValidation.validate).toHaveBeenCalledTimes(3);
+      expect(executorBalanceValidation.validate).toHaveBeenCalledTimes(3);
+      expect(rhinestoneValidation.validate).toHaveBeenCalledTimes(3);
+    });
+
+    it('should throw ValidationError for unsupported settlement layer', async () => {
+      const jobData = createMockActionJobData({
+        claims: [
+          {
+            intent: createMockIntent(),
+            intentHash: '0x1234' as Hex,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+            metadata: {
+              settlementLayer: 'UNKNOWN',
+            },
+          },
+        ],
+      });
+
+      await expect(strategy.validateAction(jobData)).rejects.toThrow(
+        'Unsupported settlement layer: UNKNOWN',
+      );
+    });
+
+    it('should pass validation for ECO settlement layer', async () => {
+      const jobData = createMockActionJobData({
+        claims: [
+          {
+            intent: createMockIntent(),
+            intentHash: '0x1234' as Hex,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+            metadata: {
+              settlementLayer: 'ECO',
+            },
+          },
+        ],
+      });
+
+      await expect(strategy.validateAction(jobData)).resolves.not.toThrow();
+    });
+
+    it('should throw AggregatedValidationError when validation fails', async () => {
+      const jobData = createMockActionJobData();
+      const validationError = new Error('Expiration validation failed');
+      expirationValidation.validate.mockRejectedValue(validationError);
+
+      await expect(strategy.validateAction(jobData)).rejects.toThrow('Expiration validation');
+    });
+
+    it('should collect multiple validation failures', async () => {
+      const intent1 = createMockIntent();
+      const intent2 = createMockIntent({
+        intentHash: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef0001' as Hex,
+      });
+
+      const jobData = createMockActionJobData({
+        claims: [
+          {
+            intent: intent1,
+            intentHash: intent1.intentHash,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+          },
+          {
+            intent: intent2,
+            intentHash: intent2.intentHash,
+            chainId: BigInt(42161),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+          },
+        ],
+        fill: {
+          intents: [intent1, intent2],
+          chainId: BigInt(10),
+          transaction: {
+            to: '0x1234567890123456789012345678901234567890' as Address,
+            data: '0xfedcba' as Hex,
+            value: BigInt(0),
+          },
+          requiredApprovals: [],
+        },
+      });
+
+      // Make multiple validations fail
+      expirationValidation.validate.mockRejectedValue(new Error('Expired'));
+      chainSupportValidation.validate.mockRejectedValue(new Error('Chain not supported'));
+
+      await expect(strategy.validateAction(jobData)).rejects.toThrow();
+    });
+
+    it('should not include RouteCallsValidation', async () => {
+      const jobData = createMockActionJobData();
+
+      await strategy.validateAction(jobData);
+
+      // RouteCallsValidation should NOT be called
+      expect(routeCallsValidation.validate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('executeAction', () => {
+    it('should queue action to FlowProducer', async () => {
+      const mockIntent = createMockIntent();
+      const jobData = createMockActionJobData();
+
+      await strategy.executeAction(jobData);
+
+      expect(queueService.addRhinestoneMulticlaimFlow).toHaveBeenCalledWith({
+        messageId: 'test-message-id',
+        actionId: 'test-action-id',
+        claims: [
+          {
+            intentHash: mockIntent.intentHash,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1234567890123456789012345678901234567890' as Address,
+              data: '0xabcdef' as Hex,
+              value: BigInt(0),
+            },
+          },
+        ],
+        fill: jobData.fill,
         walletId: 'kernel',
       });
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(1);
+    });
+
+    it('should queue multiple claims in a single flow', async () => {
+      const intent1 = createMockIntent();
+      const intent2 = createMockIntent({
+        intentHash: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef0001' as Hex,
+      });
+
+      const jobData = createMockActionJobData({
+        claims: [
+          {
+            intent: intent1,
+            intentHash: intent1.intentHash,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1111111111111111111111111111111111111111' as Address,
+              data: '0x1111' as Hex,
+              value: BigInt(100),
+            },
+          },
+          {
+            intent: intent2,
+            intentHash: intent2.intentHash,
+            chainId: BigInt(42161),
+            transaction: {
+              to: '0x2222222222222222222222222222222222222222' as Address,
+              data: '0x2222' as Hex,
+              value: BigInt(200),
+            },
+          },
+        ],
+        fill: {
+          intents: [intent1, intent2],
+          chainId: BigInt(10),
+          transaction: {
+            to: '0x3333333333333333333333333333333333333333' as Address,
+            data: '0x3333' as Hex,
+            value: BigInt(0),
+          },
+          requiredApprovals: [
+            {
+              token: '0x4444444444444444444444444444444444444444' as Address,
+              amount: BigInt(1000000),
+            },
+          ],
+        },
+      });
+
+      await strategy.executeAction(jobData);
+
+      expect(queueService.addRhinestoneMulticlaimFlow).toHaveBeenCalledWith({
+        messageId: 'test-message-id',
+        actionId: 'test-action-id',
+        claims: [
+          {
+            intentHash: intent1.intentHash,
+            chainId: BigInt(10),
+            transaction: {
+              to: '0x1111111111111111111111111111111111111111' as Address,
+              data: '0x1111' as Hex,
+              value: BigInt(100),
+            },
+          },
+          {
+            intentHash: intent2.intentHash,
+            chainId: BigInt(42161),
+            transaction: {
+              to: '0x2222222222222222222222222222222222222222' as Address,
+              data: '0x2222' as Hex,
+              value: BigInt(200),
+            },
+          },
+        ],
+        fill: jobData.fill,
+        walletId: 'kernel',
+      });
     });
 
     it('should propagate queue service errors', async () => {
-      const mockIntent = createMockIntent();
+      const jobData = createMockActionJobData();
       const queueError = new Error('Queue service error');
 
-      queueService.addIntentToExecutionQueue.mockRejectedValue(queueError);
+      queueService.addRhinestoneMulticlaimFlow.mockRejectedValue(queueError);
 
-      await expect(strategy.execute(mockIntent)).rejects.toThrow(queueError);
-    });
-
-    it('should handle various smart account intent configurations', async () => {
-      const intents = [
-        // Safe transaction
-        createMockIntent({
-          route: {
-            calls: [
-              {
-                target: '0xSafeProxy' as any,
-                data: '0xexecTransaction' as any,
-                value: BigInt(0),
-              },
-            ],
-          } as any,
-        }),
-        // EIP-4337 UserOperation
-        createMockIntent({
-          route: {
-            calls: [
-              {
-                target: '0xEntryPoint' as any,
-                data: '0xhandleOps' as any,
-                value: BigInt(0),
-              },
-            ],
-          } as any,
-        }),
-        // Modular smart account
-        createMockIntent({
-          route: {
-            calls: [
-              {
-                target: '0xSmartAccount' as any,
-                data: '0xexecuteWithModule' as any,
-                value: BigInt(1000000000000000000),
-              },
-            ],
-          } as any,
-        }),
-      ];
-
-      for (const intent of intents) {
-        await strategy.execute(intent);
-      }
-
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
-      intents.forEach((intent, index) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
-          strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
-          intent,
-          chainId: intent.destination,
-          walletId: 'kernel',
-        });
-      });
-    });
-
-    it('should use EVM executor for all smart account operations', async () => {
-      // Rhinestone only supports EVM chains for smart accounts
-      const evmChainIntents = [
-        createMockIntent({ sourceChainId: BigInt(1), destination: BigInt(1) }), // Ethereum
-        createMockIntent({ sourceChainId: BigInt(137), destination: BigInt(137) }), // Polygon
-        createMockIntent({ sourceChainId: BigInt(10), destination: BigInt(42161) }), // Optimism to Arbitrum
-      ];
-
-      for (const intent of evmChainIntents) {
-        await strategy.execute(intent);
-      }
-
-      expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
-      // All should be queued for Rhinestone strategy which uses EVM executor
-      evmChainIntents.forEach((intent) => {
-        expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
-          strategy: FULFILLMENT_STRATEGY_NAMES.RHINESTONE,
-          intent,
-          chainId: intent.destination,
-          walletId: 'kernel',
-        });
-      });
+      await expect(strategy.executeAction(jobData)).rejects.toThrow(queueError);
     });
   });
 
@@ -592,7 +713,7 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       expect(Array.isArray(validations)).toBe(true);
-      expect(validations).toHaveLength(10); // One less than standard (which has 11)
+      expect(validations).toHaveLength(9); // Excludes IntentFundedValidation and RouteCallsValidation
       expect(Object.isFrozen(validations)).toBe(true);
     });
 
@@ -607,17 +728,17 @@ describe('RhinestoneFulfillmentStrategy', () => {
       const validations = (strategy as any).getValidations();
 
       // Check that validations are in the expected order
-      expect(validations[0]).toBe(intentFundedValidation);
-      expect(validations[1]).toBe(duplicateRewardTokensValidation);
-      expect(validations[2]).toBe(routeTokenValidation);
-      // RouteCallsValidation is intentionally skipped
-      expect(validations[3]).toBe(routeAmountLimitValidation);
-      expect(validations[4]).toBe(expirationValidation);
-      expect(validations[5]).toBe(chainSupportValidation);
-      expect(validations[6]).toBe(routeEnabledValidation);
-      expect(validations[7]).toBe(proverSupportValidation);
-      expect(validations[8]).toBe(executorBalanceValidation);
-      expect(validations[9]).toBe(standardFeeValidation);
+      // NOTE: IntentFundedValidation is excluded (Rhinestone solver funds via CLAIM phase)
+      // NOTE: RouteCallsValidation is excluded (smart accounts have custom patterns)
+      expect(validations[0]).toBe(duplicateRewardTokensValidation);
+      expect(validations[1]).toBe(routeTokenValidation);
+      expect(validations[2]).toBe(routeAmountLimitValidation);
+      expect(validations[3]).toBe(expirationValidation);
+      expect(validations[4]).toBe(chainSupportValidation);
+      expect(validations[5]).toBe(routeEnabledValidation);
+      expect(validations[6]).toBe(proverSupportValidation);
+      expect(validations[7]).toBe(executorBalanceValidation);
+      expect(validations[8]).toBe(rhinestoneValidation);
     });
   });
 });

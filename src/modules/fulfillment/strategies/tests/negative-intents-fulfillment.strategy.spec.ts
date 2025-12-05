@@ -480,6 +480,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       await strategy.execute(mockIntent);
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledWith({
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
         intent: mockIntent,
         chainId: mockIntent.destination,
@@ -552,6 +553,7 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(3);
       intents.forEach((intent, index) => {
         expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(index + 1, {
+          type: 'standard',
           strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
           intent,
           chainId: intent.destination,
@@ -582,12 +584,14 @@ describe('NegativeIntentsFulfillmentStrategy', () => {
 
       expect(queueService.addIntentToExecutionQueue).toHaveBeenCalledTimes(2);
       expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(1, {
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
         intent: evmIntent,
         chainId: evmIntent.destination,
         walletId: 'kernel',
       });
       expect(queueService.addIntentToExecutionQueue).toHaveBeenNthCalledWith(2, {
+        type: 'standard',
         strategy: FULFILLMENT_STRATEGY_NAMES.NEGATIVE_INTENTS,
         intent: svmIntent,
         chainId: svmIntent.destination,

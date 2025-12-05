@@ -61,10 +61,9 @@ export function replaceRelayerContext(routerCalldata: Hex, solverAddress: Addres
   // Reference: rhinestone-relayer/src/helpers/rebalancing.ts line 160-166
   const newRelayerContext = encodePacked(['address'], [solverAddress]);
 
-  // Replace the first relayerContext (index 0) with the solver's address
-  // This assumes we only have Eco adapter calls (which we validate in RhinestoneValidationService)
-  const newRelayerContexts = [...relayerContexts];
-  newRelayerContexts[0] = newRelayerContext;
+  // Replace ALL relayerContexts with the solver's address
+  // In multiclaim batched fills, there's one relayerContext per eco_handleFill call
+  const newRelayerContexts = relayerContexts.map(() => newRelayerContext);
 
   // Re-encode the router call with the new relayerContexts
   const newArgs = [...routerCall.args];
